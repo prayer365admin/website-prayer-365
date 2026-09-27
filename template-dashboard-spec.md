@@ -1,7 +1,6 @@
 # Catatia — Next.js Dashboard Template Spec
 
-> **Template Repo:** `git@github.com:Catalyst-Inertia/template-dashboard-nextjs.git`
-> **Last Updated:** April 2026
+> **Template Repo:** `git@github.com:Catalyst-Inertia/template-dashboard-nextjs.git` > **Last Updated:** April 2026
 >
 > This document is the **single source of truth** for all Next.js projects built on the Catatia dashboard template. Every new project must follow the conventions, structure, and patterns defined here.
 

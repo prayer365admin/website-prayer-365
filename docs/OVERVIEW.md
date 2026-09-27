@@ -8,13 +8,13 @@ This project contains both the **Next.js admin dashboard and the shared backend 
 
 ## Users and Access
 
-| Role | Main responsibility |
-| --- | --- |
-| PRAYER global administration | Manage the platform, churches, administrators, countries, languages, hierarchy, and permissions. |
-| Country administration | Oversee the assigned country within explicitly granted permissions. |
-| Diocese / Bishop | View aggregate activity for churches within the assigned diocese. |
-| Deanery / Dean | View aggregate activity for churches within the assigned deanery. |
-| Pastor / Church administrator | Manage content and authorized operations for assigned churches. |
+| Role                          | Main responsibility                                                                              |
+| ----------------------------- | ------------------------------------------------------------------------------------------------ |
+| PRAYER global administration  | Manage the platform, churches, administrators, countries, languages, hierarchy, and permissions. |
+| Country administration        | Oversee the assigned country within explicitly granted permissions.                              |
+| Diocese / Bishop              | View aggregate activity for churches within the assigned diocese.                                |
+| Deanery / Dean                | View aggregate activity for churches within the assigned deanery.                                |
+| Pastor / Church administrator | Manage content and authorized operations for assigned churches.                                  |
 
 The underlying structure is **Global → Country → Diocese → Deanery → Church → Pastor / Church administrator → User**. A church is an organizational unit, not a login role. Staff may be assigned to multiple churches.
 
@@ -22,33 +22,33 @@ Hierarchy does not automatically grant access to private prayer or pastoral requ
 
 ## Core Features
 
-| Area | Administration experience |
-| --- | --- |
-| Church overview | Followers, prayer publication status, upcoming services/events, recent authorized requests, donation activity, and basic engagement. |
-| Church profiles | Manage descriptions, images, pastors, addresses, contacts, languages, accessibility details, and service schedules. |
-| Prayer publishing | Create and edit prayers, assign pastors, approve text, generate and preview audio, schedule publication, and browse history. |
-| Events and announcements | Publish services, Bible studies, community events, news, and optional registration/contact links. |
-| Requests | View and manage prayer, pastoral-contact, and meeting requests with restricted access. |
-| Donations | View provider-reported transactions, recurring donations, and basic monthly reporting for assigned churches. |
-| Attendance and analytics | View voluntary check-in counts, registrations, active users, prayer reads/audio plays, event activity, and engagement trends. |
-| Central administration | Create, approve, suspend/archive churches; manage administrators, pastors, countries, languages, hierarchy, permissions, notifications, and voice profiles. |
-| Regional dashboards | Show aggregate church, user, engagement, attendance, and donation statistics within the administrator's assigned region. |
+| Area                     | Administration experience                                                                                                                                   |
+| ------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Church overview          | Followers, prayer publication status, upcoming services/events, recent authorized requests, donation activity, and basic engagement.                        |
+| Church profiles          | Manage descriptions, images, pastors, addresses, contacts, languages, accessibility details, and service schedules.                                         |
+| Prayer publishing        | Create and edit prayers, assign pastors, approve text, generate and preview audio, schedule publication, and browse history.                                |
+| Events and announcements | Publish services, Bible studies, community events, news, and optional registration/contact links.                                                           |
+| Requests                 | View and manage prayer, pastoral-contact, and meeting requests with restricted access.                                                                      |
+| Donations                | View provider-reported transactions, recurring donations, and basic monthly reporting for assigned churches.                                                |
+| Attendance and analytics | View voluntary check-in counts, registrations, active users, prayer reads/audio plays, event activity, and engagement trends.                               |
+| Central administration   | Create, approve, suspend/archive churches; manage administrators, pastors, countries, languages, hierarchy, permissions, notifications, and voice profiles. |
+| Regional dashboards      | Show aggregate church, user, engagement, attendance, and donation statistics within the administrator's assigned region.                                    |
 
 New churches require manual approval before public visibility. These features reflect the requested scope; any phased release or deferral must be agreed separately.
 
 ## Technology Stack
 
-| Component | Direction |
-| --- | --- |
-| Dashboard and shared API | Next.js + TypeScript within `prayer-admin-dashboard`. No separate NestJS application. |
-| Mobile client | React Native + TypeScript in the sibling `prayer-mobile-app` project. |
-| Database | PostgreSQL for church relationships, permissions, content, requests, and reporting data. |
-| Hosting and files | AWS; S3 for images and prayer audio. Exact deployment services remain to be selected. |
-| AI voice | ElevenLabs Instant Voice Cloning and Text-to-Speech APIs using one PRAYER-owned account; subject to voice/language and verification-path trials. |
-| Donations | Stripe / Stripe Connect, subject to launch-country and church-account availability. |
-| Maps | Google Maps for church location features. |
-| Push notifications | Firebase Cloud Messaging and Apple Push Notification Service. |
-| Background jobs and email | Required for generation, scheduled publishing, notifications, and transactional email; tooling/providers remain to be selected. |
+| Component                 | Direction                                                                                                                                        |
+| ------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Dashboard and shared API  | Next.js + TypeScript within `prayer-admin-dashboard`. No separate NestJS application.                                                            |
+| Mobile client             | React Native + TypeScript in the sibling `prayer-mobile-app` project.                                                                            |
+| Database                  | PostgreSQL for church relationships, permissions, content, requests, and reporting data.                                                         |
+| Hosting and files         | AWS; S3 for images and prayer audio. Exact deployment services remain to be selected.                                                            |
+| AI voice                  | ElevenLabs Instant Voice Cloning and Text-to-Speech APIs using one PRAYER-owned account; subject to voice/language and verification-path trials. |
+| Donations                 | Stripe / Stripe Connect, subject to launch-country and church-account availability.                                                              |
+| Maps                      | Google Maps for church location features.                                                                                                        |
+| Push notifications        | Firebase Cloud Messaging and Apple Push Notification Service.                                                                                    |
+| Background jobs and email | Required for generation, scheduled publishing, notifications, and transactional email; tooling/providers remain to be selected.                  |
 
 Next.js and TypeScript are agreed directions. Service choices remain subject to account setup and integration validation. Authentication implementation and database tooling still need selection.
 

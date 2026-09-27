@@ -3,7 +3,7 @@
 import dynamic from 'next/dynamic'
 import { AnimatePresence, motion } from 'framer-motion'
 
-const Lottie = dynamic(() => import('lottie-react'), { ssr: false })
+const Lottie = dynamic(() => import('lottie-react').then((m) => m.Lottie), { ssr: false })
 import animationData from '@/animation/splash-screen.json'
 import { useEffect, useState } from 'react'
 
@@ -32,7 +32,7 @@ export default function SplashScreen() {
             exit={{ opacity: 0 }}
             transition={{ duration: 0.3 }}
           >
-            <Lottie animationData={animationData} className=" w-[350px]" loop={true} />
+            <Lottie src={animationData} className=" w-[350px]" loop />
           </motion.div>
         )}
       </AnimatePresence>

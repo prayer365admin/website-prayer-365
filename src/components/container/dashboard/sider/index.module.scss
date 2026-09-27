@@ -1,28 +1,24 @@
-@import '/src/styles/variables';
+@import '../../../../styles/variables';
 
 .sidebar {
-  :global {
-    .ant-layout-sider-trigger {
-      background: $black_color !important;
-    }
+  :global(.ant-layout-sider-trigger) {
+    background: $black_color !important;
   }
 }
 
 .menu {
   background: $black_color !important;
-  :global {
-    .ant-menu-item {
-      transition: all 0.3s ease;
-    }
-    .ant-menu-submenu-title {
-      color: $white_color !important;
-    }
-    .ant-menu-item-active {
-      background: $second_color !important ;
-    }
-    .ant-menu-item-selected {
-      background: $second_color !important ;
-    }
+  :global(.ant-menu-item) {
+    transition: all 0.3s ease;
+  }
+  :global(.ant-menu-submenu-title) {
+    color: $white_color !important;
+  }
+  :global(.ant-menu-item-active) {
+    background: $second_color !important;
+  }
+  :global(.ant-menu-item-selected) {
+    background: $second_color !important;
   }
 
   li {

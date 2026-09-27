@@ -124,7 +124,6 @@ export default function UploadBox(props: {
                 <Image
                   src={upload.url}
                   alt="upload-image"
-                  wrapperClassName="rounded-[20px]"
                   className={`rounded-[20px]`}
                   style={{ width: width, height: height, objectFit: 'cover' }}
                   preview={false}
@@ -132,7 +131,7 @@ export default function UploadBox(props: {
               )}
               {extensionChecker(upload.url) === 'VIDEO' && (
                 <div className="mb-2 rounded-[20px]">
-                  <ReactPlayer url={upload.url} playing loop muted={true} />
+                  <ReactPlayer src={upload.url ?? undefined} playing loop muted />
                 </div>
               )}
               <div>

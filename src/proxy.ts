@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { CORS_HEADERS, CORS_METHODS, resolveCorsHeaders } from '@/utils/cors'
 
-export function middleware(req: NextRequest) {
+export function proxy(req: NextRequest) {
   const cors = resolveCorsHeaders(req.headers.get('origin'))
 
   if (req.method === 'OPTIONS') {

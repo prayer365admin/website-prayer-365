@@ -32,7 +32,7 @@ export default function ContainerPageHeaderMobile() {
           className={`fixed w-full top-0 z-50 transition-[background] ${withBackground ? 'bg-black_color drop-shadow-lg' : 'bg-transparent'} min-h-[80px] flex items-center`}
           initial={{ y: 0 }}
           animate={{ y: isVisible ? 0 : -100 }}
-          transition={{ duration: 0.3, bounce: false }}
+          transition={{ duration: 0.3, bounce: 0 }}
         >
           <BoxContainer sectionClassName="w-full">
             <div className="flex flex-wrap justify-between items-center min-h-[85px]">
@@ -65,7 +65,7 @@ export default function ContainerPageHeaderMobile() {
               initial={{ x: 400 }}
               animate={{ x: 0 }}
               exit={{ x: 400 }}
-              transition={{ duration: 0.3, bounce: true }}
+              transition={{ duration: 0.3, bounce: 1 }}
               className={`w-screen h-screen right-0 relative z-10 flex flex-wrap items-between px-[25px] ${s.slider}`}
             >
               <div className="w-full z-10 flex flex-wrap">

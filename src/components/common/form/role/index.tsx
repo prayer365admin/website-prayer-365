@@ -55,7 +55,7 @@ export default function FormRole({
 
         {initialValues && groupPermissionData && (
           <>
-            <Divider orientation="left">Role Access Control</Divider>
+            <Divider titlePlacement="start">Role Access Control</Divider>
             <Form form={permissionForm}>
               <div className="grid grid-cols-3 gap-10">
                 {groupPermissionData.map((permission, index) => {

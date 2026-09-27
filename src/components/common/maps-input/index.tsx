@@ -1,5 +1,5 @@
 import { Button, Form, Input } from 'antd'
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 
 export default function MapsInput({
   name,
@@ -10,11 +10,13 @@ export default function MapsInput({
   label: string
   initialValue?: string | undefined | null
 }) {
-  const [value, setValue] = useState<string>('')
+  const [value, setValue] = useState<string>(initialValue ?? '')
+  const [prevInitial, setPrevInitial] = useState(initialValue)
 
-  useEffect(() => {
+  if (initialValue !== prevInitial) {
+    setPrevInitial(initialValue)
     if (initialValue) setValue(initialValue)
-  }, [initialValue])
+  }
 
   return (
     <Form.Item name={name} label={label}>
