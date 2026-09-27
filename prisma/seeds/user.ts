@@ -24,7 +24,7 @@ const END_USERS = [
 
 // Administrator (all access) — seeded early; domain seeds reference it as actor.
 export const seedAdminUser = async () => {
-  return db.user.upsert({
+  const admin = await db.user.upsert({
     where: { email: 'admin@catatia.com' },
     update: { ...verifiedSeedUser },
     create: {
@@ -35,6 +35,37 @@ export const seedAdminUser = async () => {
       role: { connect: { name: 'administrator' } },
     },
   })
+
+  // The admin must ALSO hold a GLOBAL role_assignment — the scope guard reads
+  // ONLY role_assignments (legacy role_id is ignored for authorization), so an
+  // all-access admin without an assignment resolves to an EMPTY scope and
+  // every list endpoint (churches, central, etc.) returns nothing.
+  const globalNode = await db.orgNode.findFirst({ where: { kind: 'GLOBAL' } })
+  if (globalNode) {
+    const roleRow = await db.role.findUnique({ where: { name: 'administrator' } })
+    if (roleRow) {
+      const existing = await db.roleAssignment.findFirst({
+        where: {
+          user_id: admin.id,
+          role_id: roleRow.id,
+          org_node_id: globalNode.id,
+          revoked_at: null,
+        },
+      })
+      if (!existing) {
+        await db.roleAssignment.create({
+          data: {
+            user_id: admin.id,
+            role_id: roleRow.id,
+            org_node_id: globalNode.id,
+            granted_by: admin.id,
+          },
+        })
+      }
+    }
+  }
+
+  return admin
 }
 
 // Prayer test accounts + end-users. Runs after org hierarchy + admin exist.

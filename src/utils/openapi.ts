@@ -49,6 +49,16 @@ const hasOpenApi = (s: unknown) =>
   typeof (s as { openapi?: unknown } | null)?.openapi === 'function'
 
 /**
+ * OpenAPI path templating uses `{param}`, but route modules declare Next.js
+ * style `:param`. Convert `:name` (not `::`) to `{name}` so Swagger UI can map
+ * path parameters and substitute real ids — otherwise the spec publishes
+ * `/admin/churches/:churchId/overview`, which Swagger cannot fill and the Try
+ * it out call hits a placeholder id → backend 404 RESOURCE_NOT_FOUND.
+ */
+export const toOpenApiPath = (path: string) =>
+  path.replace(/(^|[^:]):([A-Za-z_][A-Za-z0-9_]*)/g, '$1{$2}')
+
+/**
  * RefIds become `#/components/schemas/<refId>` which JSON Pointer resolves by
  * splitting on `/`. Path braces/colons/slashes would break that, so refIds are
  * sanitized to `[A-Za-z0-9._-]` only.
@@ -67,13 +77,14 @@ const openApiSafe = (schema: z.ZodType): z.ZodType => {
 }
 
 export const registerPath = ({
-  path,
+  path: rawPath,
   method,
   auth = true,
   summary,
   request,
   responses,
 }: RegisterPathArgs) => {
+  const path = toOpenApiPath(rawPath)
   const opts = {
     path,
     method,
