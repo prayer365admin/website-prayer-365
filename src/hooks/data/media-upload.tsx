@@ -3,68 +3,95 @@ import { notification } from 'antd'
 import axios from 'axios'
 import { useCallback } from 'react'
 
-const url = '/api/v1/uploads'
+/*
+ * Single GLOBAL upload API (SPEC §10.4). Entity context (churchId + purpose)
+ * is passed to the hook and carried in the request body — one /api/v1/uploads
+ * endpoint for every entity, no per-entity upload routes.
+ *
+ * Flow:
+ *  1. POST /api/v1/uploads { churchId, purpose, mimeType, byteSize }
+ *     → { assetId, objectKey, uploadUrl, fields, expiresIn }
+ *  2. POST the file directly to `uploadUrl` with `fields` (presigned S3 post).
+ *  3. POST /api/v1/uploads/:assetId/complete { churchId, checksum } → READY.
+ *
+ * Browser admin is same-origin → NextAuth cookie is sent automatically, so no
+ * manual Authorization header is needed here.
+ */
 
-export const useMediaUpload = () => {
+const sha256hex = async (data: ArrayBuffer): Promise<string> => {
+  const digest = await crypto.subtle.digest('SHA-256', data)
+  return Array.from(new Uint8Array(digest))
+    .map((b) => b.toString(16).padStart(2, '0'))
+    .join('')
+}
+
+export const useMediaUpload = ({
+  churchId,
+  purpose,
+}: {
+  churchId: string
+  purpose: 'IMAGE' | 'VOICE_SAMPLE' | 'CONSENT_EVIDENCE'
+}) => {
   const { mutateAsync: onUpload, isPending: loading } = useMutation({
-    mutationFn: useCallback(async (file: File | null) => {
-      if (!file) {
-        throw new Error('Please select a file to upload.')
-      }
+    mutationFn: useCallback(
+      async (file: File | null) => {
+        if (!file) {
+          throw new Error('Please select a file to upload.')
+        }
 
-      const filename = file.name
-      const filetype = file.type
-
-      const response = await axios.post(`${url}`, { filename, filetype })
-
-      const formData = new FormData()
-      Object.entries(response.data.fields).forEach(([key, value]) => {
-        formData.append(key, value as string)
-      })
-      formData.append('file', file)
-
-      const uploadResponse = await fetch(response.data.url, {
-        method: 'POST',
-        body: formData,
-      })
-      const errorText = await uploadResponse.text()
-
-      if (!uploadResponse.ok) {
-        notification.error({
-          message: 'Upload Failed',
-          description: errorText,
+        const initiate = await axios.post('/api/v1/uploads', {
+          churchId,
+          purpose,
+          mimeType: file.type || 'application/octet-stream',
+          byteSize: file.size,
         })
-      }
 
-      if (response.status !== 200) {
-        throw new Error('Failed to upload file.')
-      }
+        const { assetId, uploadUrl, fields } = initiate.data.result
 
-      return `${response.data.url}${response.data.key}`
-    }, []),
-    onSuccess: (_data) => {
+        const formData = new FormData()
+        Object.entries(fields).forEach(([key, value]) => {
+          formData.append(key, String(value))
+        })
+        formData.append('file', file)
+
+        const uploadResponse = await fetch(uploadUrl, { method: 'POST', body: formData })
+        if (!uploadResponse.ok) {
+          const errorText = await uploadResponse.text()
+          notification.error({ message: 'Upload Failed', description: errorText })
+          throw new Error('Failed to upload file to storage.')
+        }
+
+        // Complete: verify object size/content-type server-side + checksum → READY.
+        const checksum = await sha256hex(await file.arrayBuffer())
+        await axios.post(`/api/v1/uploads/${assetId}/complete`, { churchId, checksum })
+
+        return {
+          assetId,
+          url: `/api/v1/uploads/${assetId}/access?churchId=${encodeURIComponent(churchId)}`,
+        }
+      },
+      [churchId, purpose],
+    ),
+    onSuccess: () => {
       notification.success({
         message: 'Upload Successful',
-        description: 'The file has been successfully uploaded.',
+        description: 'The file has been uploaded.',
       })
     },
     onError: (error: unknown) => {
       if (axios.isAxiosError(error)) {
         notification.error({
           message: 'Upload Failed',
-          description: error.response?.data?.message || 'Failed to upload file.',
+          description:
+            error.response?.data?.details ||
+            error.response?.data?.message ||
+            'Failed to upload file.',
         })
       } else {
-        notification.error({
-          message: 'Upload Failed',
-          description: 'Failed to upload file.',
-        })
+        notification.error({ message: 'Upload Failed', description: 'Failed to upload file.' })
       }
     },
   })
 
-  return {
-    onUpload,
-    loading: loading,
-  }
+  return { onUpload, loading }
 }

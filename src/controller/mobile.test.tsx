@@ -1,0 +1,257 @@
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+
+vi.mock('@/providers/mobile', () => ({
+  CREATE_ANALYTICS_EVENTS: vi.fn(),
+  CREATE_CHECKIN: vi.fn(),
+  CREATE_USER_REQUEST: vi.fn(),
+  GET_HOME: vi.fn(),
+  GET_ME_PROFILE: vi.fn(),
+  GET_PUBLIC_CHURCH: vi.fn(),
+  GET_PUBLISHED_PRAYER: vi.fn(),
+  LIST_MY_CHURCHES: vi.fn(),
+  LIST_PUBLIC_ANNOUNCEMENTS: vi.fn(),
+  LIST_PUBLIC_CHURCHES: vi.fn(),
+  LIST_PUBLIC_EVENTS: vi.fn(),
+  LIST_PUBLISHED_PRAYERS: vi.fn(),
+  SET_FOLLOW: vi.fn(),
+  UPDATE_ME_PROFILE: vi.fn(),
+}))
+vi.mock('@/utils/idempotency', () => ({ withIdempotency: vi.fn() }))
+
+import {
+  CREATE_ANALYTICS_EVENTS,
+  CREATE_CHECKIN,
+  CREATE_USER_REQUEST,
+  GET_ME_PROFILE,
+  GET_PUBLIC_CHURCH,
+  GET_PUBLISHED_PRAYER,
+  LIST_PUBLISHED_PRAYERS,
+  SET_FOLLOW,
+  UPDATE_ME_PROFILE,
+} from '@/providers/mobile'
+import { withIdempotency } from '@/utils/idempotency'
+import {
+  checkIn,
+  getMe,
+  getPublicChurch,
+  getPublishedPrayer,
+  listPublishedPrayers,
+  patchMe,
+  recordAnalyticsEvents,
+  setFollow,
+  submitRequest,
+} from './mobile'
+
+const CHURCH = {
+  id: 'c1',
+  name: 'Grace',
+  denomination: null,
+  description: 'x',
+  timezone: 'UTC',
+  address: {},
+  coordinates: null,
+  contacts: {},
+  website: null,
+  socialLinks: [],
+  accessibility: null,
+  coverAssetId: null,
+  languageCodes: [],
+  serviceTimes: [],
+  distanceKm: null,
+}
+
+beforeEach(() => vi.clearAllMocks())
+
+describe('Task 39 / discovery — approved church gating', () => {
+  it('getPublicChurch returns the public profile for an approved church', async () => {
+    vi.mocked(GET_PUBLIC_CHURCH).mockResolvedValue(CHURCH as never)
+    const res = await getPublicChurch({ churchId: 'c1', query: {} as never })
+    expect(res.id).toBe('c1')
+    // public profile must never carry private fields
+    expect(res).not.toHaveProperty('approved_by')
+    expect(res).not.toHaveProperty('approved_at')
+    expect(res).not.toHaveProperty('status')
+  })
+
+  it('getPublicChurch hides an unapproved/suspended church as 404', async () => {
+    vi.mocked(GET_PUBLIC_CHURCH).mockResolvedValue(null as never)
+    await expect(
+      getPublicChurch({ churchId: 'c-suspended', query: {} as never }),
+    ).rejects.toMatchObject({
+      code: 404,
+    })
+  })
+
+  it('listPublishedPrayers rejects a not-approved church with 404 (no leak)', async () => {
+    vi.mocked(GET_PUBLIC_CHURCH).mockResolvedValue(null as never)
+    await expect(
+      listPublishedPrayers({ churchId: 'c-pending', query: {} as never }),
+    ).rejects.toMatchObject({ code: 404 })
+    expect(LIST_PUBLISHED_PRAYERS).not.toHaveBeenCalled()
+  })
+})
+
+describe('Task 41 / published prayer — draft not served', () => {
+  it('getPublishedPrayer returns published prayer with approved audio snapshot', async () => {
+    vi.mocked(GET_PUBLISHED_PRAYER).mockResolvedValue({
+      id: 'p1',
+      churchId: 'c1',
+      publishedAt: '2026-01-01T00:00:00Z',
+      version: {
+        prayerVersionId: 'v9',
+        versionNumber: 9,
+        pastorId: 'pa',
+        title: 'T',
+        introduction: null,
+        body: 'B',
+        languageCode: 'en',
+      },
+      audio: {
+        prayerAudioId: 'a1',
+        assetId: 'm1',
+        assetKey: 'audio/1.mp3',
+        approvedAt: '2026-01-01T00:00:00Z',
+      },
+    } as never)
+    const res = await getPublishedPrayer({ prayerId: 'p1' })
+    expect(res.version.versionNumber).toBe(9)
+    expect(res.audio?.assetKey).toBe('audio/1.mp3')
+  })
+
+  it('getPublishedPrayer throws 404 for a draft/unpublished prayer', async () => {
+    vi.mocked(GET_PUBLISHED_PRAYER).mockResolvedValue(null as never)
+    await expect(getPublishedPrayer({ prayerId: 'draft' })).rejects.toMatchObject({ code: 404 })
+  })
+})
+
+describe('Task 40 / me — subject only, single main church', () => {
+  it('getMe throws 404 when the user is missing', async () => {
+    vi.mocked(GET_ME_PROFILE).mockResolvedValue(null as never)
+    await expect(getMe({ userId: 'u1' })).rejects.toMatchObject({ code: 404 })
+  })
+
+  it('patchMe sets ONE main church transactionally (clears others)', async () => {
+    vi.mocked(GET_ME_PROFILE).mockResolvedValue({
+      id: 'u1',
+      email: 'a@b.c',
+      name: 'A',
+      locale: null,
+      profilePicture: null,
+      mainChurchId: 'c1',
+      mainChurchName: 'Grace',
+    } as never)
+    const res = await patchMe({ userId: 'u1', data: { mainChurchId: 'c2' } })
+    expect(UPDATE_ME_PROFILE).toHaveBeenCalledWith(
+      expect.objectContaining({ userId: 'u1', mainChurchId: 'c2' }),
+    )
+    expect(res.mainChurchId).toBe('c2')
+  })
+
+  it('setFollow rejects a non-approved church as 404', async () => {
+    vi.mocked(SET_FOLLOW).mockResolvedValue(null as never)
+    await expect(
+      setFollow({ userId: 'u1', churchId: 'c-archived', isFollowed: true }),
+    ).rejects.toMatchObject({ code: 404 })
+  })
+})
+
+describe('Task 43 / requests — idempotent ack', () => {
+  it('requires subject for a prayer request', async () => {
+    vi.mocked(GET_PUBLIC_CHURCH).mockResolvedValue(CHURCH as never)
+    await expect(
+      submitRequest({
+        userId: 'u1',
+        churchId: 'c1',
+        input: { kind: 'prayer', message: 'hi', contactMethod: 'in_app' },
+        idempotencyKey: 'k1',
+        requestId: 'r',
+      }),
+    ).rejects.toMatchObject({ code: 422, error_code: 'SUBJECT_REQUIRED' })
+    expect(withIdempotency).not.toHaveBeenCalled()
+  })
+
+  it('acknowledges once and replays the same id on idempotent re-submit', async () => {
+    vi.mocked(GET_PUBLIC_CHURCH).mockResolvedValue(CHURCH as never)
+    vi.mocked(CREATE_USER_REQUEST).mockResolvedValue({
+      id: 'req-1',
+      kind: 'pastoral',
+      createdAt: '2026-01-01T00:00:00Z',
+    } as never)
+    vi.mocked(withIdempotency).mockImplementation(async ({ run }) => {
+      await run({} as never)
+      return { fresh: true, resource_id: 'req-1' }
+    })
+    const first = await submitRequest({
+      userId: 'u1',
+      churchId: 'c1',
+      input: { kind: 'pastoral', message: 'hi', contactMethod: 'in_app' },
+      idempotencyKey: 'k1',
+      requestId: 'r',
+    })
+    expect(first.id).toBe('req-1')
+    expect(withIdempotency).toHaveBeenCalledWith(
+      expect.objectContaining({ operation: 'request.submit', key: 'k1' }),
+    )
+  })
+
+  it('is idempotent across replays with the same key', async () => {
+    vi.mocked(GET_PUBLIC_CHURCH).mockResolvedValue(CHURCH as never)
+    vi.mocked(withIdempotency).mockImplementation(async ({ run }) => {
+      await run({} as never)
+      return { fresh: false, resource_id: 'req-1' }
+    })
+    const res = await submitRequest({
+      userId: 'u1',
+      churchId: 'c1',
+      input: { kind: 'meeting', message: 'hi', contactMethod: 'in_app' },
+      idempotencyKey: 'k1',
+      requestId: 'r',
+    })
+    expect(res.id).toBe('req-1')
+  })
+})
+
+describe('Task 43 / check-in — idempotent ack', () => {
+  it('runs the check-in inside withIdempotency', async () => {
+    vi.mocked(withIdempotency).mockImplementation(async ({ run }) => {
+      const id = await run({} as never)
+      return { fresh: true, resource_id: id }
+    })
+    vi.mocked(CREATE_CHECKIN).mockResolvedValue({
+      id: 'ck-1',
+      churchId: 'c1',
+      occurredAt: '2026-01-01T00:00:00Z',
+      localDate: '2026-01-01',
+    } as never)
+    const res = await checkIn({
+      userId: 'u1',
+      churchId: 'c1',
+      idempotencyKey: 'k1',
+      requestId: 'r',
+    })
+    expect(CREATE_CHECKIN).toHaveBeenCalledWith(
+      expect.objectContaining({ churchId: 'c1', userId: 'u1' }),
+    )
+    expect(withIdempotency).toHaveBeenCalledWith(
+      expect.objectContaining({ operation: 'checkin.create', key: 'k1' }),
+    )
+    expect(res.localDate).toBe('2026-01-01')
+  })
+})
+
+describe('Task 43 / analytics — bounded, allowlisted at route', () => {
+  it('records allowlisted events', async () => {
+    vi.mocked(CREATE_ANALYTICS_EVENTS).mockResolvedValue({ accepted: 2 } as never)
+    const res = await recordAnalyticsEvents({
+      userId: 'u1',
+      input: {
+        events: [
+          { eventType: 'app_open', occurredAt: '2026-01-01T00:00:00Z' },
+          { eventType: 'prayer_listen', occurredAt: '2026-01-01T00:00:01Z' },
+        ],
+      },
+      requestId: 'r',
+    })
+    expect(res.accepted).toBe(2)
+  })
+})

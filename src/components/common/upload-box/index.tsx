@@ -2,7 +2,17 @@ import { useMediaUpload } from '@/hooks/data/media-upload'
 import { toCapitalized } from '@/utils/capitalized'
 import { extensionChecker } from '@/utils/extension-checker'
 import { LoadingOutlined, PlusOutlined } from '@ant-design/icons'
-import { Button, Col, Form, GetProp, Image, Upload, UploadFile, UploadProps } from 'antd'
+import {
+  Button,
+  Col,
+  Form,
+  GetProp,
+  Image,
+  notification,
+  Upload,
+  UploadFile,
+  UploadProps,
+} from 'antd'
 import { Rule } from 'antd/es/form'
 import { Dispatch, SetStateAction, useEffect, useState } from 'react'
 import ReactPlayer from 'react-player'
@@ -20,6 +30,9 @@ export default function UploadBox(props: {
   upload: { url: string | null }
   setUpload: Dispatch<SetStateAction<{ url: string | null }>>
   onUploadData?: (url: string) => Promise<void>
+  /** Entity context for the global upload API (SPEC §10.4). Pass when available. */
+  churchId?: string
+  purpose?: 'IMAGE' | 'VOICE_SAMPLE' | 'CONSENT_EVIDENCE'
 }) {
   const {
     formName = 'file',
@@ -31,14 +44,23 @@ export default function UploadBox(props: {
     upload,
     setUpload,
     onUploadData,
+    churchId = '',
+    purpose = 'IMAGE',
   } = props
 
   const [fileList, setFileList] = useState<UploadProps['fileList']>([])
-  const { loading: uploadLoading, onUpload } = useMediaUpload()
+  const { loading: uploadLoading, onUpload } = useMediaUpload({ churchId, purpose })
   const handleUpload: UploadProps['customRequest'] = async ({ file, onSuccess }) => {
+    if (!churchId) {
+      notification.error({
+        message: 'Upload Failed',
+        description: 'A church context is required to upload; pass churchId to UploadBox.',
+      })
+      return
+    }
     const result = await onUpload(file as FileType)
     if (result) {
-      const url = result
+      const url = result.url
       if (url) {
         setUpload({ url: url })
         if (onSuccess) {
