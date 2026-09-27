@@ -14,58 +14,11 @@ generator dbml {
 
 datasource db {
   provider = "postgresql"
-  url      = env("DATABASE_URL")
 }
 
-model User {
-  id                String    @id @default(uuid())
-  email             String    @unique
-  name              String
-  password          String?
-  email_verified_at DateTime?
-  profile_picture   String?
-
-  role_id String
-  role    Role   @relation(fields: [role_id], references: [id], name: "user_role", onDelete: Cascade, onUpdate: Cascade)
-
-  auth_token AuthToken[] @relation("user_auth_token")
-
-  created_at DateTime  @default(now())
-  updated_at DateTime? @updatedAt
-  deleted_at DateTime?
-
-  @@map("user")
-}
-
-model Role {
-  id   String   @id @default(uuid())
-  name String   @unique
-  type RoleType @default(USER)
-
-  user       User[]       @relation(name: "user_role")
-  permission Permission[] @relation(name: "role_permission")
-
-  created_at DateTime  @default(now())
-  updated_at DateTime? @updatedAt
-  deleted_at DateTime?
-
-  @@map("role")
-}
-
-model Permission {
-  id      String          @id @default(uuid())
-  subject String
-  scope   PermissionScope
-  actions String
-
-  role Role[] @relation(name: "role_permission")
-
-  created_at DateTime  @default(now())
-  updated_at DateTime? @updatedAt
-  deleted_at DateTime?
-
-  @@map("permission")
-}
+// ============================================================================
+// Enums
+// ============================================================================
 
 enum PermissionScope {
   ANY
@@ -77,8 +30,182 @@ enum RoleType {
   USER
 }
 
+enum AuthTokenType {
+  EMAIL_VERIFICATION
+  PASSWORD_RESET
+}
+
+enum OrgNodeKind {
+  GLOBAL
+  COUNTRY
+  DIOCESE
+  DEANERY
+  CHURCH
+}
+
+enum ChurchStatus {
+  PENDING
+  APPROVED
+  SUSPENDED
+  ARCHIVED
+}
+
+enum ReviewState {
+  DRAFT
+  SUBMITTED
+  APPROVED
+  REJECTED
+}
+
+enum RegistrationState {
+  UNREGISTERED
+  QUEUED
+  REGISTERING
+  VERIFICATION_REQUIRED
+  READY
+  FAILED
+  REGISTRATION_UNKNOWN
+  DISABLED
+}
+
+enum AudioStatus {
+  QUEUED
+  GENERATING
+  READY
+  APPROVED
+  FAILED
+}
+
+enum MediaPurpose {
+  IMAGE
+  VOICE_SAMPLE
+  CONSENT_EVIDENCE
+  GENERATED_AUDIO
+}
+
+enum MediaStatus {
+  PENDING
+  READY
+  REJECTED
+}
+
+enum RequestKind {
+  PRAYER
+  PASTORAL
+  MEETING
+}
+
+enum RequestClassification {
+  PRIVATE
+  STANDARD
+}
+
+enum EventCategory {
+  SERVICE
+  SPECIAL
+  BIBLE_STUDY
+  COMMUNITY
+  OTHER
+}
+
+enum JobState {
+  PENDING
+  RUNNING
+  SUCCEEDED
+  FAILED
+}
+
+// ============================================================================
+// Identity and Access (template baseline + Prayer extensions)
+// ============================================================================
+
+model User {
+  id                String    @id @default(uuid(7))
+  email             String    @unique
+  name              String
+  password          String?
+  email_verified_at DateTime?
+  profile_picture   String?
+  auth_version      Int       @default(1)
+  status            String    @default("active")
+  version           Int       @default(1)
+
+  // OPTIONAL legacy single-role ref (migration-era; assignments supersede it).
+  role_id String?
+  role    Role?  @relation(fields: [role_id], references: [id], name: "user_role", onDelete: Cascade, onUpdate: Cascade)
+
+  locale          String?   @db.Char(10)
+  locale_language Language? @relation(fields: [locale], references: [code])
+
+  auth_token AuthToken[] @relation("user_auth_token")
+
+  // Mind/Added Prayer relations
+  roleAssignments   RoleAssignment[]      @relation("GrantedTo")
+  grantedAssignments RoleAssignment[]     @relation("GrantedBy")
+  approvedChurches  Church[]              @relation("ChurchApprovedBy")
+  prayerCreations   Prayer[]              @relation("PrayerCreator")
+  versionApprovals  PrayerVersion[]       @relation("VersionApprovedBy")
+  voiceSubmissions  VoiceProfile[]        @relation("VoiceSubmittedBy")
+  voiceReviews      VoiceProfile[]        @relation("VoiceReviewedBy")
+  consentsRecorded  Consent[]             @relation("ConsentRecordedBy")
+  consents          Consent[]             @relation("ConsentSubject")
+  audioApprovals    PrayerAudio[]         @relation("AudioApprovedBy")
+  mediaUploads      MediaAsset[]          @relation("MediaUploadedBy")
+  userChurches      UserChurch[]
+  pastors           Pastor[]
+  requests          Request[]
+  donations         Donation[]
+  donationSubscriptions DonationSubscription[]
+  checkIns          CheckIn[]
+  analyticsEvents   AnalyticsEvent[]
+  deviceTokens      DeviceToken[]
+  notificationPreferences NotificationPreference[]
+  notificationDeliveries NotificationDelivery[]
+  privacyJobs       PrivacyJob[]
+  auditLogs         AuditLog[]
+
+  created_at DateTime  @default(now())
+  updated_at DateTime? @updatedAt
+  deleted_at DateTime?
+
+  @@map("user")
+}
+
+model Role {
+  id   String   @id @default(uuid(7))
+  name String   @unique
+  type RoleType @default(USER)
+  version Int   @default(1)
+
+  user       User[]       @relation(name: "user_role")
+  permission Permission[] @relation(name: "role_permission")
+  assignments RoleAssignment[]
+
+  created_at DateTime  @default(now())
+  updated_at DateTime? @updatedAt
+  deleted_at DateTime?
+
+  @@map("role")
+}
+
+model Permission {
+  id      String          @id @default(uuid(7))
+  subject String
+  scope   PermissionScope
+  actions String
+
+  role Role[] @relation(name: "role_permission")
+
+  created_at DateTime  @default(now())
+  updated_at DateTime? @updatedAt
+  deleted_at DateTime?
+
+  @@unique([subject, actions, scope])
+  @@map("permission")
+}
+
 model AuthToken {
-  id         String        @id @default(uuid())
+  id         String        @id @default(uuid(7))
   user_id    String
   user       User          @relation(fields: [user_id], references: [id], name: "user_auth_token", onDelete: Cascade)
   token      String        @unique
@@ -90,7 +217,633 @@ model AuthToken {
   @@map("auth_token")
 }
 
-enum AuthTokenType {
-  EMAIL_VERIFICATION
-  PASSWORD_RESET
+model Country {
+  code    String  @id @db.Char(2)
+  name    String
+  enabled Boolean @default(true)
+
+  orgNode OrgNode?
+
+  @@map("countries")
+}
+
+model Language {
+  code       String           @id @db.Char(10) // BCP-47; seed en, et, fi
+  name       String
+  enabled    Boolean          @default(true)
+
+  users         User[]
+  churchLangs   ChurchLanguage[]
+
+  @@map("languages")
+}
+
+model OrgNode {
+  id           String    @id @default(uuid(7))
+  parent_id    String?
+  parent       OrgNode?  @relation("OrgParent", fields: [parent_id], references: [id])
+  children     OrgNode[] @relation("OrgParent")
+  kind         OrgNodeKind
+  name         String
+  country_code String?   @db.Char(2) @unique
+  country      Country?  @relation(fields: [country_code], references: [code])
+
+  church           Church?
+  roleAssignments  RoleAssignment[]
+
+  @@index([parent_id])
+  @@unique([kind, country_code])
+  @@map("org_nodes")
+}
+
+model Church {
+  id            String    @id @default(uuid(7))
+  org_node_id   String    @unique
+  org_node      OrgNode   @relation(fields: [org_node_id], references: [id])
+  name          String
+  status        ChurchStatus @default(PENDING)
+  timezone      String
+  description   String?
+  denomination  String?
+  cover_asset_id String?
+  cover_asset   MediaAsset? @relation("ChurchCover", fields: [cover_asset_id], references: [id])
+  address       Json
+  latitude      Decimal?  @db.Decimal(9, 6)
+  longitude     Decimal?  @db.Decimal(9, 6)
+  contacts      Json
+  website       String?
+  social_links  Json
+  accessibility String?
+  approved_by   String?
+  approved_by_user User?  @relation("ChurchApprovedBy", fields: [approved_by], references: [id])
+  approved_at   DateTime?
+
+  churchLanguages ChurchLanguage[]
+  pastors         ChurchPastor[]
+  serviceTimes    ServiceTime[]
+  prayers         Prayer[]
+  voiceProfiles   VoiceProfile[]
+  events          Event[]
+  announcements   Announcement[]
+  requests        Request[]
+  mediaAssets     MediaAsset[]
+  paymentAccount  PaymentAccount?
+  checkIns        CheckIn[]
+  analyticsEvents AnalyticsEvent[]
+  userChurches    UserChurch[]
+
+  created_at DateTime  @default(now())
+  updated_at DateTime? @updatedAt
+  version    Int       @default(1)
+
+  @@map("churches")
+}
+
+model ChurchLanguage {
+  church_id     String
+  church        Church   @relation(fields: [church_id], references: [id], onDelete: Cascade)
+  language_code String
+  language      Language @relation(fields: [language_code], references: [code])
+
+  @@id([church_id, language_code])
+  @@map("church_languages")
+}
+
+model RoleAssignment {
+  id          String   @id @default(uuid(7))
+  user_id     String
+  user        User     @relation("GrantedTo", fields: [user_id], references: [id])
+  role_id     String
+  role        Role     @relation(fields: [role_id], references: [id])
+  org_node_id String
+  org_node    OrgNode  @relation(fields: [org_node_id], references: [id])
+  granted_by  String
+  granted_by_user User @relation("GrantedBy", fields: [granted_by], references: [id])
+  revoked_at  DateTime?
+  created_at  DateTime @default(now())
+
+  @@index([user_id, org_node_id])
+  @@map("role_assignments")
+}
+
+model UserChurch {
+  user_id     String
+  user        User     @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  church_id   String
+  church      Church   @relation(fields: [church_id], references: [id], onDelete: Cascade)
+  is_main     Boolean  @default(false)
+  is_followed Boolean  @default(false)
+
+  @@id([user_id, church_id])
+  @@index([church_id])
+  @@map("user_churches")
+}
+
+model Pastor {
+  id           String  @id @default(uuid(7))
+  user_id      String?
+  user         User?   @relation(fields: [user_id], references: [id], onDelete: SetNull)
+  name         String
+  introduction String?
+
+  churchPastors   ChurchPastor[]
+  prayerVersions  PrayerVersion[]
+  voiceProfiles   VoiceProfile[]
+  consents        Consent[]
+
+  @@unique([user_id])
+  @@map("pastors")
+}
+
+model ChurchPastor {
+  church_id    String
+  church       Church @relation(fields: [church_id], references: [id])
+  pastor_id    String
+  pastor       Pastor @relation(fields: [pastor_id], references: [id])
+  pastoral_role String
+  image_asset_id String?
+  image_asset    MediaAsset? @relation("PastorImage", fields: [image_asset_id], references: [id])
+  active_voice_profile_id String?
+  active_voice_profile     VoiceProfile? @relation("ActiveVoice", fields: [active_voice_profile_id], references: [id])
+
+  @@id([church_id, pastor_id])
+  @@map("church_pastors")
+}
+
+// ============================================================================
+// Content and Sensitive Requests
+// ============================================================================
+
+model ServiceTime {
+  id            String   @id @default(uuid(7))
+  church_id     String
+  church        Church   @relation(fields: [church_id], references: [id])
+  weekday       Int      @db.SmallInt // 1-7
+  local_time    DateTime @db.Time
+  label         String?
+  language_code String?
+
+  @@index([church_id])
+  @@map("service_times")
+}
+
+model Prayer {
+  id            String   @id @default(uuid(7))
+  church_id     String
+  church        Church   @relation(fields: [church_id], references: [id])
+  current_version_id   String?
+  published_version_id String?
+  scheduled_version_id String?
+  scheduled_at DateTime?
+  published_at DateTime?
+  created_by   String
+  creator      User     @relation("PrayerCreator", fields: [created_by], references: [id])
+  versions     PrayerVersion[]
+
+  created_at DateTime  @default(now())
+  updated_at DateTime? @updatedAt
+  version    Int       @default(1)
+
+  @@index([church_id, created_at, id])
+  @@index([church_id, published_at, id])
+  @@map("prayers")
+}
+
+model PrayerVersion {
+  id              String   @id @default(uuid(7))
+  prayer_id       String
+  prayer          Prayer   @relation(fields: [prayer_id], references: [id])
+  version_number  Int
+  pastor_id       String
+  pastor          Pastor   @relation(fields: [pastor_id], references: [id])
+  title           String
+  introduction    String?
+  body            String
+  language_code   String
+  text_hash       String
+  approved_by     String?
+  approved_by_user User?    @relation("VersionApprovedBy", fields: [approved_by], references: [id])
+  approved_at     DateTime?
+  selected_audio_id String? @unique
+  selected_audio  PrayerAudio? @relation("SelectedAudio", fields: [selected_audio_id], references: [id])
+  audio           PrayerAudio[] @relation("VersionAudio")
+
+  created_at DateTime @default(now())
+
+  @@unique([prayer_id, version_number])
+  @@index([prayer_id])
+  @@map("prayer_versions")
+}
+
+model VoiceProfile {
+  id                    String       @id @default(uuid(7))
+  pastor_id             String
+  pastor                Pastor       @relation(fields: [pastor_id], references: [id])
+  church_id             String
+  church                Church       @relation(fields: [church_id], references: [id])
+  submitted_by          String
+  submitter             User         @relation("VoiceSubmittedBy", fields: [submitted_by], references: [id])
+  version               Int          @default(1)
+  replaces_profile_id   String?
+  replaces_profile      VoiceProfile? @relation("Replaces", fields: [replaces_profile_id], references: [id])
+  replaced_by           VoiceProfile[] @relation("Replaces")
+  provider              String
+  cloning_method        String       @default("instant")
+  provider_voice_id     String?
+  consent_id            String
+  consent               Consent      @relation(fields: [consent_id], references: [id])
+  sample_asset_id       String
+  sample_asset          MediaAsset   @relation("VoiceSample", fields: [sample_asset_id], references: [id])
+  submitted_at          DateTime?
+  review_state          ReviewState  @default(DRAFT)
+  reviewed_by           String?
+  reviewer              User?        @relation("VoiceReviewedBy", fields: [reviewed_by], references: [id])
+  reviewed_at           DateTime?
+  review_reason         String?
+  approved_sample_checksum String?
+  registration_state    RegistrationState @default(UNREGISTERED)
+  requires_verification Boolean?
+  registration_attempt_id String?
+  last_error_code       String?
+
+  audio       PrayerAudio[]
+  activeVoice ChurchPastor[] @relation("ActiveVoice")
+
+  created_at DateTime  @default(now())
+  updated_at DateTime? @updatedAt
+
+  @@index([church_id])
+  @@index([pastor_id])
+  @@map("voice_profiles")
+}
+
+model Consent {
+  id                String    @id @default(uuid(7))
+  user_id           String?
+  user              User?     @relation("ConsentSubject", fields: [user_id], references: [id])
+  pastor_id         String?
+  pastor            Pastor?   @relation(fields: [pastor_id], references: [id])
+  purpose           String
+  terms_version     String
+  recorded_at       DateTime  @default(now())
+  recorded_by       String?
+  recorder          User?     @relation("ConsentRecordedBy", fields: [recorded_by], references: [id])
+  evidence_asset_id String?
+  evidence          MediaAsset? @relation("ConsentEvidence", fields: [evidence_asset_id], references: [id])
+  revoked_at        DateTime?
+
+  voiceProfiles VoiceProfile[]
+
+  @@map("consents")
+}
+
+model PrayerAudio {
+  id                String        @id @default(uuid(7))
+  prayer_version_id String
+  verse             PrayerVersion @relation("VersionAudio", fields: [prayer_version_id], references: [id])
+  voice_profile_id  String
+  voice_profile     VoiceProfile  @relation(fields: [voice_profile_id], references: [id])
+  status            AudioStatus   @default(QUEUED)
+  asset_id          String?
+  asset             MediaAsset?   @relation("AudioAsset", fields: [asset_id], references: [id])
+  provider_request_id String?
+  approved_by       String?
+  approver          User?         @relation("AudioApprovedBy", fields: [approved_by], references: [id])
+  approved_at       DateTime?
+  error_code        String?
+  selectedFor       PrayerVersion? @relation("SelectedAudio")
+
+  created_at DateTime  @default(now())
+  updated_at DateTime? @updatedAt
+
+  @@index([prayer_version_id])
+  @@map("prayer_audio")
+}
+
+model MediaAsset {
+  id         String      @id @default(uuid(7))
+  church_id  String
+  church     Church      @relation(fields: [church_id], references: [id])
+  object_key String      @unique
+  purpose    MediaPurpose
+  mime_type  String
+  byte_size  BigInt
+  checksum   String?
+  status     MediaStatus @default(PENDING)
+  uploaded_by String?
+  uploader   User?       @relation("MediaUploadedBy", fields: [uploaded_by], references: [id])
+
+  coverOf         Church[]       @relation("ChurchCover")
+  pastorImages    ChurchPastor[] @relation("PastorImage")
+  voiceSamples    VoiceProfile[] @relation("VoiceSample")
+  consentEvidence Consent[]      @relation("ConsentEvidence")
+  audioAssets     PrayerAudio[]  @relation("AudioAsset")
+
+  created_at DateTime  @default(now())
+  updated_at DateTime? @updatedAt
+
+  @@index([church_id])
+  @@map("media_assets")
+}
+
+model Event {
+  id               String        @id @default(uuid(7))
+  church_id        String
+  church           Church        @relation(fields: [church_id], references: [id])
+  category         EventCategory
+  title            String
+  description      String
+  starts_at        DateTime
+  location         String
+  registration_url String?
+  language_code    String?
+
+  created_at DateTime  @default(now())
+  updated_at DateTime? @updatedAt
+  version    Int       @default(1)
+
+  @@index([church_id, starts_at, id])
+  @@map("events")
+}
+
+model Announcement {
+  id           String   @id @default(uuid(7))
+  church_id    String
+  church       Church   @relation(fields: [church_id], references: [id])
+  title        String
+  body         String
+  published_at DateTime?
+
+  created_at DateTime  @default(now())
+  updated_at DateTime? @updatedAt
+  version    Int       @default(1)
+
+  @@index([church_id, published_at])
+  @@map("announcements")
+}
+
+model Request {
+  id            String              @id @default(uuid(7))
+  church_id     String
+  church        Church              @relation(fields: [church_id], references: [id])
+  user_id       String?
+  user          User?               @relation(fields: [user_id], references: [id], onDelete: SetNull)
+  kind          RequestKind
+  subject       String?
+  message       String
+  classification RequestClassification?
+  contact_method String
+  phone         String?
+  email         String?
+  availability  String?
+  created_at    DateTime            @default(now())
+
+  @@index([church_id, created_at, id])
+  @@map("requests")
+}
+
+// ============================================================================
+// Payments, Analytics and Delivery
+// ============================================================================
+
+model PaymentAccount {
+  id                  String @id @default(uuid(7))
+  church_id           String @unique
+  church              Church @relation(fields: [church_id], references: [id])
+  provider            String
+  provider_account_id String @unique
+  status              String
+
+  donations     Donation[]
+  subscriptions DonationSubscription[]
+
+  created_at DateTime  @default(now())
+  updated_at DateTime? @updatedAt
+  version    Int       @default(1)
+
+  @@map("payment_accounts")
+}
+
+model DonationSubscription {
+  id                      String @id @default(uuid(7))
+  payment_account_id      String
+  payment_account         PaymentAccount @relation(fields: [payment_account_id], references: [id])
+  user_id                 String?
+  user                    User?  @relation(fields: [user_id], references: [id], onDelete: SetNull)
+  provider_subscription_id String
+  amount_minor            BigInt
+  currency                String @db.Char(3)
+  provider_status         String
+
+  donations Donation[]
+
+  created_at DateTime  @default(now())
+  updated_at DateTime? @updatedAt
+
+  @@unique([payment_account_id, provider_subscription_id])
+  @@index([payment_account_id, provider_status])
+  @@map("donation_subscriptions")
+}
+
+model Donation {
+  id                  String  @id @default(uuid(7))
+  payment_account_id  String
+  payment_account     PaymentAccount @relation(fields: [payment_account_id], references: [id])
+  user_id             String?
+  user                User?   @relation(fields: [user_id], references: [id], onDelete: SetNull)
+  subscription_id     String?
+  subscription        DonationSubscription? @relation(fields: [subscription_id], references: [id])
+  provider_payment_id String
+  amount_minor        BigInt
+  currency            String  @db.Char(3)
+  status              String
+  paid_at             DateTime?
+  refunded_minor      BigInt  @default(0)
+
+  created_at DateTime  @default(now())
+  updated_at DateTime? @updatedAt
+
+  @@unique([payment_account_id, provider_payment_id])
+  @@index([payment_account_id, paid_at])
+  @@map("donations")
+}
+
+model CheckIn {
+  id          String   @id @default(uuid(7))
+  church_id   String
+  church      Church   @relation(fields: [church_id], references: [id])
+  user_id     String?
+  user        User?    @relation(fields: [user_id], references: [id], onDelete: SetNull)
+  occurred_at DateTime
+  local_date  DateTime @db.Date
+  dedupe_key  String   @unique
+  created_at  DateTime @default(now())
+
+  @@index([church_id, occurred_at])
+  @@map("check_ins")
+}
+
+model AnalyticsEvent {
+  id          String   @id @default(uuid(7))
+  event_key   String   @unique
+  church_id   String?
+  church      Church?  @relation(fields: [church_id], references: [id], onDelete: SetNull)
+  user_id     String?
+  user        User?    @relation(fields: [user_id], references: [id], onDelete: SetNull)
+  event_type  String
+  occurred_at DateTime
+  received_at DateTime @default(now())
+  resource_id String?
+  created_at  DateTime @default(now())
+
+  @@index([church_id, occurred_at])
+  @@map("analytics_events")
+}
+
+model DeviceToken {
+  id               String   @id @default(uuid(7))
+  user_id          String
+  user             User     @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  installation_id  String
+  platform         String
+  token_ciphertext String
+  token_hash       String   @unique
+  disabled_at      DateTime?
+  created_at       DateTime @default(now())
+
+  notificationDeliveries NotificationDelivery[]
+
+  @@map("device_tokens")
+}
+
+model NotificationPreference {
+  user_id String
+  user    User   @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  type    String
+  enabled Boolean @default(false)
+
+  @@id([user_id, type])
+  @@map("notification_preferences")
+}
+
+model NotificationRule {
+  id             String  @id @default(uuid(7))
+  type           String  @unique
+  enabled        Boolean @default(true)
+  offset_minutes Int?
+
+  deliveries NotificationDelivery[]
+
+  created_at DateTime  @default(now())
+  updated_at DateTime? @updatedAt
+  version    Int       @default(1)
+
+  @@map("notification_rules")
+}
+
+model NotificationDelivery {
+  id                  String   @id @default(uuid(7))
+  rule_id             String
+  rule                NotificationRule @relation(fields: [rule_id], references: [id])
+  user_id             String
+  user                User     @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  device_token_id     String?
+  device_token        DeviceToken? @relation(fields: [device_token_id], references: [id])
+  event_key           String
+  status              String
+  provider_message_id String?
+  attempts            Int      @default(0)
+
+  created_at DateTime  @default(now())
+  updated_at DateTime? @updatedAt
+
+  @@unique([event_key, user_id, device_token_id])
+  @@index([status, created_at])
+  @@map("notification_deliveries")
+}
+
+// ============================================================================
+// Technical Tables
+// ============================================================================
+
+model OutboxJob {
+  id              String   @id @default(uuid(7))
+  kind            String
+  dedupe_key      String   @unique
+  resource_id     String?
+  payload         Json?
+  available_at    DateTime
+  state           JobState @default(PENDING)
+  attempts        Int      @default(0)
+  lease_until     DateTime?
+  last_error_code String?
+
+  created_at DateTime  @default(now())
+  updated_at DateTime? @updatedAt
+
+  @@index([state, available_at])
+  @@map("outbox_jobs")
+}
+
+model WebhookReceipt {
+  id           String   @id @default(uuid(7))
+  provider     String
+  account_id   String
+  event_id     String
+  event_type   String
+  object_id    String
+  received_at  DateTime
+  processed_at DateTime?
+  state        String
+  created_at   DateTime @default(now())
+
+  @@unique([provider, account_id, event_id])
+  @@map("webhook_receipts")
+}
+
+model IdempotencyRecord {
+  id           String   @id @default(uuid(7))
+  actor_key    String
+  operation    String
+  key          String
+  request_hash String
+  resource_id  String?
+  state        String
+  expires_at   DateTime
+  created_at   DateTime @default(now())
+
+  @@unique([actor_key, operation, key])
+  @@map("idempotency_records")
+}
+
+model AuditLog {
+  id            String   @id @default(uuid(7))
+  actor_id      String?
+  actor         User?    @relation(fields: [actor_id], references: [id])
+  church_id     String?
+  action        String
+  resource_type String
+  resource_id   String?
+  outcome       String
+  request_id    String
+  created_at    DateTime @default(now())
+
+  @@index([actor_id])
+  @@index([church_id])
+  @@map("audit_logs")
+}
+
+model PrivacyJob {
+  id                String   @id @default(uuid(7))
+  user_id           String
+  user              User     @relation(fields: [user_id], references: [id])
+  kind              String
+  state             String
+  requested_at      DateTime @default(now())
+  completed_at      DateTime?
+  result_object_key String?
+  result_expires_at DateTime?
+
+  @@index([user_id])
+  @@map("privacy_jobs")
 }

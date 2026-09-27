@@ -9,9 +9,37 @@ Table user {
   password String
   email_verified_at DateTime
   profile_picture String
-  role_id String [not null]
-  role role [not null]
+  auth_version Int [not null, default: 1]
+  status String [not null, default: 'active']
+  version Int [not null, default: 1]
+  role_id String
+  role role
+  locale String
+  locale_language languages
   auth_token auth_token [not null]
+  roleAssignments role_assignments [not null]
+  grantedAssignments role_assignments [not null]
+  approvedChurches churches [not null]
+  prayerCreations prayers [not null]
+  versionApprovals prayer_versions [not null]
+  voiceSubmissions voice_profiles [not null]
+  voiceReviews voice_profiles [not null]
+  consentsRecorded consents [not null]
+  consents consents [not null]
+  audioApprovals prayer_audio [not null]
+  mediaUploads media_assets [not null]
+  userChurches user_churches [not null]
+  pastors pastors [not null]
+  requests requests [not null]
+  donations donations [not null]
+  donationSubscriptions donation_subscriptions [not null]
+  checkIns check_ins [not null]
+  analyticsEvents analytics_events [not null]
+  deviceTokens device_tokens [not null]
+  notificationPreferences notification_preferences [not null]
+  notificationDeliveries notification_deliveries [not null]
+  privacyJobs privacy_jobs [not null]
+  auditLogs audit_logs [not null]
   created_at DateTime [default: `now()`, not null]
   updated_at DateTime
   deleted_at DateTime
@@ -21,8 +49,10 @@ Table role {
   id String [pk]
   name String [unique, not null]
   type RoleType [not null, default: 'USER']
+  version Int [not null, default: 1]
   user user [not null]
   permission permission [not null]
+  assignments role_assignments [not null]
   created_at DateTime [default: `now()`, not null]
   updated_at DateTime
   deleted_at DateTime
@@ -37,6 +67,10 @@ Table permission {
   created_at DateTime [default: `now()`, not null]
   updated_at DateTime
   deleted_at DateTime
+
+  indexes {
+    (subject, actions, scope) [unique]
+  }
 }
 
 Table auth_token {
@@ -48,6 +82,542 @@ Table auth_token {
   expires_at DateTime [not null]
   used_at DateTime
   created_at DateTime [default: `now()`, not null]
+}
+
+Table countries {
+  code String [pk]
+  name String [not null]
+  enabled Boolean [not null, default: true]
+  orgNode org_nodes
+}
+
+Table languages {
+  code String [pk]
+  name String [not null]
+  enabled Boolean [not null, default: true]
+  users user [not null]
+  churchLangs church_languages [not null]
+}
+
+Table org_nodes {
+  id String [pk]
+  parent_id String
+  parent org_nodes
+  children org_nodes [not null]
+  kind OrgNodeKind [not null]
+  name String [not null]
+  country_code String [unique]
+  country countries
+  church churches
+  roleAssignments role_assignments [not null]
+
+  indexes {
+    (kind, country_code) [unique]
+  }
+}
+
+Table churches {
+  id String [pk]
+  org_node_id String [unique, not null]
+  org_node org_nodes [not null]
+  name String [not null]
+  status ChurchStatus [not null, default: 'PENDING']
+  timezone String [not null]
+  description String
+  denomination String
+  cover_asset_id String
+  cover_asset media_assets
+  address Json [not null]
+  latitude Decimal
+  longitude Decimal
+  contacts Json [not null]
+  website String
+  social_links Json [not null]
+  accessibility String
+  approved_by String
+  approved_by_user user
+  approved_at DateTime
+  churchLanguages church_languages [not null]
+  pastors church_pastors [not null]
+  serviceTimes service_times [not null]
+  prayers prayers [not null]
+  voiceProfiles voice_profiles [not null]
+  events events [not null]
+  announcements announcements [not null]
+  requests requests [not null]
+  mediaAssets media_assets [not null]
+  paymentAccount payment_accounts
+  checkIns check_ins [not null]
+  analyticsEvents analytics_events [not null]
+  userChurches user_churches [not null]
+  created_at DateTime [default: `now()`, not null]
+  updated_at DateTime
+  version Int [not null, default: 1]
+}
+
+Table church_languages {
+  church_id String [not null]
+  church churches [not null]
+  language_code String [not null]
+  language languages [not null]
+
+  indexes {
+    (church_id, language_code) [pk]
+  }
+}
+
+Table role_assignments {
+  id String [pk]
+  user_id String [not null]
+  user user [not null]
+  role_id String [not null]
+  role role [not null]
+  org_node_id String [not null]
+  org_node org_nodes [not null]
+  granted_by String [not null]
+  granted_by_user user [not null]
+  revoked_at DateTime
+  created_at DateTime [default: `now()`, not null]
+}
+
+Table user_churches {
+  user_id String [not null]
+  user user [not null]
+  church_id String [not null]
+  church churches [not null]
+  is_main Boolean [not null, default: false]
+  is_followed Boolean [not null, default: false]
+
+  indexes {
+    (user_id, church_id) [pk]
+  }
+}
+
+Table pastors {
+  id String [pk]
+  user_id String [unique]
+  user user
+  name String [not null]
+  introduction String
+  churchPastors church_pastors [not null]
+  prayerVersions prayer_versions [not null]
+  voiceProfiles voice_profiles [not null]
+  consents consents [not null]
+}
+
+Table church_pastors {
+  church_id String [not null]
+  church churches [not null]
+  pastor_id String [not null]
+  pastor pastors [not null]
+  pastoral_role String [not null]
+  image_asset_id String
+  image_asset media_assets
+  active_voice_profile_id String
+  active_voice_profile voice_profiles
+
+  indexes {
+    (church_id, pastor_id) [pk]
+  }
+}
+
+Table service_times {
+  id String [pk]
+  church_id String [not null]
+  church churches [not null]
+  weekday Int [not null]
+  local_time DateTime [not null]
+  label String
+  language_code String
+}
+
+Table prayers {
+  id String [pk]
+  church_id String [not null]
+  church churches [not null]
+  current_version_id String
+  published_version_id String
+  scheduled_version_id String
+  scheduled_at DateTime
+  published_at DateTime
+  created_by String [not null]
+  creator user [not null]
+  versions prayer_versions [not null]
+  created_at DateTime [default: `now()`, not null]
+  updated_at DateTime
+  version Int [not null, default: 1]
+}
+
+Table prayer_versions {
+  id String [pk]
+  prayer_id String [not null]
+  prayer prayers [not null]
+  version_number Int [not null]
+  pastor_id String [not null]
+  pastor pastors [not null]
+  title String [not null]
+  introduction String
+  body String [not null]
+  language_code String [not null]
+  text_hash String [not null]
+  approved_by String
+  approved_by_user user
+  approved_at DateTime
+  selected_audio_id String [unique]
+  selected_audio prayer_audio
+  audio prayer_audio [not null]
+  created_at DateTime [default: `now()`, not null]
+
+  indexes {
+    (prayer_id, version_number) [unique]
+  }
+}
+
+Table voice_profiles {
+  id String [pk]
+  pastor_id String [not null]
+  pastor pastors [not null]
+  church_id String [not null]
+  church churches [not null]
+  submitted_by String [not null]
+  submitter user [not null]
+  version Int [not null, default: 1]
+  replaces_profile_id String
+  replaces_profile voice_profiles
+  replaced_by voice_profiles [not null]
+  provider String [not null]
+  cloning_method String [not null, default: 'instant']
+  provider_voice_id String
+  consent_id String [not null]
+  consent consents [not null]
+  sample_asset_id String [not null]
+  sample_asset media_assets [not null]
+  submitted_at DateTime
+  review_state ReviewState [not null, default: 'DRAFT']
+  reviewed_by String
+  reviewer user
+  reviewed_at DateTime
+  review_reason String
+  approved_sample_checksum String
+  registration_state RegistrationState [not null, default: 'UNREGISTERED']
+  requires_verification Boolean
+  registration_attempt_id String
+  last_error_code String
+  audio prayer_audio [not null]
+  activeVoice church_pastors [not null]
+  created_at DateTime [default: `now()`, not null]
+  updated_at DateTime
+}
+
+Table consents {
+  id String [pk]
+  user_id String
+  user user
+  pastor_id String
+  pastor pastors
+  purpose String [not null]
+  terms_version String [not null]
+  recorded_at DateTime [default: `now()`, not null]
+  recorded_by String
+  recorder user
+  evidence_asset_id String
+  evidence media_assets
+  revoked_at DateTime
+  voiceProfiles voice_profiles [not null]
+}
+
+Table prayer_audio {
+  id String [pk]
+  prayer_version_id String [not null]
+  verse prayer_versions [not null]
+  voice_profile_id String [not null]
+  voice_profile voice_profiles [not null]
+  status AudioStatus [not null, default: 'QUEUED']
+  asset_id String
+  asset media_assets
+  provider_request_id String
+  approved_by String
+  approver user
+  approved_at DateTime
+  error_code String
+  selectedFor prayer_versions
+  created_at DateTime [default: `now()`, not null]
+  updated_at DateTime
+}
+
+Table media_assets {
+  id String [pk]
+  church_id String [not null]
+  church churches [not null]
+  object_key String [unique, not null]
+  purpose MediaPurpose [not null]
+  mime_type String [not null]
+  byte_size BigInt [not null]
+  checksum String
+  status MediaStatus [not null, default: 'PENDING']
+  uploaded_by String
+  uploader user
+  coverOf churches [not null]
+  pastorImages church_pastors [not null]
+  voiceSamples voice_profiles [not null]
+  consentEvidence consents [not null]
+  audioAssets prayer_audio [not null]
+  created_at DateTime [default: `now()`, not null]
+  updated_at DateTime
+}
+
+Table events {
+  id String [pk]
+  church_id String [not null]
+  church churches [not null]
+  category EventCategory [not null]
+  title String [not null]
+  description String [not null]
+  starts_at DateTime [not null]
+  location String [not null]
+  registration_url String
+  language_code String
+  created_at DateTime [default: `now()`, not null]
+  updated_at DateTime
+  version Int [not null, default: 1]
+}
+
+Table announcements {
+  id String [pk]
+  church_id String [not null]
+  church churches [not null]
+  title String [not null]
+  body String [not null]
+  published_at DateTime
+  created_at DateTime [default: `now()`, not null]
+  updated_at DateTime
+  version Int [not null, default: 1]
+}
+
+Table requests {
+  id String [pk]
+  church_id String [not null]
+  church churches [not null]
+  user_id String
+  user user
+  kind RequestKind [not null]
+  subject String
+  message String [not null]
+  classification RequestClassification
+  contact_method String [not null]
+  phone String
+  email String
+  availability String
+  created_at DateTime [default: `now()`, not null]
+}
+
+Table payment_accounts {
+  id String [pk]
+  church_id String [unique, not null]
+  church churches [not null]
+  provider String [not null]
+  provider_account_id String [unique, not null]
+  status String [not null]
+  donations donations [not null]
+  subscriptions donation_subscriptions [not null]
+  created_at DateTime [default: `now()`, not null]
+  updated_at DateTime
+  version Int [not null, default: 1]
+}
+
+Table donation_subscriptions {
+  id String [pk]
+  payment_account_id String [not null]
+  payment_account payment_accounts [not null]
+  user_id String
+  user user
+  provider_subscription_id String [not null]
+  amount_minor BigInt [not null]
+  currency String [not null]
+  provider_status String [not null]
+  donations donations [not null]
+  created_at DateTime [default: `now()`, not null]
+  updated_at DateTime
+
+  indexes {
+    (payment_account_id, provider_subscription_id) [unique]
+  }
+}
+
+Table donations {
+  id String [pk]
+  payment_account_id String [not null]
+  payment_account payment_accounts [not null]
+  user_id String
+  user user
+  subscription_id String
+  subscription donation_subscriptions
+  provider_payment_id String [not null]
+  amount_minor BigInt [not null]
+  currency String [not null]
+  status String [not null]
+  paid_at DateTime
+  refunded_minor BigInt [not null, default: 0]
+  created_at DateTime [default: `now()`, not null]
+  updated_at DateTime
+
+  indexes {
+    (payment_account_id, provider_payment_id) [unique]
+  }
+}
+
+Table check_ins {
+  id String [pk]
+  church_id String [not null]
+  church churches [not null]
+  user_id String
+  user user
+  occurred_at DateTime [not null]
+  local_date DateTime [not null]
+  dedupe_key String [unique, not null]
+  created_at DateTime [default: `now()`, not null]
+}
+
+Table analytics_events {
+  id String [pk]
+  event_key String [unique, not null]
+  church_id String
+  church churches
+  user_id String
+  user user
+  event_type String [not null]
+  occurred_at DateTime [not null]
+  received_at DateTime [default: `now()`, not null]
+  resource_id String
+  created_at DateTime [default: `now()`, not null]
+}
+
+Table device_tokens {
+  id String [pk]
+  user_id String [not null]
+  user user [not null]
+  installation_id String [not null]
+  platform String [not null]
+  token_ciphertext String [not null]
+  token_hash String [unique, not null]
+  disabled_at DateTime
+  created_at DateTime [default: `now()`, not null]
+  notificationDeliveries notification_deliveries [not null]
+}
+
+Table notification_preferences {
+  user_id String [not null]
+  user user [not null]
+  type String [not null]
+  enabled Boolean [not null, default: false]
+
+  indexes {
+    (user_id, type) [pk]
+  }
+}
+
+Table notification_rules {
+  id String [pk]
+  type String [unique, not null]
+  enabled Boolean [not null, default: true]
+  offset_minutes Int
+  deliveries notification_deliveries [not null]
+  created_at DateTime [default: `now()`, not null]
+  updated_at DateTime
+  version Int [not null, default: 1]
+}
+
+Table notification_deliveries {
+  id String [pk]
+  rule_id String [not null]
+  rule notification_rules [not null]
+  user_id String [not null]
+  user user [not null]
+  device_token_id String
+  device_token device_tokens
+  event_key String [not null]
+  status String [not null]
+  provider_message_id String
+  attempts Int [not null, default: 0]
+  created_at DateTime [default: `now()`, not null]
+  updated_at DateTime
+
+  indexes {
+    (event_key, user_id, device_token_id) [unique]
+  }
+}
+
+Table outbox_jobs {
+  id String [pk]
+  kind String [not null]
+  dedupe_key String [unique, not null]
+  resource_id String
+  payload Json
+  available_at DateTime [not null]
+  state JobState [not null, default: 'PENDING']
+  attempts Int [not null, default: 0]
+  lease_until DateTime
+  last_error_code String
+  created_at DateTime [default: `now()`, not null]
+  updated_at DateTime
+}
+
+Table webhook_receipts {
+  id String [pk]
+  provider String [not null]
+  account_id String [not null]
+  event_id String [not null]
+  event_type String [not null]
+  object_id String [not null]
+  received_at DateTime [not null]
+  processed_at DateTime
+  state String [not null]
+  created_at DateTime [default: `now()`, not null]
+
+  indexes {
+    (provider, account_id, event_id) [unique]
+  }
+}
+
+Table idempotency_records {
+  id String [pk]
+  actor_key String [not null]
+  operation String [not null]
+  key String [not null]
+  request_hash String [not null]
+  resource_id String
+  state String [not null]
+  expires_at DateTime [not null]
+  created_at DateTime [default: `now()`, not null]
+
+  indexes {
+    (actor_key, operation, key) [unique]
+  }
+}
+
+Table audit_logs {
+  id String [pk]
+  actor_id String
+  actor user
+  church_id String
+  action String [not null]
+  resource_type String [not null]
+  resource_id String
+  outcome String [not null]
+  request_id String [not null]
+  created_at DateTime [default: `now()`, not null]
+}
+
+Table privacy_jobs {
+  id String [pk]
+  user_id String [not null]
+  user user [not null]
+  kind String [not null]
+  state String [not null]
+  requested_at DateTime [default: `now()`, not null]
+  completed_at DateTime
+  result_object_key String
+  result_expires_at DateTime
 }
 
 Table role_permission {
@@ -70,6 +640,214 @@ Enum AuthTokenType {
   PASSWORD_RESET
 }
 
+Enum OrgNodeKind {
+  GLOBAL
+  COUNTRY
+  DIOCESE
+  DEANERY
+  CHURCH
+}
+
+Enum ChurchStatus {
+  PENDING
+  APPROVED
+  SUSPENDED
+  ARCHIVED
+}
+
+Enum ReviewState {
+  DRAFT
+  SUBMITTED
+  APPROVED
+  REJECTED
+}
+
+Enum RegistrationState {
+  UNREGISTERED
+  QUEUED
+  REGISTERING
+  VERIFICATION_REQUIRED
+  READY
+  FAILED
+  REGISTRATION_UNKNOWN
+  DISABLED
+}
+
+Enum AudioStatus {
+  QUEUED
+  GENERATING
+  READY
+  APPROVED
+  FAILED
+}
+
+Enum MediaPurpose {
+  IMAGE
+  VOICE_SAMPLE
+  CONSENT_EVIDENCE
+  GENERATED_AUDIO
+}
+
+Enum MediaStatus {
+  PENDING
+  READY
+  REJECTED
+}
+
+Enum RequestKind {
+  PRAYER
+  PASTORAL
+  MEETING
+}
+
+Enum RequestClassification {
+  PRIVATE
+  STANDARD
+}
+
+Enum EventCategory {
+  SERVICE
+  SPECIAL
+  BIBLE_STUDY
+  COMMUNITY
+  OTHER
+}
+
+Enum JobState {
+  PENDING
+  RUNNING
+  SUCCEEDED
+  FAILED
+}
+
 Ref: user.role_id > role.id [delete: Cascade]
 
+Ref: user.locale > languages.code
+
 Ref: auth_token.user_id > user.id [delete: Cascade]
+
+Ref: org_nodes.parent_id - org_nodes.id
+
+Ref: org_nodes.country_code - countries.code
+
+Ref: churches.org_node_id - org_nodes.id
+
+Ref: churches.cover_asset_id - media_assets.id
+
+Ref: churches.approved_by > user.id
+
+Ref: church_languages.church_id > churches.id [delete: Cascade]
+
+Ref: church_languages.language_code > languages.code
+
+Ref: role_assignments.user_id > user.id
+
+Ref: role_assignments.role_id > role.id
+
+Ref: role_assignments.org_node_id > org_nodes.id
+
+Ref: role_assignments.granted_by > user.id
+
+Ref: user_churches.user_id > user.id [delete: Cascade]
+
+Ref: user_churches.church_id > churches.id [delete: Cascade]
+
+Ref: pastors.user_id > user.id [delete: Set Null]
+
+Ref: church_pastors.church_id > churches.id
+
+Ref: church_pastors.pastor_id > pastors.id
+
+Ref: church_pastors.image_asset_id > media_assets.id
+
+Ref: church_pastors.active_voice_profile_id > voice_profiles.id
+
+Ref: service_times.church_id > churches.id
+
+Ref: prayers.church_id > churches.id
+
+Ref: prayers.created_by > user.id
+
+Ref: prayer_versions.prayer_id > prayers.id
+
+Ref: prayer_versions.pastor_id > pastors.id
+
+Ref: prayer_versions.approved_by > user.id
+
+Ref: prayer_versions.selected_audio_id - prayer_audio.id
+
+Ref: voice_profiles.pastor_id > pastors.id
+
+Ref: voice_profiles.church_id > churches.id
+
+Ref: voice_profiles.submitted_by > user.id
+
+Ref: voice_profiles.replaces_profile_id - voice_profiles.id
+
+Ref: voice_profiles.consent_id > consents.id
+
+Ref: voice_profiles.sample_asset_id > media_assets.id
+
+Ref: voice_profiles.reviewed_by > user.id
+
+Ref: consents.user_id > user.id
+
+Ref: consents.pastor_id > pastors.id
+
+Ref: consents.recorded_by > user.id
+
+Ref: consents.evidence_asset_id > media_assets.id
+
+Ref: prayer_audio.prayer_version_id - prayer_versions.id
+
+Ref: prayer_audio.voice_profile_id > voice_profiles.id
+
+Ref: prayer_audio.asset_id > media_assets.id
+
+Ref: prayer_audio.approved_by > user.id
+
+Ref: media_assets.church_id - churches.id
+
+Ref: media_assets.uploaded_by > user.id
+
+Ref: events.church_id > churches.id
+
+Ref: announcements.church_id > churches.id
+
+Ref: requests.church_id > churches.id
+
+Ref: requests.user_id > user.id [delete: Set Null]
+
+Ref: payment_accounts.church_id - churches.id
+
+Ref: donation_subscriptions.payment_account_id > payment_accounts.id
+
+Ref: donation_subscriptions.user_id > user.id [delete: Set Null]
+
+Ref: donations.payment_account_id > payment_accounts.id
+
+Ref: donations.user_id > user.id [delete: Set Null]
+
+Ref: donations.subscription_id > donation_subscriptions.id
+
+Ref: check_ins.church_id > churches.id
+
+Ref: check_ins.user_id > user.id [delete: Set Null]
+
+Ref: analytics_events.church_id > churches.id [delete: Set Null]
+
+Ref: analytics_events.user_id > user.id [delete: Set Null]
+
+Ref: device_tokens.user_id > user.id [delete: Cascade]
+
+Ref: notification_preferences.user_id > user.id [delete: Cascade]
+
+Ref: notification_deliveries.rule_id > notification_rules.id
+
+Ref: notification_deliveries.user_id > user.id [delete: Cascade]
+
+Ref: notification_deliveries.device_token_id > device_tokens.id
+
+Ref: audit_logs.actor_id > user.id
+
+Ref: privacy_jobs.user_id > user.id

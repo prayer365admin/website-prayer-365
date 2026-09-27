@@ -61,6 +61,9 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         const email = credentials.name as string
         const password = credentials.password as string
         const userSession = await loginUser({ email: email, password: password })
+        if (!userSession?.role) {
+          return null
+        }
         return {
           user_id: userSession?.id,
           role: {
@@ -77,6 +80,9 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
     jwt: async ({ token }) => {
       const email = token.email as string
       const result = await getUserByEmail({ email: email })
+      if (!result?.role) {
+        return null
+      }
       token = {
         ...token,
         user: {

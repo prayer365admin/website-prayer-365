@@ -14,6 +14,12 @@ export async function POST(req: NextRequest) {
     }
 
     const user = await loginUser({ email, password })
+    if (!user.role) {
+      return NextResponse.json(
+        { success: false, message: 'Invalid email or password', error_code: 'LOGIN_FAILED' },
+        { status: 401 },
+      )
+    }
 
     const token = await signAccessToken({
       user_id: user.id,

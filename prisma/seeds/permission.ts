@@ -1,7 +1,8 @@
-import { PrismaClient } from '@prisma/client'
-export const db = new PrismaClient()
+import { db } from '../../src/utils/db-connection'
+import { expandPrayerGrants } from './prayer-roles'
 
 export const seedPermission = async () => {
+  // Template baseline permissions
   await db.permission.createMany({
     data: [
       // General Data
@@ -86,4 +87,7 @@ export const seedPermission = async () => {
     ],
     skipDuplicates: true,
   })
+
+  // Prayer permission catalogue (from the role matrix)
+  await db.permission.createMany({ data: expandPrayerGrants(), skipDuplicates: true })
 }

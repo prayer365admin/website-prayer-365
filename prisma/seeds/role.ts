@@ -1,25 +1,30 @@
-import { Permission, PrismaClient } from '@prisma/client'
-export const db = new PrismaClient()
+import { db } from '../../src/utils/db-connection'
+import { PRAYER_ROLES } from './prayer-roles'
+
+/*
+ * Roles ONLY. Permissions live in seeds/permission.ts; the role<->permission
+ * connection is wired separately in seeds/role-permission.ts.
+ *
+ * Role set (SPEC §3.3): administrator (all access) + the Prayer role templates.
+ * Template extras (staff, store-admin, member) are intentionally dropped per
+ * user decision — SPEC's role catalogue is staff-only; end-users are Users
+ * without any role (mobile auth D1 + no staff grant by registration).
+ */
+
+export const ADMINISTRATOR_ROLE = 'administrator'
 
 export const seedRoles = async () => {
-  await db.role.createMany({
-    data: [
-      { name: 'administrator', type: 'SYSTEM' },
-      { name: 'staff', type: 'USER' },
-      { name: 'store-admin', type: 'SYSTEM' },
-      { name: 'member', type: 'USER' },
-    ],
-    skipDuplicates: true,
+  await db.role.upsert({
+    where: { name: ADMINISTRATOR_ROLE },
+    update: { type: 'SYSTEM' },
+    create: { name: ADMINISTRATOR_ROLE, type: 'SYSTEM' },
   })
-  const allPermission = await db.permission.findMany()
-  await db.role.update({
-    where: { name: 'administrator' },
-    data: {
-      permission: {
-        connect: allPermission.map((item: Permission) => {
-          return { id: item.id }
-        }),
-      },
-    },
-  })
+
+  for (const role of PRAYER_ROLES) {
+    await db.role.upsert({
+      where: { name: role.name },
+      update: { type: 'SYSTEM' },
+      create: { name: role.name, type: 'SYSTEM' },
+    })
+  }
 }
