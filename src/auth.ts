@@ -1,17 +1,14 @@
 import NextAuth from 'next-auth'
 import Credentials from 'next-auth/providers/credentials'
 
-// eslint-disable-next-line no-unused-vars, @typescript-eslint/no-unused-vars
 declare module 'next-auth' {
   /**
    * Returned by `auth`, `useSession`, `getSession` and received as a prop on the `SessionProvider` React Context
    */
-  // eslint-disable-next-line no-unused-vars
   interface Session {
     user: User
   }
 
-  // eslint-disable-next-line no-unused-vars
   export interface User {
     name?: string | null | undefined
     email?: string | null | undefined
@@ -24,7 +21,6 @@ declare module 'next-auth' {
 }
 
 // The `JWT` interface can be found in the `next-auth/jwt` submodule
-// eslint-disable-next-line no-unused-vars, @typescript-eslint/no-unused-vars
 import { User } from 'next-auth'
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 import { JWT } from 'next-auth/jwt'
@@ -32,7 +28,6 @@ import { loginUser } from './controller/authentication'
 import { getUserByEmail } from './controller/user'
 declare module 'next-auth/jwt' {
   /** Returned by the `jwt` callback and `auth`, when using JWT sessions */
-  // eslint-disable-next-line no-unused-vars
   interface JWT {
     /** OpenID ID Token */
     idToken?: string

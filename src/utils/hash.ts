@@ -1,4 +1,11 @@
 import { compare, hash } from 'bcryptjs'
+import { createHash } from 'crypto'
+
+// Deterministic content hash (sha256) used for immutable text snapshots
+// (PrayerVersion.text_hash). Unlike bcrypt `hashSecret` (random salt), this is
+// reproducible so a worker can verify a version's text matches a requested
+// audio generation.
+export const hashContent = (content: string) => createHash('sha256').update(content).digest('hex')
 
 // Hashing password with Bcrypt.js
 export async function hashSecret({ secret }: { secret: string }) {

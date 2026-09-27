@@ -1,24 +1,95 @@
 /*
- * PRAYER role -> permission grant matrix (data only, no DB side-effects).
- * Shared by seeds/permission.ts (row catalogue) and seeds/role.ts (wiring).
+ * PRAYER permission catalogue + role -> grant matrix (data only, no DB writes).
+ * Shared by seeds/permission.ts (row catalogue) and seeds/role-permission.ts
+ * (role wiring) and seeds/user.ts (role binding).
  *
- * Roles and grant philosophy per SPEC §3.3 / §3.4:
- * - prayer_global_admin: broad platform powers, NO default private-request access.
- * - country/diocese/deanery: descendant AGGREGATE reporting only.
- * - prayer_church_admin: church overview/profile/content/publication + local
- *   donation/analytics summaries.
- * - prayer_pastor: own voice submission only (OWN scope), no self-approval.
- * - prayer_request_reader / prayer_private_request_reader: church-scoped reads.
+ * Model (confirmed): single-role RBAC for identity/staff + org-hierarchy
+ * scoping for church/region tenancy (hybrid, option 1).
+ * - User -> 1 Role via User.role_id.
+ * - Role = bundle of permissions (seeded "prayer_*" or admin-created "USER").
+ * - Permission = subject (entity/title) + actions READ/CREATE/UPDATE/DELETE
+ *   + scope OWN/ANY. Global admin edits per-role; affects all bound users.
+ * - role_assignments retained ONLY as the church/region tenancy layer for the
+ *   74 scoped content routes (requiredScope), not for identity binding.
  *
  * `actions` is a comma-separated CRUD list; each expands to its own
  * (subject, actions, scope) permission row.
  */
+
+// ---------------------------------------------------------------------------
+// FULL permission catalogue — every feasible (subject, action, scope) row so
+// the Role Access Control editor is complete and roles are freely reconfigurable.
+// ---------------------------------------------------------------------------
 
 export interface PrayerGrant {
   subject: string
   actions: string // comma-separated CRUD list
   scope: 'ANY' | 'OWN'
 }
+
+/** Entries where multiple actions + ANY scope make sense. */
+const ANY_CRUD = (subject: string, actions = 'read,create,update,delete'): PrayerGrant[] => [
+  { subject, actions, scope: 'ANY' },
+]
+
+/**
+ * Complete catalogue of every permission row the system can grant.
+ * A role's grant matrix below must reference subjects present here.
+ */
+export const PRAYER_CATALOGUE: PrayerGrant[] = [
+  // Church & organization
+  ...ANY_CRUD('prayer_church', 'read,create,update'), // no delete
+  { subject: 'prayer_church_lifecycle', actions: 'read,update', scope: 'ANY' },
+  ...ANY_CRUD('prayer_pastor', 'read,create,update'),
+  ...ANY_CRUD('prayer_church_pastor', 'read,create,update'),
+  ...ANY_CRUD('prayer_service_time', 'read,create,update,delete'),
+  { subject: 'prayer_org_node', actions: 'read,create,update', scope: 'ANY' },
+
+  // Content
+  ...ANY_CRUD('prayer_prayer', 'read,create,update'),
+  { subject: 'prayer_prayer_review', actions: 'update', scope: 'ANY' },
+  { subject: 'prayer_prayer_publication', actions: 'update', scope: 'ANY' },
+  ...ANY_CRUD('prayer_event', 'read,create,update,delete'),
+  ...ANY_CRUD('prayer_announcement', 'read,create,update,delete'),
+
+  // Voice / audio / media
+  { subject: 'prayer_voice_generation', actions: 'create', scope: 'ANY' },
+  { subject: 'prayer_voice_submission', actions: 'read,create,update', scope: 'OWN' },
+  { subject: 'prayer_voice_submission', actions: 'read', scope: 'ANY' },
+  { subject: 'prayer_voice_profile', actions: 'read,update', scope: 'ANY' },
+  { subject: 'prayer_consent', actions: 'read,create', scope: 'ANY' },
+  ...ANY_CRUD('prayer_prayer_audio', 'read,create,update'),
+  ...ANY_CRUD('prayer_media', 'create,read'),
+
+  // Requests (sensitive)
+  { subject: 'prayer_request', actions: 'read', scope: 'ANY' },
+  { subject: 'prayer_private_request', actions: 'read', scope: 'ANY' },
+
+  // Financial / analytics
+  { subject: 'prayer_donation', actions: 'read', scope: 'ANY' },
+  { subject: 'prayer_donation_summary', actions: 'read', scope: 'ANY' },
+  { subject: 'prayer_donation_subscription', actions: 'read', scope: 'ANY' },
+  { subject: 'prayer_analytics', actions: 'read', scope: 'ANY' },
+  { subject: 'prayer_attendance', actions: 'read', scope: 'ANY' },
+  { subject: 'prayer_platform_statistics', actions: 'read', scope: 'ANY' },
+
+  // Central registry
+  ...ANY_CRUD('prayer_hierarchy', 'read,create,update'),
+  ...ANY_CRUD('prayer_country', 'read,create,update'),
+  ...ANY_CRUD('prayer_language', 'read,create,update'),
+
+  // Staff / roles / permissions
+  ...ANY_CRUD('prayer_administrator', 'read,create,update'),
+  ...ANY_CRUD('prayer_role', 'read,create,update'),
+  ...ANY_CRUD('prayer_permission', 'read,update'),
+  ...ANY_CRUD('prayer_role_assignment', 'read,create,delete'),
+  { subject: 'prayer_notification_rule', actions: 'read,update', scope: 'ANY' },
+  { subject: 'prayer_customer', actions: 'read', scope: 'ANY' },
+]
+
+// ---------------------------------------------------------------------------
+// Role -> grant matrix. Zero here means "admin-created role picks its own".
+// ---------------------------------------------------------------------------
 
 export interface PrayerRole {
   name: string
@@ -49,12 +120,13 @@ export const PRAYER_ROLES: PrayerRole[] = [
       { subject: 'prayer_country', actions: 'read,create,update', scope: 'ANY' },
       { subject: 'prayer_language', actions: 'read,create,update', scope: 'ANY' },
       { subject: 'prayer_administrator', actions: 'read,create,update', scope: 'ANY' },
-      { subject: 'prayer_role', actions: 'read', scope: 'ANY' },
+      { subject: 'prayer_role', actions: 'read,update', scope: 'ANY' },
       { subject: 'prayer_permission', actions: 'read', scope: 'ANY' },
       { subject: 'prayer_role_assignment', actions: 'read,create,delete', scope: 'ANY' },
       { subject: 'prayer_notification_rule', actions: 'read,update', scope: 'ANY' },
       { subject: 'prayer_media', actions: 'create,read', scope: 'ANY' },
       { subject: 'prayer_request', actions: 'read', scope: 'ANY' },
+      { subject: 'prayer_customer', actions: 'read', scope: 'ANY' },
     ],
   },
   {
@@ -109,25 +181,38 @@ export const PRAYER_ROLES: PrayerRole[] = [
     name: 'prayer_private_request_reader',
     grants: [{ subject: 'prayer_private_request', actions: 'read', scope: 'ANY' }],
   },
+  {
+    // END-USER (mobile customer) — no admin grants by default.
+    name: 'prayer_user',
+    grants: [],
+  },
 ]
 
-/** Expand the matrix into distinct (subject, actions, scope) rows. */
-export const expandPrayerGrants = (): {
-  subject: string
-  actions: string
-  scope: 'ANY' | 'OWN'
-}[] => {
+/** Expand a grant list into distinct (subject, actions, scope) rows. */
+const expandGrants = (
+  grants: PrayerGrant[],
+): { subject: string; actions: string; scope: 'ANY' | 'OWN' }[] => {
   const seen = new Set<string>()
   const rows: { subject: string; actions: string; scope: 'ANY' | 'OWN' }[] = []
-  for (const role of PRAYER_ROLES) {
-    for (const g of role.grants) {
-      for (const action of g.actions.split(',')) {
-        const key = `${g.subject}|${action}|${g.scope}`
-        if (seen.has(key)) continue
-        seen.add(key)
-        rows.push({ subject: g.subject, actions: action, scope: g.scope })
-      }
+  for (const g of grants) {
+    for (const action of g.actions.split(',')) {
+      const key = `${g.subject}|${action}|${g.scope}`
+      if (seen.has(key)) continue
+      seen.add(key)
+      rows.push({ subject: g.subject, actions: action, scope: g.scope })
     }
   }
   return rows
 }
+
+/** Full catalogue rows (seeded to DB in seeds/permission.ts). */
+export const expandPrayerCatalogue = (): {
+  subject: string
+  actions: string
+  scope: 'ANY' | 'OWN'
+}[] => expandGrants(PRAYER_CATALOGUE)
+
+/** Role matrix rows kept for wiring a specific role's grants in role-permission.ts. */
+export const roleGrantRows = (
+  role: PrayerRole,
+): { subject: string; actions: string; scope: 'ANY' | 'OWN' }[] => expandGrants(role.grants)

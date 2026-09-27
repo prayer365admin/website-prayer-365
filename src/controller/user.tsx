@@ -51,6 +51,10 @@ export const getUserByEmail = async ({ email }: { email: string }) => {
   return result
 }
 
+/**
+ * Bind the user's single role (identity/RBAC). role_assignments are managed
+ * separately via /admin/central/role-assignments for org-scoping.
+ */
 export const createUser = async ({ email, name, password, role_id }: UserPayloadCreateModel) => {
   if (!password) {
     throw new GeneralError({
@@ -67,8 +71,8 @@ export const createUser = async ({ email, name, password, role_id }: UserPayload
     email,
     name: name,
     password: passwordHash,
-    role_id: role_id,
     email_verified_at: new Date(),
+    role_id,
   })
   return result
 }
@@ -80,14 +84,24 @@ export const updateUser = async ({
   user_id: string
   payload: UserPayloadUpdateModel
 }) => {
-  if (payload.password) {
-    payload.password = await hashSecret({ secret: `${payload.password}` })
-  } else {
-    delete payload.password
+  const { role_id, password, name, email_verified_at, profile_picture } = payload
+
+  const safePayload: {
+    name?: string
+    password?: string
+    email_verified_at?: Date | null
+    profile_picture?: string | null
+    role_id?: string | null
+  } = {}
+  if (name !== undefined) safePayload.name = name as string
+  if (role_id !== undefined) safePayload.role_id = role_id as string
+  if (email_verified_at !== undefined)
+    safePayload.email_verified_at = email_verified_at as Date | null
+  if (profile_picture !== undefined) safePayload.profile_picture = profile_picture as string | null
+  if (password) {
+    safePayload.password = await hashSecret({ secret: `${password}` })
   }
-  const result = await UPDATE_USER({
-    user_id: user_id,
-    payload: payload,
-  })
+
+  const result = await UPDATE_USER({ user_id: user_id, payload: safePayload })
   return result
 }

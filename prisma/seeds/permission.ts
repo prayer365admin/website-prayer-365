@@ -1,5 +1,5 @@
 import { db } from '../../src/utils/db-connection'
-import { expandPrayerGrants } from './prayer-roles'
+import { expandPrayerCatalogue } from './prayer-roles'
 
 export const seedPermission = async () => {
   // Template baseline permissions
@@ -88,6 +88,7 @@ export const seedPermission = async () => {
     skipDuplicates: true,
   })
 
-  // Prayer permission catalogue (from the role matrix)
-  await db.permission.createMany({ data: expandPrayerGrants(), skipDuplicates: true })
+  // Prayer permission catalogue — FULL per-entity CRUD x scope matrix,
+  // so the Role Access Control editor is complete and roles are reconfigurable.
+  await db.permission.createMany({ data: expandPrayerCatalogue(), skipDuplicates: true })
 }

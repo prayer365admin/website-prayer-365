@@ -4,7 +4,6 @@ import { Chakra_Petch, Orbitron } from 'next/font/google'
 import GlobalProvider from '@/components/container/global-provider'
 
 import '@/styles/global.scss'
-import '@ant-design/v5-patch-for-react-19'
 
 const fontHeading = Orbitron({ subsets: ['latin'], variable: '--font-heading' })
 const fontText = Chakra_Petch({

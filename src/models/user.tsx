@@ -3,7 +3,7 @@ import { GeneralOmitModel } from './general-omit'
 import { RoleDataModel } from './role'
 
 export interface UserDataModel extends User {
-  role: RoleDataModel
+  role: RoleDataModel | null
 }
 
 export interface UserPayloadCreateModel extends Prisma.UserUncheckedCreateInput {}

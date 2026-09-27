@@ -1,4 +1,5 @@
-import nodemailer, { SentMessageInfo, Transporter } from 'nodemailer'
+import nodemailer, { Transporter } from 'nodemailer'
+import type { SendMailOptions } from 'nodemailer'
 import path from 'path'
 import fs from 'fs'
 import { GeneralError } from '@/utils/general-error'
@@ -63,7 +64,7 @@ export default async function sendMail(request: sendMailRequest) {
   const mailTemplate = hbs.compile(mailFile)
   const mailContent = mailTemplate(dataParse)
 
-  const mailOptions: SentMessageInfo = {
+  const mailOptions: SendMailOptions = {
     from: from,
     to: to,
     subject: subject,

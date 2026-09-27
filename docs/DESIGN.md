@@ -18,12 +18,12 @@ Simple screen-by-screen image wireframes for review before visual design. These 
 
 ![Shared dashboard layout](design-assets/shared-layout.png)
 
-| Role context | Navigation shown when authorized |
-|---|---|
-| Church staff | Overview, Church Profile, Prayers, Events, Announcements, Requests, Donations, Activity |
-| Central staff | Platform Overview, Churches, Staff, Roles, Pastors, Organization, Countries, Languages, Voices, Notifications |
-| Regional staff | Regional Overview for their assigned scope |
-| Pastor self-service | My Voice; other church menus only when separately granted |
+| Role context        | Navigation shown when authorized                                                                              |
+| ------------------- | ------------------------------------------------------------------------------------------------------------- |
+| Church staff        | Overview, Church Profile, Prayers, Events, Announcements, Requests, Donations, Activity                       |
+| Central staff       | Platform Overview, Churches, Staff, Roles, Pastors, Organization, Countries, Languages, Voices, Notifications |
+| Regional staff      | Regional Overview for their assigned scope                                                                    |
+| Pastor self-service | My Voice; other church menus only when separately granted                                                     |
 
 Do not show every menu to everyone. A central role does not automatically grant private-request access. Scope switches must use assigned scopes only. Server authorization must also enforce access when someone opens a URL directly.
 
@@ -33,35 +33,35 @@ Use the template’s standard tables, forms, tabs, drawers and confirmation dial
 
 The earlier simplified prompt grouped several areas together. This catalogue separates the existing required views for clarity, including church selection, basic analytics and central oversight. It adds no new feature modules.
 
-| ID | Screen / view | Who uses it | Feature |
-|---|---|---|---|
-| S01 | Login | All staff | F1 |
-| S02 | Choose Church | Staff with church access | F1 |
-| S03 | Church Dashboard | Authorized church staff | F2 |
-| S04 | Church Profile and Service Schedule | Authorized church editors | F3 |
-| S05 | Prayer List and Archive | Authorized content staff | F4 |
-| S06 | Prayer Editor | Authorized content staff | F4 |
-| S07 | Prayer Audio Review and Publication | Staff with the relevant generation/approval/publication grants | F4 |
-| S08 | Events and Event Editor | Authorized content staff | F5 |
-| S09 | Announcements and Announcement Editor | Authorized content staff | F5 |
-| S10 | Prayer and Pastoral Request List | Church staff with explicit request access | F6 |
-| S11 | Request Detail | Church staff with explicit sensitive-data access | F6 |
-| S12 | Donation Reporting | Authorized church finance viewers | F7 |
-| S13 | Attendance and Basic Analytics | Authorized church analytics viewers | F10 |
-| S14 | Central Overview | Authorized central administrators | F8 |
-| S15 | Church Administration List | Authorized central administrators | F8 |
-| S16 | Church Setup and Lifecycle | Authorized central administrators | F8 |
-| S17 | Staff List | Authorized central staff administrators | F8 |
-| S18 | Staff Create and Edit | Authorized central staff administrators | F8 |
-| S19 | Supported Roles and Permission Detail | Authorized central role viewers | F1 / F8 |
-| S20 | Pastor Profiles and Church Assignments | Authorized central administrators | F8 |
-| S21 | Organization Structure | Authorized central administrators | F8 |
-| S22 | Countries | Authorized central administrators | F8 |
-| S23 | Languages | Authorized central administrators | F8 |
-| S24 | Voice Submission Review | Authorized voice-review administrators | F4 / F8 |
-| S25 | Notification Settings | Authorized central notification administrators | F11 |
-| S26 | Regional Dashboard | Authorized country/diocese/deanery viewers | F9 |
-| S27 | My Voice — Pastor Submission | Linked pastor, own sample only | F4 |
+| ID  | Screen / view                          | Who uses it                                                    | Feature |
+| --- | -------------------------------------- | -------------------------------------------------------------- | ------- |
+| S01 | Login                                  | All staff                                                      | F1      |
+| S02 | Choose Church                          | Staff with church access                                       | F1      |
+| S03 | Church Dashboard                       | Authorized church staff                                        | F2      |
+| S04 | Church Profile and Service Schedule    | Authorized church editors                                      | F3      |
+| S05 | Prayer List and Archive                | Authorized content staff                                       | F4      |
+| S06 | Prayer Editor                          | Authorized content staff                                       | F4      |
+| S07 | Prayer Audio Review and Publication    | Staff with the relevant generation/approval/publication grants | F4      |
+| S08 | Events and Event Editor                | Authorized content staff                                       | F5      |
+| S09 | Announcements and Announcement Editor  | Authorized content staff                                       | F5      |
+| S10 | Prayer and Pastoral Request List       | Church staff with explicit request access                      | F6      |
+| S11 | Request Detail                         | Church staff with explicit sensitive-data access               | F6      |
+| S12 | Donation Reporting                     | Authorized church finance viewers                              | F7      |
+| S13 | Attendance and Basic Analytics         | Authorized church analytics viewers                            | F10     |
+| S14 | Central Overview                       | Authorized central administrators                              | F8      |
+| S15 | Church Administration List             | Authorized central administrators                              | F8      |
+| S16 | Church Setup and Lifecycle             | Authorized central administrators                              | F8      |
+| S17 | Staff List                             | Authorized central staff administrators                        | F8      |
+| S18 | Staff Create and Edit                  | Authorized central staff administrators                        | F8      |
+| S19 | Supported Roles and Permission Detail  | Authorized central role viewers                                | F1 / F8 |
+| S20 | Pastor Profiles and Church Assignments | Authorized central administrators                              | F8      |
+| S21 | Organization Structure                 | Authorized central administrators                              | F8      |
+| S22 | Countries                              | Authorized central administrators                              | F8      |
+| S23 | Languages                              | Authorized central administrators                              | F8      |
+| S24 | Voice Submission Review                | Authorized voice-review administrators                         | F4 / F8 |
+| S25 | Notification Settings                  | Authorized central notification administrators                 | F11     |
+| S26 | Regional Dashboard                     | Authorized country/diocese/deanery viewers                     | F9      |
+| S27 | My Voice — Pastor Submission           | Linked pastor, own sample only                                 | F4      |
 
 ## Screen Wireframes
 
@@ -407,34 +407,34 @@ Show review status separately from registration status. Explain that approval au
 
 Apply these small states to the relevant screens; they do not need separate navigation items.
 
-| State | What the user sees / expects |
-|---|---|
-| Loading | A loading placeholder; do not display fabricated totals or stale private content from another scope. |
-| Empty | “No prayers yet” or equivalent; show a create action only when the user can create that item. |
-| Invalid form | Keep input and show an explanation beside the affected field. |
-| Saving | Disable repeat submission and show progress; confirm success only after server acceptance. |
-| Network / provider error | Explain the failure, preserve safe unsaved work and allow a safe retry where applicable. |
-| Stale edit | Explain that the record changed; let the user reload rather than overwrite silently. |
-| Unsaved changes | Ask whether to stay or discard changes before navigation. |
-| Access denied / unavailable | Show a neutral message and return action without revealing hidden church/request information. |
-| Session expired | Return to sign-in; clear sensitive page state. |
-| Sensitive action | Identify the record, action and confirmed consequences before approval. |
-| Invalid upload | Explain accepted format/size and allow replacement; never show an unvalidated file as ready. |
+| State                       | What the user sees / expects                                                                         |
+| --------------------------- | ---------------------------------------------------------------------------------------------------- |
+| Loading                     | A loading placeholder; do not display fabricated totals or stale private content from another scope. |
+| Empty                       | “No prayers yet” or equivalent; show a create action only when the user can create that item.        |
+| Invalid form                | Keep input and show an explanation beside the affected field.                                        |
+| Saving                      | Disable repeat submission and show progress; confirm success only after server acceptance.           |
+| Network / provider error    | Explain the failure, preserve safe unsaved work and allow a safe retry where applicable.             |
+| Stale edit                  | Explain that the record changed; let the user reload rather than overwrite silently.                 |
+| Unsaved changes             | Ask whether to stay or discard changes before navigation.                                            |
+| Access denied / unavailable | Show a neutral message and return action without revealing hidden church/request information.        |
+| Session expired             | Return to sign-in; clear sensitive page state.                                                       |
+| Sensitive action            | Identify the record, action and confirmed consequences before approval.                              |
+| Invalid upload              | Explain accepted format/size and allow replacement; never show an unvalidated file as ready.         |
 
 Forms need visible labels and keyboard focus; do not rely on color alone for meaning. Date/time inputs must show their time zone. Donation values must include currency. Request and voice evidence pages must not expose sensitive content in general notifications or summaries.
 
 ## Decisions Needed Before High-Fidelity Design
 
-| Area | Decision |
-|---|---|
-| Staff / permissions | Confirm role names, grant matrix, credential onboarding and whether any bounded role editing is approved. |
-| Church setup | Confirm required creation fields and effects of suspension/archive. |
-| Requests | Define any staff management actions beyond reading and contacting; no invented status or assignment workflow. |
-| Prayer publication | Confirm published-edit behavior, text-only publication policy, time zone and text-upload constraints. |
-| Events / announcements | Confirm announcement fields, publication controls and service schedule fields. |
-| Reporting | Confirm reporting periods and metric definitions; always separate donation currencies. |
-| Notifications | Confirm configuration fields and allowed triggers/timing. |
-| Voice onboarding | Pastor self-upload, admin approval, automatic Instant clone registration and one PRAYER account are confirmed. Validate accepted evidence/file limits, voice quality and provider-required verification completion before launch. |
+| Area                   | Decision                                                                                                                                                                                                                          |
+| ---------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Staff / permissions    | Confirm role names, grant matrix, credential onboarding and whether any bounded role editing is approved.                                                                                                                         |
+| Church setup           | Confirm required creation fields and effects of suspension/archive.                                                                                                                                                               |
+| Requests               | Define any staff management actions beyond reading and contacting; no invented status or assignment workflow.                                                                                                                     |
+| Prayer publication     | Confirm published-edit behavior, text-only publication policy, time zone and text-upload constraints.                                                                                                                             |
+| Events / announcements | Confirm announcement fields, publication controls and service schedule fields.                                                                                                                                                    |
+| Reporting              | Confirm reporting periods and metric definitions; always separate donation currencies.                                                                                                                                            |
+| Notifications          | Confirm configuration fields and allowed triggers/timing.                                                                                                                                                                         |
+| Voice onboarding       | Pastor self-upload, admin approval, automatic Instant clone registration and one PRAYER account are confirmed. Validate accepted evidence/file limits, voice quality and provider-required verification completion before launch. |
 
 ## Future Approach — Not Designed Here
 

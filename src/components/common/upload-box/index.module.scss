@@ -1,8 +1,6 @@
 .upload {
-  :global {
-    .ant-upload-select {
-      width: 100% !important;
-      height: 100% !important;
-    }
+  :global(.ant-upload-select) {
+    width: 100% !important;
+    height: 100% !important;
   }
 }

@@ -24,7 +24,7 @@ const END_USERS = [
 
 // Administrator (all access) — seeded early; domain seeds reference it as actor.
 export const seedAdminUser = async () => {
-  return db.user.upsert({
+  const admin = await db.user.upsert({
     where: { email: 'admin@catatia.com' },
     update: { ...verifiedSeedUser },
     create: {
@@ -35,13 +35,45 @@ export const seedAdminUser = async () => {
       role: { connect: { name: 'administrator' } },
     },
   })
+
+  // The admin holds a GLOBAL role_assignment for the org-hierarchy scoping
+  // layer (requiredScope) — central/church route tenancy. This is the church/
+  // region data boundary, distinct from the identity role above.
+  const globalNode = await db.orgNode.findFirst({ where: { kind: 'GLOBAL' } })
+  if (globalNode) {
+    const roleRow = await db.role.findUnique({ where: { name: 'administrator' } })
+    if (roleRow) {
+      const existing = await db.roleAssignment.findFirst({
+        where: {
+          user_id: admin.id,
+          role_id: roleRow.id,
+          org_node_id: globalNode.id,
+          revoked_at: null,
+        },
+      })
+      if (!existing) {
+        await db.roleAssignment.create({
+          data: {
+            user_id: admin.id,
+            role_id: roleRow.id,
+            org_node_id: globalNode.id,
+            granted_by: admin.id,
+          },
+        })
+      }
+    }
+  }
+
+  return admin
 }
 
 // Prayer test accounts + end-users. Runs after org hierarchy + admin exist.
 export const seedUsers = async () => {
   const admin = await seedAdminUser()
 
-  // Prayer test accounts (one per role), assigned to their org node.
+  // Prayer test accounts (one per role). Each binds its single role via
+  // role_id (identity/RBAC) AND holds a role_assignment (org-scoping for the
+  // 74 church/region routes). Both layers must exist for option-1 hybrid.
   for (const role of PRAYER_ROLES) {
     const email = `${role.name}@example.com`
     const user = await db.user.upsert({
@@ -52,7 +84,7 @@ export const seedUsers = async () => {
         name: role.name,
         password: TEST_PASSWORD,
         ...verifiedSeedUser,
-        role_id: null,
+        role: { connect: { name: role.name } },
       },
     })
 

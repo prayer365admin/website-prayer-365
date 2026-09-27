@@ -17,6 +17,9 @@ export default async function generatePdf({
   try {
     const filePath = path.resolve('./public/templates/pdf', `${template_name}.html`)
 
+    const CHROMIUM_PACK_URL =
+      'https://github.com/Sparticuz/chromium/releases/download/v153.0.0/chromium-v153.0.0-pack.x64.tar'
+
     if (mode !== 'DOWNLOAD' && mode !== 'VIEW') {
       throw new GeneralError({
         error: 'Invalid mode',
@@ -45,26 +48,20 @@ export default async function generatePdf({
     }
     const executablePath =
       process.env.IS_VERCEL === 'true'
-        ? await chromium.executablePath(
-            'https://github.com/Sparticuz/chromium/releases/download/v126.0.0/chromium-v126.0.0-pack.tar',
-          )
+        ? await chromium.executablePath(CHROMIUM_PACK_URL)
         : undefined
 
     const browser =
       process.env.IS_VERCEL === 'true'
         ? await puppeteer.launch({
             args: [...chromium.args, '--no-sandbox', '--disable-setuid-sandbox'],
-            defaultViewport: chromium.defaultViewport,
             executablePath: executablePath,
             headless: true,
-            ignoreHTTPSErrors: true,
           })
         : await localPuppeteer.launch({
             args: [...chromium.args, '--no-sandbox', '--disable-setuid-sandbox'],
-            defaultViewport: chromium.defaultViewport,
             executablePath: undefined,
             headless: true,
-            ignoreHTTPSErrors: true,
           })
 
     const page = await browser.newPage()

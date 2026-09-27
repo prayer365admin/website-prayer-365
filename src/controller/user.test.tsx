@@ -65,9 +65,21 @@ describe('getUserByEmail', () => {
 describe('createUser', () => {
   beforeEach(() => vi.clearAllMocks())
 
+  it('binds role_id when provided (single-role identity binding)', async () => {
+    await createUser({ email: 'a@b.com', name: 'A', password: 'Strong@123', role_id: 'r1' })
+    expect(CREATE_USER).toHaveBeenCalledWith(
+      expect.objectContaining({
+        email: 'a@b.com',
+        name: 'A',
+        password: 'hashed:Strong@123',
+        role_id: 'r1',
+      }),
+    )
+  })
+
   it('throws 400 when password missing', async () => {
     await expect(
-      createUser({ email: 'a@b.com', name: 'A', password: '', role_id: 'r1' }),
+      createUser({ email: 'a@b.com', name: 'A', password: '', role_id: undefined }),
     ).rejects.toMatchObject({
       code: 400,
       error_code: 'INVALID_PASSWORD',
@@ -75,13 +87,12 @@ describe('createUser', () => {
   })
 
   it('hashes password and creates user with email_verified_at set', async () => {
-    await createUser({ email: 'a@b.com', name: 'A', password: 'pass1234', role_id: 'r1' })
+    await createUser({ email: 'a@b.com', name: 'A', password: 'pass1234', role_id: undefined })
     expect(hashSecret).toHaveBeenCalledWith({ secret: 'pass1234' })
     expect(CREATE_USER).toHaveBeenCalledWith(
       expect.objectContaining({
         email: 'a@b.com',
         name: 'A',
-        role_id: 'r1',
         password: 'hashed:pass1234',
         email_verified_at: expect.any(Date),
       }),
@@ -91,6 +102,14 @@ describe('createUser', () => {
 
 describe('updateUser', () => {
   beforeEach(() => vi.clearAllMocks())
+
+  it('passes role_id through on update (single-role identity binding)', async () => {
+    await updateUser({ user_id: 'u1', payload: { name: 'B', role_id: 'r1' } as never })
+    expect(UPDATE_USER).toHaveBeenCalledWith({
+      user_id: 'u1',
+      payload: { name: 'B', role_id: 'r1' },
+    })
+  })
 
   it('hashes password when provided', async () => {
     await updateUser({ user_id: 'u1', payload: { password: 'newpass123' } })
