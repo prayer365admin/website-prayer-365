@@ -9,12 +9,7 @@ import {
   GET_VALID_AUTH_TOKEN,
   USE_AUTH_TOKEN,
 } from '@/providers/auth-token'
-import {
-  CREATE_USER,
-  GET_USER_BY_EMAIL,
-  GET_USER_BY_ROLE_TYPE,
-  UPDATE_USER,
-} from '@/providers/user'
+import { CREATE_USER, GET_USER_BY_EMAIL, UPDATE_USER } from '@/providers/user'
 import { updateUser } from '@/controller/user'
 
 const EMAIL_REGEX = /^\S+@\S+\.\S+$/
@@ -108,26 +103,14 @@ export const registerUser = async ({
     })
   }
 
-  const role =
-    (await GET_USER_BY_ROLE_TYPE({ type: 'USER', name: 'member' })) ||
-    (await GET_USER_BY_ROLE_TYPE({ type: 'USER' }))
-
-  if (!role) {
-    throw new GeneralError({
-      code: 500,
-      error: 'INTERNAL_SERVER_ERROR',
-      error_code: 'DEFAULT_ROLE_NOT_FOUND',
-      details: 'Default signup role is not configured!',
-    })
-  }
-
   const passwordHash = await hashSecret({ secret: password })
 
+  // Assignment-based auth supersedes the legacy single role; signup creates a
+  // verified staff user with no role_id (assignments are central-managed).
   const result = await CREATE_USER({
     email: emailNormalized,
     name: name,
     password: passwordHash,
-    role_id: role.id,
   })
 
   await sendVerificationEmail({

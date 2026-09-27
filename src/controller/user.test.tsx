@@ -65,9 +65,19 @@ describe('getUserByEmail', () => {
 describe('createUser', () => {
   beforeEach(() => vi.clearAllMocks())
 
+  it('throws 422 when role_id provided (rejected)', async () => {
+    await expect(
+      createUser({ email: 'a@b.com', name: 'A', password: 'Strong@123', role_id: 'r1' }),
+    ).rejects.toMatchObject({
+      code: 422,
+      error_code: 'ROLE_ID_FORBIDDEN',
+    })
+    expect(CREATE_USER).not.toHaveBeenCalled()
+  })
+
   it('throws 400 when password missing', async () => {
     await expect(
-      createUser({ email: 'a@b.com', name: 'A', password: '', role_id: 'r1' }),
+      createUser({ email: 'a@b.com', name: 'A', password: '', role_id: undefined }),
     ).rejects.toMatchObject({
       code: 400,
       error_code: 'INVALID_PASSWORD',
@@ -75,13 +85,12 @@ describe('createUser', () => {
   })
 
   it('hashes password and creates user with email_verified_at set', async () => {
-    await createUser({ email: 'a@b.com', name: 'A', password: 'pass1234', role_id: 'r1' })
+    await createUser({ email: 'a@b.com', name: 'A', password: 'pass1234', role_id: undefined })
     expect(hashSecret).toHaveBeenCalledWith({ secret: 'pass1234' })
     expect(CREATE_USER).toHaveBeenCalledWith(
       expect.objectContaining({
         email: 'a@b.com',
         name: 'A',
-        role_id: 'r1',
         password: 'hashed:pass1234',
         email_verified_at: expect.any(Date),
       }),
@@ -91,6 +100,13 @@ describe('createUser', () => {
 
 describe('updateUser', () => {
   beforeEach(() => vi.clearAllMocks())
+
+  it('rejects role_id on update (422)', async () => {
+    await expect(
+      updateUser({ user_id: 'u1', payload: { name: 'B', role_id: 'r1' } as never }),
+    ).rejects.toMatchObject({ code: 422, error_code: 'ROLE_ID_FORBIDDEN' })
+    expect(UPDATE_USER).not.toHaveBeenCalled()
+  })
 
   it('hashes password when provided', async () => {
     await updateUser({ user_id: 'u1', payload: { password: 'newpass123' } })

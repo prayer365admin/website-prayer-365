@@ -8,7 +8,6 @@ vi.mock('@/utils/required-auth', () => ({
 
 vi.mock('@/providers/user', () => ({
   GET_USER_BY_ID: vi.fn(),
-  DELETE_USER: vi.fn(),
 }))
 
 vi.mock('@/controller/user', () => ({
@@ -16,19 +15,16 @@ vi.mock('@/controller/user', () => ({
 }))
 
 import { updateUser } from '@/controller/user'
-import { DELETE_USER, GET_USER_BY_ID } from '@/providers/user'
+import { GET_USER_BY_ID } from '@/providers/user'
 import requiredAuth from '@/utils/required-auth'
-import { DELETE, GET, PUT } from './route'
+import { GeneralError } from '@/utils/general-error'
+import { GET, PUT } from './route'
 
-const makeAuth = (opts: { ownId?: boolean; any?: boolean } = {}) => ({
+const makeAuth = (granted: boolean) => ({
   session: { user: { user_id: 'u1' } },
   permission: {
-    read: () => ({ granted: opts.ownId === true || opts.any === true }),
-    update: () => ({ granted: opts.ownId === true || opts.any === true }),
-    delete: () => ({ granted: opts.ownId === true || opts.any === true }),
-    readAny: () => ({ granted: opts.any === true }),
-    updateAny: () => ({ granted: opts.any === true }),
-    deleteAny: () => ({ granted: opts.any === true }),
+    readAny: () => ({ granted }),
+    updateAny: () => ({ granted }),
   },
 })
 
@@ -37,38 +33,56 @@ const params = { params: Promise.resolve({ id: 'u1' }) }
 describe('GET /api/v1/users/[id]', () => {
   beforeEach(() => vi.clearAllMocks())
 
-  it('returns user when own record', async () => {
-    vi.mocked(requiredAuth).mockResolvedValue(makeAuth({ ownId: true }) as never)
-    vi.mocked(GET_USER_BY_ID).mockResolvedValue({ id: 'u1', email: 'a@b.com' } as never)
+  it('returns user detail when prayer_administrator readAny granted', async () => {
+    vi.mocked(requiredAuth).mockResolvedValue(makeAuth(true) as never)
+    vi.mocked(GET_USER_BY_ID).mockResolvedValue({
+      id: 'u1',
+      email: 'a@b.com',
+      name: 'A',
+    } as never)
 
     const res = (await GET(new NextRequest('http://localhost/api/v1/users/u1'), params as never))!
     expect(res.status).toBe(200)
-    expect(await res.json()).toMatchObject({ success: true, result: { id: 'u1' } })
+    const body = await res.json()
+    expect(body.success).toBe(true)
+    expect(body.result).toMatchObject({ id: 'u1', email: 'a@b.com' })
+    expect(body.request_id).toBeTruthy()
   })
 
-  it('returns user when admin readAny', async () => {
-    vi.mocked(requiredAuth).mockResolvedValue(makeAuth({ any: true }) as never)
-    vi.mocked(GET_USER_BY_ID).mockResolvedValue({ id: 'u9' } as never)
+  it('never returns password in detail', async () => {
+    vi.mocked(requiredAuth).mockResolvedValue(makeAuth(true) as never)
+    vi.mocked(GET_USER_BY_ID).mockResolvedValue({
+      id: 'u1',
+      email: 'a@b.com',
+      name: 'A',
+      password: 'hash',
+    } as never)
 
-    const res = (await GET(new NextRequest('http://localhost/api/v1/users/u9'), params as never))!
-    expect(res.status).toBe(200)
-    expect(GET_USER_BY_ID).toHaveBeenCalledWith({ user_id: 'u1' })
+    const res = (await GET(new NextRequest('http://localhost/api/v1/users/u1'), params as never))!
+    const body = await res.json()
+    expect(body.result.password).toBeUndefined()
   })
 
-  it('returns 403 when neither own record nor admin', async () => {
-    vi.mocked(requiredAuth).mockResolvedValue(makeAuth() as never)
+  it('returns 403 when permission denied', async () => {
+    vi.mocked(requiredAuth).mockResolvedValue(makeAuth(false) as never)
     const res = (await GET(new NextRequest('http://localhost/api/v1/users/u1'), params as never))!
     expect(res.status).toBe(403)
-    expect((await res.json()).error_code).toBe('NOT_ALLOWED')
+  })
+
+  it('returns 404 when user missing', async () => {
+    vi.mocked(requiredAuth).mockResolvedValue(makeAuth(true) as never)
+    vi.mocked(GET_USER_BY_ID).mockResolvedValue(null as never)
+    const res = (await GET(new NextRequest('http://localhost/api/v1/users/u1'), params as never))!
+    expect(res.status).toBe(404)
   })
 })
 
 describe('PUT /api/v1/users/[id]', () => {
   beforeEach(() => vi.clearAllMocks())
 
-  it('updates own record with hashed password via controller', async () => {
-    vi.mocked(requiredAuth).mockResolvedValue(makeAuth({ ownId: true }) as never)
-    vi.mocked(updateUser).mockResolvedValue({ id: 'u1' } as never)
+  it('updates via controller when prayer_administrator updateAny granted', async () => {
+    vi.mocked(requiredAuth).mockResolvedValue(makeAuth(true) as never)
+    vi.mocked(updateUser).mockResolvedValue({ id: 'u1', name: 'B' } as never)
 
     const req = new NextRequest('http://localhost/api/v1/users/u1', {
       method: 'PUT',
@@ -79,38 +93,34 @@ describe('PUT /api/v1/users/[id]', () => {
     expect(updateUser).toHaveBeenCalledWith({ user_id: 'u1', payload: { name: 'B' } })
   })
 
+  it('rejects role_id on update (422 through controller)', async () => {
+    vi.mocked(requiredAuth).mockResolvedValue(makeAuth(true) as never)
+    vi.mocked(updateUser).mockRejectedValue(
+      new GeneralError({
+        code: 422,
+        error: 'VALIDATION_ERROR',
+        error_code: 'ROLE_ID_FORBIDDEN',
+        details: 'role_id is not allowed; assign roles via role assignments.',
+        fields: { role_id: 'Forbidden' },
+      }),
+    )
+
+    const req = new NextRequest('http://localhost/api/v1/users/u1', {
+      method: 'PUT',
+      body: JSON.stringify({ name: 'B', role_id: 'r1' }),
+    })
+    const res = (await PUT(req, params as never))!
+    expect(res.status).toBe(422)
+    expect((await res.json()).error_code).toBe('ROLE_ID_FORBIDDEN')
+  })
+
   it('returns 403 without permission', async () => {
-    vi.mocked(requiredAuth).mockResolvedValue(makeAuth() as never)
+    vi.mocked(requiredAuth).mockResolvedValue(makeAuth(false) as never)
     const req = new NextRequest('http://localhost/api/v1/users/u1', {
       method: 'PUT',
       body: JSON.stringify({}),
     })
     const res = (await PUT(req, params as never))!
-    expect(res.status).toBe(403)
-  })
-})
-
-describe('DELETE /api/v1/users/[id]', () => {
-  beforeEach(() => vi.clearAllMocks())
-
-  it('deletes own record', async () => {
-    vi.mocked(requiredAuth).mockResolvedValue(makeAuth({ ownId: true }) as never)
-    vi.mocked(DELETE_USER).mockResolvedValue({ id: 'u1' } as never)
-
-    const res = (await DELETE(
-      new NextRequest('http://localhost/api/v1/users/u1'),
-      params as never,
-    ))!
-    expect(res.status).toBe(200)
-    expect(DELETE_USER).toHaveBeenCalledWith({ user_id: 'u1' })
-  })
-
-  it('returns 403 without permission', async () => {
-    vi.mocked(requiredAuth).mockResolvedValue(makeAuth() as never)
-    const res = (await DELETE(
-      new NextRequest('http://localhost/api/v1/users/u1'),
-      params as never,
-    ))!
     expect(res.status).toBe(403)
   })
 })

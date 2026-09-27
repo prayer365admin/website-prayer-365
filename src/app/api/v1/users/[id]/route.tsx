@@ -1,45 +1,53 @@
 import { updateUser } from '@/controller/user'
 import { UserPayloadUpdateModel } from '@/models/user'
-import { DELETE_USER, GET_USER_BY_ID } from '@/providers/user'
+import { GET_USER_BY_ID } from '@/providers/user'
+import { ok, httpError } from '@/utils/response'
+import { registerPath } from '@/utils/openapi'
 import { GeneralError } from '@/utils/general-error'
 import requiredAuth from '@/utils/required-auth'
-import { NextRequest, NextResponse } from 'next/server'
+import { z } from 'zod'
+import { NextRequest } from 'next/server'
 
 type Params = Promise<{ id: string }>
 
+type PasswordShaped = { password?: string | null | undefined }
+function protect<T extends PasswordShaped>(row: T): Omit<T, 'password'> {
+  const { password: _pw, ...safe } = row
+  return safe
+}
+
 export async function GET(req: NextRequest, segmentData: { params: Params }) {
-  const {} = req.nextUrl.searchParams
   const params = await segmentData.params
   const id = params.id
   try {
-    const { session, permission } = await requiredAuth(req)
+    const { permission } = await requiredAuth(req)
 
-    if (
-      !permission.read('user_management_user').granted ||
-      (session.user.user_id != id && !permission.readAny('user_management_user').granted)
-    ) {
-      throw new GeneralError({
-        code: 403,
-        details: 'This account not allowed for this actions',
-        error_code: 'NOT_ALLOWED',
-        error: 'UNAUTHORIZED',
-      })
+    if (!permission.readAny('prayer_administrator').granted) {
+      return httpError(
+        new GeneralError({
+          code: 403,
+          error: 'UNAUTHORIZED',
+          error_code: 'NOT_ALLOWED',
+          details: 'This account is not allowed for this action.',
+        }),
+      )
     }
 
     const result = await GET_USER_BY_ID({ user_id: id })
-    return NextResponse.json({
-      success: true,
-      message: `Successfully retrieve data with id ${id}!`,
-      result: result,
-    })
-  } catch (error) {
-    if (error instanceof GeneralError) {
-      return NextResponse.json(error, { status: error.code })
+    if (!result) {
+      return httpError(
+        new GeneralError({
+          code: 404,
+          error: 'NOT_FOUND',
+          error_code: 'USER_NOT_FOUND',
+          details: 'User not found.',
+        }),
+      )
     }
 
-    if (error instanceof Error) {
-      return NextResponse.json({ error: error.message, details: error }, { status: 500 })
-    }
+    return ok(protect(result), `Successfully retrieve data with id ${id}!`)
+  } catch (error) {
+    return httpError(error)
   }
 }
 
@@ -48,69 +56,74 @@ export async function PUT(req: NextRequest, segmentData: { params: Params }) {
   const params = await segmentData.params
   const id = params.id
   try {
-    const { session, permission } = await requiredAuth(req)
+    const { permission } = await requiredAuth(req)
 
-    if (
-      !permission.update('user_management_user').granted ||
-      (session.user.user_id != id && !permission.updateAny('user_management_user').granted)
-    ) {
-      throw new GeneralError({
-        code: 403,
-        details: 'This account not allowed for this actions',
-        error_code: 'NOT_ALLOWED',
-        error: 'UNAUTHORIZED',
-      })
+    if (!permission.updateAny('prayer_administrator').granted) {
+      return httpError(
+        new GeneralError({
+          code: 403,
+          error: 'UNAUTHORIZED',
+          error_code: 'NOT_ALLOWED',
+          details: 'This account is not allowed for this action.',
+        }),
+      )
     }
 
-    const result = await updateUser({ user_id: id, payload: payload })
-    return NextResponse.json({
-      success: true,
-      message: `Successfully update data with id ${id}!`,
-      result: result,
-    })
+    const result = await updateUser({ user_id: id, payload })
+    return ok(result, `Successfully update data with id ${id}!`)
   } catch (error) {
-    if (error instanceof GeneralError) {
-      return NextResponse.json(error, { status: error.code })
-    }
-
-    if (error instanceof Error) {
-      return NextResponse.json({ error: error.message, details: error }, { status: 500 })
-    }
+    return httpError(error)
   }
 }
 
-export async function DELETE(req: NextRequest, segmentData: { params: Params }) {
-  const {} = req.nextUrl.searchParams
-  const params = await segmentData.params
-  const id = params.id
-  try {
-    const { session, permission } = await requiredAuth(req)
+registerPath({
+  path: '/users/{id}',
+  method: 'get',
+  summary: 'Staff detail (central prayer_administrator, no password)',
+  request: { params: [{ name: 'id', in: 'path', schema: z.string() }] },
+  responses: [
+    {
+      status: 200,
+      description: 'User detail (no password)',
+      schema: z.object({
+        success: z.literal(true),
+        message: z.string(),
+        result: z.object({ id: z.string(), email: z.string(), name: z.string() }),
+        request_id: z.string(),
+      }),
+    },
+    { status: 401, description: 'Not authenticated' },
+    { status: 403, description: 'Forbidden' },
+    { status: 404, description: 'User not found' },
+  ],
+})
 
-    if (
-      !permission.delete('user_management_user').granted ||
-      (session.user.user_id != id && !permission.deleteAny('user_management_user').granted)
-    ) {
-      throw new GeneralError({
-        code: 403,
-        details: 'This account not allowed for this actions',
-        error_code: 'NOT_ALLOWED',
-        error: 'UNAUTHORIZED',
-      })
-    }
-
-    const result = await DELETE_USER({ user_id: id })
-    return NextResponse.json({
-      success: true,
-      message: `Successfully delete data with id ${id}!`,
-      result: result,
-    })
-  } catch (error) {
-    if (error instanceof GeneralError) {
-      return NextResponse.json(error, { status: error.code })
-    }
-
-    if (error instanceof Error) {
-      return NextResponse.json({ error: error.message, details: error }, { status: 500 })
-    }
-  }
-}
+registerPath({
+  path: '/users/{id}',
+  method: 'put',
+  summary: 'Update staff (role_id rejected, no password returned)',
+  request: {
+    params: [{ name: 'id', in: 'path', schema: z.string() }],
+    body: z.object({
+      name: z.string().optional(),
+      password: z.string().optional(),
+      email_verified_at: z.string().optional(),
+      profile_picture: z.string().optional(),
+    }),
+  },
+  responses: [
+    {
+      status: 200,
+      description: 'Updated user (no password)',
+      schema: z.object({
+        success: z.literal(true),
+        message: z.string(),
+        result: z.object({ id: z.string(), email: z.string(), name: z.string() }),
+        request_id: z.string(),
+      }),
+    },
+    { status: 401, description: 'Not authenticated' },
+    { status: 403, description: 'Forbidden' },
+    { status: 422, description: 'Validation error (role_id rejected)' },
+  ],
+})

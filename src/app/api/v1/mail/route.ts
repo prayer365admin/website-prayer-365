@@ -1,27 +1,15 @@
-import sendMail from '@/controller/mail'
-import { NextRequest, NextResponse } from 'next/server'
+import { httpError } from '@/utils/response'
+import { GeneralError } from '@/utils/general-error'
+import { NextRequest } from 'next/server'
 
-export async function POST(req: NextRequest) {
-  const host = req.headers.get('host') || 'https://example.com'
-  const { to, subject, template_name } = await req.json()
-
-  try {
-    await sendMail({
-      from: process.env.MAIL_FROM || 'info@example.com',
-      to: to,
-      subject: subject,
-      template_name: template_name,
-      payload: {
-        first_name: 'Yosa',
-        last_name: 'Rama',
-      },
-      baseUrl: host,
-    })
-
-    return NextResponse.json({ data: true, message: 'Successfully send mail' }, { status: 200 })
-  } catch (error) {
-    if (error instanceof Error) {
-      return Response.json({ error: error.message, details: error }, { status: 500 })
-    }
-  }
+// Generic mail is disabled (SPEC §8.3 / Task 11). Not a bypass.
+export async function POST(_req: NextRequest) {
+  return httpError(
+    new GeneralError({
+      code: 403,
+      error: 'FORBIDDEN',
+      error_code: 'ROUTE_DISABLED',
+      details: 'Generic mail sending is disabled.',
+    }),
+  )
 }

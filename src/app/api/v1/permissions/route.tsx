@@ -1,34 +1,49 @@
 import { GET_PERMISSIONS } from '@/providers/permission'
+import { ok, httpError } from '@/utils/response'
+import { registerPath } from '@/utils/openapi'
 import { GeneralError } from '@/utils/general-error'
 import requiredAuth from '@/utils/required-auth'
-import { NextRequest, NextResponse } from 'next/server'
+import { z } from 'zod'
+import { NextRequest } from 'next/server'
 
 export async function GET(req: NextRequest) {
-  const {} = req.nextUrl.searchParams
   try {
     const { permission } = await requiredAuth(req)
 
-    if (!permission.readAny('user_management_permission').granted) {
-      throw new GeneralError({
-        code: 403,
-        details: 'This account not allowed for this actions',
-        error_code: 'NOT_ALLOWED',
-        error: 'UNAUTHORIZED',
-      })
+    if (!permission.readAny('prayer_permission').granted) {
+      return httpError(
+        new GeneralError({
+          code: 403,
+          error: 'UNAUTHORIZED',
+          error_code: 'NOT_ALLOWED',
+          details: 'This account is not allowed for this action.',
+        }),
+      )
     }
 
     const result = await GET_PERMISSIONS()
-    return NextResponse.json(
-      { success: true, message: 'Successfully get all permission!', result: result },
-      { status: 200 },
-    )
+    return ok(result, 'Successfully get all permission!')
   } catch (error) {
-    if (error instanceof GeneralError) {
-      return NextResponse.json(error, { status: error.code })
-    }
-
-    if (error instanceof Error) {
-      return NextResponse.json({ error: error.message, details: error }, { status: 500 })
-    }
+    return httpError(error)
   }
 }
+
+registerPath({
+  path: '/permissions',
+  method: 'get',
+  summary: 'Fixed Prayer permission catalogue (central prayer_permission read)',
+  responses: [
+    {
+      status: 200,
+      description: 'Permission catalogue',
+      schema: z.object({
+        success: z.literal(true),
+        message: z.string(),
+        result: z.array(z.object({ id: z.string(), subject: z.string(), actions: z.string() })),
+        request_id: z.string(),
+      }),
+    },
+    { status: 401, description: 'Not authenticated' },
+    { status: 403, description: 'Forbidden' },
+  ],
+})
