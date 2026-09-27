@@ -1,0 +1,31 @@
+export const videoFormats = [
+  'mp4',
+  'mov',
+  'avi',
+  'wmv',
+  'flv',
+  'mkv',
+  'webm',
+  'm4v',
+  'mpeg',
+  'mpg',
+  '3gp',
+  'ogv',
+  'ts',
+]
+
+export const imageFormats = [
+  'jpg',
+  'jpeg',
+  'png',
+  'gif',
+  'bmp',
+  'tiff',
+  'tif',
+  'webp',
+  'svg',
+  'ico',
+  'heif',
+  'heic',
+  'avif',
+]

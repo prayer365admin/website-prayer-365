@@ -1,0 +1,105 @@
+// @vitest-environment node
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { NextRequest } from 'next/server'
+
+vi.mock('@/utils/required-auth', () => ({
+  default: vi.fn(),
+}))
+
+vi.mock('@/providers/user', () => ({
+  GET_USERS: vi.fn(),
+}))
+
+vi.mock('@/controller/user', () => ({
+  createUser: vi.fn(),
+}))
+
+import { createUser } from '@/controller/user'
+import { GET_USERS } from '@/providers/user'
+import requiredAuth from '@/utils/required-auth'
+import { GET, POST } from './route'
+
+const makeAuth = (granted: boolean) => ({
+  session: { user: { user_id: 'u1' } },
+  permission: {
+    readAny: () => ({ granted }),
+    createAny: () => ({ granted }),
+  },
+})
+
+describe('GET /api/v1/users', () => {
+  beforeEach(() => vi.clearAllMocks())
+
+  it('returns user list with 200 and total', async () => {
+    vi.mocked(requiredAuth).mockResolvedValue(makeAuth(true) as never)
+    vi.mocked(GET_USERS).mockResolvedValue({ result: [{ id: 'u1' }], total: 1 } as never)
+
+    const res = (await GET(new NextRequest('http://localhost/api/v1/users?page=1&limit=10')))!
+    expect(res.status).toBe(200)
+    const body = await res.json()
+    expect(body).toMatchObject({ success: true, message: 'Successfully get all users', total: 1 })
+    expect(body.result).toEqual([{ id: 'u1' }])
+  })
+
+  it('returns 403 NOT_ALLOWED when permission denied', async () => {
+    vi.mocked(requiredAuth).mockResolvedValue(makeAuth(false) as never)
+
+    const res = (await GET(new NextRequest('http://localhost/api/v1/users')))!
+    expect(res.status).toBe(403)
+    expect((await res.json()).error_code).toBe('NOT_ALLOWED')
+  })
+
+  it('passes parsed search params to provider', async () => {
+    vi.mocked(requiredAuth).mockResolvedValue(makeAuth(true) as never)
+    vi.mocked(GET_USERS).mockResolvedValue({ result: [], total: 0 } as never)
+
+    await GET(
+      new NextRequest(
+        'http://localhost/api/v1/users?page=2&limit=25&search=jo&order_direction=asc',
+      ),
+    )
+    expect(GET_USERS).toHaveBeenCalledWith({
+      limit: 25,
+      page: 2,
+      order_by: 'created_at',
+      order_direction: 'asc',
+      search: 'jo',
+    })
+  })
+})
+
+describe('POST /api/v1/users', () => {
+  beforeEach(() => vi.clearAllMocks())
+
+  it('creates user and returns 200', async () => {
+    vi.mocked(requiredAuth).mockResolvedValue(makeAuth(true) as never)
+    vi.mocked(createUser).mockResolvedValue({ id: 'u9' } as never)
+
+    const req = new NextRequest('http://localhost/api/v1/users', {
+      method: 'POST',
+      body: JSON.stringify({ name: 'A', password: 'Strong@123', role_id: 'r1', email: 'a@b.com' }),
+    })
+    const res = (await POST(req!))!
+    expect(res.status).toBe(200)
+    expect(await res.json()).toMatchObject({
+      success: true,
+      message: 'Successfully create new user!',
+    })
+    expect(createUser).toHaveBeenCalledWith({
+      name: 'A',
+      password: 'Strong@123',
+      role_id: 'r1',
+      email: 'a@b.com',
+    })
+  })
+
+  it('returns 403 when permission denied', async () => {
+    vi.mocked(requiredAuth).mockResolvedValue(makeAuth(false) as never)
+    const req = new NextRequest('http://localhost/api/v1/users', {
+      method: 'POST',
+      body: JSON.stringify({}),
+    })
+    const res = (await POST(req!))!
+    expect(res.status).toBe(403)
+  })
+})

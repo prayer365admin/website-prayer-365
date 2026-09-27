@@ -1,0 +1,75 @@
+//// ------------------------------------------------------
+//// THIS FILE WAS AUTOMATICALLY GENERATED (DO NOT MODIFY)
+//// ------------------------------------------------------
+
+Table user {
+  id String [pk]
+  email String [unique, not null]
+  name String [not null]
+  password String
+  email_verified_at DateTime
+  profile_picture String
+  role_id String [not null]
+  role role [not null]
+  auth_token auth_token [not null]
+  created_at DateTime [default: `now()`, not null]
+  updated_at DateTime
+  deleted_at DateTime
+}
+
+Table role {
+  id String [pk]
+  name String [unique, not null]
+  type RoleType [not null, default: 'USER']
+  user user [not null]
+  permission permission [not null]
+  created_at DateTime [default: `now()`, not null]
+  updated_at DateTime
+  deleted_at DateTime
+}
+
+Table permission {
+  id String [pk]
+  subject String [not null]
+  scope PermissionScope [not null]
+  actions String [not null]
+  role role [not null]
+  created_at DateTime [default: `now()`, not null]
+  updated_at DateTime
+  deleted_at DateTime
+}
+
+Table auth_token {
+  id String [pk]
+  user_id String [not null]
+  user user [not null]
+  token String [unique, not null]
+  type AuthTokenType [not null]
+  expires_at DateTime [not null]
+  used_at DateTime
+  created_at DateTime [default: `now()`, not null]
+}
+
+Table role_permission {
+  permissionId String [ref: > permission.id]
+  roleId String [ref: > role.id]
+}
+
+Enum PermissionScope {
+  ANY
+  OWN
+}
+
+Enum RoleType {
+  SYSTEM
+  USER
+}
+
+Enum AuthTokenType {
+  EMAIL_VERIFICATION
+  PASSWORD_RESET
+}
+
+Ref: user.role_id > role.id [delete: Cascade]
+
+Ref: auth_token.user_id > user.id [delete: Cascade]
