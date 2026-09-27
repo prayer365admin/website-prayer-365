@@ -110,15 +110,28 @@ describe('POST /api/v1/users', () => {
     )
   })
 
-  it('rejects role_id on create (422)', async () => {
+  it('creates user with role_id binding and returns 201', async () => {
     vi.mocked(requiredAuth).mockResolvedValue(makeAuth(true) as never)
+    vi.mocked(createUser).mockResolvedValue({ id: 'u9', email: 'a@b.com', name: 'A' } as never)
     const req = new NextRequest('http://localhost/api/v1/users', {
       method: 'POST',
-      body: JSON.stringify({ name: 'A', password: 'Strong@123', email: 'a@b.com', role_id: 'r1' }),
+      body: JSON.stringify({
+        name: 'A',
+        password: 'Strong@123',
+        email: 'a@b.com',
+        role_id: 'r1',
+      }),
     })
     const res = (await POST(req!))!
-    expect(res.status).toBe(422)
-    expect(createUser).not.toHaveBeenCalled()
+    expect(res.status).toBe(201)
+    expect(createUser).toHaveBeenCalledWith(
+      expect.objectContaining({
+        name: 'A',
+        password: 'Strong@123',
+        email: 'a@b.com',
+        role_id: 'r1',
+      }),
+    )
   })
 
   it('returns 422 when password missing', async () => {

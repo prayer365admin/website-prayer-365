@@ -65,14 +65,16 @@ describe('getUserByEmail', () => {
 describe('createUser', () => {
   beforeEach(() => vi.clearAllMocks())
 
-  it('throws 422 when role_id provided (rejected)', async () => {
-    await expect(
-      createUser({ email: 'a@b.com', name: 'A', password: 'Strong@123', role_id: 'r1' }),
-    ).rejects.toMatchObject({
-      code: 422,
-      error_code: 'ROLE_ID_FORBIDDEN',
-    })
-    expect(CREATE_USER).not.toHaveBeenCalled()
+  it('binds role_id when provided (single-role identity binding)', async () => {
+    await createUser({ email: 'a@b.com', name: 'A', password: 'Strong@123', role_id: 'r1' })
+    expect(CREATE_USER).toHaveBeenCalledWith(
+      expect.objectContaining({
+        email: 'a@b.com',
+        name: 'A',
+        password: 'hashed:Strong@123',
+        role_id: 'r1',
+      }),
+    )
   })
 
   it('throws 400 when password missing', async () => {
@@ -101,11 +103,12 @@ describe('createUser', () => {
 describe('updateUser', () => {
   beforeEach(() => vi.clearAllMocks())
 
-  it('rejects role_id on update (422)', async () => {
-    await expect(
-      updateUser({ user_id: 'u1', payload: { name: 'B', role_id: 'r1' } as never }),
-    ).rejects.toMatchObject({ code: 422, error_code: 'ROLE_ID_FORBIDDEN' })
-    expect(UPDATE_USER).not.toHaveBeenCalled()
+  it('passes role_id through on update (single-role identity binding)', async () => {
+    await updateUser({ user_id: 'u1', payload: { name: 'B', role_id: 'r1' } as never })
+    expect(UPDATE_USER).toHaveBeenCalledWith({
+      user_id: 'u1',
+      payload: { name: 'B', role_id: 'r1' },
+    })
   })
 
   it('hashes password when provided', async () => {

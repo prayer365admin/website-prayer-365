@@ -106,6 +106,7 @@ registerPath({
     params: [{ name: 'id', in: 'path', schema: z.string() }],
     body: z.object({
       name: z.string().optional(),
+      role_id: z.string().optional().nullable(),
       password: z.string().optional(),
       email_verified_at: z.string().optional(),
       profile_picture: z.string().optional(),

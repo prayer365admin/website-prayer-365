@@ -11,16 +11,20 @@ const data = 'user'
 // Never return the password hash from any read/write that surfaces a DTO.
 const SAFE = { password: true }
 
+/** Staff list (identity: role_id set). Optional `role` filter narrows by role id. */
 export const GET_USERS = async ({
   limit,
   page,
   order_by,
   order_direction,
   search,
-}: GeneralQueryParams) => {
+  role,
+}: GeneralQueryParams & { role?: string }) => {
   const offset = page && limit && (page - 1) * limit
 
   const filter: Prisma.UserWhereInput = {
+    role_id: { not: null },
+    ...(role ? { role_id: role } : {}),
     ...(search && {
       OR: [
         ...keywordSearch({ keyword: search, name: 'name' }),
@@ -40,6 +44,42 @@ export const GET_USERS = async ({
       },
       omit: SAFE,
       include: { role: { include: { permission: true } } },
+    }),
+  ])
+
+  return { result, total }
+}
+
+/** Customer list (end-users = identity role_id null). */
+export const GET_CUSTOMERS = async ({
+  limit,
+  page,
+  order_by,
+  order_direction,
+  search,
+}: GeneralQueryParams) => {
+  const offset = page && limit && (page - 1) * limit
+
+  const filter: Prisma.UserWhereInput = {
+    role_id: null,
+    ...(search && {
+      OR: [
+        ...keywordSearch({ keyword: search, name: 'name' }),
+        ...keywordSearch({ keyword: search, name: 'email' }),
+      ],
+    }),
+  }
+
+  const [total, result] = await db.$transaction([
+    db[data].count({ where: filter }),
+    db[data].findMany({
+      take: limit,
+      skip: offset,
+      where: filter,
+      orderBy: {
+        ...(order_by && order_direction ? { [order_by]: order_direction } : { created_at: 'desc' }),
+      },
+      omit: SAFE,
     }),
   ])
 
@@ -68,8 +108,13 @@ export const CREATE_USER = async (payload: {
   name: string
   password: string
   email_verified_at?: Date | null
+  role_id?: string | null
 }) => {
-  const result = await db.user.create({ data: payload, omit: SAFE })
+  const { role_id, ...rest } = payload
+  const result = await db.user.create({
+    data: { ...rest, ...(role_id ? { role_id } : {}) },
+    omit: SAFE,
+  })
   return result
 }
 
@@ -83,15 +128,12 @@ export const UPDATE_USER = async ({
     password?: string
     email_verified_at?: Date | null
     profile_picture?: string | null
+    role_id?: string | null
   }
 }) => {
+  const { role_id, ...rest } = payload
   const result = await db.user.update({
-    data: {
-      name: payload.name,
-      password: payload.password,
-      email_verified_at: payload.email_verified_at,
-      profile_picture: payload.profile_picture,
-    },
+    data: { ...rest, ...(role_id ? { role_id } : {}) },
     where: { id: user_id },
     omit: SAFE,
   })

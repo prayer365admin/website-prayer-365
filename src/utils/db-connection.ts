@@ -8,9 +8,13 @@ import { PrismaPg } from '@prisma/adapter-pg'
 const rawUrl = new URL(process.env.DATABASE_URL!)
 rawUrl.searchParams.delete('sslmode')
 
+const isLocal = ['localhost', '127.0.0.1', '::1'].includes(rawUrl.hostname)
+
 const adapter = new PrismaPg({
   connectionString: rawUrl.toString(),
-  ssl: { rejectUnauthorized: false },
+  // managed Postgres (self-signed): encrypt, don't pin CA.
+  // local Postgres has no SSL listener.
+  ...(isLocal ? {} : { ssl: { rejectUnauthorized: false } }),
 })
 
 export const db = new PrismaClient({ adapter })

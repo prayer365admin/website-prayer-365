@@ -52,20 +52,10 @@ export const getUserByEmail = async ({ email }: { email: string }) => {
 }
 
 /**
- * role_id is rejected (SPEC §8.3/§14): staff scopes come from role_assignments
- * managed via /admin/central/role-assignments only.
+ * Bind the user's single role (identity/RBAC). role_assignments are managed
+ * separately via /admin/central/role-assignments for org-scoping.
  */
 export const createUser = async ({ email, name, password, role_id }: UserPayloadCreateModel) => {
-  if (role_id) {
-    throw new GeneralError({
-      code: 422,
-      error: 'VALIDATION_ERROR',
-      error_code: 'ROLE_ID_FORBIDDEN',
-      details: 'role_id is not allowed; assign roles via role assignments.',
-      fields: { role_id: 'Forbidden' },
-    })
-  }
-
   if (!password) {
     throw new GeneralError({
       code: 400,
@@ -82,6 +72,7 @@ export const createUser = async ({ email, name, password, role_id }: UserPayload
     name: name,
     password: passwordHash,
     email_verified_at: new Date(),
+    role_id,
   })
   return result
 }
@@ -95,23 +86,15 @@ export const updateUser = async ({
 }) => {
   const { role_id, password, name, email_verified_at, profile_picture } = payload
 
-  if (role_id) {
-    throw new GeneralError({
-      code: 422,
-      error: 'VALIDATION_ERROR',
-      error_code: 'ROLE_ID_FORBIDDEN',
-      details: 'role_id is not allowed; assign roles via role assignments.',
-      fields: { role_id: 'Forbidden' },
-    })
-  }
-
   const safePayload: {
     name?: string
     password?: string
     email_verified_at?: Date | null
     profile_picture?: string | null
+    role_id?: string | null
   } = {}
   if (name !== undefined) safePayload.name = name as string
+  if (role_id !== undefined) safePayload.role_id = role_id as string
   if (email_verified_at !== undefined)
     safePayload.email_verified_at = email_verified_at as Date | null
   if (profile_picture !== undefined) safePayload.profile_picture = profile_picture as string | null

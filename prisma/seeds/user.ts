@@ -36,10 +36,9 @@ export const seedAdminUser = async () => {
     },
   })
 
-  // The admin must ALSO hold a GLOBAL role_assignment — the scope guard reads
-  // ONLY role_assignments (legacy role_id is ignored for authorization), so an
-  // all-access admin without an assignment resolves to an EMPTY scope and
-  // every list endpoint (churches, central, etc.) returns nothing.
+  // The admin holds a GLOBAL role_assignment for the org-hierarchy scoping
+  // layer (requiredScope) — central/church route tenancy. This is the church/
+  // region data boundary, distinct from the identity role above.
   const globalNode = await db.orgNode.findFirst({ where: { kind: 'GLOBAL' } })
   if (globalNode) {
     const roleRow = await db.role.findUnique({ where: { name: 'administrator' } })
@@ -72,7 +71,9 @@ export const seedAdminUser = async () => {
 export const seedUsers = async () => {
   const admin = await seedAdminUser()
 
-  // Prayer test accounts (one per role), assigned to their org node.
+  // Prayer test accounts (one per role). Each binds its single role via
+  // role_id (identity/RBAC) AND holds a role_assignment (org-scoping for the
+  // 74 church/region routes). Both layers must exist for option-1 hybrid.
   for (const role of PRAYER_ROLES) {
     const email = `${role.name}@example.com`
     const user = await db.user.upsert({
@@ -83,7 +84,7 @@ export const seedUsers = async () => {
         name: role.name,
         password: TEST_PASSWORD,
         ...verifiedSeedUser,
-        role_id: null,
+        role: { connect: { name: role.name } },
       },
     })
 

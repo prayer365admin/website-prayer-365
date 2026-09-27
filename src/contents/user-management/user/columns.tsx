@@ -19,7 +19,7 @@ export const UserColumns = ({ onDelete }: { onDelete: (id: string) => void }) =>
       key: 'role-name',
       dataIndex: 'role[name]',
       title: 'Role Name',
-      render: (text, record) => record.role.name,
+      render: (text, record) => record.role?.name ?? '-',
     },
     {
       key: 'actions',

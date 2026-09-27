@@ -1,5 +1,12 @@
 import { MenuProps } from 'antd'
-import { HomeOutlined, BankOutlined, ProjectOutlined, AudioOutlined } from '@ant-design/icons'
+import {
+  HomeOutlined,
+  BankOutlined,
+  ProjectOutlined,
+  AudioOutlined,
+  TeamOutlined,
+  UserOutlined,
+} from '@ant-design/icons'
 import { useRouter } from 'next/navigation'
 
 const DashboardItems = (router: ReturnType<typeof useRouter>): MenuProps['items'] => [
@@ -29,6 +36,35 @@ const DashboardItems = (router: ReturnType<typeof useRouter>): MenuProps['items'
         label: 'My Churches',
         onClick: () => {
           router.push('/dashboard/churches')
+        },
+      },
+    ],
+  },
+  {
+    key: 'user-management',
+    label: 'User Management',
+    icon: <TeamOutlined />,
+    children: [
+      {
+        key: '/dashboard/user-management/user',
+        label: 'Users',
+        onClick: () => {
+          router.push('/dashboard/user-management/user')
+        },
+      },
+      {
+        key: '/dashboard/user-management/role',
+        label: 'Roles',
+        onClick: () => {
+          router.push('/dashboard/user-management/role')
+        },
+      },
+      {
+        key: '/dashboard/customer',
+        label: 'Customers',
+        icon: <UserOutlined />,
+        onClick: () => {
+          router.push('/dashboard/customer')
         },
       },
     ],

@@ -19,6 +19,7 @@ function protect<T extends PasswordShaped>(row: T): Omit<T, 'password'> {
 export async function GET(req: NextRequest) {
   const searchParams = req.nextUrl.searchParams
   const { limit, order_by, order_direction, page, search } = parseSearchParams(searchParams)
+  const role = searchParams.get('role') ?? undefined
 
   try {
     const { permission } = await requiredAuth(req)
@@ -40,6 +41,7 @@ export async function GET(req: NextRequest) {
       order_by,
       order_direction,
       search,
+      role,
     })
 
     const safeResult = (result.result as Array<Record<string, unknown>>).map((r) => protect(r))
@@ -53,6 +55,7 @@ const createUserSchema = z.object({
   email: z.string().email().min(1),
   name: z.string().min(1),
   password: z.string().min(8),
+  role_id: z.string().min(1).optional(),
 })
 
 export async function POST(req: NextRequest) {
@@ -71,17 +74,6 @@ export async function POST(req: NextRequest) {
     }
 
     const body = await req.json().catch(() => ({}))
-    if (body && typeof body === 'object' && 'role_id' in (body as object)) {
-      return httpError(
-        new GeneralError({
-          code: 422,
-          error: 'VALIDATION_ERROR',
-          error_code: 'ROLE_ID_FORBIDDEN',
-          details: 'role_id is not allowed; assign roles via role assignments.',
-          fields: { role_id: 'Forbidden' },
-        }),
-      )
-    }
 
     const data = validate(createUserSchema, body)
 
@@ -89,6 +81,7 @@ export async function POST(req: NextRequest) {
       email: data.email,
       name: data.name,
       password: data.password,
+      role_id: data.role_id,
     })
 
     return ok(protect(result), 'Successfully create new user!', 201)

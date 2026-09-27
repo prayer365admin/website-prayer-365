@@ -1,6 +1,6 @@
 import { db } from '../../src/utils/db-connection'
 import { ADMINISTRATOR_ROLE } from './role'
-import { PRAYER_ROLES } from './prayer-roles'
+import { PRAYER_ROLES, roleGrantRows } from './prayer-roles'
 
 /*
  * Role <-> Permission connection layer (implicit `_role_permission` join).
@@ -22,9 +22,9 @@ export const seedRolePermissions = async () => {
 
   // Prayer roles: resolve their grant set from the catalogue.
   for (const role of PRAYER_ROLES) {
-    const or = role.grants.map((g) => ({
+    const or = roleGrantRows(role).map((g) => ({
       subject: g.subject,
-      actions: { in: g.actions.split(',') },
+      actions: g.actions,
       scope: g.scope,
     }))
     const perms = await db.permission.findMany({ where: { OR: or } })

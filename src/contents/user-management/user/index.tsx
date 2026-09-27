@@ -2,6 +2,7 @@
 
 import AddButton from '@/components/common/add-button'
 import SearchInput from '@/components/common/search-input'
+import RoleFilter from '@/components/common/select/role/filter'
 import { useUsers } from '@/hooks/data/user'
 import { Table, TablePaginationConfig } from 'antd'
 import { useRouter } from 'next/navigation'
@@ -12,6 +13,7 @@ export default function ContentsUserManagementUser() {
   const router = useRouter()
 
   const [searchValue, setSearchValue] = useState<string | undefined>('')
+  const [roleValue, setRoleValue] = useState<string | undefined>(undefined)
   const [sort, setSort] = useState<{ orderBy: string; orderDirection: 'asc' | 'desc' }>({
     orderBy: 'created_at',
     orderDirection: 'desc',
@@ -36,6 +38,7 @@ export default function ContentsUserManagementUser() {
     orderDirection: sort.orderDirection,
     limit: pageSize,
     page: page,
+    role: roleValue,
   })
 
   const columns = UserColumns({ onDelete: deleteUser })
@@ -43,8 +46,13 @@ export default function ContentsUserManagementUser() {
     <Fragment>
       <div>
         <div className="flex justify-between items center">
-          <div className="w-[50%]">
-            <SearchInput setValue={setSearchValue} setPage={setPage} setPageSize={setPageSize} />
+          <div className="flex gap-4">
+            <div className="w-[200px]">
+              <RoleFilter value={roleValue} setValue={setRoleValue} />
+            </div>
+            <div className="w-[50%]">
+              <SearchInput setValue={setSearchValue} setPage={setPage} setPageSize={setPageSize} />
+            </div>
           </div>
           <AddButton
             label="Create User"
