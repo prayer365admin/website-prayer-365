@@ -1,60 +1,101 @@
 import { MenuProps } from 'antd'
-import { TeamOutlined, DatabaseFilled } from '@ant-design/icons'
+import { HomeOutlined, BankOutlined, ProjectOutlined, AudioOutlined } from '@ant-design/icons'
 import { useRouter } from 'next/navigation'
-import { useAccessPermission } from '@/hooks/data/access-permission'
 
-export const SidebarMenu = () => {
-  const router = useRouter()
-  const permission = useAccessPermission()
+const DashboardItems = (router: ReturnType<typeof useRouter>): MenuProps['items'] => [
+  {
+    key: '/dashboard',
+    label: 'Dashboard',
+    icon: <HomeOutlined />,
+    onClick: () => {
+      router.push('/dashboard')
+    },
+  },
+  {
+    key: '/dashboard/my-voice',
+    label: 'My Voice',
+    icon: <AudioOutlined />,
+    onClick: () => {
+      router.push('/dashboard/my-voice')
+    },
+  },
+  {
+    key: 'churches',
+    label: 'Churches',
+    icon: <BankOutlined />,
+    children: [
+      {
+        key: '/dashboard/churches',
+        label: 'My Churches',
+        onClick: () => {
+          router.push('/dashboard/churches')
+        },
+      },
+    ],
+  },
+  {
+    key: 'central',
+    label: 'Central',
+    icon: <ProjectOutlined />,
+    children: [
+      {
+        key: '/dashboard/central',
+        label: 'Overview',
+        onClick: () => {
+          router.push('/dashboard/central')
+        },
+      },
+      {
+        key: '/dashboard/central/churches',
+        label: 'Churches',
+        onClick: () => {
+          router.push('/dashboard/central/churches')
+        },
+      },
+      {
+        key: '/dashboard/central/pastors',
+        label: 'Pastors',
+        onClick: () => {
+          router.push('/dashboard/central/pastors')
+        },
+      },
+      {
+        key: '/dashboard/central/hierarchy',
+        label: 'Hierarchy',
+        onClick: () => {
+          router.push('/dashboard/central/hierarchy')
+        },
+      },
+      {
+        key: '/dashboard/central/countries',
+        label: 'Countries',
+        onClick: () => {
+          router.push('/dashboard/central/countries')
+        },
+      },
+      {
+        key: '/dashboard/central/languages',
+        label: 'Languages',
+        onClick: () => {
+          router.push('/dashboard/central/languages')
+        },
+      },
+      {
+        key: '/dashboard/central/voice-profiles',
+        label: 'Voice Profiles',
+        onClick: () => {
+          router.push('/dashboard/central/voice-profiles')
+        },
+      },
+      {
+        key: '/dashboard/central/notifications',
+        label: 'Notifications',
+        onClick: () => {
+          router.push('/dashboard/central/notifications')
+        },
+      },
+    ],
+  },
+]
 
-  const sidebarMenu: MenuProps['items'] = [
-    permission.read('master_data').granted
-      ? {
-          key: 'master-data',
-          label: 'Master Data',
-          icon: <DatabaseFilled />,
-          children: [
-            {
-              key: '/dashboard/master-data/color',
-              label: 'Color',
-              onClick: () => {
-                router.push('/dashboard/master-data/color')
-              },
-            },
-            {
-              key: '/dashboard/master-data/brand',
-              label: 'Brand',
-              onClick: () => {
-                router.push('/dashboard/master-data/brand')
-              },
-            },
-          ],
-        }
-      : null,
-    permission.read('user_management').granted
-      ? {
-          key: 'user-management',
-          label: 'User Management',
-          icon: <TeamOutlined />,
-          children: [
-            {
-              key: '/dashboard/user-management/role',
-              label: 'Role',
-              onClick: () => {
-                router.push('/dashboard/user-management/role')
-              },
-            },
-            {
-              key: '/dashboard/user-management/user',
-              label: 'User',
-              onClick: () => {
-                router.push('/dashboard/user-management/user')
-              },
-            },
-          ],
-        }
-      : null,
-  ]
-
-  return sidebarMenu
-}
+export const SidebarMenu = () => DashboardItems(useRouter())
