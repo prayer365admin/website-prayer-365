@@ -1,4 +1,4 @@
-import { AlignType } from 'rc-table/lib/interface'
+import { AlignType } from '@rc-component/table/es/interface'
 
 export const ID_COLUMN_WIDTH = 80
 export const ACTION_COLUMN_WIDTH = 125
