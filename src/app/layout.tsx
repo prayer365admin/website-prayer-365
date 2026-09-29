@@ -1,15 +1,25 @@
 import type { Metadata } from 'next'
-import { Chakra_Petch, Orbitron } from 'next/font/google'
+import { Instrument_Serif, Manrope } from 'next/font/google'
 
 import GlobalProvider from '@/components/container/global-provider'
 
 import '@/styles/global.scss'
 
-const fontHeading = Orbitron({ subsets: ['latin'], variable: '--font-heading' })
-const fontText = Chakra_Petch({
+const fontHeading = Manrope({
+  subsets: ['latin'],
+  variable: '--font-heading',
+  weight: ['400', '500', '600', '700', '800'],
+})
+const fontText = Manrope({
   subsets: ['latin'],
   variable: '--font-text',
   weight: ['300', '400', '500', '600', '700'],
+})
+const fontQuote = Instrument_Serif({
+  subsets: ['latin'],
+  variable: '--font-quote',
+  weight: ['400'],
+  style: ['normal', 'italic'],
 })
 
 export const metadata: Metadata = {
@@ -25,7 +35,10 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body className={`${fontHeading.variable} ${fontText.variable}`} suppressHydrationWarning>
+      <body
+        className={`${fontHeading.variable} ${fontText.variable} ${fontQuote.variable}`}
+        suppressHydrationWarning
+      >
         <GlobalProvider>{children}</GlobalProvider>
       </body>
     </html>

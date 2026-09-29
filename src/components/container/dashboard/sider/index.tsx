@@ -22,7 +22,7 @@ export default function SideBar() {
       collapsible
       collapsed={collapsed}
       onCollapse={(value) => setCollapsed(value)}
-      style={{ background: `${process.env.NEXT_PUBLIC_BLACK_COLOR}` }}
+      style={{ background: `${process.env.NEXT_PUBLIC_PRIMARY_COLOR}` }}
       className={`${s.sidebar}`}
       width={250}
     >
