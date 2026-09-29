@@ -24,6 +24,7 @@ const config: Config = {
       fontFamily: {
         font_heading: ['var(--font-heading)'],
         font_text: ['var(--font-text)'],
+        font_quote: ['var(--font-quote)'],
       },
     },
   },

@@ -2,12 +2,12 @@
 
 .sidebar {
   :global(.ant-layout-sider-trigger) {
-    background: $black_color !important;
+    background: $primary_color !important;
   }
 }
 
 .menu {
-  background: $black_color !important;
+  background: $primary_color !important;
   :global(.ant-menu-item) {
     transition: all 0.3s ease;
   }
