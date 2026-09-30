@@ -12,6 +12,7 @@ export default defineConfig([
     'next-env.d.ts',
     'prisma/dbml/**',
     '.hermes/**',
+    'coverage/**',
   ]),
   {
     files: ['**/*.{ts,tsx}'],
