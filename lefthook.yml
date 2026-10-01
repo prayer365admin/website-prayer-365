@@ -20,4 +20,4 @@ pre-push:
     lint:
       run: bun lint
     test:
-      run: bun test
+      run: bun run test
