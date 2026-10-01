@@ -1,6 +1,7 @@
 import { useMediaUpload } from '@/hooks/data/media-upload'
 import { toCapitalized } from '@/utils/capitalized'
 import { extensionChecker } from '@/utils/extension-checker'
+import axios from 'axios'
 import { LoadingOutlined, PlusOutlined } from '@ant-design/icons'
 import {
   Button,
@@ -8,8 +9,9 @@ import {
   Form,
   GetProp,
   Image,
-  notification,
   Upload,
+  App,
+  Skeleton,
   UploadFile,
   UploadProps,
 } from 'antd'
@@ -27,8 +29,8 @@ export default function UploadBox(props: {
   width?: string
   height?: string
   rules?: Rule[]
-  upload: { url: string | null }
-  setUpload: Dispatch<SetStateAction<{ url: string | null }>>
+  upload: { url: string | null; assetId?: string | null }
+  setUpload: Dispatch<SetStateAction<{ url: string | null; assetId?: string | null }>>
   onUploadData?: (url: string) => Promise<void>
   /** Entity context for the global upload API (SPEC §10.4). Pass when available. */
   churchId?: string
@@ -47,7 +49,8 @@ export default function UploadBox(props: {
     churchId = '',
     purpose = 'IMAGE',
   } = props
-
+  const form = Form.useFormInstance()
+  const { notification } = App.useApp()
   const [fileList, setFileList] = useState<UploadProps['fileList']>([])
   const { loading: uploadLoading, onUpload } = useMediaUpload({ churchId, purpose })
   const handleUpload: UploadProps['customRequest'] = async ({ file, onSuccess }) => {
@@ -62,9 +65,9 @@ export default function UploadBox(props: {
     if (result) {
       const url = result.url
       if (url) {
-        setUpload({ url: url })
+        setUpload({ url: url, assetId: result.assetId })
         if (onSuccess) {
-          onSuccess(url)
+          onSuccess(result.assetId)
         }
 
         if (onUploadData) {
@@ -87,10 +90,42 @@ export default function UploadBox(props: {
     return file.response
   }
   useEffect(() => {
-    if (initialData) {
+    if (initialData && !upload.url) {
       setUpload({ url: initialData })
     }
-  }, [initialData, setUpload])
+  }, [initialData, upload.url, setUpload])
+
+  const [presignedUrl, setPresignedUrl] = useState<string | null>(null)
+  const [fetchingUrl, setFetchingUrl] = useState(false)
+
+  useEffect(() => {
+    let isMounted = true
+    const fetchUrl = async () => {
+      if (!upload.url) {
+        setPresignedUrl(null)
+        return
+      }
+      if (!upload.url.includes('/api/v1/uploads/')) {
+        setPresignedUrl(upload.url)
+        return
+      }
+      setFetchingUrl(true)
+      try {
+        const res = await axios.get(upload.url)
+        if (isMounted && res.data?.result?.url) {
+          setPresignedUrl(res.data.result.url)
+        }
+      } catch (_e) {
+        // Suppress error
+      } finally {
+        if (isMounted) setFetchingUrl(false)
+      }
+    }
+    fetchUrl()
+    return () => {
+      isMounted = false
+    }
+  }, [upload.url])
 
   return (
     <Col className="flex relative w-full">
@@ -119,29 +154,44 @@ export default function UploadBox(props: {
           {...props}
         >
           {upload.url && (
-            <div className="text-center">
-              {extensionChecker(upload.url) === 'IMAGE' && (
+            <div
+              className="flex flex-col items-center justify-center gap-2"
+              style={{ width: width }}
+            >
+              {fetchingUrl ? (
+                <Skeleton.Image
+                  active
+                  style={{ width: width, height: height }}
+                  className={`rounded-[20px]`}
+                />
+              ) : (purpose === 'IMAGE' || extensionChecker(upload.url) === 'IMAGE') &&
+                presignedUrl ? (
                 <Image
-                  src={upload.url}
+                  src={presignedUrl}
                   alt="upload-image"
                   className={`rounded-[20px]`}
                   style={{ width: width, height: height, objectFit: 'cover' }}
                   preview={false}
                 />
-              )}
-              {extensionChecker(upload.url) === 'VIDEO' && (
+              ) : extensionChecker(upload.url) === 'VIDEO' && presignedUrl ? (
                 <div className="mb-2 rounded-[20px]">
-                  <ReactPlayer src={upload.url ?? undefined} playing loop muted />
+                  <ReactPlayer src={presignedUrl} playing loop muted />
                 </div>
-              )}
+              ) : null}
               <div>
                 <Button
                   onClick={(e) => {
                     e.preventDefault()
-                    setUpload({ url: '' })
+                    setUpload({ url: '', assetId: null })
+                    if (formName && form) {
+                      form.setFieldValue(formName, undefined)
+                    }
                   }}
                 >
-                  Remove {toCapitalized(extensionChecker(upload.url) || 'FILE')}
+                  Remove{' '}
+                  {toCapitalized(
+                    purpose === 'IMAGE' ? 'IMAGE' : extensionChecker(upload.url) || 'FILE',
+                  )}
                 </Button>
               </div>
             </div>

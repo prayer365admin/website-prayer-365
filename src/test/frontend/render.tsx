@@ -5,34 +5,39 @@ import { ReactNode } from 'react'
 import { vi } from 'vitest'
 
 // hoisted mocks so vi.mock factories (hoisted above imports) can reference them
-const { pushMock, signInMock, axiosMock, searchParamsMock } = vi.hoisted(() => ({
-  pushMock: vi.fn(),
-  signInMock: vi.fn(),
-  axiosMock: {
-    get: vi.fn(),
-    post: vi.fn(),
-    put: vi.fn(),
-    delete: vi.fn(),
-    isAxiosError: (e: unknown) => e instanceof Error && 'isAxiosError' in e,
-  },
-  searchParamsMock: { get: vi.fn((_key: string) => null as string | null) },
-}))
+const { pushMock, replaceMock, signInMock, sessionMock, axiosMock, searchParamsMock } = vi.hoisted(
+  () => ({
+    pushMock: vi.fn(),
+    sessionMock: vi.fn(),
+    replaceMock: vi.fn(),
+    signInMock: vi.fn(),
+    axiosMock: {
+      get: vi.fn(),
+      post: vi.fn(),
+      put: vi.fn(),
+      patch: vi.fn(),
+      delete: vi.fn(),
+      isAxiosError: (e: unknown) => e instanceof Error && 'isAxiosError' in e,
+    },
+    searchParamsMock: { get: vi.fn((_key: string) => null as string | null) },
+  }),
+)
 
 vi.mock('next/navigation', () => ({
-  useRouter: () => ({ push: pushMock, back: vi.fn(), prefetch: vi.fn() }),
+  useRouter: () => ({ push: pushMock, replace: replaceMock, back: vi.fn(), prefetch: vi.fn() }),
   usePathname: () => '/dashboard/customers',
   useSearchParams: () => searchParamsMock,
-  useParams: () => ({ id: 'r1' }),
+  useParams: () => ({ id: 'r1', churchId: 'c1' }),
 }))
-
 vi.mock('next-auth/react', () => ({
-  useSession: () => ({ data: null, status: 'unauthenticated' }),
+  useSession: (...args: unknown[]) =>
+    sessionMock(...args) || { data: null, status: 'unauthenticated' },
   signIn: signInMock,
 }))
 
 vi.mock('axios', () => ({ default: axiosMock }))
 
-export { pushMock, signInMock, axiosMock, searchParamsMock }
+export { pushMock, replaceMock, signInMock, sessionMock, axiosMock, searchParamsMock }
 
 export type AxiosResolvedData = { result: unknown; total?: number }
 

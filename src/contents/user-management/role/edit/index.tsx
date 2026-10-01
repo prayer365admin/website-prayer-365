@@ -4,7 +4,7 @@ import { Fragment } from 'react'
 import { useRole } from '@/hooks/data/role'
 import { RolePayloadUpdateModel } from '@/models/role'
 import { useParams } from 'next/navigation'
-import MainNotification from '@/components/common/notifications'
+import { useMainNotification } from '@/hooks/ui/notification'
 import FormRole from '@/components/common/form/role'
 import { Card, Skeleton } from 'antd'
 import CardTitle from '@/components/common/card-title'
@@ -12,12 +12,13 @@ import CardTitle from '@/components/common/card-title'
 export default function ContentsUserManagementRoleEdit() {
   const { id }: { id: string } = useParams()
   const { onUpdate: updateRole, data: roleData, loading: roleLoading } = useRole(id)
+  const notification = useMainNotification()
 
   const handleCreateRole = async (payload: RolePayloadUpdateModel) => {
     try {
       await updateRole(payload)
     } catch (_e) {
-      MainNotification({ type: 'error', entity: 'role', action: 'updated' })
+      notification({ type: 'error', entity: 'role', action: 'updated' })
     }
   }
 

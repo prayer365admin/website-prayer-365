@@ -6,13 +6,10 @@ const verifiedSeedUser = {
   email_verified_at: new Date(),
 }
 
-// Placeholder hash for all test accounts — change before real deployment.
-// ⚠️ This is the ORIGINAL template staff hash (bcrypt of the old
-//    staff@catatia.com password). The plaintext is NOT known/reviewed here.
-//    For a truly known demo password, replace this with a fresh hash, e.g.
-//    bcrypt.compare('Test123!', hash) === true. Missing a known plaintext is
-//    a security-review acceptance item before any real rollout.
-const TEST_PASSWORD = '$2a$12$wTaAWjdSy1RA123VhmU4NutWLC9MtAaUQKq87vottek3MtGSk.AZq'
+// Known demo password for the prayer test + admin accounts — plaintext: `Test123!`
+// (bcryptjs hash of Test123!). Kept as a single constant so the manual test plan
+// can document one working login for every seeded account. Change before real rollout.
+const TEST_PASSWORD = '$2b$12$6hmwy2T/qCvpmzmzi5VLO.KVXRoHDPmkRu.fO.soPraM/uY2msHo2'
 
 // End-users are Users with NO role (SPEC: mobile auth D1; "No mobile staff
 // grant is created by registration"). Their access is subject-only via
@@ -26,11 +23,11 @@ const END_USERS = [
 export const seedAdminUser = async () => {
   const admin = await db.user.upsert({
     where: { email: 'admin@catatia.com' },
-    update: { ...verifiedSeedUser },
+    update: { ...verifiedSeedUser, password: TEST_PASSWORD },
     create: {
       email: 'admin@catatia.com',
       name: 'admin',
-      password: '$2a$12$aiMbVTtXM5GrIG.EdOFICO.mfvPgtOBk/.7vpX20bZL5IBqS9jPdm',
+      password: TEST_PASSWORD,
       ...verifiedSeedUser,
       role: { connect: { name: 'administrator' } },
     },
@@ -78,7 +75,7 @@ export const seedUsers = async () => {
     const email = `${role.name}@example.com`
     const user = await db.user.upsert({
       where: { email },
-      update: {},
+      update: { password: TEST_PASSWORD },
       create: {
         email,
         name: role.name,

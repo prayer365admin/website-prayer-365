@@ -24,13 +24,13 @@ DESIGN S02–S04 | SPEC §7 church URLs | FEATURE F1/F2/F3
 | ----- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---- |
 | CH-01 | DB: `churches`, `church_languages`, `org_nodes` models + seeds, migrations                                                                                                          | ✔   |
 | CH-02 | API: church provider/controller/models + `A/churches`, `C/overview`, `C/profile`, `C/pastors`, `C/service-times` routes + tests                                                     | ✔   |
-| CH-03 | Hooks: create `hooks/data/church.tsx` — my churches, detail, profile get/patch, overview, service-times get/put (spec §2.1 cache keys)                                              | ☐    |
-| CH-04 | Screen: S02 church selector (`/dashboard/churches`) — assigned churches only, skip when single                                                                                      | ☐    |
-| CH-05 | Screen: S03 church overview (`.../churches/:churchId`) — followers, today's prayer, upcoming events, recent requests (hidden without request access), donation activity, engagement | ☐    |
-| CH-06 | Screen: S04 profile editor (`.../profile`) — tabs: details/cover, location+contacts, assigned pastors, languages, accessibility                                                     | ☐    |
-| CH-07 | Screen: service schedule editor (S04 tab) — weekday/local time/label/language, transactional replace, stale-edit guard                                                              | ☐    |
-| CH-08 | Integration: S3 cover image upload (purpose allowlist + scope + completion check)                                                                                                   | ☐    |
-| CH-09 | Tests: unauthorized church edit denied, cross-church read denied, stale version conflict, profile reflected in mobile contract                                                      | ☐    |
+| CH-03 | Hooks: create `hooks/data/church.tsx` — my churches, detail, profile get/patch, overview, service-times get/put (spec §2.1 cache keys)                                              | ✔   |
+| CH-04 | Screen: S02 church selector (`/dashboard/churches`) — assigned churches only, skip when single                                                                                      | ✔   |
+| CH-05 | Screen: S03 church overview (`.../churches/:churchId`) — followers, today's prayer, upcoming events, recent requests (hidden without request access), donation activity, engagement | ✔   |
+| CH-06 | Screen: S04 profile editor (`.../profile`) — tabs: details/cover, location+contacts, assigned pastors, languages, accessibility                                                     | ✔   |
+| CH-07 | Screen: service schedule editor (S04 tab) — weekday/local time/label/language, transactional replace, stale-edit guard                                                              | ✔   |
+| CH-08 | Integration: S3 cover image upload (purpose allowlist + scope + completion check)                                                                                                   | ✔   |
+| CH-09 | Tests: unauthorized church edit denied, cross-church read denied, stale version conflict, profile reflected in mobile contract                                                      | ✔   |
 
 ## F2PA — Pastors (profiles, church assignments, attribution)
 

@@ -9,6 +9,7 @@ package.lock.json
 
 # testing
 /coverage
+/.vitest
 
 # next.js
 /.next/
@@ -28,7 +29,10 @@ bun-error.log*
 
 # local env files
 .env*.local
+.env.test
 .env
+
+.omp
 
 # vercel
 .vercel

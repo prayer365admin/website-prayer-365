@@ -1,7 +1,7 @@
+import { renderWithProviders } from '@/test/frontend/render'
 import { screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { renderWithProviders } from '@/test/frontend/render'
 import ContentsRegister from './index'
 
 describe('ContentsRegister', () => {

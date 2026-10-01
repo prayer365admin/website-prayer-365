@@ -265,7 +265,7 @@ export const patchChurchPastor = async ({
       details: 'This account is not allowed for this church.',
     })
   }
-  const currentVersion = await GET_CHURCH_VERSION({ churchIds })
+  const currentVersion = await GET_CHURCH_VERSION({ churchId, churchIds })
   if (currentVersion === null) {
     throw new GeneralError({
       code: 404,

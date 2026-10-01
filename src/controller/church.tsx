@@ -120,7 +120,7 @@ export const getChurchOverview = async ({
   churchId: string
   churchIds: Set<string>
 }): Promise<ChurchOverview> => {
-  const overview = await GET_CHURCH_OVERVIEW({ churchIds })
+  const overview = await GET_CHURCH_OVERVIEW({ churchId, churchIds })
   if (!overview || !churchIds.has(churchId)) {
     throw new GeneralError({
       code: 404,
@@ -146,11 +146,13 @@ export const getChurchOverview = async ({
 
 /** GET /api/v1/admin/churches/:churchId/profile. */
 export const getChurchProfile = async ({
+  churchId,
   churchIds,
 }: {
+  churchId: string
   churchIds: Set<string>
 }): Promise<ChurchProfileOutput> => {
-  const profile = await GET_CHURCH_PROFILE({ churchIds })
+  const profile = await GET_CHURCH_PROFILE({ churchId, churchIds })
   if (!profile) {
     throw new GeneralError({
       code: 404,
@@ -185,7 +187,7 @@ export const patchChurchProfile = async ({
     })
   }
 
-  const currentVersion = await GET_CHURCH_VERSION({ churchIds })
+  const currentVersion = await GET_CHURCH_VERSION({ churchId, churchIds })
   if (currentVersion === null) {
     throw new GeneralError({
       code: 404,
@@ -248,6 +250,7 @@ export const patchChurchProfile = async ({
   }
 
   return UPDATE_CHURCH_PROFILE({
+    churchId,
     churchIds,
     expectedVersion: input.version,
     payload,

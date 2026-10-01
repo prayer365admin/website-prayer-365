@@ -22,11 +22,23 @@ describe('getServiceTimes', () => {
     vi.mocked(GET_SERVICE_TIMES).mockResolvedValue([
       { id: 's1', weekday: 1, localTime: '09:00:00', label: null, languageCode: null },
     ] as never)
-    await expect(getServiceTimes({ churchIds: new Set(['c1']) })).resolves.toHaveLength(1)
+    await expect(
+      getServiceTimes({ churchId: 'c1', churchIds: new Set(['c1']) }),
+    ).resolves.toHaveLength(1)
+  })
+
+  it('throws 403 when the church is outside the caller scope', async () => {
+    await expect(
+      getServiceTimes({ churchId: 'c9', churchIds: new Set(['c1']) }),
+    ).rejects.toMatchObject({
+      code: 403,
+    })
   })
 
   it('throws 404 for an empty scope', async () => {
-    await expect(getServiceTimes({ churchIds: new Set() })).rejects.toMatchObject({ code: 404 })
+    await expect(getServiceTimes({ churchId: 'c1', churchIds: new Set() })).rejects.toMatchObject({
+      code: 404,
+    })
   })
 })
 

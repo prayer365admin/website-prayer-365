@@ -55,7 +55,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ chur
       subject: 'prayer_church',
       action: 'read',
     })
-    const result = await getChurchProfile({ churchIds })
+    const result = await getChurchProfile({ churchId, churchIds })
     return ok(result, 'Church profile retrieved.')
   } catch (e) {
     return httpError(e)

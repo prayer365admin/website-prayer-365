@@ -10,8 +10,10 @@ import { ServiceTimeEntry, ServiceTimeScheduleInput } from '@/models/service-tim
  */
 
 export const getServiceTimes = async ({
+  churchId,
   churchIds,
 }: {
+  churchId: string
   churchIds: Set<string>
 }): Promise<ServiceTimeEntry[]> => {
   if (churchIds.size === 0) {
@@ -22,7 +24,15 @@ export const getServiceTimes = async ({
       details: 'Church not found.',
     })
   }
-  return GET_SERVICE_TIMES({ churchIds })
+  if (!churchIds.has(churchId)) {
+    throw new GeneralError({
+      code: 403,
+      error: 'UNAUTHORIZED',
+      error_code: 'NOT_ALLOWED',
+      details: 'This account is not allowed for this church.',
+    })
+  }
+  return GET_SERVICE_TIMES({ churchId, churchIds })
 }
 
 export const replaceServiceTimes = async ({
@@ -46,7 +56,7 @@ export const replaceServiceTimes = async ({
       details: 'This account is not allowed for this church.',
     })
   }
-  const currentVersion = await GET_CHURCH_VERSION({ churchIds })
+  const currentVersion = await GET_CHURCH_VERSION({ churchId, churchIds })
   if (currentVersion === null) {
     throw new GeneralError({
       code: 404,
@@ -64,6 +74,7 @@ export const replaceServiceTimes = async ({
     })
   }
   return REPLACE_SERVICE_TIMES({
+    churchId,
     churchIds,
     expectedVersion: input.version,
     schedule: input.schedule,

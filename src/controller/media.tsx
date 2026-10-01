@@ -178,7 +178,7 @@ export const completeUpload = async ({
   if (!asset) throw notFound()
   const purpose = asset.purpose as MediaPurpose
 
-  const churchIds = await assertPurposeScope({ userId, churchId, purpose, action: 'update' })
+  const churchIds = await assertPurposeScope({ userId, churchId, purpose, action: 'create' })
   // Complete requires an owned upload (the same caller that requested it).
   if (asset.uploaded_by !== userId) throw scopeError()
   if (asset.status !== 'PENDING') {

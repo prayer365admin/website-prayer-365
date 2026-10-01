@@ -18,7 +18,7 @@ describe('UploadBox', () => {
     )
     const remove = await screen.findByRole('button', { name: /remove image/i })
     await user.click(remove)
-    expect(setUpload).toHaveBeenCalledWith({ url: '' })
+    expect(setUpload).toHaveBeenCalledWith({ url: '', assetId: null })
   })
 
   it('shows upload placeholder with a label', () => {

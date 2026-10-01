@@ -63,6 +63,21 @@ describe('GET /api/v1/admin/churches/[churchId]/profile', () => {
     const res = (await GET(new NextRequest('http://x/profile'), params as never))!
     expect(res.status).toBe(403)
   })
+
+  it('hides an out-of-scope church as 404 (cross-church read denied)', async () => {
+    vi.mocked(requiredAuth).mockResolvedValue(auth() as never)
+    vi.mocked(requiredScope).mockRejectedValue(
+      new GeneralError({
+        code: 404,
+        error: 'NOT_FOUND',
+        error_code: 'RESOURCE_NOT_FOUND',
+        details: 'Resource not found.',
+      }),
+    )
+    const res = (await GET(new NextRequest('http://x/profile'), params as never))!
+    expect(res.status).toBe(404)
+    expect((await res.json()).error_code).toBe('RESOURCE_NOT_FOUND')
+  })
 })
 
 describe('PATCH /api/v1/admin/churches/[churchId]/profile', () => {
@@ -126,5 +141,32 @@ describe('PATCH /api/v1/admin/churches/[churchId]/profile', () => {
     const res = (await PATCH(req, params as never))!
     expect(res.status).toBe(409)
     expect((await res.json()).error_code).toBe('STALE_VERSION')
+  })
+
+  it('denies a cross-church edit with 403 NOT_ALLOWED', async () => {
+    vi.mocked(requiredAuth).mockResolvedValue(auth() as never)
+    vi.mocked(requiredScope).mockResolvedValue({
+      userId: 'u1',
+      churchIds: new Set(['c2']),
+      scope: { kind: 'church', orgNodeId: 'n1', name: '' },
+    } as never)
+    vi.mocked(patchChurchProfile).mockRejectedValue(
+      new GeneralError({
+        code: 403,
+        error: 'UNAUTHORIZED',
+        error_code: 'NOT_ALLOWED',
+        details: 'This account is not allowed for this church.',
+      }),
+    )
+    const req = new NextRequest('http://x/profile', {
+      method: 'PATCH',
+      body: JSON.stringify(validInput),
+    })
+    const res = (await PATCH(req, params as never))!
+    expect(res.status).toBe(403)
+    expect((await res.json()).error_code).toBe('NOT_ALLOWED')
+    expect(patchChurchProfile).toHaveBeenCalledWith(
+      expect.objectContaining({ churchId: 'c1', churchIds: new Set(['c2']) }),
+    )
   })
 })

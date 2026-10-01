@@ -72,7 +72,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ chur
       subject: 'prayer_church',
       action: 'read',
     })
-    const result = await getServiceTimes({ churchIds })
+    const result = await getServiceTimes({ churchId, churchIds })
     return ok(result, 'Service times retrieved.')
   } catch (e) {
     return httpError(e)

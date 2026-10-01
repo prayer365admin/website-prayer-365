@@ -1,30 +1,57 @@
-import { screen } from '@testing-library/react'
-import userEvent from '@testing-library/user-event'
-import { describe, expect, it } from 'vitest'
-import { renderWithProviders } from '@/test/frontend/render'
+import { renderHook, act } from '@testing-library/react'
 import { useMainNotification } from './notification'
+import { App } from 'antd'
+import { vi, describe, it, expect, beforeEach } from 'vitest'
 
-function Harness({ type }: { type: 'success' | 'error' }) {
-  const notify = useMainNotification()
-  return (
-    <button onClick={() => notify({ type, entity: 'user', action: 'created' })}>trigger</button>
-  )
-}
+vi.mock('antd', () => {
+  const mockNotification = {
+    success: vi.fn(),
+    error: vi.fn(),
+  }
+  return {
+    App: {
+      useApp: vi.fn(() => ({ notification: mockNotification })),
+    },
+  }
+})
 
 describe('useMainNotification', () => {
-  it('fires a success notification', async () => {
-    const user = userEvent.setup()
-    renderWithProviders(<Harness type="success" />)
-    await user.click(screen.getByRole('button', { name: 'trigger' }))
-    expect(await screen.findByText('Success!')).toBeTruthy()
-    expect(screen.getByText(/user has been successfully created/i)).toBeTruthy()
+  let mockNotification: { success: ReturnType<typeof vi.fn>; error: ReturnType<typeof vi.fn> }
+
+  beforeEach(() => {
+    mockNotification = App.useApp().notification as unknown as {
+      success: ReturnType<typeof vi.fn>
+      error: ReturnType<typeof vi.fn>
+    }
+    vi.clearAllMocks()
   })
 
-  it('fires an error notification', async () => {
-    const user = userEvent.setup()
-    renderWithProviders(<Harness type="error" />)
-    await user.click(screen.getByRole('button', { name: 'trigger' }))
-    expect(await screen.findByText('Error!')).toBeTruthy()
-    expect(screen.getByText(/something went wrong with user/i)).toBeTruthy()
+  it('calls notification.success with correct title instead of message', () => {
+    const { result } = renderHook(() => useMainNotification())
+
+    act(() => {
+      result.current({ type: 'success', entity: 'User', action: 'Created' })
+    })
+
+    expect(mockNotification.success).toHaveBeenCalledTimes(1)
+    expect(mockNotification.success).toHaveBeenCalledWith({
+      title: 'Success!',
+      description: 'Congratulations! user has been successfully created!',
+    })
+  })
+
+  it('calls notification.error with correct title instead of message', () => {
+    const { result } = renderHook(() => useMainNotification())
+
+    act(() => {
+      result.current({ type: 'error', entity: 'Post', action: 'Deleted' })
+    })
+
+    expect(mockNotification.error).toHaveBeenCalledTimes(1)
+    expect(mockNotification.error).toHaveBeenCalledWith({
+      title: 'Error!',
+      description:
+        'Oops! Something went wrong with post. Unable to deleted at this time. Please try again later or contact support if the issue persists',
+    })
   })
 })

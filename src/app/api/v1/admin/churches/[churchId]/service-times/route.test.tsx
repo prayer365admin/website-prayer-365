@@ -35,6 +35,10 @@ describe('GET /api/v1/admin/churches/[churchId]/service-times', () => {
     const res = (await GET(new NextRequest('http://x/service-times'), params as never))!
     expect(res.status).toBe(200)
     expect((await res.json()).result).toHaveLength(1)
+    expect(getServiceTimes).toHaveBeenCalledWith({
+      churchId: 'c1',
+      churchIds: new Set(['c1']),
+    })
   })
 
   it('returns 404 when church out of scope', async () => {
@@ -110,5 +114,32 @@ describe('PUT /api/v1/admin/churches/[churchId]/service-times', () => {
     })
     const res = (await PUT(req, params as never))!
     expect(res.status).toBe(409)
+  })
+
+  it('denies a cross-church edit with 403 NOT_ALLOWED', async () => {
+    vi.mocked(requiredAuth).mockResolvedValue(auth() as never)
+    vi.mocked(requiredScope).mockResolvedValue({
+      userId: 'u1',
+      churchIds: new Set(['c2']),
+      scope: { kind: 'church', orgNodeId: 'n1', name: '' },
+    } as never)
+    vi.mocked(replaceServiceTimes).mockRejectedValue(
+      new GeneralError({
+        code: 403,
+        error: 'UNAUTHORIZED',
+        error_code: 'NOT_ALLOWED',
+        details: 'This account is not allowed for this church.',
+      }),
+    )
+    const req = new NextRequest('http://x/service-times', {
+      method: 'PUT',
+      body: JSON.stringify({ version: 3, schedule: [] }),
+    })
+    const res = (await PUT(req, params as never))!
+    expect(res.status).toBe(403)
+    expect((await res.json()).error_code).toBe('NOT_ALLOWED')
+    expect(replaceServiceTimes).toHaveBeenCalledWith(
+      expect.objectContaining({ churchId: 'c1', churchIds: new Set(['c2']) }),
+    )
   })
 })

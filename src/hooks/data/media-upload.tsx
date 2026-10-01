@@ -1,5 +1,5 @@
 import { useMutation } from '@tanstack/react-query'
-import { notification } from 'antd'
+import { App } from 'antd'
 import axios from 'axios'
 import { useCallback } from 'react'
 
@@ -32,6 +32,7 @@ export const useMediaUpload = ({
   churchId: string
   purpose: 'IMAGE' | 'VOICE_SAMPLE' | 'CONSENT_EVIDENCE'
 }) => {
+  const { notification } = App.useApp()
   const { mutateAsync: onUpload, isPending: loading } = useMutation({
     mutationFn: useCallback(
       async (file: File | null) => {
@@ -70,7 +71,7 @@ export const useMediaUpload = ({
           url: `/api/v1/uploads/${assetId}/access?churchId=${encodeURIComponent(churchId)}`,
         }
       },
-      [churchId, purpose],
+      [churchId, purpose, notification],
     ),
     onSuccess: () => {
       notification.success({
@@ -80,12 +81,21 @@ export const useMediaUpload = ({
     },
     onError: (error: unknown) => {
       if (axios.isAxiosError(error)) {
+        const data = error.response?.data
+        let description = data?.details || data?.message || 'Failed to upload file.'
+
+        if (data?.error_code === 'MEDIA_CONSTRAINT') {
+          const formatError = data?.fields?.mimeType ? 'Unsupported file format.' : ''
+          const sizeError = data?.fields?.byteSize ? 'File size exceeds the maximum limit.' : ''
+          const combined = [formatError, sizeError].filter(Boolean).join(' ')
+
+          description =
+            combined || 'This file format or size is not supported for this upload type.'
+        }
+
         notification.error({
           message: 'Upload Failed',
-          description:
-            error.response?.data?.details ||
-            error.response?.data?.message ||
-            'Failed to upload file.',
+          description,
         })
       } else {
         notification.error({ message: 'Upload Failed', description: 'Failed to upload file.' })

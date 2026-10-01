@@ -44,20 +44,22 @@ export const GET_CHURCHES = async ({
 
 /** Single editable profile, scoped by churchIds (must include the target). */
 export const GET_CHURCH_PROFILE = async ({
+  churchId,
   churchIds,
 }: {
+  churchId: string
   churchIds: Set<string>
 }): Promise<ChurchProfileOutput | null> => {
   const ids = toIds(churchIds)
   if (ids.length === 0) return null
   const row = await db.church.findFirst({
-    where: { id: { in: ids } },
+    where: { AND: [{ id: churchId }, { id: { in: ids } }] },
     include: { churchLanguages: { select: { language_code: true } } },
   })
   if (!row) return null
   return mapProfile(
     row,
-    row.churchLanguages.map((l) => l.language_code),
+    row.churchLanguages.map((l) => l.language_code.trim()),
   )
 }
 
@@ -105,13 +107,18 @@ const mapProfile = (
 
 /** Current concurrency version of a church in scope, for stale checks. */
 export const GET_CHURCH_VERSION = async ({
+  churchId,
   churchIds,
 }: {
+  churchId: string
   churchIds: Set<string>
 }): Promise<number | null> => {
   const ids = toIds(churchIds)
   if (ids.length === 0) return null
-  const row = await db.church.findFirst({ where: { id: { in: ids } }, select: { version: true } })
+  const row = await db.church.findFirst({
+    where: { AND: [{ id: churchId }, { id: { in: ids } }] },
+    select: { version: true },
+  })
   return row ? row.version : null
 }
 
@@ -126,7 +133,7 @@ export const GET_AVAILABLE_LANGUAGE_CODES = async ({
     where: { code: { in: codes }, enabled: true },
     select: { code: true },
   })
-  return new Set(rows.map((r) => r.code))
+  return new Set(rows.map((r) => r.code.trim()))
 }
 
 /** READY image asset belonging to this church (cover asset ownership check). */
@@ -151,6 +158,7 @@ export const GET_CHURCH_READY_IMAGE = async ({
  * Languages are replaced wholesale inside the same transaction.
  */
 export const UPDATE_CHURCH_PROFILE = async ({
+  churchId,
   churchIds,
   expectedVersion,
   payload,
@@ -158,6 +166,7 @@ export const UPDATE_CHURCH_PROFILE = async ({
   requestId,
   actorId,
 }: {
+  churchId: string
   churchIds: Set<string>
   expectedVersion: number
   payload: Prisma.ChurchUncheckedUpdateInput
@@ -166,7 +175,6 @@ export const UPDATE_CHURCH_PROFILE = async ({
   actorId?: string | null
 }): Promise<ChurchProfileOutput> => {
   const ids = toIds(churchIds)
-  const churchId = ids[0]
   if (ids.length === 0)
     throw new GeneralError({
       code: 404,
@@ -177,7 +185,7 @@ export const UPDATE_CHURCH_PROFILE = async ({
 
   return db.$transaction(async (tx) => {
     const updated = await tx.church.updateMany({
-      where: { id: churchId, version: expectedVersion },
+      where: { AND: [{ id: churchId }, { id: { in: ids } }, { version: expectedVersion }] },
       data: { ...payload, version: { increment: 1 }, updated_at: new Date() },
     })
     if (updated.count === 0) {
@@ -210,21 +218,23 @@ export const UPDATE_CHURCH_PROFILE = async ({
     })
     return mapProfile(
       row!,
-      row!.churchLanguages.map((l) => l.language_code),
+      row!.churchLanguages.map((l) => l.language_code.trim()),
     )
   })
 }
 
 /** Overview aggregates scoped by churchIds; returns null when the church is out of scope. */
 export const GET_CHURCH_OVERVIEW = async ({
+  churchId,
   churchIds,
 }: {
+  churchId: string
   churchIds: Set<string>
 }): Promise<ChurchOverview | null> => {
   const ids = toIds(churchIds)
   if (ids.length === 0) return null
   const church = await db.church.findFirst({
-    where: { id: { in: ids } },
+    where: { AND: [{ id: churchId }, { id: { in: ids } }] },
     select: { id: true, name: true, status: true, timezone: true, address: true, version: true },
   })
   if (!church) return null
@@ -237,13 +247,13 @@ export const GET_CHURCH_OVERVIEW = async ({
     memberCount,
     mediaCount,
   ] = await db.$transaction([
-    db.serviceTime.count({ where: { church_id: { in: ids } } }),
-    db.churchPastor.count({ where: { church_id: { in: ids } } }),
-    db.prayer.count({ where: { church_id: { in: ids } } }),
-    db.event.count({ where: { church_id: { in: ids } } }),
-    db.announcement.count({ where: { church_id: { in: ids } } }),
-    db.userChurch.count({ where: { church_id: { in: ids } } }),
-    db.mediaAsset.count({ where: { church_id: { in: ids } } }),
+    db.serviceTime.count({ where: { church_id: churchId } }),
+    db.churchPastor.count({ where: { church_id: churchId } }),
+    db.prayer.count({ where: { church_id: churchId } }),
+    db.event.count({ where: { church_id: churchId } }),
+    db.announcement.count({ where: { church_id: churchId } }),
+    db.userChurch.count({ where: { church_id: churchId } }),
+    db.mediaAsset.count({ where: { church_id: churchId } }),
   ])
   const agg: ChurchOverview['aggregates'] = {
     serviceTimeCount,

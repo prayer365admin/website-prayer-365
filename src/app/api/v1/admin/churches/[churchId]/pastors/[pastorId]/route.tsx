@@ -47,7 +47,7 @@ export async function PATCH(
     const { churchIds } = await requiredScope({
       userId: session.user.user_id,
       churchId,
-      subject: 'prayer_pastor',
+      subject: 'prayer_church_pastor',
       action: 'update',
     })
     const result = await patchChurchPastor({

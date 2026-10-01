@@ -185,12 +185,16 @@ describe('getChurchOverview', () => {
 describe('getChurchProfile', () => {
   it('returns the profile', async () => {
     vi.mocked(GET_CHURCH_PROFILE).mockResolvedValue(profile as never)
-    await expect(getChurchProfile({ churchIds: new Set(['c1']) })).resolves.toEqual(profile)
+    await expect(getChurchProfile({ churchId: 'c1', churchIds: new Set(['c1']) })).resolves.toEqual(
+      profile,
+    )
   })
 
   it('throws 404 when not found', async () => {
     vi.mocked(GET_CHURCH_PROFILE).mockResolvedValue(null as never)
-    await expect(getChurchProfile({ churchIds: new Set(['c1']) })).rejects.toMatchObject({
+    await expect(
+      getChurchProfile({ churchId: 'c1', churchIds: new Set(['c1']) }),
+    ).rejects.toMatchObject({
       code: 404,
     })
   })

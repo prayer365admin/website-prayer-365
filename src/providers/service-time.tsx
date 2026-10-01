@@ -27,14 +27,15 @@ const parseLocalTime = (value: string, field: string): Date => {
 }
 
 export const GET_SERVICE_TIMES = async ({
+  churchId,
   churchIds,
 }: {
+  churchId: string
   churchIds: Set<string>
 }): Promise<ServiceTimeEntry[]> => {
-  const ids = Array.from(churchIds)
-  if (ids.length === 0) return []
+  if (!churchIds.has(churchId)) return []
   const rows = await db.serviceTime.findMany({
-    where: { church_id: { in: ids } },
+    where: { church_id: churchId },
     orderBy: [{ weekday: 'asc' }, { local_time: 'asc' }],
   })
   return rows.map((r) => ({
@@ -48,12 +49,14 @@ export const GET_SERVICE_TIMES = async ({
 
 /** Transactionally replace the weekly schedule, gated on church version. */
 export const REPLACE_SERVICE_TIMES = async ({
+  churchId,
   churchIds,
   expectedVersion,
   schedule,
   requestId,
   actorId,
 }: {
+  churchId: string
   churchIds: Set<string>
   expectedVersion: number
   schedule: Array<{
@@ -66,7 +69,6 @@ export const REPLACE_SERVICE_TIMES = async ({
   actorId?: string | null
 }): Promise<{ count: number }> => {
   const ids = Array.from(churchIds)
-  const churchId = ids[0]
   if (ids.length === 0)
     throw new GeneralError({
       code: 404,
@@ -77,7 +79,7 @@ export const REPLACE_SERVICE_TIMES = async ({
 
   return db.$transaction(async (tx) => {
     const updated = await tx.church.updateMany({
-      where: { id: churchId, version: expectedVersion },
+      where: { AND: [{ id: churchId }, { id: { in: ids } }, { version: expectedVersion }] },
       data: { version: { increment: 1 }, updated_at: new Date() },
     })
     if (updated.count === 0) {

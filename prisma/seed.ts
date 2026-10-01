@@ -1,7 +1,7 @@
 import { db } from '../src/utils/db-connection'
 
 import { seedAnnouncements } from './seeds/announcement'
-import { seedChurches } from './seeds/church'
+import { seedChurches, seedSecondChurch } from './seeds/church'
 import { seedConsents } from './seeds/consent'
 import { seedCountries } from './seeds/country'
 import { seedEvents } from './seeds/event'
@@ -34,6 +34,7 @@ async function main() {
 
   // Placeholder domain graph (dependency order).
   await seedChurches()
+  await seedSecondChurch()
   await seedUsers() // prayer test users + end-users (needs org nodes + demo church)
   await seedPastors() // links the demo pastor to the prayer_pastor test user
   await seedConsents()

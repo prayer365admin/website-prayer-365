@@ -16,7 +16,7 @@ const db = vi.hoisted(() => ({
 
 vi.mock('@/utils/db-connection', () => ({ db }))
 
-import { churchLocalDate, CREATE_CHECKIN, UPDATE_ME_PROFILE } from './mobile'
+import { churchLocalDate, CREATE_CHECKIN, UPDATE_ME_PROFILE, GET_PUBLIC_CHURCH } from './mobile'
 
 beforeEach(() => vi.clearAllMocks())
 
@@ -119,5 +119,87 @@ describe('UPDATE_ME_PROFILE — main-church is exactly one row', () => {
       UPDATE_ME_PROFILE({ userId: 'u1', mainChurchId: 'c-pending' }),
     ).rejects.toMatchObject({ code: 404 })
     expect(tx.userChurch.upsert).not.toHaveBeenCalled()
+  })
+})
+
+describe('GET_PUBLIC_CHURCH — admin profile reflected in mobile contract', () => {
+  it('reflects every admin-edited profile field on the public DTO', async () => {
+    db.church.findFirst.mockResolvedValueOnce({
+      id: 'c1',
+      name: 'Grace Renamed',
+      denomination: 'Lutheran',
+      description: 'Updated description',
+      timezone: 'Europe/Tallinn',
+      address: {
+        line1: '1 St',
+        line2: 'B',
+        city: 'Tallinn',
+        postalCode: '10111',
+        countryCode: 'EE',
+      },
+      latitude: 59.437,
+      longitude: 24.754,
+      contacts: { email: 'office@grace.ee', phone: '+372 555' },
+      website: 'https://grace.ee',
+      social_links: [{ label: 'site', url: 'https://grace.ee' }],
+      accessibility: 'Step-free entrance',
+      cover_asset_id: 'm1',
+      churchLanguages: [{ language_code: 'et' }, { language_code: 'en' }],
+      serviceTimes: [
+        { weekday: 1, local_time: new Date(Date.UTC(1970, 0, 1, 9, 0)), language_code: 'et' },
+      ],
+    })
+
+    const result = await GET_PUBLIC_CHURCH({ churchId: 'c1' })
+    expect(result).not.toBeNull()
+    expect(result?.id).toBe('c1')
+    expect(result?.name).toBe('Grace Renamed')
+    expect(result?.denomination).toBe('Lutheran')
+    expect(result?.description).toBe('Updated description')
+    expect(result?.timezone).toBe('Europe/Tallinn')
+    expect(result?.address).toEqual({
+      line1: '1 St',
+      line2: 'B',
+      city: 'Tallinn',
+      postalCode: '10111',
+      countryCode: 'EE',
+    })
+    expect(result?.coordinates).toEqual({ latitude: 59.437, longitude: 24.754 })
+    expect(result?.contacts).toEqual({ email: 'office@grace.ee', phone: '+372 555' })
+    expect(result?.website).toBe('https://grace.ee')
+    expect(result?.socialLinks).toEqual([{ label: 'site', url: 'https://grace.ee' }])
+    expect(result?.accessibility).toBe('Step-free entrance')
+    expect(result?.coverAssetId).toBe('m1')
+    expect(result?.languageCodes).toEqual(['et', 'en'])
+    expect(result?.serviceTimes[0].weekday).toBe(1)
+    expect(result?.serviceTimes[0].localTime).toBe('1970-01-01T09:00:00.000Z')
+    expect(result?.serviceTimes[0].languageCode).toBe('et')
+  })
+
+  it('never exposes private/server-owned fields', async () => {
+    db.church.findFirst.mockResolvedValueOnce({
+      id: 'c1',
+      name: 'Grace',
+      timezone: 'UTC',
+      status: 'APPROVED',
+      approved_by: 'u1',
+      approved_at: new Date(),
+      version: 4,
+      churchLanguages: [],
+      serviceTimes: [],
+    })
+
+    const result = await GET_PUBLIC_CHURCH({ churchId: 'c1' })
+    expect(result).not.toBeNull()
+    expect(result).not.toHaveProperty('status')
+    expect(result).not.toHaveProperty('approved_by')
+    expect(result).not.toHaveProperty('approved_at')
+    expect(result).not.toHaveProperty('version')
+  })
+
+  it('returns null when the church is not APPROVED', async () => {
+    db.church.findFirst.mockResolvedValueOnce(null)
+    const result = await GET_PUBLIC_CHURCH({ churchId: 'c1' })
+    expect(result).toBeNull()
   })
 })
