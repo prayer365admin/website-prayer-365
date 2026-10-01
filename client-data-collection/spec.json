@@ -1,0 +1,213 @@
+{
+  "full_calc_on_load": true,
+  "defined_names": {},
+  "sheets": [
+    {
+      "name": "Church",
+      "freeze_panes": "A2",
+      "autofilter": "A1:X1",
+      "column_widths": {
+        "A": 14,
+        "B": 16,
+        "C": 8,
+        "D": 20,
+        "E": 16,
+        "F": 30,
+        "G": 16,
+        "H": 18,
+        "I": 26,
+        "J": 26,
+        "K": 16,
+        "L": 12,
+        "M": 12,
+        "N": 12,
+        "O": 28,
+        "P": 20,
+        "Q": 32,
+        "R": 30,
+        "S": 30,
+        "T": 30,
+        "U": 14,
+        "V": 30,
+        "W": 40
+      },
+      "rows": [
+        [
+          "church_key",
+          "country_name",
+          "country_code",
+          "diocese",
+          "deanery",
+          "church_name",
+          "denomination",
+          "timezone",
+          "address_line1",
+          "address_line2",
+          "city",
+          "postal_code",
+          "latitude",
+          "longitude",
+          "contact_email",
+          "contact_phone",
+          "website",
+          "facebook_url",
+          "instagram_url",
+          "youtube_url",
+          "languages",
+          "accessibility",
+          "description"
+        ],
+        [
+          "ST_MAIN",
+          "Indonesia",
+          "ID",
+          "Diocese of Jakarta",
+          "Deanery East",
+          "Jakarta Central Church",
+          "Catholic",
+          "Asia/Jakarta",
+          "Jl. Sudirman No. 1",
+          "",
+          "Jakarta",
+          "10220",
+          "",
+          "",
+          "office@example.org",
+          "+62 21 555 0101",
+          "https://example.org",
+          "https://facebook.com/x",
+          "",
+          "",
+          "id;en",
+          "Wheelchair accessible door",
+          "Main parish church"
+        ],
+        ["", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", ""]
+      ],
+      "validations": [
+        {
+          "type": "list",
+          "formula1": "\"ID,US,EN,IN,MY,SG,PH,ET,FI\"",
+          "range": "C2:C500",
+          "allow_blank": true
+        },
+        {
+          "type": "list",
+          "formula1": "\"en,id,et,fi\"",
+          "range": "U2:U500",
+          "allow_blank": true,
+          "show_error": true,
+          "error_message": "Use BCP-47 codes, separate with ; e.g. id;en"
+        }
+      ]
+    },
+    {
+      "name": "Pastors",
+      "freeze_panes": "A2",
+      "autofilter": "A1:F1",
+      "column_widths": { "A": 14, "B": 26, "C": 18, "D": 60, "E": 30, "F": 20 },
+      "rows": [
+        ["church_key", "pastor_name", "pastoral_role", "introduction", "email", "phone"],
+        [
+          "ST_MAIN",
+          "Fr. Yohanes Budi",
+          "Lead Pastor",
+          "Father Budi has served the parish since 2015.",
+          "yohanes@example.org",
+          "+62 811 555 0101"
+        ],
+        ["", "", "", "", "", ""]
+      ]
+    },
+    {
+      "name": "Service Times",
+      "freeze_panes": "A2",
+      "autofilter": "A1:E1",
+      "column_widths": { "A": 14, "B": 12, "C": 9, "D": 30, "E": 8 },
+      "rows": [
+        ["church_key", "weekday", "local_time", "label", "language"],
+        ["ST_MAIN", "Sunday", "07:00", "Sunday Mass (Indonesian)", "id"],
+        ["", "", "", "", ""]
+      ],
+      "validations": [
+        {
+          "type": "list",
+          "formula1": "\"Monday,Tuesday,Wednesday,Thursday,Friday,Saturday,Sunday\"",
+          "range": "B2:B500",
+          "allow_blank": true
+        },
+        { "type": "list", "formula1": "\"en,id,et,fi\"", "range": "E2:E500", "allow_blank": true }
+      ]
+    },
+    {
+      "name": "Prayers",
+      "freeze_panes": "A2",
+      "autofilter": "A1:H1",
+      "column_widths": { "A": 14, "B": 30, "C": 50, "D": 70, "E": 8, "F": 26 },
+      "rows": [
+        ["church_key", "prayer_title", "introduction", "prayer_body", "language", "pastor_name"],
+        [
+          "ST_MAIN",
+          "Daily Morning Prayer",
+          "A short opening line.",
+          "Full prayer text here...",
+          "id",
+          "Fr. Yohanes Budi"
+        ],
+        ["", "", "", "", "", ""]
+      ],
+      "validations": [
+        { "type": "list", "formula1": "\"en,id,et,fi\"", "range": "E2:E500", "allow_blank": true }
+      ]
+    },
+    {
+      "name": "Events",
+      "freeze_panes": "A2",
+      "autofilter": "A1:I1",
+      "column_widths": { "A": 14, "B": 12, "C": 30, "D": 50, "E": 20, "F": 30, "G": 30, "H": 8 },
+      "rows": [
+        [
+          "church_key",
+          "category",
+          "title",
+          "description",
+          "starts_at",
+          "location",
+          "registration_url",
+          "language"
+        ],
+        [
+          "ST_MAIN",
+          "SERVICE",
+          "Easter Service",
+          "Annual Easter mass.",
+          "2026-04-05 09:00",
+          "Jakarta Central Church",
+          "https://forms.example.com/easter",
+          "en"
+        ],
+        ["", "", "", "", "", "", "", ""]
+      ],
+      "validations": [
+        {
+          "type": "list",
+          "formula1": "\"SERVICE,SPECIAL,BIBLE_STUDY,COMMUNITY,OTHER\"",
+          "range": "B2:B500",
+          "allow_blank": true
+        },
+        { "type": "list", "formula1": "\"en,id,et,fi\"", "range": "H2:H500", "allow_blank": true }
+      ]
+    },
+    {
+      "name": "Announcements",
+      "freeze_panes": "A2",
+      "autofilter": "A1:D1",
+      "column_widths": { "A": 14, "B": 30, "C": 70, "D": 14 },
+      "rows": [
+        ["church_key", "title", "body", "publish_date"],
+        ["ST_MAIN", "New choir practice", "Choir practice every Friday at 19:00.", "2026-05-01"],
+        ["", "", "", ""]
+      ]
+    }
+  ]
+}

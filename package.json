@@ -3,18 +3,18 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "yarn prisma generate && yarn style-init && next dev",
-    "build": "yarn prisma generate && yarn style-init && yarn prisma migrate deploy && next build",
+    "dev": "bun prisma generate && bun style-init && next dev",
+    "build": "bun prisma generate && bun style-init && bun prisma migrate deploy && next build",
     "start": "next start",
     "lint": "eslint .",
     "prepare": "lefthook install",
-    "format": "yarn prettier --write .",
+    "format": "bun prettier --write .",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
     "typecheck": "tsc --noEmit",
     "style-init": "tsx src/script/generate-sass-variable.ts",
-    "update-dbdocs": "yarn prisma generate && dbdocs build prisma/dbml/schema.dbml --project catatia_dashboard"
+    "update-dbdocs": "bun prisma generate && dbdocs build prisma/dbml/schema.dbml --project catatia_dashboard"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"

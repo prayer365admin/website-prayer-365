@@ -1,20 +1,20 @@
 ## System Requirement
 
 1. Node Version: `v22.9.0`
-2. Yarn Version: `v1.22.22`
+2. Bun Version: `v1.22.22`
 
 ## Getting Started
 
 First, install all dependencies:
 
 ```
-yarn
+bun
 ```
 
 Second, running dev serve:
 
 ```
-yarn dev
+bun dev
 ```
 
 ## Commit Convention

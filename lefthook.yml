@@ -3,21 +3,21 @@ pre-commit:
   commands:
     prettier:
       glob: '*.{js,jsx,ts,tsx,json,scss,css,md,yml,yaml}'
-      run: yarn prettier --write {staged_files}
+      run: bun prettier --write {staged_files}
       stage_fixed: true
     eslint:
       glob: '*.{js,jsx,ts,tsx}'
-      run: yarn eslint {staged_files}
+      run: bun eslint {staged_files}
     unit-tests:
       glob: '*.{test,spec}.{js,jsx,ts,tsx}'
-      run: yarn vitest run {staged_files}
+      run: bun vitest run {staged_files}
 
 pre-push:
   parallel: true
   commands:
     typecheck:
-      run: yarn typecheck
+      run: bun typecheck
     lint:
-      run: yarn lint
+      run: bun lint
     test:
-      run: yarn test
+      run: bun test

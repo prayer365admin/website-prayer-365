@@ -1,0 +1,2 @@
+﻿church_key,country_name,country_code,diocese,deanery,church_name,denomination,timezone,address_line1,address_line2,city,postal_code,latitude,longitude,contact_email,contact_phone,website,facebook_url,instagram_url,youtube_url,languages,accessibility,description
+ST_MAIN,Indonesia,ID,Diocese of Jakarta,Deanery East,Jakarta Central Church,Catholic,Asia/Jakarta,Jl. Sudirman No. 1,,Jakarta,10220,,,office@stmaryjakarta.example,+62 21 555 0101,https://stmaryjakarta.example,https://facebook.com/stmaryjakarta,,,en%7Cid,Wheelchair accessible door,Main parish church of the deanery

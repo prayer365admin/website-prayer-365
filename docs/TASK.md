@@ -123,17 +123,17 @@ DESIGN S10–S11 | SPEC §9.5 | FEATURE F6
 
 DESIGN S12 | SPEC §9.6 | FEATURE F7
 
-| ID    | Task                                                                                                                                                                                | Done |
-| ----- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---- |
-| DO-01 | DB: `payment_accounts`, `donations`, `donation_subscriptions`, `webhook_receipts`, `idempotency_records` + seeds                                                                    | ✔   |
-| DO-02 | API: donation/stripe providers + controllers + `C/donations`, `C/donation-subscriptions`, `C/donation-summary`, mobile `POST M/churches/:churchId/donations`, webhook route + tests | ✔   |
-| DO-03 | Hooks: `hooks/data/donation.tsx` — transactions, recurring, monthly summary                                                                                                         | ☐    |
-| DO-04 | Screen: S12 reporting (`.../donations`) — tabs: transactions, recurring, monthly summary; currencies kept separate, pending/failed states accurate                                  | ☐    |
-| DO-05 | Integration: Stripe webhook — raw-body signature verify, receipt + outbox in transaction, ack after durable accept (SPEC §8.5)                                                      | ☐    |
-| DO-06 | Integration: `payment.sync` job — dedupe and reconcile out-of-order/duplicate events, upsert subscription + per-installment donations, no stale-event overwrite                     | ☐    |
-| DO-07 | Rules: subscription event ≠ paid donation; refund notices reported, not a refund UI                                                                                                 | ☐    |
-| DO-08 | Tests: failed payments, duplicate/out-of-order webhooks, monthly installments, refunds, wrong connected account, redirect-before-webhook                                            | ☐    |
-| DO-09 | Note: charge model/fees/currencies = D6; backend must resolve church's verified account, never raw card data                                                                        | ☐    |
+| ID    | Task                                                                                                                                                                                                                                              | Done                |
+| ----- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------- |
+| DO-01 | DB: `payment_accounts`, `donations`, `donation_subscriptions`, `webhook_receipts`, `idempotency_records` + seeds                                                                                                                                  | ✔                  |
+| DO-02 | API: donation/stripe providers + controllers + `C/donations`, `C/donation-subscriptions`, `C/donation-summary`, webhook route + tests (admin ✔). **Mobile `POST M/churches/:churchId/donations` NOT built** → see Mobile contract backlog §X-MOB | ✔ admin · ☐ mobile |
+| DO-03 | Hooks: `hooks/data/donation.tsx` — transactions, recurring, monthly summary                                                                                                                                                                       | ☐                   |
+| DO-04 | Screen: S12 reporting (`.../donations`) — tabs: transactions, recurring, monthly summary; currencies kept separate, pending/failed states accurate                                                                                                | ☐                   |
+| DO-05 | Integration: Stripe webhook — raw-body signature verify, receipt + outbox in transaction, ack after durable accept (SPEC §8.5)                                                                                                                    | ☐                   |
+| DO-06 | Integration: `payment.sync` job — dedupe and reconcile out-of-order/duplicate events, upsert subscription + per-installment donations, no stale-event overwrite                                                                                   | ☐                   |
+| DO-07 | Rules: subscription event ≠ paid donation; refund notices reported, not a refund UI                                                                                                                                                               | ☐                   |
+| DO-08 | Tests: failed payments, duplicate/out-of-order webhooks, monthly installments, refunds, wrong connected account, redirect-before-webhook                                                                                                          | ☐                   |
+| DO-09 | Note: charge model/fees/currencies = D6; backend must resolve church's verified account, never raw card data                                                                                                                                      | ☐                   |
 
 ## F9ANL — Analytics, Attendance, Regional Dashboards
 
@@ -153,17 +153,17 @@ DESIGN S13/S26 | SPEC §9.7 | FEATURE F9/F10
 
 DESIGN S25 | SPEC §9.8 | FEATURE F11
 
-| ID    | Task                                                                                                                                                                                                            | Done |
-| ----- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---- |
-| NO-01 | DB: `notification_rules`, `notification_preferences`, `notification_deliveries`, `device_tokens` + seeds                                                                                                        | ✔   |
-| NO-02 | API: notification provider/controller + `A/central/notification-rules` GET/PUT, mobile preferences/devices + tests                                                                                              | ✔   |
-| NO-03 | Hooks: `hooks/data/notification.tsx` — rules get/put                                                                                                                                                            | ☐    |
-| NO-04 | Screen: S25 central settings (`/dashboard/central/notifications`) — enabled switches for required types + approved timing values only; no audience/campaign UI                                                  | ☐    |
-| NO-05 | Integration: `notification.send` job — recheck rule + content visibility, resolve audience, check current preferences (donation opt-in default false), dedupe event/user/device, FCM/APNs push, delivery record | ☐    |
-| NO-06 | Integration: transactional email via template Nodemailer/Handlebars with verified TLS transport                                                                                                                 | ☐    |
-| NO-07 | Rules: payload never contains private request/message text; invalid tokens retired; opt-out between enqueue/send honored                                                                                        | ☐    |
-| NO-08 | Tests: opt-out respected, no duplicate sends, obsolete event reminders skipped, dedupe by event/user/device                                                                                                     | ☐    |
-| NO-09 | Note: trigger timing/recipients = D9                                                                                                                                                                            | ☐    |
+| ID    | Task                                                                                                                                                                                                                                                                     | Done                |
+| ----- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------- |
+| NO-01 | DB: `notification_rules`, `notification_preferences`, `notification_deliveries`, `device_tokens` + seeds                                                                                                                                                                 | ✔                  |
+| NO-02 | API: notification provider/controller + `A/central/notification-rules` GET/PUT + tests (admin ✔). **Mobile preferences (`GET/PUT M/me/notification-preferences`) + devices (`PUT/DELETE M/me/devices/:installationId`) NOT built** → see Mobile contract backlog §X-MOB | ✔ admin · ☐ mobile |
+| NO-03 | Hooks: `hooks/data/notification.tsx` — rules get/put                                                                                                                                                                                                                     | ☐                   |
+| NO-04 | Screen: S25 central settings (`/dashboard/central/notifications`) — enabled switches for required types + approved timing values only; no audience/campaign UI                                                                                                           | ☐                   |
+| NO-05 | Integration: `notification.send` job — recheck rule + content visibility, resolve audience, check current preferences (donation opt-in default false), dedupe event/user/device, FCM/APNs push, delivery record                                                          | ☐                   |
+| NO-06 | Integration: transactional email via template Nodemailer/Handlebars with verified TLS transport                                                                                                                                                                          | ☐                   |
+| NO-07 | Rules: payload never contains private request/message text; invalid tokens retired; opt-out between enqueue/send honored                                                                                                                                                 | ☐                   |
+| NO-08 | Tests: opt-out respected, no duplicate sends, obsolete event reminders skipped, dedupe by event/user/device                                                                                                                                                              | ☐                   |
+| NO-09 | Note: trigger timing/recipients = D9                                                                                                                                                                                                                                     | ☐                   |
 
 ## F11ORG — Central Organization (hierarchy, countries, languages)
 
@@ -213,6 +213,40 @@ Not feature-bound; unblocks everything.
 | X-09 | Deploy/infra (D11): Vercel↔PostgreSQL connectivity, private S3, SQS/DLQ + EventBridge, Secrets Manager, CloudWatch alerts (job-lag, payment-sync), controlled migrations, backup/restore, production email transport | ☐    |
 | X-10 | Cleanup: remove stub pages + demo master-data (brand/color) + dead endpoints; full verify pass; accessibility basics (labels, keyboard focus, no color-only meaning, timezone on date inputs)                         | ☐    |
 | X-11 | Handover package: schema, API docs, deployment/runbook, service inventory, env names (SPEC §11.3)                                                                                                                     | ☐    |
+
+## X-MOB — Mobile Contract Backlog (backend owns these)
+
+The built `M/` routes (`src/controller/mobile.tsx`, `src/models/mobile.tsx`) cover discovery,
+home/me/follows, published prayers/events/announcements, requests, check-in and analytics.
+The mobile client aligns to those built shapes (see `prayer-365-mobile-app/docs/TASK.md` §0.1).
+The following mobile capability is **not built yet** and blocks the linked mobile features.
+All rows ☐ unless marked. Register any new `M/` route with OpenAPI + tests.
+
+| ID    | Task                                                                                                                                                                                                                               | Blocks (mobile)                              | Done |
+| ----- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------- | ---- |
+| MB-01 | **Mobile auth**: `POST M/auth/register`, `/login`, `/refresh`, `/logout` — issue/rotate/revoke a short-lived bearer credential (ties to X-07 / D1). Bearer is already accepted by `required-auth`; only token issuance is missing. | Accounts+Onboarding, all authenticated flows | ☐    |
+| MB-02 | **Donations**: `POST M/churches/:churchId/donations` → DonationInput + provider launch params + attempt ref; `GET M/me/donation-attempts/:attemptId` → confirmed/pending/failed outcome. Idempotent, subject-only.                 | Donations (DN1–DN6)                          | ☐    |
+| MB-03 | **DonationOptions** projection on `MobilePublicChurch` (currencies, presets low/minor, monthly flag) or a jointly-agreed equivalent.                                                                                               | Donations (DN2)                              | ☐    |
+| MB-04 | **Notification preferences**: `GET/PUT M/me/notification-preferences` — donation reminder defaults **false**; server allowlists required types.                                                                                    | Notifications (V5)                           | ☐    |
+| MB-05 | **Device registration**: `PUT/DELETE M/me/devices/:installationId` — bind native FCM/APNs token per installation, rotate, revoke on logout.                                                                                        | Notifications (V4/V6)                        | ☐    |
+| MB-06 | **Account deletion**: `DELETE M/me` (202, reauthenticated subject) — distinguish accepted vs completed.                                                                                                                            | Deletion (L2)                                | ☐    |
+| MB-07 | **Data exports**: `POST M/me/data-exports`, `GET M/me/data-exports/:jobId` — private result when ready.                                                                                                                            | Export (L4)                                  | ☐    |
+| MB-08 | **Detail routes**: `GET M/churches/:churchId/events/:eventId`, `.../announcements/:announcementId` — reload + deep-link after push.                                                                                                | Events (EV1 deep-link)                       | ☐    |
+| MB-09 | **Playable media**: expose a short-lived signed URL for approved published audio (today `MobilePublishedAudio` returns `assetId/assetKey` only). Reuse the media-access signing flow from X-04.                                    | Prayers audio (PR3/PR5)                      | ☐    |
+| MB-10 | **Home projection**: replace `latest*: unknown[]` in `MobileHome` with a typed minimal projection (`prayers`, `nextService`, `upcomingEvent`, `announcement`) or the agreed alternative.                                           | Home (H1)                                    | ☐    |
+| MB-11 | **Church summary coordinates**: add `coordinates` to `MobileChurchSummary` so list markers/distance are buildable.                                                                                                                 | Discovery map (D3)                           | ☐    |
+| MB-12 | **Church profile pastors + donationOptions**: add rendered `pastors[]` and donation projection to `MobilePublicChurch`.                                                                                                            | Church profile (CP1)                         | ☐    |
+| MB-13 | **Profile version field**: add `version` to `MobileMe` + `PATCH M/me` optimistic-concurrency guard for multi-device stale-write protection.                                                                                        | Profile (P1)                                 | ☐    |
+| MB-14 | **Event timezone**: add `timezone` to `MobilePublicEvent`.                                                                                                                                                                         | Events (EV3)                                 | ☐    |
+
+**Build order (parallel):** MB-10/11/12/13/14 are pure DTO additions to already-live routes —
+fast, independent, no auth dependency. MB-04/05 build on the existing notification provider.
+MB-01 (auth) should go first — it unblocks the mobile authenticated flows. MB-02/06/07 need
+D6/D9 decisions before implementation. MB-09 reuses the X-04 media-signing flow.
+
+Convention: these are the sharing handoffs consumed by the mobile client per
+`prayer-365-mobile-app/docs/TASK.md`. Do not change an already-live `M/` field name/shape
+without a joint announce, because the mobile `api.ts` layer maps to the built shapes.
 
 ---
 
