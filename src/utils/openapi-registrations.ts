@@ -100,6 +100,9 @@ import '@/app/api/v1/mobile/churches/[churchId]/announcements/route'
 import '@/app/api/v1/mobile/churches/[churchId]/requests/route'
 import '@/app/api/v1/mobile/churches/[churchId]/check-ins/route'
 import '@/app/api/v1/mobile/analytics-events/route'
+import '@/app/api/v1/mobile/auth/login/route'
+import '@/app/api/v1/mobile/auth/refresh/route'
+import '@/app/api/v1/mobile/auth/logout/route'
 
 // --- Central: notification rules (Phase 10 / Task 44) ---
 import '@/app/api/v1/admin/central/notification-rules/route'

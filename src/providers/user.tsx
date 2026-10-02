@@ -181,3 +181,13 @@ export const DELETE_USER = async ({ user_id }: { user_id: string }) => {
   const result = await db.user.delete({ where: { id: user_id } })
   return result
 }
+
+/** D1: bump `auth_version` on password change / account disable → invalidates all outstanding tokens. */
+export const INCREMENT_AUTH_VERSION = async ({ user_id }: { user_id: string }) => {
+  const result = await db.user.update({
+    data: { auth_version: { increment: 1 } },
+    where: { id: user_id },
+    select: { id: true, auth_version: true },
+  })
+  return result
+}

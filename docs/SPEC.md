@@ -138,7 +138,13 @@ Verified flow: `src/auth.ts` → `controller/authentication.tsx` → `providers/
 - Do not assume `auth()` refresh alone enforces church access or soft-deletion status. Server Actions must use the same checks as Route Handlers.
 - The template's handler file is `src/app/api/[...nextauth]/route.ts`, while auth configuration has no explicit `basePath`. Confirm and align the handler route, client provider and deployed auth URL. Do not invent a working URL from the template documentation or assume `/api/auth/*` already exists.
 
-**Mobile auth remains D1:** NextAuth browser credentials sessions are not automatically a bearer-token API for React Native. Specify issuance, refresh rotation/revocation and secure device storage before implementing mobile authentication. Do not reuse a session JWT as a public bearer token without an explicit verified token contract. Shared users and scoped authorization can be reused; an external identity service is an optional decision, not required by this template.
+**Mobile auth (resolved, plan 002):** NextAuth browser credentials sessions are not
+automatically a bearer-token API for React Native. The token contract is implemented at
+`/api/v1/mobile/auth/login` (short-lived access JWT 15 min w/ `auth_version` claim), `refresh`
+(single-use opaque hashed refresh token; rotation + family reuse-revocation), and `logout`
+(device-session revocation). Access tokens carry `auth_version` and required-auth re-validates
+it + active-user status at every authorization boundary. Admin session JWT is never reused as a
+public bearer. Secure device storage of the refresh token is a client-side (RN) requirement.
 
 ### 3.2 RBAC Model
 
@@ -687,6 +693,7 @@ These exist in the admin backend to support the mobile scope. Detailed mobile sc
 
 | Method and path                                                             | Responsibility                                      | Access                                                                    |
 | --------------------------------------------------------------------------- | --------------------------------------------------- | ------------------------------------------------------------------------- |
+| `POST M/auth/login`, `POST M/auth/refresh`, `POST M/auth/logout`            | Issue / rotate / revoke mobile bearer (plan 002)    | Public (login); login+refresh return access+refresh pair, logout revokes  |
 | `GET M/churches`, `GET M/churches/:churchId`                                | Search/nearby approved churches, public profile     | Public or authenticated discovery policy to confirm; never private fields |
 | `GET M/home`                                                                | Selected/followed church content and shortcuts      | Authenticated user                                                        |
 | `GET / PATCH M/me`                                                          | Profile, locale, main church                        | Subject only; main-church update transactional                            |
@@ -702,7 +709,9 @@ These exist in the admin backend to support the mobile scope. Detailed mobile sc
 | `POST M/me/data-exports`, `GET M/me/data-exports/:jobId`                    | Request export / obtain private result when ready   | Reauthenticated subject; no admin privacy screen                          |
 | `DELETE M/me`                                                               | Begin durable account/data deletion, 202            | Reauthenticated subject; deletion policy D10                              |
 
-Admin authentication uses the template NextAuth credentials flow. Mobile sign-up/login/refresh still require a separately specified token contract under D1; reuse the User identity model and password verification rather than silently creating a second password database.
+Admin authentication uses the template NextAuth credentials flow. Mobile credentials reuse the
+User identity model + password verification (no second password DB). Mobile token contract
+(issue/refresh/revocation) is implemented at `/api/v1/mobile/auth/{login,refresh,logout}` (plan 002 / X-07).
 
 ### 8.5 Provider Endpoint
 
@@ -1131,7 +1140,7 @@ This document is a design artifact. No runtime, migration, provider, deployment,
 
 | ID  | Decision                                           | Why it matters / proposed direction                                                                                                                                                                                                                                                                                                                                      |
 | --- | -------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| D1  | NextAuth hardening and mobile token contract       | Admin baseline is now NextAuth credentials. Confirm effective auth handler base path, onboarding, session revocation and mobile login/refresh/token issuance; do not assume browser sessions provide mobile bearer support.                                                                                                                                              |
+| D1  | NextAuth hardening and mobile token contract       | Admin baseline is now NextAuth credentials. Mobile token contract side RESOLVED (plan 002): `/api/v1/mobile/auth/{login,refresh,logout}` issue/rotate/revoke + required-auth `auth_version`/active check; admin handler base-path + session revocation verify still open.                                                                                                |
 | D2  | Church suspension/archive and reactivation effects | Confirm existing-user visibility, publishing, staff access, notifications and recurring donations. No reactivation route is committed until defined.                                                                                                                                                                                                                     |
 | D3  | Meaning of request management                      | Define minimum staff action beyond viewing/contact details. Status, assignment, messaging and booking remain excluded unless explicitly added.                                                                                                                                                                                                                           |
 | D4  | Prayer publication rules                           | Confirm text-only publishing, post-publication edits/replacement, reviewer permission mapping, schedule changes and time-zone/DST behavior.                                                                                                                                                                                                                              |

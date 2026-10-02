@@ -82,6 +82,10 @@ Table auth_token {
   expires_at DateTime [not null]
   used_at DateTime
   created_at DateTime [default: `now()`, not null]
+  installation_id String
+  family_id String
+  revoked_at DateTime
+  auth_version Int
 }
 
 Table countries {
@@ -638,6 +642,7 @@ Enum RoleType {
 Enum AuthTokenType {
   EMAIL_VERIFICATION
   PASSWORD_RESET
+  MOBILE_REFRESH
 }
 
 Enum OrgNodeKind {

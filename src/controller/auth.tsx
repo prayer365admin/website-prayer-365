@@ -314,6 +314,8 @@ export const resetPassword = async ({
 
   await USE_AUTH_TOKEN({ id: authToken.id })
 
+  // Password change bumps auth_version inside updateUser → invalidates all
+  // outstanding mobile tokens (D1 / plan 002).
   await updateUser({
     user_id: authToken.user_id,
     payload: { password: new_password },

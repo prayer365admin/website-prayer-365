@@ -33,6 +33,7 @@ enum RoleType {
 enum AuthTokenType {
   EMAIL_VERIFICATION
   PASSWORD_RESET
+  MOBILE_REFRESH
 }
 
 enum OrgNodeKind {
@@ -205,15 +206,20 @@ model Permission {
 }
 
 model AuthToken {
-  id         String        @id @default(uuid(7))
-  user_id    String
-  user       User          @relation(fields: [user_id], references: [id], name: "user_auth_token", onDelete: Cascade)
-  token      String        @unique
-  type       AuthTokenType
-  expires_at DateTime
-  used_at    DateTime?
-  created_at DateTime      @default(now())
+  id             String        @id @default(uuid(7))
+  user_id        String
+  user           User          @relation(fields: [user_id], references: [id], name: "user_auth_token", onDelete: Cascade)
+  token          String        @unique
+  type           AuthTokenType
+  expires_at     DateTime
+  used_at        DateTime?
+  created_at     DateTime      @default(now())
+  installation_id String?
+  family_id      String?
+  revoked_at     DateTime?
+  auth_version   Int?
 
+  @@index([type, token])
   @@map("auth_token")
 }
 

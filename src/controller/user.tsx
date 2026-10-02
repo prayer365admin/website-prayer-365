@@ -1,5 +1,11 @@
 import { UserPayloadCreateModel, UserPayloadUpdateModel } from '@/models/user'
-import { CREATE_USER, GET_USER_BY_EMAIL, GET_USER_BY_ID, UPDATE_USER } from '@/providers/user'
+import {
+  CREATE_USER,
+  GET_USER_BY_EMAIL,
+  GET_USER_BY_ID,
+  INCREMENT_AUTH_VERSION,
+  UPDATE_USER,
+} from '@/providers/user'
 import { GeneralError } from '@/utils/general-error'
 import { hashSecret } from '@/utils/hash'
 
@@ -100,6 +106,8 @@ export const updateUser = async ({
   if (profile_picture !== undefined) safePayload.profile_picture = profile_picture as string | null
   if (password) {
     safePayload.password = await hashSecret({ secret: `${password}` })
+    // D1 (plan 002): any password change invalidates outstanding mobile tokens.
+    await INCREMENT_AUTH_VERSION({ user_id })
   }
 
   const result = await UPDATE_USER({ user_id: user_id, payload: safePayload })

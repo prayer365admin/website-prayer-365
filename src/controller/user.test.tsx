@@ -5,6 +5,7 @@ vi.mock('@/providers/user', () => ({
   GET_USER_BY_EMAIL: vi.fn(),
   CREATE_USER: vi.fn(),
   UPDATE_USER: vi.fn(),
+  INCREMENT_AUTH_VERSION: vi.fn(),
 }))
 
 vi.mock('@/utils/hash', () => ({
@@ -12,7 +13,13 @@ vi.mock('@/utils/hash', () => ({
 }))
 
 import { createUser, getUserByEmail, getUserById, updateUser } from './user'
-import { CREATE_USER, GET_USER_BY_EMAIL, GET_USER_BY_ID, UPDATE_USER } from '@/providers/user'
+import {
+  CREATE_USER,
+  GET_USER_BY_EMAIL,
+  GET_USER_BY_ID,
+  INCREMENT_AUTH_VERSION,
+  UPDATE_USER,
+} from '@/providers/user'
 import { hashSecret } from '@/utils/hash'
 
 const mockUser = { id: 'u1', email: 'a@b.com', name: 'A', role_id: null }
@@ -117,6 +124,16 @@ describe('updateUser', () => {
       user_id: 'u1',
       payload: { password: 'hashed:newpass123' },
     })
+  })
+
+  it('bumps auth_version when password changes (invalidates mobile tokens)', async () => {
+    await updateUser({ user_id: 'u1', payload: { password: 'newpass123' } })
+    expect(INCREMENT_AUTH_VERSION).toHaveBeenCalledWith({ user_id: 'u1' })
+  })
+
+  it('does not bump auth_version when password unchanged', async () => {
+    await updateUser({ user_id: 'u1', payload: { name: 'B' } })
+    expect(INCREMENT_AUTH_VERSION).not.toHaveBeenCalled()
   })
 
   it('drops password key when not provided', async () => {
