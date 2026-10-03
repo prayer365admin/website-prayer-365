@@ -5,6 +5,7 @@ import { AuthTokenType } from '@prisma/client'
 import dayjs from 'dayjs'
 import {
   CREATE_AUTH_TOKEN,
+  COUNT_AUTH_TOKENS,
   GET_LATEST_AUTH_TOKEN,
   GET_VALID_AUTH_TOKEN,
   USE_AUTH_TOKEN,
@@ -224,13 +225,27 @@ export const resendVerificationEmail = async ({
 }
 
 const RESET_TTL_MINUTES = 30
+// Incremental reset cooldown: 1 min → 3 min → 5 min → 10 min (max). The step is
+// chosen by how many reset tokens were already issued in the window, so
+// aggressive resend spam escalates and caps while a legitimate first request
+// (priorCount 0) is not throttled.
+const RESET_COOLDOWN_STEPS_SECONDS = [60, 180, 300, 600]
+const RESET_COOLDOWN_WINDOW_MS = 60 * 60 * 1000 // count resets within last hour
+
+const getResetCooldownSeconds = (priorCount: number) => {
+  if (priorCount <= 0) return 0
+  const idx = Math.min(priorCount, RESET_COOLDOWN_STEPS_SECONDS.length) - 1
+  return RESET_COOLDOWN_STEPS_SECONDS[idx]
+}
 
 export const requestPasswordReset = async ({
   email,
   baseUrl,
+  linkPrefix,
 }: {
   email: string
   baseUrl: string
+  linkPrefix?: string
 }) => {
   const emailNormalized = email?.trim().toLowerCase()
 
@@ -250,11 +265,43 @@ export const requestPasswordReset = async ({
     return { success: true }
   }
 
+  // Incremental per-user cooldown (reset spam throttle). priorCount = tokens
+  // already issued in the window; the more prior resets the longer the wait.
+  const priorCount = await COUNT_AUTH_TOKENS({
+    user_id: user.id,
+    type: AuthTokenType.PASSWORD_RESET,
+    since: new Date(Date.now() - RESET_COOLDOWN_WINDOW_MS),
+  })
+  const cooldownSeconds = getResetCooldownSeconds(priorCount)
+  if (cooldownSeconds > 0) {
+    const latest = await GET_LATEST_AUTH_TOKEN({
+      user_id: user.id,
+      type: AuthTokenType.PASSWORD_RESET,
+    })
+    if (latest) {
+      const elapsedSeconds = Math.floor((Date.now() - new Date(latest.created_at).getTime()) / 1000)
+      const remainingSeconds = cooldownSeconds - elapsedSeconds
+      if (remainingSeconds > 0) {
+        throw new GeneralError({
+          code: 429,
+          error: 'TOO_MANY_REQUESTS',
+          error_code: 'RESET_TOO_EARLY',
+          details: `Please wait ${remainingSeconds} seconds before requesting another reset (remaining_seconds=${remainingSeconds})!`,
+        })
+      }
+    }
+  }
+
   const createdToken = await CREATE_AUTH_TOKEN({
     user_id: user.id,
     type: AuthTokenType.PASSWORD_RESET,
     ttl_minutes: RESET_TTL_MINUTES,
   })
+
+  // linkPrefix (mobile deep-link scheme like `prayer-365://`) overrides the web
+  // baseUrl when the request comes from the mobile app. Default keeps the
+  // current `${baseUrl}/reset-password` web behavior.
+  const linkBase = linkPrefix ?? baseUrl
 
   await sendMail({
     from: process.env.MAIL_FROM || 'info@example.com',
@@ -263,7 +310,7 @@ export const requestPasswordReset = async ({
     template_name: 'forgot-password',
     payload: {
       customerName: user.name,
-      link: `${baseUrl}/reset-password?token=${createdToken.token}`,
+      link: `${linkBase}/reset-password?token=${createdToken.token}`,
       companyName: process.env.NEXT_PUBLIC_COMPANY_NAME,
       currentYear: dayjs().year(),
     },

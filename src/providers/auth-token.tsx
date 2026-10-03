@@ -65,3 +65,22 @@ export const GET_LATEST_AUTH_TOKEN = async ({
   })
   return result
 }
+
+export const COUNT_AUTH_TOKENS = async ({
+  user_id,
+  type,
+  since,
+}: {
+  user_id: string
+  type: AuthTokenType
+  since: Date
+}) => {
+  const result = await db.authToken.count({
+    where: {
+      user_id: user_id,
+      type: type,
+      created_at: { gte: since },
+    },
+  })
+  return result
+}

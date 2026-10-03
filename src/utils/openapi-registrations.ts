@@ -103,6 +103,8 @@ import '@/app/api/v1/mobile/analytics-events/route'
 import '@/app/api/v1/mobile/auth/login/route'
 import '@/app/api/v1/mobile/auth/refresh/route'
 import '@/app/api/v1/mobile/auth/logout/route'
+import '@/app/api/v1/mobile/auth/forgot-password/route'
+import '@/app/api/v1/mobile/auth/reset-password/route'
 
 // --- Central: notification rules (Phase 10 / Task 44) ---
 import '@/app/api/v1/admin/central/notification-rules/route'

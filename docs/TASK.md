@@ -239,6 +239,7 @@ All rows ☐ unless marked. Register any new `M/` route with OpenAPI + tests.
 | MB-12 | **Church profile pastors + donationOptions**: add rendered `pastors[]` and donation projection to `MobilePublicChurch`.                                                                                                                      | Church profile (CP1)                         | ☐    |
 | MB-13 | **Profile version field**: add `version` to `MobileMe` + `PATCH M/me` optimistic-concurrency guard for multi-device stale-write protection.                                                                                                  | Profile (P1)                                 | ☐    |
 | MB-14 | **Event timezone**: add `timezone` to `MobilePublicEvent`.                                                                                                                                                                                   | Events (EV3)                                 | ☐    |
+| MB-15 | **Password recovery (mobile)**: `POST M/auth/forgot-password` + `POST M/auth/reset-password` — deep-link reset, soft-success, incremental 429 cooldown (1→3→5→10 min max).                                                                   | Accounts+Onboarding                          | ✓    |
 
 **Build order (parallel):** MB-10/11/12/13/14 are pure DTO additions to already-live routes —
 fast, independent, no auth dependency. MB-04/05 build on the existing notification provider.

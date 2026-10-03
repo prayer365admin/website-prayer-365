@@ -57,3 +57,21 @@ export const MobileTokenResponseSchema = z.object({
 })
 
 export type MobileTokenResponse = z.infer<typeof MobileTokenResponseSchema>
+
+export const MobileForgotPasswordRequestSchema = z
+  .object({
+    email: z.string().trim().min(1).max(254),
+  })
+  .strict()
+
+export type MobileForgotPasswordRequest = z.infer<typeof MobileForgotPasswordRequestSchema>
+
+export const MobileResetPasswordRequestSchema = z
+  .object({
+    token: z.string().trim().min(1),
+    new_password: z.string().min(1),
+    confirm_password: z.string().min(1),
+  })
+  .strict()
+
+export type MobileResetPasswordRequest = z.infer<typeof MobileResetPasswordRequestSchema>
