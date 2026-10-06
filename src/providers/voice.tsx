@@ -180,8 +180,19 @@ export const GET_VOICE_PROFILE = async ({ profileId }: { profileId: string }) =>
     include: {
       pastor: { select: { name: true, user_id: true } },
       consent: { select: { revoked_at: true } },
-      sample_asset: {
-        select: { object_key: true, mime_type: true, checksum: true, status: true, purpose: true },
+      samples: {
+        orderBy: { position: 'asc' },
+        include: {
+          asset: {
+            select: {
+              object_key: true,
+              mime_type: true,
+              checksum: true,
+              status: true,
+              purpose: true,
+            },
+          },
+        },
       },
     },
   })
@@ -335,15 +346,17 @@ export const GET_CENTRAL_PROFILE = async ({
 }): Promise<VoiceProfileDetail | null> => {
   const row = await GET_VOICE_PROFILE({ profileId })
   if (!row) return null
+  // ponytail: single-sample DTO until Phase 2 exposes the full samples list.
+  const first = row.samples[0]
   return {
     ...listItemFromRow(row),
-    sampleAssetId: row.sample_asset_id,
-    sampleObjectKey: row.sample_asset.object_key,
-    sampleMimeType: row.sample_asset.mime_type,
-    sampleChecksum: row.sample_asset.checksum,
+    sampleAssetId: first?.asset_id ?? '',
+    sampleObjectKey: first?.asset.object_key ?? '',
+    sampleMimeType: first?.asset.mime_type ?? null,
+    sampleChecksum: first?.asset.checksum ?? null,
     consentId: row.consent_id,
     cloningMethod: row.cloning_method,
-    approvedSampleChecksum: row.approved_sample_checksum,
+    approvedSampleChecksum: first?.checksum ?? null,
     requiresVerification: row.requires_verification,
     lastErrorCode: row.last_error_code,
   }
@@ -389,7 +402,7 @@ export const CREATE_DRAFT = async (
       provider: data.provider,
       cloning_method: data.cloningMethod,
       consent_id: data.consentId,
-      sample_asset_id: data.sampleAssetId,
+      samples: { create: [{ asset_id: data.sampleAssetId, position: 0 }] },
       replaces_profile_id: data.replacesProfileId ?? null,
       review_state: 'DRAFT',
       registration_state: 'UNREGISTERED',
@@ -423,7 +436,6 @@ export const PATCH_DRAFT = async (
   },
 ): Promise<VoiceProfileListItem> => {
   const fields: Prisma.VoiceProfileUncheckedUpdateInput = {}
-  if (data.sampleAssetId !== undefined) fields.sample_asset_id = data.sampleAssetId
   if (data.consentId !== undefined) fields.consent_id = data.consentId
   if (data.replacesProfileId !== undefined) fields.replaces_profile_id = data.replacesProfileId
   const updated = await tx.voiceProfile.updateMany({
@@ -436,6 +448,12 @@ export const PATCH_DRAFT = async (
     data: { ...fields, version: { increment: 1 }, updated_at: new Date() },
   })
   if (updated.count === 0) throw stale()
+  if (data.sampleAssetId !== undefined) {
+    await tx.voiceProfileSample.deleteMany({ where: { voice_profile_id: profileId } })
+    await tx.voiceProfileSample.create({
+      data: { voice_profile_id: profileId, asset_id: data.sampleAssetId, position: 0 },
+    })
+  }
   const row = await tx.voiceProfile.findUnique({
     where: { id: profileId },
     include: { pastor: { select: { name: true } }, consent: { select: { revoked_at: true } } },
@@ -478,12 +496,16 @@ export const SUBMIT_FREEZE = async (
     data: {
       review_state: 'SUBMITTED',
       submitted_at: new Date(),
-      approved_sample_checksum: sampleChecksum,
       version: { increment: 1 },
       updated_at: new Date(),
     },
   })
   if (updated.count === 0) throw stale()
+  // ponytail: one checksum for all rows while inputs are single-sample; Phase 2 freezes per file.
+  await tx.voiceProfileSample.updateMany({
+    where: { voice_profile_id: profileId },
+    data: { checksum: sampleChecksum },
+  })
   const row = await tx.voiceProfile.findUnique({
     where: { id: profileId },
     include: { pastor: { select: { name: true } }, consent: { select: { revoked_at: true } } },

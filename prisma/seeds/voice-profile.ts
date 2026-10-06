@@ -23,7 +23,7 @@ export const seedVoiceProfiles = async () => {
       cloning_method: 'instant',
       provider_voice_id: 'demo_voice_id', // placeholder, server-managed in prod
       consent_id: consent.id,
-      sample_asset_id: sample.id,
+      samples: { create: [{ asset_id: sample.id, position: 0, checksum: sample.checksum }] },
       submitted_at: new Date(),
       review_state: 'APPROVED',
       reviewed_by: actor.id,

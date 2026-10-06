@@ -83,8 +83,14 @@ const profile = (over: Record<string, unknown> = {}): Record<string, unknown> =>
   provider: 'elevenlabs',
   review_state: 'DRAFT',
   registration_state: 'UNREGISTERED',
-  sample_asset_id: ASSET,
-  sample_asset: { object_key: 'o', mime_type: 'audio/mpeg', checksum: 'abc' },
+  samples: [
+    {
+      asset_id: ASSET,
+      position: 0,
+      checksum: null,
+      asset: { object_key: 'o', mime_type: 'audio/mpeg', checksum: 'abc' },
+    },
+  ],
   consent_id: CONSENT,
   consent: { revoked_at: null },
   pastor: { name: 'P', user_id: U },

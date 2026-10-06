@@ -432,7 +432,8 @@ export const submitSubmission = async ({
   if (profile.submitted_by !== userId) throw notOwn()
   if (profile.review_state !== 'DRAFT') throw notDraft()
   if (profile.version !== input.version) throw stale()
-  const sample = await GET_ASSET({ assetId: profile.sample_asset_id })
+  const firstSample = profile.samples[0]
+  const sample = firstSample ? await GET_ASSET({ assetId: firstSample.asset_id }) : null
   if (!sample || sample.status !== 'READY')
     throw invalidAsset('sampleAssetId', 'Sample asset is not ready to submit.')
   const sampleChecksum = sample.checksum ?? sample.object_key
