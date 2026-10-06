@@ -126,8 +126,10 @@ export const eventInstantToChurchDateTime = (startsAt: string, timezoneName: str
   return instant.tz(timezoneName)
 }
 
-export const formatEventStart = (startsAt: string, timezoneName: string): string =>
-  eventInstantToChurchDateTime(startsAt, timezoneName).format(EVENT_TABLE_DATETIME_FORMAT)
+export const formatChurchInstant = (instant: string, timezoneName: string): string =>
+  eventInstantToChurchDateTime(instant, timezoneName).format(EVENT_TABLE_DATETIME_FORMAT)
+
+export const formatEventStart = formatChurchInstant
 
 /** Filter bound: church-local wall time to an instant. DST gaps/overlaps need no rejection here. */
 export const churchFilterBoundToIso = (local: Dayjs, timezoneName: string): string =>

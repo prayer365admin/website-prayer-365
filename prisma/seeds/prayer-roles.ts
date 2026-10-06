@@ -50,6 +50,7 @@ export const PRAYER_CATALOGUE: PrayerGrant[] = [
   { subject: 'prayer_prayer_publication', actions: 'update', scope: 'ANY' },
   ...ANY_CRUD('prayer_event', 'read,create,update,delete'),
   ...ANY_CRUD('prayer_announcement', 'read,create,update,delete'),
+  { subject: 'prayer_announcement_publication', actions: 'update', scope: 'ANY' },
 
   // Voice / audio / media
   { subject: 'prayer_voice_generation', actions: 'create', scope: 'ANY' },
@@ -110,7 +111,8 @@ export const PRAYER_ROLES: PrayerRole[] = [
       { subject: 'prayer_voice_submission', actions: 'read,create,update', scope: 'OWN' },
       { subject: 'prayer_service_time', actions: 'read,create,update', scope: 'ANY' },
       { subject: 'prayer_event', actions: 'read,create,update', scope: 'ANY' },
-      { subject: 'prayer_announcement', actions: 'read,create,update', scope: 'ANY' },
+      { subject: 'prayer_announcement', actions: 'read,create,update,delete', scope: 'ANY' },
+      { subject: 'prayer_announcement_publication', actions: 'update', scope: 'ANY' },
       { subject: 'prayer_donation', actions: 'read', scope: 'ANY' },
       { subject: 'prayer_analytics', actions: 'read', scope: 'ANY' },
       { subject: 'prayer_attendance', actions: 'read', scope: 'ANY' },
@@ -162,7 +164,8 @@ export const PRAYER_ROLES: PrayerRole[] = [
       { subject: 'prayer_voice_generation', actions: 'create', scope: 'ANY' },
       { subject: 'prayer_service_time', actions: 'read,create,update', scope: 'ANY' },
       { subject: 'prayer_event', actions: 'read,create,update', scope: 'ANY' },
-      { subject: 'prayer_announcement', actions: 'read,create,update', scope: 'ANY' },
+      { subject: 'prayer_announcement', actions: 'read,create,update,delete', scope: 'ANY' },
+      { subject: 'prayer_announcement_publication', actions: 'update', scope: 'ANY' },
       { subject: 'prayer_donation', actions: 'read', scope: 'ANY' },
       { subject: 'prayer_analytics', actions: 'read', scope: 'ANY' },
       { subject: 'prayer_attendance', actions: 'read', scope: 'ANY' },

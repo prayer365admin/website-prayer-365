@@ -3,12 +3,15 @@
 import { useChurches } from '@/hooks/data/church'
 import { Button, Empty, Table, Typography } from 'antd'
 import { useSession } from 'next-auth/react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { Fragment, useEffect } from 'react'
+import ChurchAccessNotice from '@/components/container/dashboard/church-scope-guard/access-notice'
 
 export default function ContentsChurches() {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const { data: session } = useSession()
+  const denied = searchParams.get('notice') === 'church_access_denied'
 
   const { data: churches, loading: churchesLoading } = useChurches({
     queryString: ``,
@@ -20,9 +23,11 @@ export default function ContentsChurches() {
 
   useEffect(() => {
     if (!churchesLoading && churches && churches.length === 1) {
-      router.replace(`/dashboard/churches/${churches[0].id}`)
+      router.replace(
+        `/dashboard/churches/${churches[0].id}${denied ? '?notice=church_access_denied' : ''}`,
+      )
     }
-  }, [churches, churchesLoading, router])
+  }, [churches, churchesLoading, denied, router])
 
   if (churches && churches.length === 1) {
     return null // redirecting to the single church overview
@@ -54,6 +59,7 @@ export default function ContentsChurches() {
 
   return (
     <Fragment>
+      <ChurchAccessNotice />
       <Typography.Title level={2}>Choose Church</Typography.Title>
       <Typography.Text type="secondary">Select a church assigned to your account.</Typography.Text>
       <Table

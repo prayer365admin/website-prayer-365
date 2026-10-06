@@ -402,6 +402,7 @@ Table announcements {
   published_at DateTime
   created_at DateTime [default: `now()`, not null]
   updated_at DateTime
+  deleted_at DateTime
   version Int [not null, default: 1]
 }
 

@@ -15,7 +15,8 @@ const aggregates = {
   pastorCount: 1,
   prayerCount: 5,
   eventCount: 3,
-  announcementCount: 0,
+  announcementDraftCount: 4,
+  announcementPublishedCount: 6,
   memberCount: 40,
   mediaCount: 1,
 }
@@ -93,6 +94,9 @@ describe('ContentsChurchOverview', () => {
 
     expect(screen.getByText('Upcoming events')).toBeTruthy()
     await screen.findByText('3 events')
+
+    expect(screen.getByText('Announcements')).toBeTruthy()
+    expect(screen.getByText('4 draft • 6 published')).toBeTruthy()
   })
 
   it('hides recent requests when missing from the server payload', async () => {
@@ -135,6 +139,10 @@ describe('ContentsChurchOverview', () => {
     const eventsBtn = screen.getByRole('button', { name: 'Open events' })
     await user.click(eventsBtn)
     expect(pushMock).toHaveBeenCalledWith('/dashboard/churches/c1/events')
+
+    const announcementsBtn = screen.getByRole('button', { name: 'Open announcements' })
+    await user.click(announcementsBtn)
+    expect(pushMock).toHaveBeenCalledWith('/dashboard/churches/c1/announcements')
 
     const requestsBtn = screen.getByRole('button', { name: 'Open requests' })
     await user.click(requestsBtn)

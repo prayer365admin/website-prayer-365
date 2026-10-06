@@ -1,11 +1,18 @@
 import { renderHook, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { App } from 'antd'
-import { axiosMock, createTestQueryClient, Providers, resolveGet } from '@/test/frontend/render'
+import {
+  axiosMock,
+  createTestQueryClient,
+  Providers,
+  resolveGet,
+  sessionMock,
+} from '@/test/frontend/render'
 import {
   useChurches,
   useChurchOverview,
   useChurch,
+  useCurrentChurch,
   useChurchProfile,
   useChurchServiceTimes,
 } from './church'
@@ -46,7 +53,8 @@ const overview = {
     pastorCount: 1,
     prayerCount: 5,
     eventCount: 0,
-    announcementCount: 0,
+    announcementDraftCount: 0,
+    announcementPublishedCount: 0,
     memberCount: 40,
     mediaCount: 1,
   },
@@ -59,6 +67,10 @@ const schedule = [
 describe('church data hooks', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    sessionMock.mockReturnValue({
+      data: { user: { user_id: 'user-1' } },
+      status: 'authenticated',
+    })
   })
 
   it('useChurches fetches with pagination', async () => {
@@ -117,6 +129,37 @@ describe('church data hooks', () => {
     expect(axiosMock.get).not.toHaveBeenCalled()
   })
 
+  it('does not reuse assigned churches when the authenticated user changes', async () => {
+    const client = createTestQueryClient()
+    let userId = 'user-1'
+    sessionMock.mockImplementation(() => ({
+      data: { user: { user_id: userId } },
+      status: 'authenticated',
+    }))
+    axiosMock.get
+      .mockResolvedValueOnce({ data: resolveGet([church], 1) })
+      .mockResolvedValueOnce({ data: resolveGet([churches[1]], 1) })
+
+    const { result, rerender } = renderHook(
+      () =>
+        useChurches({
+          queryString: '',
+          limit: 100,
+          page: 1,
+          orderBy: 'name',
+          orderDirection: 'asc',
+        }),
+      { wrapper: ({ children }) => <Providers client={client}>{children}</Providers> },
+    )
+    await waitFor(() => expect(result.current.data?.[0].id).toBe('c1'))
+
+    userId = 'user-2'
+    rerender()
+    await waitFor(() => expect(result.current.data?.[0].id).toBe('c2'))
+
+    expect(axiosMock.get).toHaveBeenCalledTimes(2)
+  })
+
   it('useChurchOverview fetches and returns overview object', async () => {
     axiosMock.get.mockResolvedValueOnce({ data: { result: overview } })
     const { result } = renderHook(() => useChurchOverview('c1'), { wrapper: Providers })
@@ -139,6 +182,19 @@ describe('church data hooks', () => {
     expect(axiosMock.get).toHaveBeenCalledTimes(1)
     expect(result.current.overview.data).toEqual(overview)
     expect(result.current.church.data).toEqual(church)
+  })
+
+  it('useCurrentChurch reads the profile and shares its cache with useChurchProfile', async () => {
+    axiosMock.get.mockResolvedValueOnce({ data: { result: profile } })
+    const { result } = renderHook(
+      () => ({ current: useCurrentChurch('c1'), profile: useChurchProfile('c1') }),
+      { wrapper: Providers },
+    )
+    await waitFor(() => expect(result.current.current.loading).toBe(false))
+    expect(result.current.current.data).toEqual(profile)
+    expect(result.current.profile.data).toEqual(profile)
+    expect(axiosMock.get).toHaveBeenCalledTimes(1)
+    expect(axiosMock.get).toHaveBeenCalledWith('/api/v1/admin/churches/c1/profile')
   })
 
   it('useChurchProfile fetches and returns profile', async () => {

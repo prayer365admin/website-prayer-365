@@ -49,18 +49,21 @@ export const UPSERT_NOTIFICATION_RULE = async (
     },
   })
 
-export const ENQUEUE_NOTIFICATION = async ({
-  type,
-  resourceId,
-  churchId,
-  dedupeKeySuffix,
-}: {
-  type: string
-  resourceId: string
-  churchId: string
-  dedupeKeySuffix: string
-}) =>
-  db.outboxJob.create({
+export const ENQUEUE_NOTIFICATION = async (
+  {
+    type,
+    resourceId,
+    churchId,
+    dedupeKeySuffix,
+  }: {
+    type: string
+    resourceId: string
+    churchId: string
+    dedupeKeySuffix: string
+  },
+  tx: Prisma.TransactionClient = db,
+) =>
+  tx.outboxJob.create({
     data: {
       kind: 'notification.send',
       dedupe_key: `notification.send:${type}:${dedupeKeySuffix}`,

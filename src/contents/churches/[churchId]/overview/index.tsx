@@ -5,6 +5,7 @@ import { ChurchOverviewAggregates } from '@/models/church'
 import { Button, Card, Statistic, Typography } from 'antd'
 import { useParams, useRouter } from 'next/navigation'
 import { Fragment } from 'react'
+import { ANNOUNCEMENT_STATUS, announcementStatusLabels } from '@/utils/constant'
 
 /* Only aggregates the overview endpoint actually returns are bound to a
    number; 'Confirmed donations' has no source in ChurchOverview so it
@@ -75,6 +76,20 @@ export default function ContentsChurchOverview() {
           <div className="mt-3">
             <Button onClick={() => router.push(`/dashboard/churches/${churchId}/events`)}>
               Open events
+            </Button>
+          </div>
+        </Card>
+
+        <Card title="Announcements" loading={loading}>
+          <Typography.Text type="secondary">
+            {aggregates?.announcementDraftCount ?? 0}{' '}
+            {announcementStatusLabels[ANNOUNCEMENT_STATUS.DRAFT].toLowerCase()} •{' '}
+            {aggregates?.announcementPublishedCount ?? 0}{' '}
+            {announcementStatusLabels[ANNOUNCEMENT_STATUS.PUBLISHED].toLowerCase()}
+          </Typography.Text>
+          <div className="mt-3">
+            <Button onClick={() => router.push(`/dashboard/churches/${churchId}/announcements`)}>
+              Open announcements
             </Button>
           </div>
         </Card>

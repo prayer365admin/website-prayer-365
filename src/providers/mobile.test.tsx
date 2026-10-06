@@ -22,6 +22,7 @@ import {
   UPDATE_ME_PROFILE,
   GET_PUBLIC_CHURCH,
   GET_PUBLISHED_PRAYER,
+  LIST_PUBLIC_ANNOUNCEMENTS,
   LIST_PUBLIC_EVENTS,
   LIST_PUBLISHED_PRAYERS,
 } from './mobile'
@@ -379,5 +380,27 @@ describe('LIST_PUBLIC_EVENTS — admin event edits reflected under the correct c
         languageCode: 'et',
       },
     ])
+  })
+})
+
+describe('LIST_PUBLIC_ANNOUNCEMENTS — only live published rows', () => {
+  it('excludes drafts and soft-deleted announcements for count and rows', async () => {
+    db.$transaction.mockImplementationOnce((ops: Promise<unknown>[]) => Promise.all(ops))
+    db.announcement.count.mockResolvedValueOnce(0)
+    db.announcement.findMany.mockResolvedValueOnce([])
+
+    await LIST_PUBLIC_ANNOUNCEMENTS({
+      churchId: 'church-1',
+      query: { page: 1, limit: 10 } as never,
+    })
+
+    const where = {
+      church_id: 'church-1',
+      church: { status: 'APPROVED' },
+      published_at: { not: null },
+      deleted_at: null,
+    }
+    expect(db.announcement.count).toHaveBeenCalledWith({ where })
+    expect(db.announcement.findMany.mock.calls[0][0].where).toEqual(where)
   })
 })

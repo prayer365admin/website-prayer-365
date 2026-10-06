@@ -45,7 +45,7 @@ export async function POST(
     const { churchIds } = await requiredScope({
       userId: session.user.user_id,
       churchId,
-      subject: 'prayer_announcement',
+      subject: 'prayer_announcement_publication',
       action: 'update',
     })
     const result = await publishAnnouncement({

@@ -603,6 +603,7 @@ export const LIST_PUBLIC_ANNOUNCEMENTS = async ({
     church_id: churchId,
     church: { status: APPROVED },
     published_at: { not: null },
+    deleted_at: null,
   }
   const [total, rows] = await db.$transaction([
     db.announcement.count({ where }),

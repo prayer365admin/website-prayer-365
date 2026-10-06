@@ -591,6 +591,7 @@ model Announcement {
 
   created_at DateTime  @default(now())
   updated_at DateTime? @updatedAt
+  deleted_at DateTime?
   version    Int       @default(1)
 
   @@index([church_id, published_at])

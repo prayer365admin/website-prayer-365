@@ -10,6 +10,7 @@ import {
 import { ServiceTimeEntry, ServiceTimeScheduleInput } from '@/models/service-time'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import axios from 'axios'
+import { useSession } from 'next-auth/react'
 import { useCallback } from 'react'
 
 const baseUrl = '/api/v1/admin/churches'
@@ -23,11 +24,13 @@ export const useChurches = ({
   orderDirection,
   search,
 }: GeneralHooks & { search?: string }) => {
+  const { data: session } = useSession()
+  const userId = session?.user.user_id
   const paginationQuery = `limit=${limit && limit !== 'ALL' ? limit : ''}&page=${limit && limit !== 'ALL' ? page : ''}&order_by=${orderBy}&order_direction=${orderDirection}`
   const searchQuery = search ? `&search=${encodeURIComponent(search)}` : ''
 
-  const { data: data, isLoading: fetchLoading } = useQuery({
-    queryKey: ['churches', queryString, paginationQuery, search],
+  const query = useQuery({
+    queryKey: ['churches', userId, queryString, paginationQuery, search],
     queryFn: async () => {
       const result = await axios.get(`${baseUrl}?${queryString}&${paginationQuery}${searchQuery}`)
       return {
@@ -38,7 +41,13 @@ export const useChurches = ({
     enabled: !!enableFetch,
   })
 
-  return { data: data?.result, total: data?.total, loading: fetchLoading }
+  return {
+    data: query.data?.result,
+    total: query.data?.total,
+    loading: query.isLoading,
+    error: query.error,
+    retry: query.refetch,
+  }
 }
 
 export const useChurchOverview = (churchId: string) => {
@@ -67,6 +76,20 @@ export const useChurch = (churchId: string) => {
   })
 
   return { data, loading: fetchLoading }
+}
+
+/** Read-only church profile; shares the cache entry with useChurchProfile. */
+export const useCurrentChurch = (churchId: string) => {
+  const { data, isLoading } = useQuery({
+    queryKey: ['churches', 'profile', churchId],
+    queryFn: async () => {
+      const result = await axios.get(`${baseUrl}/${churchId}/profile`)
+      return result.data.result as ChurchProfileOutput
+    },
+    enabled: !!churchId,
+  })
+
+  return { data, loading: isLoading }
 }
 
 export const useChurchProfile = (churchId: string) => {

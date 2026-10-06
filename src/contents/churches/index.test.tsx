@@ -4,6 +4,7 @@ import {
   axiosMock,
   pushMock,
   replaceMock,
+  searchParamsMock,
   sessionMock,
 } from '@/test/frontend/render'
 import { screen, waitFor } from '@testing-library/react'
@@ -34,6 +35,10 @@ describe('ContentsChurches', () => {
     pushMock.mockClear()
     replaceMock.mockClear()
     sessionMock.mockClear()
+    searchParamsMock.get.mockReset()
+    searchParamsMock.get.mockReturnValue(null)
+    searchParamsMock.toString.mockReset()
+    searchParamsMock.toString.mockReturnValue('')
     sessionMock.mockReturnValue({
       data: { user: { role: { id: 'r1', name: 'Church administrator' } } },
       status: 'authenticated',
@@ -90,6 +95,20 @@ describe('ContentsChurches', () => {
 
     expect(screen.queryByText('Grace')).toBeFalsy()
     expect(pushMock).not.toHaveBeenCalled()
+  })
+
+  it('preserves the access-denied notice when auto-selecting one church', async () => {
+    searchParamsMock.get.mockImplementation((key: string) =>
+      key === 'notice' ? 'church_access_denied' : null,
+    )
+    searchParamsMock.toString.mockReturnValue('notice=church_access_denied')
+    axiosMock.get.mockResolvedValueOnce({ data: resolveGet([churchA], 1) })
+
+    renderWithProviders(<ContentsChurches />)
+
+    await waitFor(() => {
+      expect(replaceMock).toHaveBeenCalledWith('/dashboard/churches/c1?notice=church_access_denied')
+    })
   })
 
   it('shows empty state', async () => {

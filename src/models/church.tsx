@@ -121,7 +121,8 @@ export const ChurchOverviewSchema = z.object({
     pastorCount: z.number(),
     prayerCount: z.number(),
     eventCount: z.number(),
-    announcementCount: z.number(),
+    announcementDraftCount: z.number(),
+    announcementPublishedCount: z.number(),
     memberCount: z.number(),
     mediaCount: z.number(),
   }),
@@ -145,7 +146,8 @@ export type ChurchOverviewAggregates = {
   pastorCount: number
   prayerCount: number
   eventCount: number
-  announcementCount: number
+  announcementDraftCount: number
+  announcementPublishedCount: number
   memberCount: number
   mediaCount: number
 }

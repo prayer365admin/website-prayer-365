@@ -89,6 +89,13 @@ const DashboardItems = (router: ReturnType<typeof useRouter>): MenuProps['items'
         },
       },
       {
+        key: '/dashboard/central/announcements',
+        label: 'Announcements',
+        onClick: () => {
+          router.push('/dashboard/central/announcements')
+        },
+      },
+      {
         key: '/dashboard/central/pastors',
         label: 'Pastors',
         onClick: () => {

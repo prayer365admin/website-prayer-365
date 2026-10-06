@@ -1,13 +1,17 @@
 import { GeneralError } from '@/utils/general-error'
 import {
   CREATE_ANNOUNCEMENT,
+  DELETE_ANNOUNCEMENT,
   GET_ANNOUNCEMENT,
+  GET_ANNOUNCEMENT_IN_SCOPE,
   LIST_ANNOUNCEMENTS,
   PUBLISH_ANNOUNCEMENT,
+  UNPUBLISH_ANNOUNCEMENT,
   UPDATE_ANNOUNCEMENT,
 } from '@/providers/announcement'
 import {
   AnnouncementInput,
+  AnnouncementListItem,
   AnnouncementListQuery,
   AnnouncementOutput,
   AnnouncementPublishInput,
@@ -47,8 +51,20 @@ export const listAnnouncements = async ({
 }: {
   churchIds: Set<string>
   query: AnnouncementListQuery
-}): Promise<{ result: AnnouncementOutput[]; total: number }> =>
+}): Promise<{ result: AnnouncementListItem[]; total: number }> =>
   LIST_ANNOUNCEMENTS({ churchIds, query })
+
+export const getAnnouncementInScope = async ({
+  churchIds,
+  announcementId,
+}: {
+  churchIds: Set<string>
+  announcementId: string
+}): Promise<AnnouncementListItem> => {
+  const announcement = await GET_ANNOUNCEMENT_IN_SCOPE({ churchIds, announcementId })
+  if (!announcement) throw notFound()
+  return announcement
+}
 
 export const createAnnouncement = async ({
   userId,
@@ -90,10 +106,11 @@ export const patchAnnouncement = async ({
       error_code: 'VERSION_REQUIRED',
       details: 'version is required to edit an announcement.',
     })
-  const current = await GET_ANNOUNCEMENT({ churchIds, announcementId })
+  const current = await GET_ANNOUNCEMENT({ churchId, churchIds, announcementId })
   if (!current) throw notFound()
   if (input.version !== current.version) throw stale()
   return UPDATE_ANNOUNCEMENT({
+    churchId,
     churchIds,
     announcementId,
     expectedVersion: input.version,
@@ -119,10 +136,69 @@ export const publishAnnouncement = async ({
   requestId: string
 }): Promise<AnnouncementOutput> => {
   if (!churchIds.has(churchId)) throw scopeError()
-  const current = await GET_ANNOUNCEMENT({ churchIds, announcementId })
+  const current = await GET_ANNOUNCEMENT({ churchId, churchIds, announcementId })
   if (!current) throw notFound()
   if (input.version !== current.version) throw stale()
   return PUBLISH_ANNOUNCEMENT({
+    churchId,
+    churchIds,
+    announcementId,
+    expectedVersion: input.version,
+    actorId: userId,
+    requestId,
+  })
+}
+
+export const deleteAnnouncement = async ({
+  userId,
+  churchId,
+  churchIds,
+  announcementId,
+  input,
+  requestId,
+}: {
+  userId: string
+  churchId: string
+  churchIds: Set<string>
+  announcementId: string
+  input: AnnouncementPublishInput
+  requestId: string
+}): Promise<void> => {
+  if (!churchIds.has(churchId)) throw scopeError()
+  const current = await GET_ANNOUNCEMENT({ churchId, churchIds, announcementId })
+  if (!current) throw notFound()
+  if (input.version !== current.version) throw stale()
+  await DELETE_ANNOUNCEMENT({
+    churchId,
+    churchIds,
+    announcementId,
+    expectedVersion: input.version,
+    actorId: userId,
+    requestId,
+  })
+}
+
+export const unpublishAnnouncement = async ({
+  userId,
+  churchId,
+  churchIds,
+  announcementId,
+  input,
+  requestId,
+}: {
+  userId: string
+  churchId: string
+  churchIds: Set<string>
+  announcementId: string
+  input: AnnouncementPublishInput
+  requestId: string
+}): Promise<AnnouncementOutput> => {
+  if (!churchIds.has(churchId)) throw scopeError()
+  const current = await GET_ANNOUNCEMENT({ churchId, churchIds, announcementId })
+  if (!current) throw notFound()
+  if (input.version !== current.version) throw stale()
+  return UNPUBLISH_ANNOUNCEMENT({
+    churchId,
     churchIds,
     announcementId,
     expectedVersion: input.version,

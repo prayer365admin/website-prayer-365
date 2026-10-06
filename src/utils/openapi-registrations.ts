@@ -40,6 +40,7 @@ import '@/app/api/v1/admin/churches/[churchId]/events/[eventId]/route'
 import '@/app/api/v1/admin/churches/[churchId]/announcements/route'
 import '@/app/api/v1/admin/churches/[churchId]/announcements/[announcementId]/route'
 import '@/app/api/v1/admin/churches/[churchId]/announcements/[announcementId]/publish/route'
+import '@/app/api/v1/admin/churches/[churchId]/announcements/[announcementId]/unpublish/route'
 
 // --- Sensitive requests (Phase 5) ---
 import '@/app/api/v1/admin/churches/[churchId]/requests/route'
@@ -56,6 +57,8 @@ import '@/app/api/v1/admin/regions/[regionId]/summary/route'
 // --- Central admin (Phase 3): role-assignments, churches, lifecycle, registry ---
 import '@/app/api/v1/admin/central/role-assignments/route'
 import '@/app/api/v1/admin/central/role-assignments/[assignmentId]/route'
+import '@/app/api/v1/admin/central/announcements/route'
+import '@/app/api/v1/admin/central/announcements/[announcementId]/route'
 import '@/app/api/v1/admin/central/churches/route'
 import '@/app/api/v1/admin/central/churches/[churchId]/route'
 import '@/app/api/v1/admin/central/churches/[churchId]/approve/route'

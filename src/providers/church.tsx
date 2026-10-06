@@ -249,7 +249,8 @@ export const GET_CHURCH_OVERVIEW = async ({
     pastorCount,
     prayerCount,
     eventCount,
-    announcementCount,
+    announcementDraftCount,
+    announcementPublishedCount,
     memberCount,
     mediaCount,
   ] = await db.$transaction([
@@ -257,7 +258,12 @@ export const GET_CHURCH_OVERVIEW = async ({
     db.churchPastor.count({ where: { church_id: churchId } }),
     db.prayer.count({ where: { church_id: churchId } }),
     db.event.count({ where: { church_id: churchId } }),
-    db.announcement.count({ where: { church_id: churchId } }),
+    db.announcement.count({
+      where: { church_id: churchId, published_at: null, deleted_at: null },
+    }),
+    db.announcement.count({
+      where: { church_id: churchId, published_at: { not: null }, deleted_at: null },
+    }),
     db.userChurch.count({ where: { church_id: churchId } }),
     db.mediaAsset.count({ where: { church_id: churchId } }),
   ])
@@ -266,7 +272,8 @@ export const GET_CHURCH_OVERVIEW = async ({
     pastorCount,
     prayerCount,
     eventCount,
-    announcementCount,
+    announcementDraftCount,
+    announcementPublishedCount,
     memberCount,
     mediaCount,
   }

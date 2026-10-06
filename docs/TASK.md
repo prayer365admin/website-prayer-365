@@ -100,9 +100,9 @@ DESIGN S09 | SPEC §9.4 | FEATURE F5
 | ----- | ---------------------------------------------------------------------------------------------------------------------- | ---- |
 | AN-01 | DB: `announcements` model + seeds                                                                                      | ✔   |
 | AN-02 | API: announcement provider/controller/models + `GET/POST C/announcements`, `PATCH .../:id`, `POST .../publish` + tests | ✔   |
-| AN-03 | Hooks: `hooks/data/announcement.tsx` — list, create, patch, publish                                                    | ☐    |
-| AN-04 | Screen: S09 list + create/edit + publish (`.../announcements`) — minimal fields (title/body), immediate publish        | ☐    |
-| AN-05 | Tests: publish permission enforced, no duplicate reminders on edit                                                     | ☐    |
+| AN-03 | Hooks: `hooks/data/announcement.tsx` — list, create, patch, publish                                                    | ✔   |
+| AN-04 | Screen: S09 list + create/edit + publish (`.../announcements`) — minimal fields (title/body), immediate publish        | ✔   |
+| AN-05 | Tests: publish permission enforced, no duplicate reminders on edit                                                     | ✔   |
 
 ## F7RQ — Requests (prayer/pastoral/meeting)
 

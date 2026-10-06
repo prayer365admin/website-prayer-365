@@ -6,7 +6,8 @@ import { LogoutOutlined, DownOutlined } from '@ant-design/icons'
 import s from './index.module.scss'
 import { signOut } from 'next-auth/react'
 import { useParams, useRouter } from 'next/navigation'
-import { useChurches } from '@/hooks/data/church'
+import { useCurrentChurch, useChurches } from '@/hooks/data/church'
+import { useState } from 'react'
 const { Header } = Layout
 
 export default function MainHeader() {
@@ -14,26 +15,27 @@ export default function MainHeader() {
   const params = useParams<{ churchId?: string }>()
   const churchId = params?.churchId
 
-  // Fetch assigned churches for the dropdown
+  // Label shares the page's cached profile read; the picker list loads on first open.
+  const { data: currentChurch, loading: currentChurchLoading } = useCurrentChurch(churchId ?? '')
+  const [pickerOpened, setPickerOpened] = useState(false)
   const { data: churches, loading: churchesLoading } = useChurches({
     queryString: ``,
     limit: 100,
     page: 1,
     orderBy: 'name',
     orderDirection: 'asc',
-    enableFetch: !!churchId, // Only fetch if we're in a church context (or you could always fetch)
+    enableFetch: !!churchId && pickerOpened,
   })
 
-  const currentChurch = churches?.find((c) => c.id === churchId)
-
-  const churchMenuItems: MenuProps['items'] =
-    churches?.map((c) => ({
-      key: c.id,
-      label: c.name,
-      onClick: () => {
-        router.push(`/dashboard/churches/${c.id}`)
-      },
-    })) || []
+  const churchMenuItems: MenuProps['items'] = churchesLoading
+    ? [{ key: 'loading', label: <Spin size="small" />, disabled: true }]
+    : churches?.map((c) => ({
+        key: c.id,
+        label: c.name,
+        onClick: () => {
+          router.push(`/dashboard/churches/${c.id}`)
+        },
+      })) || []
 
   const dropdownMenu: MenuProps['items'] = [
     {
@@ -54,10 +56,15 @@ export default function MainHeader() {
               <Dropdown
                 menu={{ items: churchMenuItems, selectedKeys: [churchId] }}
                 trigger={['click']}
+                onOpenChange={(open) => open && setPickerOpened(true)}
               >
                 <div className="flex items-center cursor-pointer gap-2">
                   <Typography.Text strong className="text-lg">
-                    {churchesLoading ? <Spin size="small" /> : currentChurch?.name || 'Loading...'}
+                    {currentChurchLoading ? (
+                      <Spin size="small" />
+                    ) : (
+                      currentChurch?.name || 'Select church'
+                    )}
                   </Typography.Text>
                   <DownOutlined className="text-gray-500 text-xs mt-1" />
                 </div>

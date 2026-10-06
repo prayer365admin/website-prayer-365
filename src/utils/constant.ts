@@ -16,6 +16,17 @@ export const categoryLabels: Record<EventCategory, string> = {
   OTHER: 'Other',
 }
 
+// Derived from Announcement.published_at (null = draft); not a stored column.
+export const ANNOUNCEMENT_STATUS = {
+  DRAFT: 'draft',
+  PUBLISHED: 'published',
+} as const
+
+export const announcementStatusLabels = {
+  [ANNOUNCEMENT_STATUS.DRAFT]: 'Draft',
+  [ANNOUNCEMENT_STATUS.PUBLISHED]: 'Published',
+}
+
 export const categoryColors: Record<EventCategory, string> = {
   SERVICE: 'blue',
   SPECIAL: 'purple',

@@ -19,7 +19,10 @@ const { pushMock, replaceMock, signInMock, sessionMock, axiosMock, searchParamsM
       delete: vi.fn(),
       isAxiosError: (e: unknown) => e instanceof Error && 'isAxiosError' in e,
     },
-    searchParamsMock: { get: vi.fn((_key: string) => null as string | null) },
+    searchParamsMock: {
+      get: vi.fn((_key: string) => null as string | null),
+      toString: vi.fn(() => ''),
+    },
   }),
 )
 

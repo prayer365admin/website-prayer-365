@@ -9,6 +9,7 @@ import {
   AnnouncementInputSchema,
   AnnouncementListQuerySchema,
   AnnouncementOutputSchema,
+  AnnouncementStatusSchema,
 } from '@/models/announcement'
 import { createAnnouncement, listAnnouncements } from '@/controller/announcement'
 
@@ -19,6 +20,26 @@ import { createAnnouncement, listAnnouncements } from '@/controller/announcement
  */
 
 const churchIdParam = { name: 'churchId', in: 'path' as const, schema: z.string() }
+const listQueryParams = [
+  { name: 'page', in: 'query' as const, required: false, schema: z.string() },
+  { name: 'limit', in: 'query' as const, required: false, schema: z.string() },
+  { name: 'search', in: 'query' as const, required: false, schema: z.string() },
+  { name: 'status', in: 'query' as const, required: false, schema: AnnouncementStatusSchema },
+  { name: 'published_from', in: 'query' as const, required: false, schema: z.string() },
+  { name: 'published_to', in: 'query' as const, required: false, schema: z.string() },
+  {
+    name: 'order_by',
+    in: 'query' as const,
+    required: false,
+    schema: z.enum(['created_at', 'title', 'published_at']),
+  },
+  {
+    name: 'order_direction',
+    in: 'query' as const,
+    required: false,
+    schema: z.enum(['asc', 'desc']),
+  },
+]
 
 registerPath({
   path: '/admin/churches/:churchId/announcements',
@@ -38,7 +59,7 @@ registerPath({
   path: '/admin/churches/:churchId/announcements',
   method: 'get',
   summary: 'List announcements',
-  request: { params: [churchIdParam] },
+  request: { params: [churchIdParam, ...listQueryParams] },
   responses: [
     { status: 200, description: 'Announcement list', schema: AnnouncementOutputSchema },
     { status: 401, description: 'Not authenticated' },

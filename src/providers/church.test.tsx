@@ -262,7 +262,7 @@ describe('Church Provider', () => {
       db.churchPastor.count.mockResolvedValueOnce(2)
       db.prayer.count.mockResolvedValueOnce(3)
       db.event.count.mockResolvedValueOnce(4)
-      db.announcement.count.mockResolvedValueOnce(5)
+      db.announcement.count.mockResolvedValueOnce(5).mockResolvedValueOnce(8)
       db.userChurch.count.mockResolvedValueOnce(6)
       db.mediaAsset.count.mockResolvedValueOnce(7)
 
@@ -272,13 +272,20 @@ describe('Church Provider', () => {
       expect(db.churchPastor.count).toHaveBeenCalledWith({ where: { church_id: 'c1' } })
       expect(db.prayer.count).toHaveBeenCalledWith({ where: { church_id: 'c1' } })
       expect(db.event.count).toHaveBeenCalledWith({ where: { church_id: 'c1' } })
-      expect(db.announcement.count).toHaveBeenCalledWith({ where: { church_id: 'c1' } })
+      expect(db.announcement.count).toHaveBeenCalledWith({
+        where: { church_id: 'c1', published_at: null, deleted_at: null },
+      })
+      expect(db.announcement.count).toHaveBeenCalledWith({
+        where: { church_id: 'c1', published_at: { not: null }, deleted_at: null },
+      })
       expect(db.userChurch.count).toHaveBeenCalledWith({ where: { church_id: 'c1' } })
       expect(db.mediaAsset.count).toHaveBeenCalledWith({ where: { church_id: 'c1' } })
 
       expect(result?.church.id).toBe('c1')
       expect(result?.church.city).toBe('Tallinn')
       expect(result?.aggregates.mediaCount).toBe(7)
+      expect(result?.aggregates.announcementDraftCount).toBe(5)
+      expect(result?.aggregates.announcementPublishedCount).toBe(8)
     })
   })
 })
