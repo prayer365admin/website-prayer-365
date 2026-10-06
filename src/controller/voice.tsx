@@ -10,6 +10,7 @@ import {
   CREATE_DRAFT,
   GET_ASSET,
   GET_CENTRAL_PROFILE,
+  GET_CHURCH_PASTOR,
   GET_CONSENT,
   GET_CONSENT_OUTPUT,
   GET_PROFILE_IN_TX,
@@ -22,6 +23,7 @@ import {
   REVIEW_APPROVE,
   REVIEW_DISABLE,
   REVIEW_REJECT,
+  REVOKE_CONSENT,
   SUBMIT_FREEZE,
 } from '@/providers/voice'
 import {
@@ -42,8 +44,8 @@ import {
  *
  * Own-submission endpoints derive the pastor from the linked user
  * (pastors.user_id === session.user.user_id) and are confined to the pastor's
- * DRAFT. Admin review is subject/object separated — no self-approval, and
- * approval only ENQUEUES the voice-register outbox job (Phase-10 worker).
+ * DRAFT. Admin review is subject/object separated — no self-review, and
+ * approval only ENQUEUES the voice.register outbox job (register worker).
  */
 
 const scopeError = () =>
@@ -144,6 +146,12 @@ const invalidAsset = (field: string, msg: string) =>
     fields: { [field]: msg },
   })
 
+/** Submitter or the linked pastor may never review their own submission. */
+const isSelfReview = (
+  profile: { submitted_by: string; pastor: { user_id: string | null } },
+  userId: string,
+) => profile.submitted_by === userId || profile.pastor.user_id === userId
+
 /** Resolve the linked pastor for the caller. */
 const resolvePastor = async (userId: string) => {
   const pastor = await GET_PASTOR_BY_USER_ID({ userId })
@@ -168,9 +176,21 @@ const assertSampleAsset = async ({
     asset.uploaded_by !== userId ||
     !churchIds.has(asset.church_id)
   ) {
-    throw invalidAsset('sampleAssetId', 'Invalid or unowned voice sample asset.')
+    throw invalidAsset('sampleAssetIds', 'Invalid or unowned voice sample asset.')
   }
   return asset
+}
+
+const assertSampleAssets = async ({
+  userId,
+  churchIds,
+  assetIds,
+}: {
+  userId: string
+  churchIds: Set<string>
+  assetIds: string[]
+}) => {
+  for (const assetId of assetIds) await assertSampleAsset({ userId, churchIds, assetId })
 }
 
 const assertConsent = async ({
@@ -332,7 +352,15 @@ export const createSubmission = async ({
       details: 'You are not assigned to that church.',
       fields: { churchId: 'Not assigned to this church.' },
     })
-  await assertSampleAsset({ userId, churchIds, assetId: input.sampleAssetId })
+  if (!(await GET_CHURCH_PASTOR({ churchId: input.churchId, pastorId: pastor.id })))
+    throw new GeneralError({
+      code: 403,
+      error: 'UNAUTHORIZED',
+      error_code: 'CHURCH_NOT_ASSIGNED',
+      details: 'You are not assigned as a pastor of that church.',
+      fields: { churchId: 'Not assigned to this church.' },
+    })
+  await assertSampleAssets({ userId, churchIds, assetIds: input.sampleAssetIds })
   await assertConsent({ userId, pastorId: pastor.id, consentId: input.consentId })
   if (input.replacesProfileId) {
     await assertReplacesProfile({
@@ -355,7 +383,7 @@ export const createSubmission = async ({
           provider: VOICE_PROVIDER,
           cloningMethod: 'instant',
           consentId: input.consentId,
-          sampleAssetId: input.sampleAssetId,
+          sampleAssetIds: input.sampleAssetIds,
           replacesProfileId: input.replacesProfileId,
         },
         actorId: userId,
@@ -387,8 +415,8 @@ export const patchSubmission = async ({
   if (profile.submitted_by !== userId) throw notOwn()
   if (profile.review_state !== 'DRAFT') throw notDraft()
   if (profile.version !== input.version) throw stale()
-  if (input.sampleAssetId !== undefined)
-    await assertSampleAsset({ userId, churchIds, assetId: input.sampleAssetId })
+  if (input.sampleAssetIds !== undefined)
+    await assertSampleAssets({ userId, churchIds, assetIds: input.sampleAssetIds })
   if (input.consentId !== undefined)
     await assertConsent({ userId, pastorId: profile.pastor_id, consentId: input.consentId })
   if (input.replacesProfileId !== undefined && input.replacesProfileId !== null) {
@@ -404,7 +432,7 @@ export const patchSubmission = async ({
       profileId,
       expectedVersion: input.version,
       data: {
-        sampleAssetId: input.sampleAssetId,
+        sampleAssetIds: input.sampleAssetIds,
         consentId: input.consentId,
         replacesProfileId: input.replacesProfileId ?? null,
       },
@@ -432,11 +460,23 @@ export const submitSubmission = async ({
   if (profile.submitted_by !== userId) throw notOwn()
   if (profile.review_state !== 'DRAFT') throw notDraft()
   if (profile.version !== input.version) throw stale()
-  const firstSample = profile.samples[0]
-  const sample = firstSample ? await GET_ASSET({ assetId: firstSample.asset_id }) : null
-  if (!sample || sample.status !== 'READY')
-    throw invalidAsset('sampleAssetId', 'Sample asset is not ready to submit.')
-  const sampleChecksum = sample.checksum ?? sample.object_key
+  if (profile.samples.length === 0)
+    throw invalidAsset('sampleAssetIds', 'Add at least one voice sample before submitting.')
+  const checksums: { position: number; checksum: string }[] = []
+  for (const s of profile.samples) {
+    if (s.asset.status !== 'READY')
+      throw invalidAsset('sampleAssetIds', 'A sample asset is not ready to submit.')
+    // The register worker verifies downloaded bytes against this; never fake it.
+    if (!s.asset.checksum)
+      throw new GeneralError({
+        code: 422,
+        error: 'VALIDATION_ERROR',
+        error_code: 'SAMPLE_CHECKSUM_MISSING',
+        details: 'A sample has no verified checksum. Re-upload it and try again.',
+        fields: { sampleAssetIds: 'Sample checksum missing.' },
+      })
+    checksums.push({ position: s.position, checksum: s.asset.checksum })
+  }
   const { resource_id } = await withIdempotency({
     actorKey: `user:${userId}`,
     operation: `voice.submission.submit:${profileId}`,
@@ -446,7 +486,7 @@ export const submitSubmission = async ({
       const item = await SUBMIT_FREEZE(tx, {
         profileId,
         expectedVersion: input.version,
-        sampleChecksum,
+        checksums,
         actorId: userId,
         requestId,
       })
@@ -489,17 +529,16 @@ export const approveProfile = async ({
 }): Promise<VoiceProfileDetail> => {
   const profile = await GET_VOICE_PROFILE({ profileId })
   if (!profile) throw notFound()
-  if (profile.submitted_by === userId || profile.pastor.user_id === userId) throw selfApproval()
+  if (isSelfReview(profile, userId)) throw selfApproval()
   if (profile.registration_state === 'DISABLED') throw disabled()
   if (profile.consent.revoked_at) throw revoked()
-  if (profile.review_state !== 'SUBMITTED') {
-    // Idempotent re-approve of an already-approved profile (same version).
-    if (profile.review_state === 'APPROVED' && profile.version === input.version) {
-      const existing = await GET_CENTRAL_PROFILE({ profileId })
-      if (existing) return existing
-    }
-    throw invalidReviewState()
+  if (profile.review_state === 'APPROVED') {
+    // Duplicate approval returns the existing registration outcome (§9.3.1).
+    const existing = await GET_CENTRAL_PROFILE({ profileId })
+    if (existing) return existing
   }
+  if (profile.review_state !== 'SUBMITTED') throw invalidReviewState()
+  if (profile.version !== input.version) throw stale()
 
   const { resource_id } = await withIdempotency({
     actorKey: `user:${userId}`,
@@ -519,7 +558,7 @@ export const approveProfile = async ({
       await REVIEW_APPROVE(tx, {
         profileId,
         actorId: userId,
-        versionAtApproval: profile.version,
+        versionAtApproval: input.version,
         requestId,
       })
       return profileId
@@ -544,6 +583,8 @@ export const rejectProfile = async ({
 }): Promise<VoiceProfileDetail> => {
   const profile = await GET_VOICE_PROFILE({ profileId })
   if (!profile) throw notFound()
+  if (isSelfReview(profile, userId)) throw selfApproval()
+  if (profile.review_state !== 'SUBMITTED') throw invalidReviewState()
   if (profile.version !== input.version) throw stale()
   await dbTransaction((tx) =>
     REVIEW_REJECT(tx, {
@@ -572,9 +613,35 @@ export const disableProfile = async ({
 }): Promise<VoiceProfileDetail> => {
   const profile = await GET_VOICE_PROFILE({ profileId })
   if (!profile) throw notFound()
+  if (profile.review_state !== 'APPROVED' || profile.registration_state === 'DISABLED')
+    throw invalidReviewState()
   if (profile.version !== version) throw stale()
   await dbTransaction((tx) =>
     REVIEW_DISABLE(tx, { profileId, inputVersion: version, actorId: userId, requestId }),
+  )
+  const out = await GET_CENTRAL_PROFILE({ profileId })
+  if (!out) throw notFound()
+  return out
+}
+
+/** Revoke consent (F4VO V3): disables every profile on that consent. */
+export const revokeProfileConsent = async ({
+  userId,
+  profileId,
+  version,
+  requestId,
+}: {
+  userId: string
+  profileId: string
+  version: number
+  requestId: string
+}): Promise<VoiceProfileDetail> => {
+  const profile = await GET_VOICE_PROFILE({ profileId })
+  if (!profile) throw notFound()
+  if (profile.consent.revoked_at) throw revoked()
+  if (profile.version !== version) throw stale()
+  await dbTransaction((tx) =>
+    REVOKE_CONSENT(tx, { profileId, inputVersion: version, actorId: userId, requestId }),
   )
   const out = await GET_CENTRAL_PROFILE({ profileId })
   if (!out) throw notFound()

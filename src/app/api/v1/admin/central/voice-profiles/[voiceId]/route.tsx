@@ -7,13 +7,15 @@ import { validate } from '@/utils/validate'
 import { registerPath } from '@/utils/openapi'
 import { GeneralError } from '@/utils/general-error'
 import { VoiceDisableInputSchema, VoiceProfileDetailSchema } from '@/models/voice'
-import { disableProfile, getCentralProfile } from '@/controller/voice'
+import { disableProfile, getCentralProfile, revokeProfileConsent } from '@/controller/voice'
 
 /*
  * GET /api/v1/admin/central/voice-profiles/:voiceId (Task 37)
- *   -> protected preview/evidence detail; never provider_voice_id/secrets.
- * PATCH /api/v1/admin/central/voice-profiles/:voiceId (Task 38 disable)
- *   -> registration_state = DISABLED (blocks registration). prayer_voice_profile:update.
+ *   -> preview/evidence refs + read-only provider Voice ID; never provider secrets.
+ * PATCH /api/v1/admin/central/voice-profiles/:voiceId (Task 38 + F4VO V3/V4)
+ *   action=disable (default): DISABLED + no longer any pastor's active voice.
+ *   action=revoke_consent: revoke the consent; every profile on it is disabled.
+ *   prayer_voice_profile:update.
  */
 
 const idSchema = z.string().uuid()
@@ -34,17 +36,17 @@ registerPath({
 registerPath({
   path: '/admin/central/voice-profiles/:voiceId',
   method: 'patch',
-  summary: 'Disable a voice profile (blocks registration)',
+  summary: 'Disable a voice profile or revoke its consent',
   request: {
     params: [{ name: 'voiceId', in: 'path' as const, schema: idSchema }],
     body: VoiceDisableInputSchema,
   },
   responses: [
-    { status: 200, description: 'Voice profile disabled', schema: VoiceProfileDetailSchema },
+    { status: 200, description: 'Voice profile updated', schema: VoiceProfileDetailSchema },
     { status: 401, description: 'Not authenticated' },
     { status: 403, description: 'Not allowed' },
     { status: 404, description: 'Voice profile not found' },
-    { status: 409, description: 'Stale version' },
+    { status: 409, description: 'Stale version / invalid state / consent already revoked' },
   ],
 })
 
@@ -86,13 +88,15 @@ export async function PATCH(
     })
     const { voiceId } = await params
     const input = validate(VoiceDisableInputSchema, await req.json())
-    const result = await disableProfile({
+    const args = {
       userId: session.user.user_id,
       profileId: voiceId,
       version: input.version,
       requestId: crypto.randomUUID(),
-    })
-    return ok(result, 'Voice profile disabled.')
+    }
+    if (input.action === 'revoke_consent')
+      return ok(await revokeProfileConsent(args), 'Voice consent revoked.')
+    return ok(await disableProfile(args), 'Voice profile disabled.')
   } catch (e) {
     return httpError(e)
   }

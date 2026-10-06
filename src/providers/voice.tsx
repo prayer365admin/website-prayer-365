@@ -16,8 +16,8 @@ import {
  * Discipline: reads are scoped by a resolved churchIds set OR by the user's
  * own identity (submitted_by === userId). State transitions are transactional
  * — business row + audit (+ outbox on approval) commit atomically. Approval
- * only ENQUEUES the voice-register outbox job; the Instagram/ElevenLabs call
- * is a Phase-10 worker. We never select or return provider_voice_id.
+ * only ENQUEUES the voice.register outbox job; the ElevenLabs call belongs to
+ * the register worker. provider_voice_id is returned on the central detail only.
  *
  * Concurrency: VoiceProfile.version bumps on each state transition; the client
  * must supply the current version or the write returns 409 STALE_VERSION.
@@ -39,7 +39,8 @@ const stale = () =>
     details: 'This submission has changed. Refresh and try again.',
   })
 
-export const CONSENT_PURPOSE = 'VOICE_CLONE'
+// Same value the seed and central pastor assignment use.
+export const CONSENT_PURPOSE = 'voice_cloning'
 export const VOICE_PROVIDER = 'elevenlabs'
 
 /** Churches the linked pastor is assigned to → the OWN-submission scope. */
@@ -164,78 +165,54 @@ export const AUDIT_VOICE = (
     }),
   })
 
-/** Read a profile inside the caller's transaction (for race-safe review checks). */
-export const GET_PROFILE_IN_TX = (tx: Prisma.TransactionClient, profileId: string) =>
-  tx.voiceProfile.findUnique({
-    where: { id: profileId },
+/** Relations every voice-profile DTO is built from. */
+const PROFILE_INCLUDE = {
+  pastor: { select: { name: true, user_id: true } },
+  church: { select: { name: true } },
+  consent: {
+    select: { revoked_at: true, terms_version: true, recorded_at: true, evidence_asset_id: true },
+  },
+  samples: {
+    orderBy: { position: 'asc' },
     include: {
-      pastor: { select: { name: true, user_id: true } },
-      consent: { select: { revoked_at: true } },
-    },
-  })
-
-export const GET_VOICE_PROFILE = async ({ profileId }: { profileId: string }) =>
-  db.voiceProfile.findUnique({
-    where: { id: profileId },
-    include: {
-      pastor: { select: { name: true, user_id: true } },
-      consent: { select: { revoked_at: true } },
-      samples: {
-        orderBy: { position: 'asc' },
-        include: {
-          asset: {
-            select: {
-              object_key: true,
-              mime_type: true,
-              checksum: true,
-              status: true,
-              purpose: true,
-            },
-          },
+      asset: {
+        select: {
+          id: true,
+          church_id: true,
+          purpose: true,
+          status: true,
+          uploaded_by: true,
+          mime_type: true,
+          byte_size: true,
+          checksum: true,
         },
       },
     },
+  },
+} satisfies Prisma.VoiceProfileInclude
+
+export type VoiceProfileRow = Prisma.VoiceProfileGetPayload<{ include: typeof PROFILE_INCLUDE }>
+
+/** Read a profile inside the caller's transaction (for race-safe review checks). */
+export const GET_PROFILE_IN_TX = (tx: Prisma.TransactionClient, profileId: string) =>
+  tx.voiceProfile.findUnique({ where: { id: profileId }, include: PROFILE_INCLUDE })
+
+export const GET_VOICE_PROFILE = async ({ profileId }: { profileId: string }) =>
+  db.voiceProfile.findUnique({ where: { id: profileId }, include: PROFILE_INCLUDE })
+
+/** The pastor ↔ church assignment a submission must belong to. */
+export const GET_CHURCH_PASTOR = ({ churchId, pastorId }: { churchId: string; pastorId: string }) =>
+  db.churchPastor.findUnique({
+    where: { church_id_pastor_id: { church_id: churchId, pastor_id: pastorId } },
+    select: { church_id: true },
   })
 
-export type VoiceProfileRow = NonNullable<Awaited<ReturnType<typeof GET_VOICE_PROFILE>>>
-
-type ListItemRowShape = {
-  id: string
-  pastor_id: string
-  church_id: string
-  version: number
-  provider: string
-  review_state: string
-  registration_state: string
-  submitted_at: Date | null
-  reviewed_at: Date | null
-  review_reason: string | null
-  replaces_profile_id: string | null
-  created_at: Date
-  pastor: { name: string }
-  consent: { revoked_at: Date | null }
-}
-
-const mapListItem = (p: {
-  id: string
-  pastor_id: string
-  church_id: string
-  version: number
-  provider: string
-  review_state: string
-  registration_state: string
-  submitted_at: Date | null
-  reviewed_at: Date | null
-  review_reason: string | null
-  consent_revoked_at: Date | null
-  replaces_profile_id: string | null
-  created_at: Date
-  pastor_name: string
-}): VoiceProfileListItem => ({
+const listItemFromRow = (p: VoiceProfileRow): VoiceProfileListItem => ({
   id: p.id,
   pastorId: p.pastor_id,
-  pastorName: p.pastor_name,
+  pastorName: p.pastor.name,
   churchId: p.church_id,
+  churchName: p.church.name,
   version: p.version,
   provider: p.provider,
   reviewState: p.review_state,
@@ -243,28 +220,19 @@ const mapListItem = (p: {
   submittedAt: p.submitted_at ? p.submitted_at.toISOString() : null,
   reviewedAt: p.reviewed_at ? p.reviewed_at.toISOString() : null,
   reviewReason: p.review_reason,
-  consentRevokedAt: p.consent_revoked_at ? p.consent_revoked_at.toISOString() : null,
+  consentRevokedAt: p.consent.revoked_at ? p.consent.revoked_at.toISOString() : null,
   replacesProfileId: p.replaces_profile_id,
+  requiresVerification: p.requires_verification,
+  lastErrorCode: p.last_error_code,
+  samples: p.samples.map((s) => ({
+    assetId: s.asset_id,
+    position: s.position,
+    mimeType: s.asset.mime_type,
+    byteSize: Number(s.asset.byte_size),
+    checksum: s.checksum,
+  })),
   createdAt: p.created_at.toISOString(),
 })
-
-const listItemFromRow = (p: ListItemRowShape): VoiceProfileListItem =>
-  mapListItem({
-    id: p.id,
-    pastor_id: p.pastor_id,
-    church_id: p.church_id,
-    version: p.version,
-    provider: p.provider,
-    review_state: p.review_state,
-    registration_state: p.registration_state,
-    submitted_at: p.submitted_at,
-    reviewed_at: p.reviewed_at,
-    review_reason: p.review_reason,
-    consent_revoked_at: p.consent.revoked_at,
-    replaces_profile_id: p.replaces_profile_id,
-    created_at: p.created_at,
-    pastor_name: p.pastor.name,
-  })
 
 /** List the caller's OWN submissions (submitted_by === userId) w/ pagination. */
 export const LIST_OWN_PROFILES = async ({
@@ -291,10 +259,7 @@ export const LIST_OWN_PROFILES = async ({
       take: limit,
       skip: (page - 1) * limit,
       orderBy: [{ created_at: 'desc' }, { id: 'asc' }],
-      include: {
-        pastor: { select: { name: true } },
-        consent: { select: { revoked_at: true } },
-      },
+      include: PROFILE_INCLUDE,
     }),
   ])
   return { result: rows.map(listItemFromRow), total }
@@ -330,10 +295,7 @@ export const LIST_CENTRAL_PROFILES = async ({
       take: query.limit,
       skip: (query.page - 1) * query.limit,
       orderBy: orderByMap[query.order_by],
-      include: {
-        pastor: { select: { name: true } },
-        consent: { select: { revoked_at: true } },
-      },
+      include: PROFILE_INCLUDE,
     }),
   ])
   return { result: rows.map(listItemFromRow), total }
@@ -346,19 +308,14 @@ export const GET_CENTRAL_PROFILE = async ({
 }): Promise<VoiceProfileDetail | null> => {
   const row = await GET_VOICE_PROFILE({ profileId })
   if (!row) return null
-  // ponytail: single-sample DTO until Phase 2 exposes the full samples list.
-  const first = row.samples[0]
   return {
     ...listItemFromRow(row),
-    sampleAssetId: first?.asset_id ?? '',
-    sampleObjectKey: first?.asset.object_key ?? '',
-    sampleMimeType: first?.asset.mime_type ?? null,
-    sampleChecksum: first?.asset.checksum ?? null,
     consentId: row.consent_id,
+    termsVersion: row.consent.terms_version,
+    consentRecordedAt: row.consent.recorded_at.toISOString(),
+    evidenceAssetId: row.consent.evidence_asset_id,
     cloningMethod: row.cloning_method,
-    approvedSampleChecksum: first?.checksum ?? null,
-    requiresVerification: row.requires_verification,
-    lastErrorCode: row.last_error_code,
+    providerVoiceId: row.provider_voice_id,
   }
 }
 
@@ -372,6 +329,9 @@ export const GET_PROFILE_LIST_ITEM = async ({
   if (!row) return null
   return listItemFromRow(row)
 }
+
+const sampleRows = (sampleAssetIds: string[]) =>
+  sampleAssetIds.map((asset_id, position) => ({ asset_id, position }))
 
 /** Create draft (primitives — caller supplies tx). */
 export const CREATE_DRAFT = async (
@@ -387,7 +347,7 @@ export const CREATE_DRAFT = async (
       provider: string
       cloningMethod: string
       consentId: string
-      sampleAssetId: string
+      sampleAssetIds: string[]
       replacesProfileId?: string
     }
     actorId: string
@@ -402,12 +362,12 @@ export const CREATE_DRAFT = async (
       provider: data.provider,
       cloning_method: data.cloningMethod,
       consent_id: data.consentId,
-      samples: { create: [{ asset_id: data.sampleAssetId, position: 0 }] },
+      samples: { create: sampleRows(data.sampleAssetIds) },
       replaces_profile_id: data.replacesProfileId ?? null,
       review_state: 'DRAFT',
       registration_state: 'UNREGISTERED',
     },
-    include: { pastor: { select: { name: true } }, consent: { select: { revoked_at: true } } },
+    include: PROFILE_INCLUDE,
   })
   await AUDIT_VOICE(tx, {
     actorId,
@@ -430,7 +390,7 @@ export const PATCH_DRAFT = async (
   }: {
     profileId: string
     expectedVersion: number
-    data: { sampleAssetId?: string; consentId?: string; replacesProfileId?: string | null }
+    data: { sampleAssetIds?: string[]; consentId?: string; replacesProfileId?: string | null }
     actorId: string
     requestId: string
   },
@@ -448,16 +408,14 @@ export const PATCH_DRAFT = async (
     data: { ...fields, version: { increment: 1 }, updated_at: new Date() },
   })
   if (updated.count === 0) throw stale()
-  if (data.sampleAssetId !== undefined) {
+  if (data.sampleAssetIds !== undefined) {
+    // Draft only: the whole list is replaced, order = position.
     await tx.voiceProfileSample.deleteMany({ where: { voice_profile_id: profileId } })
-    await tx.voiceProfileSample.create({
-      data: { voice_profile_id: profileId, asset_id: data.sampleAssetId, position: 0 },
+    await tx.voiceProfileSample.createMany({
+      data: sampleRows(data.sampleAssetIds).map((r) => ({ ...r, voice_profile_id: profileId })),
     })
   }
-  const row = await tx.voiceProfile.findUnique({
-    where: { id: profileId },
-    include: { pastor: { select: { name: true } }, consent: { select: { revoked_at: true } } },
-  })
+  const row = await GET_PROFILE_IN_TX(tx, profileId)
   if (!row) throw notFound()
   await AUDIT_VOICE(tx, {
     actorId,
@@ -469,19 +427,19 @@ export const PATCH_DRAFT = async (
   return listItemFromRow(row)
 }
 
-/** Submit: freeze sample checksum + submitted_at, state SUBMITTED (immutable). */
+/** Submit: freeze each sample's checksum + submitted_at, state SUBMITTED (immutable). */
 export const SUBMIT_FREEZE = async (
   tx: Prisma.TransactionClient,
   {
     profileId,
     expectedVersion,
-    sampleChecksum,
+    checksums,
     actorId,
     requestId,
   }: {
     profileId: string
     expectedVersion: number
-    sampleChecksum: string
+    checksums: { position: number; checksum: string }[]
     actorId: string
     requestId: string
   },
@@ -501,15 +459,13 @@ export const SUBMIT_FREEZE = async (
     },
   })
   if (updated.count === 0) throw stale()
-  // ponytail: one checksum for all rows while inputs are single-sample; Phase 2 freezes per file.
-  await tx.voiceProfileSample.updateMany({
-    where: { voice_profile_id: profileId },
-    data: { checksum: sampleChecksum },
-  })
-  const row = await tx.voiceProfile.findUnique({
-    where: { id: profileId },
-    include: { pastor: { select: { name: true } }, consent: { select: { revoked_at: true } } },
-  })
+  for (const { position, checksum } of checksums) {
+    await tx.voiceProfileSample.update({
+      where: { voice_profile_id_position: { voice_profile_id: profileId, position } },
+      data: { checksum },
+    })
+  }
+  const row = await GET_PROFILE_IN_TX(tx, profileId)
   if (!row) throw notFound()
   await AUDIT_VOICE(tx, {
     actorId,
@@ -522,7 +478,7 @@ export const SUBMIT_FREEZE = async (
 }
 
 /**
- * Approve — atomic review update + unique voice-register outbox job (idempotent
+ * Approve — atomic review update + unique voice.register outbox job (idempotent
  * upsert on the unique dedupe_key so a concurrent duplicate cannot double-enqueue).
  * Caller must have pre-validated state, consent, and no-self-approval.
  */
@@ -557,11 +513,12 @@ export const REVIEW_APPROVE = async (
     },
   })
   if (updated.count === 0) throw stale()
+  // SPEC §9.3.1 dedupe key; kind matches the audio.generate naming (F4VO V1).
   const dedupeKey = `voice-register:${profileId}:${versionAtApproval}`
   await tx.outboxJob.upsert({
     where: { dedupe_key: dedupeKey },
     create: {
-      kind: 'voice-register',
+      kind: 'voice.register',
       dedupe_key: dedupeKey,
       resource_id: profileId,
       payload: { voiceProfileId: profileId, version: versionAtApproval },
@@ -569,15 +526,15 @@ export const REVIEW_APPROVE = async (
     },
     update: {},
   })
+  const row = await GET_PROFILE_IN_TX(tx, profileId)
+  if (!row) throw notFound()
   await AUDIT_VOICE(tx, {
     actorId,
-    churchId: (await GET_PROFILE_IN_TX(tx, profileId))?.church_id ?? '',
+    churchId: row.church_id,
     action: 'voice.profile.approve',
     resourceId: profileId,
     requestId,
   })
-  const row = await GET_PROFILE_IN_TX(tx, profileId)
-  if (!row) throw notFound()
   return listItemFromRow(row)
 }
 
@@ -598,7 +555,7 @@ export const REVIEW_REJECT = async (
   },
 ): Promise<VoiceProfileListItem> => {
   const updated = await tx.voiceProfile.updateMany({
-    where: { id: profileId, version: inputVersion },
+    where: { id: profileId, review_state: 'SUBMITTED', version: inputVersion },
     data: {
       review_state: 'REJECTED',
       reviewed_by: actorId,
@@ -621,6 +578,13 @@ export const REVIEW_REJECT = async (
   return listItemFromRow(row)
 }
 
+/** Unset these profiles wherever they are a pastor's active voice (F4VO V4). */
+const CLEAR_ACTIVE_VOICE = (tx: Prisma.TransactionClient, profileIds: string[]) =>
+  tx.churchPastor.updateMany({
+    where: { active_voice_profile_id: { in: profileIds } },
+    data: { active_voice_profile_id: null },
+  })
+
 export const REVIEW_DISABLE = async (
   tx: Prisma.TransactionClient,
   {
@@ -636,10 +600,16 @@ export const REVIEW_DISABLE = async (
   },
 ): Promise<VoiceProfileListItem> => {
   const updated = await tx.voiceProfile.updateMany({
-    where: { id: profileId, version: inputVersion },
+    where: {
+      id: profileId,
+      review_state: 'APPROVED',
+      registration_state: { not: 'DISABLED' },
+      version: inputVersion,
+    },
     data: { registration_state: 'DISABLED', version: { increment: 1 }, updated_at: new Date() },
   })
   if (updated.count === 0) throw stale()
+  await CLEAR_ACTIVE_VOICE(tx, [profileId])
   const row = await GET_PROFILE_IN_TX(tx, profileId)
   if (!row) throw notFound()
   await AUDIT_VOICE(tx, {
@@ -649,6 +619,60 @@ export const REVIEW_DISABLE = async (
     resourceId: profileId,
     requestId,
   })
+  return listItemFromRow(row)
+}
+
+/**
+ * Revoke the consent behind a profile (F4VO V3): consent.revoked_at, then every
+ * profile using it goes DISABLED and stops being anyone's active voice.
+ */
+export const REVOKE_CONSENT = async (
+  tx: Prisma.TransactionClient,
+  {
+    profileId,
+    inputVersion,
+    actorId,
+    requestId,
+  }: {
+    profileId: string
+    inputVersion: number
+    actorId: string
+    requestId: string
+  },
+): Promise<VoiceProfileListItem> => {
+  const target = await tx.voiceProfile.findFirst({
+    where: { id: profileId, version: inputVersion },
+    select: { consent_id: true, church_id: true },
+  })
+  if (!target) throw stale()
+  const revoked = await tx.consent.updateMany({
+    where: { id: target.consent_id, revoked_at: null },
+    data: { revoked_at: new Date() },
+  })
+  if (revoked.count === 0) throw stale()
+  const affected = await tx.voiceProfile.findMany({
+    where: { consent_id: target.consent_id, registration_state: { not: 'DISABLED' } },
+    select: { id: true },
+  })
+  const ids = affected.map((p) => p.id)
+  await tx.voiceProfile.updateMany({
+    where: { id: { in: ids } },
+    data: { registration_state: 'DISABLED', version: { increment: 1 }, updated_at: new Date() },
+  })
+  await CLEAR_ACTIVE_VOICE(tx, ids)
+  await tx.auditLog.create({
+    data: auditPayload({
+      actorId,
+      churchId: target.church_id,
+      action: 'voice.consent.revoke',
+      resourceType: 'consent',
+      resourceId: target.consent_id,
+      outcome: 'success',
+      requestId,
+    }),
+  })
+  const row = await GET_PROFILE_IN_TX(tx, profileId)
+  if (!row) throw notFound()
   return listItemFromRow(row)
 }
 
