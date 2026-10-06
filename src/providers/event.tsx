@@ -31,7 +31,24 @@ export const LIST_EVENTS = async ({
   const where: Prisma.EventWhereInput = {
     church_id: { in: ids },
     ...(query.category ? { category: query.category } : {}),
-    ...(query.search ? { title: { contains: query.search, mode: 'insensitive' } } : {}),
+    ...(query.search
+      ? {
+          OR: [
+            { title: { contains: query.search, mode: 'insensitive' } },
+            { location: { contains: query.search, mode: 'insensitive' } },
+          ],
+        }
+      : {}),
+    ...(query.has_link === 'yes' ? { registration_url: { not: null } } : {}),
+    ...(query.has_link === 'no' ? { registration_url: null } : {}),
+    ...(query.starts_from || query.starts_to
+      ? {
+          starts_at: {
+            ...(query.starts_from ? { gte: new Date(query.starts_from) } : {}),
+            ...(query.starts_to ? { lte: new Date(query.starts_to) } : {}),
+          },
+        }
+      : {}),
   }
   const orderByMap: Record<string, Prisma.EventOrderByWithRelationInput[]> = {
     starts_at: [{ starts_at: query.order_direction }, { id: 'asc' }],
@@ -51,15 +68,16 @@ export const LIST_EVENTS = async ({
 }
 
 export const GET_EVENT = async ({
+  churchId,
   churchIds,
   eventId,
 }: {
+  churchId: string
   churchIds: Set<string>
   eventId: string
 }): Promise<EventOutput | null> => {
-  const ids = toIds(churchIds)
-  if (ids.length === 0) return null
-  const row = await db.event.findFirst({ where: { id: eventId, church_id: { in: ids } } })
+  if (!churchIds.has(churchId)) return null
+  const row = await db.event.findFirst({ where: { id: eventId, church_id: churchId } })
   return row ? mapEvent(row) : null
 }
 
@@ -101,6 +119,7 @@ export const CREATE_EVENT = async ({
 }
 
 export const UPDATE_EVENT = async ({
+  churchId,
   churchIds,
   eventId,
   expectedVersion,
@@ -108,6 +127,7 @@ export const UPDATE_EVENT = async ({
   actorId,
   requestId,
 }: {
+  churchId: string
   churchIds: Set<string>
   eventId: string
   expectedVersion: number
@@ -115,8 +135,7 @@ export const UPDATE_EVENT = async ({
   actorId: string
   requestId: string
 }): Promise<EventOutput> => {
-  const churchId = toIds(churchIds)[0]
-  if (!churchId) {
+  if (!churchIds.has(churchId)) {
     throw new GeneralError({
       code: 404,
       error: 'NOT_FOUND',
@@ -140,7 +159,7 @@ export const UPDATE_EVENT = async ({
       },
     })
     if (updated.count === 0) throw stale()
-    const row = await db.event.findFirst({ where: { id: eventId, church_id: churchId } })
+    const row = await tx.event.findFirst({ where: { id: eventId, church_id: churchId } })
     if (!row) throw stale()
     await tx.auditLog.create({
       data: auditPayload({

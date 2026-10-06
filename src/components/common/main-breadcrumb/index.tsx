@@ -1,4 +1,5 @@
 'use client'
+import { useAccessPermission } from '@/hooks/data/access-permission'
 import { toCapitalized } from '@/utils/capitalized'
 import { Breadcrumb } from 'antd'
 import Link from 'next/link'
@@ -6,7 +7,18 @@ import { usePathname } from 'next/navigation'
 
 export default function MainBreadcrumb() {
   const pathname = usePathname()
+  const permission = useAccessPermission()
   const pathnameList = pathname.split('/').slice(2)
+  const canReadChurch =
+    permission.readAny('prayer_church').granted || permission.readOwn('prayer_church').granted
+
+  // /dashboard/churches (selector) and /dashboard/churches/:id (overview) both need church read.
+  const isLinkable = (item: string, index: number) =>
+    item === 'pastors' ||
+    (canReadChurch &&
+      pathnameList[0] === 'churches' &&
+      index <= 1 &&
+      index < pathnameList.length - 1)
 
   return (
     <Breadcrumb
@@ -15,12 +27,11 @@ export default function MainBreadcrumb() {
         ...pathnameList.map((item, index) => {
           const currentPath = `/dashboard/${pathnameList.slice(0, index + 1).join('/')}`
           return {
-            title:
-              item === 'pastors' ? (
-                <Link href={currentPath}>{toCapitalized(item)}</Link>
-              ) : (
-                toCapitalized(item)
-              ),
+            title: isLinkable(item, index) ? (
+              <Link href={currentPath}>{toCapitalized(item)}</Link>
+            ) : (
+              toCapitalized(item)
+            ),
           }
         }),
       ]}

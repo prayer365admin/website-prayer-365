@@ -87,10 +87,10 @@ DESIGN S08 | SPEC §9.4 | FEATURE F5
 | ----- | ---------------------------------------------------------------------------------------------------------------------------------------------- | ---- |
 | EV-01 | DB: `events` model + seeds                                                                                                                     | ✔   |
 | EV-02 | API: event provider/controller/models + `GET/POST C/events`, `PATCH C/events/:eventId` + tests                                                 | ✔   |
-| EV-03 | Hooks: `hooks/data/event.tsx` — list, create, patch                                                                                            | ☐    |
-| EV-04 | Screen: S08 list + create/edit (`.../events`) — category, title, desc, startsAt (timezone shown), location, optional registrationUrl, language | ☐    |
-| EV-05 | Rules: local time converted to UTC with explicit offset; registration URL stored as link only; no internal booking/recurrence                  | ☐    |
-| EV-06 | Tests: DST/timezone cases, stale-version conflict, cross-church event rejected                                                                 | ☐    |
+| EV-03 | Hooks: `hooks/data/event.tsx` — list, create, patch                                                                                            | ✔   |
+| EV-04 | Screen: S08 list + create/edit (`.../events`) — category, title, desc, startsAt (timezone shown), location, optional registrationUrl, language | ✔   |
+| EV-05 | Rules: local time converted to UTC with explicit offset; registration URL stored as link only; no internal booking/recurrence                  | ✔   |
+| EV-06 | Tests: DST/timezone cases, stale-version conflict, cross-church event rejected                                                                 | ✔   |
 
 ## F6AN — Announcements
 

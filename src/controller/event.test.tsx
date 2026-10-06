@@ -91,7 +91,14 @@ describe('patchEvent', () => {
       input: { ...VALID_INPUT, version: 3 },
       requestId: 'r',
     })
-    expect(UPDATE_EVENT).toHaveBeenCalledWith(expect.objectContaining({ expectedVersion: 3 }))
+    expect(GET_EVENT).toHaveBeenCalledWith({
+      churchId: 'c1',
+      churchIds: scope,
+      eventId: 'e1',
+    })
+    expect(UPDATE_EVENT).toHaveBeenCalledWith(
+      expect.objectContaining({ churchId: 'c1', expectedVersion: 3 }),
+    )
     expect(res).toEqual({ ...eventOut, version: 4 })
   })
 

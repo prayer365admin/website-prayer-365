@@ -95,11 +95,12 @@ export const patchEvent = async ({
       error_code: 'VERSION_REQUIRED',
       details: 'version is required to edit an event.',
     })
-  const current = await GET_EVENT({ churchIds, eventId })
+  const current = await GET_EVENT({ churchId, churchIds, eventId })
   if (!current) throw notFound()
   if (input.version !== current.version) throw stale()
   await validateLanguage(input.languageCode)
   return UPDATE_EVENT({
+    churchId,
     churchIds,
     eventId,
     expectedVersion: input.version,

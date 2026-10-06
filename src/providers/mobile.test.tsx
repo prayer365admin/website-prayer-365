@@ -20,6 +20,7 @@ import {
   churchLocalDate,
   CREATE_CHECKIN,
   GET_PUBLIC_CHURCH,
+  LIST_PUBLIC_EVENTS,
   LIST_PUBLISHED_PRAYERS,
   UPDATE_ME_PROFILE,
 } from './mobile'
@@ -243,5 +244,47 @@ describe('LIST_PUBLISHED_PRAYERS — historical pastor attribution', () => {
     expect(db.prayerVersion.findMany).toHaveBeenCalledWith(
       expect.objectContaining({ where: { id: { in: ['version-1'] } } }),
     )
+  })
+})
+
+describe('LIST_PUBLIC_EVENTS — admin event edits reflected under the correct church', () => {
+  it('filters by the exact church and maps the admin-edited fields', async () => {
+    db.$transaction.mockImplementationOnce((ops: Promise<unknown>[]) => Promise.all(ops))
+    db.event.count.mockResolvedValueOnce(1)
+    db.event.findMany.mockResolvedValueOnce([
+      {
+        id: 'e1',
+        church_id: 'church-1',
+        category: 'BIBLE_STUDY',
+        title: 'Edited title',
+        description: 'Edited description',
+        starts_at: new Date('2026-12-01T08:00:00Z'),
+        location: 'Room 9',
+        registration_url: 'https://example.org/r',
+        language_code: 'et',
+      },
+    ])
+
+    const result = await LIST_PUBLIC_EVENTS({
+      churchId: 'church-1',
+      query: { page: 1, limit: 10 } as never,
+    })
+
+    const where = db.event.findMany.mock.calls[0][0].where
+    expect(where.church_id).toBe('church-1')
+    expect(where.church).toEqual({ status: 'APPROVED' })
+    expect(result.result).toEqual([
+      {
+        id: 'e1',
+        churchId: 'church-1',
+        category: 'bible_study',
+        title: 'Edited title',
+        description: 'Edited description',
+        startsAt: '2026-12-01T08:00:00.000Z',
+        location: 'Room 9',
+        registrationUrl: 'https://example.org/r',
+        languageCode: 'et',
+      },
+    ])
   })
 })

@@ -53,6 +53,8 @@ export const EventInputSchema = z
   .strict()
 
 export type EventInput = z.infer<typeof EventInputSchema>
+export type EventCreateInput = Omit<EventInput, 'version'> & { version?: never }
+export type EventUpdateInput = EventInput & { version: number }
 
 export const EventListQuerySchema = z.object({
   page: z.coerce.number().int().positive().default(1),
@@ -61,6 +63,9 @@ export const EventListQuerySchema = z.object({
   order_direction: z.enum(['asc', 'desc']).default('asc'),
   search: z.string().trim().max(200).optional(),
   category: EventCategorySchema.optional(),
+  has_link: z.enum(['yes', 'no']).optional(),
+  starts_from: z.iso.datetime({ offset: true }).optional(),
+  starts_to: z.iso.datetime({ offset: true }).optional(),
 })
 
 export type EventListQuery = z.infer<typeof EventListQuerySchema>
