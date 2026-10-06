@@ -3,6 +3,7 @@ import {
   HeadObjectCommand,
   DeleteObjectCommand,
   GetObjectCommand,
+  PutObjectCommand,
 } from '@aws-sdk/client-s3'
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner'
 import { createPresignedPost } from '@aws-sdk/s3-presigned-post'
@@ -85,6 +86,24 @@ export const S3_DELETE_OBJECT = async ({ key }: { key: string }): Promise<void> 
   const b = bucket()
   if (!b) throw notConfigured()
   await client().send(new DeleteObjectCommand({ Bucket: b, Key: key }))
+}
+
+/** Worker-side direct put (PR-07 generated audio). Returns the key + stored byte size. */
+export const S3_PUT_OBJECT = async ({
+  key,
+  body,
+  contentType,
+}: {
+  key: string
+  body: Uint8Array
+  contentType: string
+}): Promise<{ key: string; byteSize: number }> => {
+  const b = bucket()
+  if (!b) throw notConfigured()
+  await client().send(
+    new PutObjectCommand({ Bucket: b, Key: key, Body: body, ContentType: contentType }),
+  )
+  return { key, byteSize: body.byteLength }
 }
 
 /** Short-lived signed GET URL for preview/download. */

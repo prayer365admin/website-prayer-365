@@ -31,6 +31,8 @@ export const ChurchPastorSummarySchema = z.object({
   user: z.object({ id: z.string(), name: z.string(), email: z.string() }).nullable(),
   pastoralRole: z.string(),
   imageAssetId: z.string().nullable(),
+  activeVoiceProfileId: z.string().nullable(),
+  voiceReady: z.boolean(),
   profileImageAssetId: z.string().nullable(),
   resolvedImageAssetId: z.string().nullable(),
 })
@@ -43,6 +45,8 @@ export interface ChurchPastorSummary {
   pastoralRole: string
   /** Optional image override owned by this ChurchPastor relationship. */
   imageAssetId: string | null
+  activeVoiceProfileId: string | null
+  voiceReady: boolean
   /** Canonical image owned by the shared Pastor profile. */
   profileImageAssetId: string | null
   /** Church override, then canonical profile image. */

@@ -54,14 +54,14 @@ DESIGN S05–S07 | SPEC §9.3 | FEATURE F4
 | ----- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ---- |
 | PR-01 | DB: `prayers`, `prayer_versions`, `prayer_audio` + seeds                                                                                                                             | ✔   |
 | PR-02 | API: prayer/prayer-audio providers + controllers + `C/prayers` CRUD, approve-text, audio create/status/approve, schedule, publish + tests                                            | ✔   |
-| PR-03 | Hooks: `hooks/data/prayer.tsx` — list, detail, create, patch (new text version), approve-text, audio actions, schedule, publish                                                      | ☐    |
-| PR-04 | Screen: S05 prayer list/archive (`.../prayers`) — current + published archive, publication info, create action                                                                       | ☐    |
-| PR-05 | Screen: S06 prayer editor (`.../prayers/new`, `.../prayers/:prayerId`) — title/intro/body, assigned-pastor picker, language, read-only review before audio                           | ☐    |
-| PR-06 | Screen: S07 audio review + publication (editor tab) — generate (blocked until reviewed text + ready voice), preview, approve audio, schedule, publish; disabled actions with reasons | ☐    |
-| PR-07 | Integration: `audio.generate` job — recheck approval/consent/voice readiness, ElevenLabs TTS, private S3 storage, mark ready                                                         | ☐    |
-| PR-08 | Integration: `prayer.publish` job — due-time revalidation, publish once, enqueue notification, survive retries/downtime                                                              | ☐    |
-| PR-09 | Rules: never inherit old audio approval on new text version; stale generation never attaches to another version                                                                      | ☐    |
-| PR-10 | Tests: approval tied to exact snapshot, audio private until approved, duplicate job safety, scheduled publish after restart                                                          | ☐    |
+| PR-03 | Hooks: `hooks/data/prayer.tsx` — list, detail, create, patch (new text version), approve-text, audio actions, schedule, publish                                                      | ✔   |
+| PR-04 | Screen: S05 prayer list/archive (`.../prayers`) — current + published archive, publication info, create action                                                                       | ✔   |
+| PR-05 | Screen: S06 prayer editor (`.../prayers/new`, `.../prayers/:prayerId`) — title/intro/body, assigned-pastor picker, language, read-only review before audio                           | ✔   |
+| PR-06 | Screen: S07 audio review + publication (editor tab) — generate (blocked until reviewed text + ready voice), preview, approve audio, schedule, publish; disabled actions with reasons | ✔   |
+| PR-07 | Integration: `audio.generate` job — recheck approval/consent/voice readiness, ElevenLabs TTS, private S3 storage, mark ready                                                         | ✔   |
+| PR-08 | Integration: `prayer.publish` job — due-time revalidation, publish once, enqueue notification, survive retries/downtime                                                              | ✔   |
+| PR-09 | Rules: never inherit old audio approval on new text version; stale generation never attaches to another version                                                                      | ✔   |
+| PR-10 | Tests: approval tied to exact snapshot, audio private until approved, duplicate job safety, scheduled publish after restart                                                          | ✔   |
 
 ## F4VO — Voice Profiles (pastor submission, admin review, ElevenLabs IVC)
 

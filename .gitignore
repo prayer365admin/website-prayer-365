@@ -22,6 +22,7 @@ package.lock.json
 .DS_Store
 *.pem
 
+
 # debug
 npm-debug.log*
 bun-debug.log*
@@ -31,6 +32,8 @@ bun-error.log*
 .env*.local
 .env.test
 .env
+
+.vitest
 
 .omp
 

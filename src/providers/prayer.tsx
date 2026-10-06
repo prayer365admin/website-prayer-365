@@ -91,14 +91,24 @@ export const GET_VERSION = async ({
   prayerId: string
   versionId: string
 }): Promise<{
-  prayer: { id: string; version: number; current_version_id: string | null }
+  prayer: {
+    id: string
+    version: number
+    current_version_id: string | null
+    published_version_id: string | null
+  }
   version: VersionRow
 } | null> => {
   const ids = toIds(churchIds)
   if (ids.length === 0) return null
   const prayer = await db.prayer.findFirst({
     where: { id: prayerId, church_id: { in: ids } },
-    select: { id: true, version: true, current_version_id: true },
+    select: {
+      id: true,
+      version: true,
+      current_version_id: true,
+      published_version_id: true,
+    },
   })
   if (!prayer) return null
   const version = await db.prayerVersion.findFirst({
@@ -190,9 +200,15 @@ export const LIST_PRAYERS = async ({
     idFilter = Array.from(new Set(matched.map((m) => m.prayer_id)))
     if (idFilter.length === 0) return { result: [], total: 0 }
   }
+  const now = new Date()
   const where: Prisma.PrayerWhereInput = {
     church_id: { in: ids },
     ...(idFilter ? { id: { in: idFilter } } : {}),
+    ...(query.status === 'archive'
+      ? { published_at: { not: null, lte: now } }
+      : query.status === 'current'
+        ? { OR: [{ published_at: null }, { published_at: { gt: now } }] }
+        : {}),
   }
   const orderByMap: Record<string, Prisma.PrayerOrderByWithRelationInput[]> = {
     created_at: [{ created_at: query.order_direction }, { id: 'asc' }],
@@ -592,5 +608,137 @@ export const PUBLISH_PRAYER = async ({
         })
       : null
     return mapPrayer(updated, current)
+  })
+}
+
+export const GET_PRAYER_FOR_PUBLISH_JOB = async ({ prayerId }: { prayerId: string }) =>
+  db.prayer.findUnique({
+    where: { id: prayerId },
+    select: {
+      id: true,
+      church_id: true,
+      version: true,
+      published_version_id: true,
+      published_at: true,
+      scheduled_version_id: true,
+      scheduled_at: true,
+      church: { select: { id: true, status: true } },
+    },
+  })
+
+export const GET_VERSION_APPROVAL = async ({ prayerVersionId }: { prayerVersionId: string }) =>
+  db.prayerVersion.findUnique({
+    where: { id: prayerVersionId },
+    select: { id: true, approved_at: true },
+  })
+
+export const PUBLISH_PRAYER_BY_JOB = async ({
+  prayerId,
+  prayerVersionId,
+  churchId,
+  expectedVersion,
+  requestId,
+}: {
+  prayerId: string
+  prayerVersionId: string
+  churchId: string
+  expectedVersion: number
+  requestId: string
+}): Promise<{ count: number }> =>
+  db.$transaction(async (tx) => {
+    const now = new Date()
+    const bumped = await tx.prayer.updateMany({
+      where: { id: prayerId, church_id: churchId, version: expectedVersion },
+      data: {
+        version: { increment: 1 },
+        published_version_id: prayerVersionId,
+        published_at: now,
+        scheduled_version_id: null,
+        scheduled_at: null,
+        updated_at: now,
+      },
+    })
+    if (bumped.count === 0) return { count: 0 }
+    await tx.auditLog.create({
+      data: auditPayload({
+        actorId: null,
+        churchId,
+        action: 'prayer.publish.job',
+        resourceType: 'prayer',
+        resourceId: prayerId,
+        outcome: 'success',
+        requestId,
+      }),
+    })
+    return { count: 1 }
+  })
+
+export const SCAN_DUE_SCHEDULED_PRAYERS = async ({
+  now = new Date(),
+  limit = 20,
+}: { now?: Date; limit?: number } = {}): Promise<
+  { id: string; church_id: string; scheduled_version_id: string; scheduled_at: Date }[]
+> => {
+  const rows = await db.prayer.findMany({
+    where: {
+      scheduled_at: { lte: now },
+      scheduled_version_id: { not: null },
+    },
+    take: limit,
+    orderBy: { scheduled_at: 'asc' },
+    select: {
+      id: true,
+      church_id: true,
+      scheduled_version_id: true,
+      published_version_id: true,
+      scheduled_at: true,
+    },
+  })
+  return rows
+    .filter((r) => r.published_version_id !== r.scheduled_version_id)
+    .map(({ published_version_id: _, ...rest }) => rest) as {
+    id: string
+    church_id: string
+    scheduled_version_id: string
+    scheduled_at: Date
+  }[]
+}
+
+export const ENQUEUE_DUE_PRAYER_PUBLISH = async ({
+  prayerId,
+  prayerVersionId,
+  churchId,
+  availableAt,
+}: {
+  prayerId: string
+  prayerVersionId: string
+  churchId: string
+  availableAt: Date
+}) => {
+  const dedupeKey = `prayer.publish:${prayerId}:${prayerVersionId}`
+  await db.outboxJob.upsert({
+    where: { dedupe_key: dedupeKey },
+    create: {
+      kind: 'prayer.publish',
+      dedupe_key: dedupeKey,
+      resource_id: prayerId,
+      payload: { prayerVersionId, churchId },
+      available_at: availableAt,
+    },
+    update: {},
+  })
+  // A previous job for this prayer+version may already be terminal (it failed, then
+  // staff fixed the cause and re-scheduled). Reviving it is required, otherwise the
+  // schedule silently never fires. The publish job skips a version that already is
+  // the published one, so a revived SUCCEEDED row cannot double-publish.
+  await db.outboxJob.updateMany({
+    where: { dedupe_key: dedupeKey, state: { in: ['SUCCEEDED', 'FAILED'] } },
+    data: {
+      state: 'PENDING',
+      attempts: 0,
+      available_at: availableAt,
+      last_error_code: null,
+      lease_until: null,
+    },
   })
 }

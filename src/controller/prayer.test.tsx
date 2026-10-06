@@ -265,6 +265,22 @@ describe('schedulePrayer', () => {
       expect.objectContaining({ expectedVersion: 3, scheduledAt: new Date(sched.scheduledAt) }),
     )
   })
+  it('throws 409 WRONG_SNAPSHOT when not the current version', async () => {
+    vi.mocked(GET_VERSION).mockResolvedValue({
+      ...ctx,
+      prayer: { ...ctx.prayer, current_version_id: 'other' },
+    } as never)
+    await expect(
+      schedulePrayer({
+        userId: 'u1',
+        churchId: 'c1',
+        churchIds: scope,
+        prayerId: PRAYER_ID,
+        input: sched,
+        requestId: 'r',
+      }),
+    ).rejects.toMatchObject({ code: 409, error_code: 'WRONG_SNAPSHOT' })
+  })
 
   it('throws 409 when current text is NOT approved', async () => {
     vi.mocked(GET_VERSION).mockResolvedValue({
@@ -281,6 +297,41 @@ describe('schedulePrayer', () => {
         requestId: 'r',
       }),
     ).rejects.toMatchObject({ code: 409, error_code: 'PRAYER_NOT_APPROVED' })
+  })
+
+  it('throws 409 VERSION_ALREADY_PUBLISHED when that version is already live', async () => {
+    vi.mocked(GET_VERSION).mockResolvedValue({
+      ...ctx,
+      prayer: { ...ctx.prayer, published_version_id: VERSION_ID },
+    } as never)
+    await expect(
+      schedulePrayer({
+        userId: 'u1',
+        churchId: 'c1',
+        churchIds: scope,
+        prayerId: PRAYER_ID,
+        input: sched,
+        requestId: 'r',
+      }),
+    ).rejects.toMatchObject({ code: 409, error_code: 'VERSION_ALREADY_PUBLISHED' })
+    expect(SCHEDULE_PRAYER).not.toHaveBeenCalled()
+  })
+
+  it('still allows clearing the schedule of an already published version', async () => {
+    vi.mocked(GET_VERSION).mockResolvedValue({
+      ...ctx,
+      prayer: { ...ctx.prayer, published_version_id: VERSION_ID },
+    } as never)
+    vi.mocked(SCHEDULE_PRAYER).mockResolvedValue(prayerOut as never)
+    await schedulePrayer({
+      userId: 'u1',
+      churchId: 'c1',
+      churchIds: scope,
+      prayerId: PRAYER_ID,
+      input: { ...sched, scheduledAt: null },
+      requestId: 'r',
+    })
+    expect(SCHEDULE_PRAYER).toHaveBeenCalledWith(expect.objectContaining({ scheduledAt: null }))
   })
 })
 
@@ -304,6 +355,23 @@ describe('publishPrayer', () => {
     expect(withIdempotency).toHaveBeenCalledWith(
       expect.objectContaining({ operation: 'prayer.publish', key: 'k1' }),
     )
+  })
+  it('throws 409 WRONG_SNAPSHOT when not the current version', async () => {
+    vi.mocked(GET_VERSION).mockResolvedValue({
+      ...ctx,
+      prayer: { ...ctx.prayer, current_version_id: 'other' },
+    } as never)
+    await expect(
+      publishPrayer({
+        userId: 'u1',
+        churchId: 'c1',
+        churchIds: scope,
+        prayerId: PRAYER_ID,
+        input: action,
+        idempotencyKey: 'k1',
+        requestId: 'r',
+      }),
+    ).rejects.toMatchObject({ code: 409, error_code: 'WRONG_SNAPSHOT' })
   })
 
   it('throws 409 when the current text is not approved (unapproved cannot publish)', async () => {

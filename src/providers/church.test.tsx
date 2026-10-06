@@ -1,6 +1,11 @@
 // @vitest-environment node
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { GET_CHURCH_VERSION, UPDATE_CHURCH_PROFILE, GET_CHURCH_OVERVIEW } from './church'
+import {
+  GET_CHURCH_VERSION,
+  UPDATE_CHURCH_PROFILE,
+  GET_CHURCH_OVERVIEW,
+  GET_CHURCH_PROFILE,
+} from './church'
 import { Prisma } from '@prisma/client'
 
 const { db, tx } = vi.hoisted(() => {
@@ -45,6 +50,43 @@ describe('Church Provider', () => {
     vi.resetAllMocks()
   })
 
+  describe('GET_CHURCH_PROFILE', () => {
+    it('filters out disabled languages from the church profile', async () => {
+      db.church.findFirst.mockResolvedValue({
+        id: 'c1',
+        name: 'Test Church',
+        status: 'APPROVED',
+        timezone: 'UTC',
+        description: null,
+        denomination: null,
+        address: null,
+        latitude: null,
+        longitude: null,
+        contacts: null,
+        website: null,
+        social_links: null,
+        accessibility: null,
+        cover_asset_id: null,
+        version: 1,
+        churchLanguages: [{ language_code: 'en' }],
+      })
+
+      await GET_CHURCH_PROFILE({ churchId: 'c1', churchIds: new Set(['c1']) })
+
+      expect(db.church.findFirst).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { AND: [{ id: 'c1' }, { id: { in: ['c1'] } }] },
+          include: expect.objectContaining({
+            churchLanguages: expect.objectContaining({
+              where: { language: { enabled: true } },
+              select: { language_code: true },
+            }),
+          }),
+        }),
+      )
+    })
+  })
+
   describe('UPDATE_CHURCH_PROFILE', () => {
     const payload: Prisma.ChurchUncheckedUpdateInput = { name: 'New Name' }
 
@@ -68,7 +110,7 @@ describe('Church Provider', () => {
       expect(tx.auditLog.create).not.toHaveBeenCalled()
     })
 
-    it('bumps version, replaces languages, audits, and returns the mapped profile', async () => {
+    it('bumps version, replaces languages, audits, and returns the mapped profile with filtered languages', async () => {
       tx.church.updateMany.mockResolvedValueOnce({ count: 1 })
       tx.church.findUnique.mockResolvedValueOnce({
         id: 'c1',
@@ -117,6 +159,18 @@ describe('Church Provider', () => {
           action: 'church.profile.update',
         }),
       })
+
+      expect(tx.church.findUnique).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { id: 'c1' },
+          include: expect.objectContaining({
+            churchLanguages: expect.objectContaining({
+              where: { language: { enabled: true } },
+              select: { language_code: true },
+            }),
+          }),
+        }),
+      )
 
       expect(result.coordinates).toEqual({ latitude: 1, longitude: 2 })
       expect(result.languageCodes).toEqual(['en'])

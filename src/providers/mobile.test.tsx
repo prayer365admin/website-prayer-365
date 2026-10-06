@@ -19,10 +19,11 @@ vi.mock('@/utils/db-connection', () => ({ db }))
 import {
   churchLocalDate,
   CREATE_CHECKIN,
+  UPDATE_ME_PROFILE,
   GET_PUBLIC_CHURCH,
+  GET_PUBLISHED_PRAYER,
   LIST_PUBLIC_EVENTS,
   LIST_PUBLISHED_PRAYERS,
-  UPDATE_ME_PROFILE,
 } from './mobile'
 
 beforeEach(() => vi.clearAllMocks())
@@ -208,6 +209,98 @@ describe('GET_PUBLIC_CHURCH — admin profile reflected in mobile contract', () 
     db.church.findFirst.mockResolvedValueOnce(null)
     const result = await GET_PUBLIC_CHURCH({ churchId: 'c1' })
     expect(result).toBeNull()
+  })
+})
+
+describe('mapPublishedPrayer (via GET_PUBLISHED_PRAYER)', () => {
+  it('returns audio: null when audio snapshot is READY but not APPROVED', async () => {
+    db.prayer.findFirst.mockResolvedValueOnce({
+      id: 'p1',
+      church_id: 'c1',
+      published_at: new Date(),
+      published_version_id: 'v1',
+    })
+    db.prayerVersion.findFirst.mockResolvedValueOnce({
+      id: 'v1',
+      title: 'Prayer',
+      body: 'Amen',
+      language_code: 'en',
+      selected_audio: {
+        id: 'a1',
+        status: 'READY',
+        asset: { id: 'asset1', object_key: 'media/asset1' },
+      },
+      pastor: {
+        id: 'pa1',
+        display_name: 'Pastor',
+      },
+    })
+
+    const result = await GET_PUBLISHED_PRAYER({ prayerId: 'p1' })
+    expect(result).not.toBeNull()
+    expect(result?.audio).toBeNull()
+  })
+
+  it('returns audio: null when audio snapshot is APPROVED but lacks asset_id', async () => {
+    db.prayer.findFirst.mockResolvedValueOnce({
+      id: 'p1',
+      church_id: 'c1',
+      published_at: new Date(),
+      published_version_id: 'v1',
+    })
+    db.prayerVersion.findFirst.mockResolvedValueOnce({
+      id: 'v1',
+      title: 'Prayer',
+      body: 'Amen',
+      language_code: 'en',
+      selected_audio: {
+        id: 'a1',
+        status: 'APPROVED',
+        asset: null,
+      },
+      pastor: {
+        id: 'pa1',
+        display_name: 'Pastor',
+      },
+    })
+
+    const result = await GET_PUBLISHED_PRAYER({ prayerId: 'p1' })
+    expect(result).not.toBeNull()
+    expect(result?.audio).toBeNull()
+  })
+
+  it('returns audio details when audio snapshot is APPROVED and has asset_id', async () => {
+    db.prayer.findFirst.mockResolvedValueOnce({
+      id: 'p1',
+      church_id: 'c1',
+      published_at: new Date(),
+      published_version_id: 'v1',
+    })
+    db.prayerVersion.findFirst.mockResolvedValueOnce({
+      id: 'v1',
+      title: 'Prayer',
+      body: 'Amen',
+      language_code: 'en',
+      selected_audio: {
+        id: 'a1',
+        status: 'APPROVED',
+        asset: { id: 'asset1', object_key: 'media/asset1' },
+        approved_at: new Date('2026-01-01T00:00:00Z'),
+      },
+      pastor: {
+        id: 'pa1',
+        display_name: 'Pastor',
+      },
+    })
+
+    const result = await GET_PUBLISHED_PRAYER({ prayerId: 'p1' })
+    expect(result).not.toBeNull()
+    expect(result?.audio).toEqual({
+      prayerAudioId: 'a1',
+      assetId: 'asset1',
+      assetKey: 'media/asset1',
+      approvedAt: '2026-01-01T00:00:00.000Z',
+    })
   })
 })
 

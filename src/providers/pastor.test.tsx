@@ -1,10 +1,16 @@
 // @vitest-environment node
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { GET_CHURCH_PASTORS, UPDATE_PASTOR } from './pastor'
 
-const db = vi.hoisted(() => ({}))
+const { db } = vi.hoisted(() => {
+  return {
+    db: {
+      churchPastor: { findMany: vi.fn() },
+    },
+  }
+})
+
 vi.mock('@/utils/db-connection', () => ({ db }))
-
-import { UPDATE_PASTOR } from './pastor'
 
 const tx = {
   pastor: {
@@ -15,6 +21,90 @@ const tx = {
 
 describe('Pastor Provider', () => {
   beforeEach(() => vi.clearAllMocks())
+
+  describe('GET_CHURCH_PASTORS', () => {
+    it('maps voiceReady: true and activeVoiceProfileId when fully ready', async () => {
+      db.churchPastor.findMany.mockResolvedValueOnce([
+        {
+          pastor_id: 'p1',
+          pastoral_role: 'Lead',
+          image_asset_id: null,
+          active_voice_profile_id: 'vo1',
+          pastor: { name: 'Bob', introduction: null },
+          active_voice_profile: {
+            review_state: 'APPROVED',
+            registration_state: 'READY',
+            consent: null,
+          },
+        },
+      ])
+
+      const res = await GET_CHURCH_PASTORS({ churchIds: new Set(['c1']) })
+      expect(res).toHaveLength(1)
+      expect(res[0].voiceReady).toBe(true)
+      expect(res[0].activeVoiceProfileId).toBe('vo1')
+
+      expect(db.churchPastor.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          include: expect.objectContaining({
+            active_voice_profile: {
+              select: {
+                review_state: true,
+                registration_state: true,
+                consent: { select: { revoked_at: true } },
+              },
+            },
+          }),
+        }),
+      )
+    })
+
+    it('maps voiceReady: false when registration is PENDING', async () => {
+      db.churchPastor.findMany.mockResolvedValueOnce([
+        {
+          pastor_id: 'p1',
+          pastoral_role: 'Lead',
+          image_asset_id: null,
+          active_voice_profile_id: 'vo1',
+          pastor: { name: 'Bob', introduction: null },
+          active_voice_profile: {
+            review_state: 'APPROVED',
+            registration_state: 'PENDING',
+            consent: null,
+          },
+        },
+      ])
+
+      const res = await GET_CHURCH_PASTORS({ churchIds: new Set(['c1']) })
+      expect(res[0].voiceReady).toBe(false)
+    })
+
+    it('maps voiceReady: false when consent is revoked', async () => {
+      db.churchPastor.findMany.mockResolvedValueOnce([
+        {
+          pastor_id: 'p1',
+          pastoral_role: 'Lead',
+          image_asset_id: null,
+          active_voice_profile_id: 'vo1',
+          pastor: { name: 'Bob', introduction: null },
+          active_voice_profile: {
+            review_state: 'APPROVED',
+            registration_state: 'READY',
+            consent: { revoked_at: new Date() },
+          },
+        },
+      ])
+
+      const res = await GET_CHURCH_PASTORS({ churchIds: new Set(['c1']) })
+      expect(res[0].voiceReady).toBe(false)
+    })
+
+    it('returns empty array when churchIds is empty, skips fetch', async () => {
+      const res = await GET_CHURCH_PASTORS({ churchIds: new Set() })
+      expect(res).toEqual([])
+      expect(db.churchPastor.findMany).not.toHaveBeenCalled()
+    })
+  })
 
   it('rejects a stale central profile update', async () => {
     tx.pastor.updateMany.mockResolvedValueOnce({ count: 0 })

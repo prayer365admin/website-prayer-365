@@ -203,6 +203,16 @@ describe('getAccess', () => {
     ).rejects.toMatchObject({ code: 403 })
   })
 
+  it('requires prayer_media:read for a GENERATED_AUDIO asset', async () => {
+    vi.mocked(GET_ASSET_BY_ID_AND_CHURCH).mockResolvedValue(
+      asset({ purpose: 'GENERATED_AUDIO', status: 'READY' }) as never,
+    )
+    vi.mocked(requiredScope).mockImplementation(deny)
+    await expect(
+      getAccess({ userId: 'u1', churchId: 'c1', assetId: 'a1', requestId: 'r' }),
+    ).rejects.toMatchObject({ code: 403 })
+  })
+
   it('returns a signed url for a voice sample owned by the caller (own-submission)', async () => {
     vi.mocked(GET_ASSET_VISIBLE_TO_CHURCH).mockResolvedValue(
       asset({ purpose: 'VOICE_SAMPLE', status: 'READY', uploaded_by: 'u1' }) as never,

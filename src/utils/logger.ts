@@ -1,4 +1,5 @@
 import { createLogger, format, Logger, transports } from 'winston'
+import type { TransformableInfo } from 'logform'
 
 /*
  * Vercel-safe logger (SPEC decision A9):
@@ -28,23 +29,38 @@ const REDACT_KEYS = new Set([
   'provider_voice_id',
 ])
 
-/** Pure recursive redactor used by the winston filter; exported for tests. */
-export const redact = (value: unknown): unknown => {
-  if (Array.isArray(value)) return value.map(redact)
+/** A JSON-ish node of a log line's metadata after redaction. */
+type RedactedNode =
+  | string
+  | number
+  | boolean
+  | null
+  | RedactedNode[]
+  | { [key: string]: RedactedNode }
+
+const redactNode = (value: unknown): RedactedNode => {
+  if (Array.isArray(value)) return value.map(redactNode)
   if (value && typeof value === 'object') {
-    const out: Record<string, unknown> = {}
+    const out: Record<string, RedactedNode> = {}
     for (const [k, v] of Object.entries(value)) {
-      out[k] = REDACT_KEYS.has(k.toLowerCase()) ? '[REDACTED]' : redact(v)
+      out[k] = REDACT_KEYS.has(k.toLowerCase()) ? '[REDACTED]' : redactNode(v)
     }
     return out
   }
-  return value
+  return value as RedactedNode
 }
 
-const redactFilter = format((info) => redact(info) as typeof info)
+/**
+ * Pure recursive redactor used by the winston filter; exported for tests.
+ * Callers feed it a winston info object, so the boundary returns the
+ * logform domain type (tests also exercise arrays/primitives).
+ */
+export const redact = (value: unknown): TransformableInfo => redactNode(value) as TransformableInfo
+
+const redactFilter = format((info) => redact(info))
 
 export const logger: Logger = createLogger({
-  level: process.env.LOG_LEVEL ?? 'info',
+  level: process.env.LOG_LEVEL || 'info',
   format: format.combine(redactFilter(), format.timestamp(), format.json()),
   transports: [new transports.Console()],
 })

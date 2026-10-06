@@ -22,7 +22,7 @@ export const CREATE_PENDING_ASSET = ({
   mimeType: string
   byteSize: number
   objectKey: string
-  uploadedBy: string
+  uploadedBy: string | null
 }) =>
   db.mediaAsset.create({
     data: {

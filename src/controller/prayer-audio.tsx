@@ -141,7 +141,10 @@ export const enqueueAudio = async ({
       })
       await CREATE_AUDIO_OUTBOX(tx, {
         kind: 'audio.generate',
-        dedupe_key: `audio.generate:${input.prayerVersionId}:${input.voiceProfileId}`,
+        // Per-audio key: one job per generated audio row. A version+voice pair
+        // key would make any re-generate hit the unique constraint once the
+        // first job reaches a terminal state.
+        dedupe_key: `audio.generate:${audio.id}`,
         resource_id: audio.id,
         payload: {
           prayerVersionId: input.prayerVersionId,

@@ -69,6 +69,7 @@ export const PrayerListQuerySchema = z.object({
   limit: z.coerce.number().int().positive().max(100).default(25),
   order_by: z.enum(['created_at', 'published_at']).default('created_at'),
   order_direction: z.enum(['asc', 'desc']).default('desc'),
+  status: z.enum(['current', 'archive']).optional(),
   search: z.string().trim().max(200).optional(),
 })
 

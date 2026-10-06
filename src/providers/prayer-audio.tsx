@@ -11,8 +11,8 @@ import { GET_VERSION } from '@/providers/prayer'
  * snapshot is approved and that the voice is provider-ready (review APPROVED,
  * registration READY, consent not revoked, belongs to this church + pastor),
  * then inserts PrayerAudio (QUEUED) + an `audio.generate` outbox row. The
- * outbox dedupe_key makes replay safe; withIdempotency makes the caller's key
- * safe.
+ * outbox dedupe_key (per audio row) makes job delivery idempotent;
+ * withIdempotency makes the caller's key safe.
  */
 
 export { GET_VERSION }
@@ -210,3 +210,123 @@ export const APPROVE_AUDIO = async ({
     return mapAudio({ ...(row as NonNullable<typeof row>), prayer_id: prayerId })
   })
 }
+
+// ============================================================================
+// audio.generate worker side (PR-07). The worker is trusted infrastructure —
+// reads are unscoped; every business guard lives in the job controller.
+// ============================================================================
+
+const AUDIO_IN_FLIGHT: ('QUEUED' | 'GENERATING')[] = ['QUEUED', 'GENERATING']
+
+/** Unscoped join used only by the worker: audio + its text version + ready-voice facts. */
+export const GET_AUDIO_FOR_JOB = ({ audioId }: { audioId: string }) =>
+  db.prayerAudio.findUnique({
+    where: { id: audioId },
+    select: {
+      id: true,
+      status: true,
+      provider_request_id: true,
+      verse: {
+        select: {
+          id: true,
+          approved_at: true,
+          text_hash: true,
+          body: true,
+          language_code: true,
+          version_number: true,
+          pastor_id: true,
+          prayer: {
+            select: { id: true, church_id: true, version: true, current_version_id: true },
+          },
+        },
+      },
+      voice_profile: {
+        select: {
+          id: true,
+          church_id: true,
+          provider_voice_id: true,
+          review_state: true,
+          registration_state: true,
+          consent: { select: { revoked_at: true } },
+        },
+      },
+    },
+  })
+
+/** QUEUED|GENERATING → GENERATING (no-op count=0 once another worker finalized). */
+export const SET_AUDIO_GENERATING = ({ audioId }: { audioId: string }) =>
+  db.prayerAudio.updateMany({
+    where: { id: audioId, status: { in: AUDIO_IN_FLIGHT } },
+    data: { status: 'GENERATING' },
+  })
+
+/** Transient failure → back to QUEUED so polling UI still shows "generating"; error code cleared. */
+export const RESET_AUDIO_QUEUED = ({ audioId }: { audioId: string }) =>
+  db.prayerAudio.updateMany({
+    where: { id: audioId, status: { in: AUDIO_IN_FLIGHT } },
+    data: { status: 'QUEUED', error_code: null },
+  })
+
+/** Store READY + asset in one transaction with the audit row. Caller checks `.count`. */
+export const FINALIZE_AUDIO_READY = async ({
+  audioId,
+  churchId,
+  assetId,
+  providerRequestId,
+  requestId,
+}: {
+  audioId: string
+  churchId: string
+  assetId: string
+  providerRequestId: string | null
+  requestId: string
+}) =>
+  db.$transaction(async (tx) => {
+    const done = await tx.prayerAudio.updateMany({
+      where: { id: audioId, status: { in: AUDIO_IN_FLIGHT } },
+      data: { status: 'READY', asset_id: assetId, provider_request_id: providerRequestId },
+    })
+    await tx.auditLog.create({
+      data: auditPayload({
+        actorId: null,
+        churchId,
+        action: 'prayer.audio.generate',
+        resourceType: 'prayer_audio',
+        resourceId: audioId,
+        outcome: 'success',
+        requestId,
+      }),
+    })
+    return done
+  })
+
+/** Permanent failure + audit. Caller checks `.count`. */
+export const FINALIZE_AUDIO_FAILED = async ({
+  audioId,
+  churchId,
+  errorCode,
+  requestId,
+}: {
+  audioId: string
+  churchId: string
+  errorCode: string
+  requestId: string
+}) =>
+  db.$transaction(async (tx) => {
+    const done = await tx.prayerAudio.updateMany({
+      where: { id: audioId, status: { in: AUDIO_IN_FLIGHT } },
+      data: { status: 'FAILED', error_code: errorCode },
+    })
+    await tx.auditLog.create({
+      data: auditPayload({
+        actorId: null,
+        churchId,
+        action: 'prayer.audio.generate',
+        resourceType: 'prayer_audio',
+        resourceId: audioId,
+        outcome: 'failure',
+        requestId,
+      }),
+    })
+    return done
+  })

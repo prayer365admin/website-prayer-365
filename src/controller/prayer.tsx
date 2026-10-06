@@ -71,6 +71,13 @@ const unapproved = () =>
     error_code: 'PRAYER_NOT_APPROVED',
     details: 'The current text must be approved first.',
   })
+const alreadyPublished = () =>
+  new GeneralError({
+    code: 409,
+    error: 'CONFLICT',
+    error_code: 'VERSION_ALREADY_PUBLISHED',
+    details: 'This version is already published. Edit the text to publish a new version.',
+  })
 
 const validatePastorAndLanguage = async ({
   churchIds,
@@ -258,6 +265,11 @@ export const schedulePrayer = async ({
   if (ctx.prayer.version !== input.version) throw stale()
   if (ctx.prayer.current_version_id !== input.prayerVersionId) throw notCurrent()
   if (!ctx.version.approved_at) throw unapproved()
+  // An already-published version can never fire: the due-scan skips rows whose
+  // published pointer still equals the scheduled one, so accepting this would leave
+  // the prayer stuck in "scheduled". Clearing a schedule (scheduledAt null) stays allowed.
+  if (input.scheduledAt && ctx.prayer.published_version_id === input.prayerVersionId)
+    throw alreadyPublished()
   return SCHEDULE_PRAYER({
     churchIds,
     prayerId,

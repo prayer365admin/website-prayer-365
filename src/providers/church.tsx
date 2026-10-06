@@ -54,7 +54,9 @@ export const GET_CHURCH_PROFILE = async ({
   if (ids.length === 0) return null
   const row = await db.church.findFirst({
     where: { AND: [{ id: churchId }, { id: { in: ids } }] },
-    include: { churchLanguages: { select: { language_code: true } } },
+    include: {
+      churchLanguages: { where: { language: { enabled: true } }, select: { language_code: true } },
+    },
   })
   if (!row) return null
   return mapProfile(
@@ -105,7 +107,6 @@ const mapProfile = (
   }
 }
 
-/** Current concurrency version of a church in scope, for stale checks. */
 export const GET_CHURCH_VERSION = async ({
   churchId,
   churchIds,
@@ -214,7 +215,12 @@ export const UPDATE_CHURCH_PROFILE = async ({
 
     const row = await tx.church.findUnique({
       where: { id: churchId },
-      include: { churchLanguages: { select: { language_code: true } } },
+      include: {
+        churchLanguages: {
+          where: { language: { enabled: true } },
+          select: { language_code: true },
+        },
+      },
     })
     return mapProfile(
       row!,

@@ -12,7 +12,6 @@ describe('external provider adapters are idle pending stubs', () => {
   it.each([
     ['ELEVENLABS.registerInstantVoice', () => ELEVENLABS.registerInstantVoice({} as never)],
     ['ELEVENLABS.getVoiceReadiness', () => ELEVENLABS.getVoiceReadiness('voice_1')],
-    ['ELEVENLABS.generateSpeech', () => ELEVENLABS.generateSpeech({} as never)],
     ['STRIPE.createCheckoutSession', () => STRIPE.createCheckoutSession({} as never)],
     ['STRIPE.constructWebhookEvent', () => STRIPE.constructWebhookEvent('{raw}', 'sig')],
   ])('%s throws NotImplementedError, never silently succeeds', async (_name, call) => {

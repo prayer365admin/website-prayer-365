@@ -95,12 +95,30 @@ describe('enqueueAudio', () => {
       expect.anything(),
       expect.objectContaining({
         kind: 'audio.generate',
-        dedupe_key: `audio.generate:${VERSION_ID}:${VOICE_ID}`,
+        dedupe_key: 'audio.generate:a1',
       }),
     )
     expect(withIdempotency).toHaveBeenCalledWith(
       expect.objectContaining({ operation: 'audio.generate', key: 'k1' }),
     )
+  })
+
+  it('throws 409 WRONG_SNAPSHOT when not the current snapshot', async () => {
+    vi.mocked(GET_VERSION).mockResolvedValue({
+      ...ctx,
+      prayer: { ...ctx.prayer, current_version_id: 'other' },
+    } as never)
+    await expect(
+      enqueueAudio({
+        userId: 'u1',
+        churchId: 'c1',
+        churchIds: scope,
+        prayerId: PRAYER_ID,
+        input: { version: 3, prayerVersionId: VERSION_ID, voiceProfileId: VOICE_ID },
+        idempotencyKey: 'k1',
+        requestId: 'r',
+      }),
+    ).rejects.toMatchObject({ code: 409, error_code: 'WRONG_SNAPSHOT' })
   })
 
   it('throws 409 GENERATION_BEFORE_APPROVAL when current text is not approved (generation before approval)', async () => {
@@ -238,5 +256,22 @@ describe('approveAudio', () => {
         requestId: 'r',
       }),
     ).rejects.toMatchObject({ code: 409, error_code: 'WRONG_SNAPSHOT' })
+  })
+  it('throws 409 stale on version mismatch', async () => {
+    vi.mocked(GET_VERSION).mockResolvedValue({
+      ...ctx,
+      prayer: { ...ctx.prayer, version: 9 },
+    } as never)
+    await expect(
+      approveAudio({
+        userId: 'u1',
+        churchId: 'c1',
+        churchIds: scope,
+        prayerId: PRAYER_ID,
+        audioId: 'a1',
+        input: action,
+        requestId: 'r',
+      }),
+    ).rejects.toMatchObject({ code: 409, error_code: 'STALE_VERSION' })
   })
 })

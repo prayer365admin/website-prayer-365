@@ -48,3 +48,24 @@ export const UPSERT_NOTIFICATION_RULE = async (
       version: { increment: 1 },
     },
   })
+
+export const ENQUEUE_NOTIFICATION = async ({
+  type,
+  resourceId,
+  churchId,
+  dedupeKeySuffix,
+}: {
+  type: string
+  resourceId: string
+  churchId: string
+  dedupeKeySuffix: string
+}) =>
+  db.outboxJob.create({
+    data: {
+      kind: 'notification.send',
+      dedupe_key: `notification.send:${type}:${dedupeKeySuffix}`,
+      resource_id: resourceId,
+      payload: { type, churchId },
+      available_at: new Date(),
+    },
+  })

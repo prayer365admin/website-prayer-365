@@ -281,12 +281,18 @@ const mapChRow = (r: {
   pastor_id: string
   pastoral_role: string
   image_asset_id: string | null
+  active_voice_profile_id: string | null
   pastor: {
     name: string
     introduction: string | null
     image_asset_id: string | null
     user: { id: string; name: string; email: string } | null
   }
+  active_voice_profile: {
+    review_state: string
+    registration_state: string
+    consent: { revoked_at: Date | null } | null
+  } | null
 }): ChurchPastorSummary => ({
   id: r.pastor_id,
   name: r.pastor.name,
@@ -294,6 +300,13 @@ const mapChRow = (r: {
   user: r.pastor.user,
   pastoralRole: r.pastoral_role,
   imageAssetId: r.image_asset_id,
+  activeVoiceProfileId: r.active_voice_profile_id,
+  voiceReady: !!(
+    r.active_voice_profile &&
+    r.active_voice_profile.review_state === 'APPROVED' &&
+    r.active_voice_profile.registration_state === 'READY' &&
+    !r.active_voice_profile.consent?.revoked_at
+  ),
   profileImageAssetId: r.pastor.image_asset_id,
   resolvedImageAssetId: r.image_asset_id ?? r.pastor.image_asset_id,
 })
@@ -305,6 +318,13 @@ const churchPastorInclude = {
       introduction: true,
       image_asset_id: true,
       user: { select: { id: true, name: true, email: true } },
+    },
+  },
+  active_voice_profile: {
+    select: {
+      review_state: true,
+      registration_state: true,
+      consent: { select: { revoked_at: true } },
     },
   },
 } as const
