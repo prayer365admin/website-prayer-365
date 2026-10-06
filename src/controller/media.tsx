@@ -3,7 +3,12 @@ import { requiredScope } from '@/utils/required-scope'
 import { GeneralError } from '@/utils/general-error'
 import { db } from '@/utils/db-connection'
 import { auditPayload } from '@/utils/audit'
-import { CREATE_PENDING_ASSET, GET_ASSET_BY_ID_AND_CHURCH, MARK_READY } from '@/providers/media'
+import {
+  CREATE_PENDING_ASSET,
+  GET_ASSET_BY_ID_AND_CHURCH,
+  GET_ASSET_VISIBLE_TO_CHURCH,
+  MARK_READY,
+} from '@/providers/media'
 import { S3_HEAD_OBJECT, S3_GET_SIGNED_URL, S3_PRESIGN_UPLOAD } from '@/providers/s3'
 import {
   MediaAccessOutput,
@@ -238,7 +243,7 @@ export const getAccess = async ({
   assetId: string
   requestId: string
 }): Promise<MediaAccessOutput> => {
-  const asset = await GET_ASSET_BY_ID_AND_CHURCH({ assetId, churchId })
+  const asset = await GET_ASSET_VISIBLE_TO_CHURCH({ assetId, churchId })
   if (!asset) throw notFound()
   const purpose = asset.purpose as MediaPurpose
 

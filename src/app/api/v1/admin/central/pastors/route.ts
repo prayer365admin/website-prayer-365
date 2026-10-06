@@ -35,12 +35,24 @@ export async function GET(req: NextRequest) {
       subject: 'prayer_pastor',
       action: 'read',
     })
-    const q = parseListQuery(req.nextUrl.searchParams, { allowOrderBy: ['name'] })
+    const q = parseListQuery(req.nextUrl.searchParams, {
+      allowOrderBy: ['name', 'introduction', 'staff_account', 'churches'],
+      defaults: ['name'],
+    })
     const data = await listPastors({
       page: q.page,
       limit: q.limit,
       order_direction: q.order_direction,
+      order_by: q.order_by as 'name' | 'introduction' | 'staff_account' | 'churches',
       search: q.search,
+      assignment: req.nextUrl.searchParams.get('assignment') as
+        | 'assigned'
+        | 'unassigned'
+        | undefined,
+      staff_assignment: req.nextUrl.searchParams.get('staff_assignment') as
+        | 'assigned'
+        | 'unassigned'
+        | undefined,
     })
     return list(data.result, data.total, q.page, q.limit, 'Successfully fetched pastors')
   } catch (e) {

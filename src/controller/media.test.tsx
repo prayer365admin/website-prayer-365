@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 vi.mock('@/providers/media', () => ({
   CREATE_PENDING_ASSET: vi.fn(),
   GET_ASSET_BY_ID_AND_CHURCH: vi.fn(),
+  GET_ASSET_VISIBLE_TO_CHURCH: vi.fn(),
   MARK_READY: vi.fn(),
 }))
 vi.mock('@/providers/s3', () => ({
@@ -14,7 +15,12 @@ vi.mock('@/utils/required-scope', () => ({ requiredScope: vi.fn() }))
 vi.mock('@/utils/db-connection', () => ({ db: { auditLog: { create: vi.fn() } } }))
 
 import { requiredScope } from '@/utils/required-scope'
-import { GET_ASSET_BY_ID_AND_CHURCH, CREATE_PENDING_ASSET, MARK_READY } from '@/providers/media'
+import {
+  GET_ASSET_BY_ID_AND_CHURCH,
+  GET_ASSET_VISIBLE_TO_CHURCH,
+  CREATE_PENDING_ASSET,
+  MARK_READY,
+} from '@/providers/media'
 import { S3_PRESIGN_UPLOAD, S3_HEAD_OBJECT, S3_GET_SIGNED_URL } from '@/providers/s3'
 import { createUpload, completeUpload, getAccess } from './media'
 
@@ -176,21 +182,21 @@ describe('completeUpload', () => {
 
 describe('getAccess', () => {
   it('hides a non-READY (unapproved) asset', async () => {
-    vi.mocked(GET_ASSET_BY_ID_AND_CHURCH).mockResolvedValue(asset({ status: 'PENDING' }) as never)
+    vi.mocked(GET_ASSET_VISIBLE_TO_CHURCH).mockResolvedValue(asset({ status: 'PENDING' }) as never)
     await expect(
       getAccess({ userId: 'u1', churchId: 'c1', assetId: 'a1', requestId: 'r' }),
     ).rejects.toMatchObject({ code: 403, error_code: 'ASSET_NOT_READY' })
   })
 
   it('returns 404 for an out-of-scope / other-church asset', async () => {
-    vi.mocked(GET_ASSET_BY_ID_AND_CHURCH).mockResolvedValue(null as never)
+    vi.mocked(GET_ASSET_VISIBLE_TO_CHURCH).mockResolvedValue(null as never)
     await expect(
       getAccess({ userId: 'u1', churchId: 'c1', assetId: 'a9', requestId: 'r' }),
     ).rejects.toMatchObject({ code: 404 })
   })
 
   it('requires prayer_media:read for an IMAGE asset', async () => {
-    vi.mocked(GET_ASSET_BY_ID_AND_CHURCH).mockResolvedValue(asset({ status: 'READY' }) as never)
+    vi.mocked(GET_ASSET_VISIBLE_TO_CHURCH).mockResolvedValue(asset({ status: 'READY' }) as never)
     vi.mocked(requiredScope).mockImplementation(deny)
     await expect(
       getAccess({ userId: 'u1', churchId: 'c1', assetId: 'a1', requestId: 'r' }),
@@ -198,7 +204,7 @@ describe('getAccess', () => {
   })
 
   it('returns a signed url for a voice sample owned by the caller (own-submission)', async () => {
-    vi.mocked(GET_ASSET_BY_ID_AND_CHURCH).mockResolvedValue(
+    vi.mocked(GET_ASSET_VISIBLE_TO_CHURCH).mockResolvedValue(
       asset({ purpose: 'VOICE_SAMPLE', status: 'READY', uploaded_by: 'u1' }) as never,
     )
     // voice_profile denied, voice_submission granted (own submission).
@@ -212,7 +218,7 @@ describe('getAccess', () => {
   })
 
   it('returns a signed url for a voice sample to a voice reviewer', async () => {
-    vi.mocked(GET_ASSET_BY_ID_AND_CHURCH).mockResolvedValue(
+    vi.mocked(GET_ASSET_VISIBLE_TO_CHURCH).mockResolvedValue(
       asset({ purpose: 'CONSENT_EVIDENCE', status: 'READY', uploaded_by: 'u2' }) as never,
     )
     // voice_profile granted → reviewer path.
@@ -226,7 +232,7 @@ describe('getAccess', () => {
   })
 
   it('denies a voice sample to a caller who is neither reviewer nor owner', async () => {
-    vi.mocked(GET_ASSET_BY_ID_AND_CHURCH).mockResolvedValue(
+    vi.mocked(GET_ASSET_VISIBLE_TO_CHURCH).mockResolvedValue(
       asset({ purpose: 'VOICE_SAMPLE', status: 'READY', uploaded_by: 'u2' }) as never,
     )
     vi.mocked(requiredScope).mockImplementation(deny)

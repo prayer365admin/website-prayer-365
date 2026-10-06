@@ -29,12 +29,16 @@ export default function UploadBox(props: {
   width?: string
   height?: string
   rules?: Rule[]
-  upload: { url: string | null; assetId?: string | null }
-  setUpload: Dispatch<SetStateAction<{ url: string | null; assetId?: string | null }>>
+  upload: { url: string | null; assetId?: string | null; file?: File | null }
+  setUpload: Dispatch<
+    SetStateAction<{ url: string | null; assetId?: string | null; file?: File | null }>
+  >
   onUploadData?: (url: string) => Promise<void>
   /** Entity context for the global upload API (SPEC §10.4). Pass when available. */
   churchId?: string
   purpose?: 'IMAGE' | 'VOICE_SAMPLE' | 'CONSENT_EVIDENCE'
+  disabled?: boolean
+  deferUpload?: boolean
 }) {
   const {
     formName = 'file',
@@ -48,12 +52,21 @@ export default function UploadBox(props: {
     onUploadData,
     churchId = '',
     purpose = 'IMAGE',
+    disabled = false,
+    deferUpload = false,
   } = props
   const form = Form.useFormInstance()
   const { notification } = App.useApp()
   const [fileList, setFileList] = useState<UploadProps['fileList']>([])
   const { loading: uploadLoading, onUpload } = useMediaUpload({ churchId, purpose })
   const handleUpload: UploadProps['customRequest'] = async ({ file, onSuccess }) => {
+    if (deferUpload) {
+      const localFile = file as FileType
+      const localUrl = URL.createObjectURL(localFile)
+      setUpload({ url: localUrl, assetId: null, file: localFile })
+      onSuccess?.('deferred')
+      return
+    }
     if (!churchId) {
       notification.error({
         message: 'Upload Failed',
@@ -65,7 +78,7 @@ export default function UploadBox(props: {
     if (result) {
       const url = result.url
       if (url) {
-        setUpload({ url: url, assetId: result.assetId })
+        setUpload({ url: url, assetId: result.assetId, file: null })
         if (onSuccess) {
           onSuccess(result.assetId)
         }
@@ -141,6 +154,7 @@ export default function UploadBox(props: {
           style={{ width: width, height: height }}
           name="file"
           showUploadList={false}
+          disabled={disabled}
           customRequest={handleUpload}
           fileList={fileList}
           onChange={({ fileList, file }) => {
@@ -201,6 +215,7 @@ export default function UploadBox(props: {
               type="button"
               className={`border border-dashed border-gray-300 rounded-lg p-4 flex flex-col items-center justify-center bg-gray-50`}
               style={{ height: height, width: width }}
+              disabled={disabled}
             >
               {uploadLoading ? <LoadingOutlined /> : <PlusOutlined />}
               <div style={{ marginTop: 8 }}>Upload</div>

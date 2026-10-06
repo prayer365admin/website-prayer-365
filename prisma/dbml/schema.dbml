@@ -203,10 +203,16 @@ Table pastors {
   user user
   name String [not null]
   introduction String
+  image_asset_id String
+  image_asset media_assets
+  version Int [not null, default: 1]
   churchPastors church_pastors [not null]
   prayerVersions prayer_versions [not null]
   voiceProfiles voice_profiles [not null]
   consents consents [not null]
+  created_at DateTime [default: `now()`, not null]
+  updated_at DateTime
+  deleted_at DateTime
 }
 
 Table church_pastors {
@@ -362,6 +368,7 @@ Table media_assets {
   uploaded_by String
   uploader user
   coverOf churches [not null]
+  pastorProfiles pastors [not null]
   pastorImages church_pastors [not null]
   voiceSamples voice_profiles [not null]
   consentEvidence consents [not null]
@@ -758,6 +765,8 @@ Ref: user_churches.user_id > user.id [delete: Cascade]
 Ref: user_churches.church_id > churches.id [delete: Cascade]
 
 Ref: pastors.user_id > user.id [delete: Set Null]
+
+Ref: pastors.image_asset_id > media_assets.id [delete: Set Null]
 
 Ref: church_pastors.church_id > churches.id
 

@@ -40,8 +40,7 @@ export const PRAYER_CATALOGUE: PrayerGrant[] = [
   // Church & organization
   ...ANY_CRUD('prayer_church', 'read,create,update'), // no delete
   { subject: 'prayer_church_lifecycle', actions: 'read,update', scope: 'ANY' },
-  ...ANY_CRUD('prayer_pastor', 'read,create,update'),
-  ...ANY_CRUD('prayer_church_pastor', 'read,create,update'),
+  ...ANY_CRUD('prayer_pastor'),
   ...ANY_CRUD('prayer_service_time', 'read,create,update,delete'),
   { subject: 'prayer_org_node', actions: 'read,create,update', scope: 'ANY' },
 
@@ -102,7 +101,7 @@ export const PRAYER_ROLES: PrayerRole[] = [
     grants: [
       { subject: 'prayer_church', actions: 'read,create,update', scope: 'ANY' },
       { subject: 'prayer_church_lifecycle', actions: 'update', scope: 'ANY' },
-      { subject: 'prayer_pastor', actions: 'read,create,update', scope: 'ANY' },
+      { subject: 'prayer_pastor', actions: 'read,create,update,delete', scope: 'ANY' },
       { subject: 'prayer_prayer', actions: 'read,create,update', scope: 'ANY' },
       { subject: 'prayer_prayer_review', actions: 'update', scope: 'ANY' },
       { subject: 'prayer_prayer_publication', actions: 'update', scope: 'ANY' },
@@ -157,6 +156,7 @@ export const PRAYER_ROLES: PrayerRole[] = [
     name: 'prayer_church_admin',
     grants: [
       { subject: 'prayer_church', actions: 'read,update', scope: 'ANY' },
+      { subject: 'prayer_pastor', actions: 'read,update', scope: 'ANY' },
       { subject: 'prayer_prayer', actions: 'read,create,update', scope: 'ANY' },
       { subject: 'prayer_prayer_publication', actions: 'update', scope: 'ANY' },
       { subject: 'prayer_voice_generation', actions: 'create', scope: 'ANY' },

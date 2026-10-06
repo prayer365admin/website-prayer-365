@@ -10,13 +10,19 @@ export default function ActionsTable({
   permissionSubject,
   onEdit,
   onDelete,
+  extraActions,
+  hideDelete = false,
+  hideEdit = false,
 }: {
   entity: string
   details: string
   actions: string
   permissionSubject?: string
-  onEdit: () => void
-  onDelete: () => void
+  onEdit?: () => void
+  onDelete?: () => void
+  extraActions?: React.ReactNode
+  hideDelete?: boolean
+  hideEdit?: boolean
 }) {
   const permission = useAccessPermission()
   const deleteModal = useConfirmModal({
@@ -24,29 +30,36 @@ export default function ActionsTable({
     actions: actions,
     details: details,
     onOk: () => {
-      onDelete()
+      onDelete?.()
     },
   })
-  const editPermission = permissionSubject ? permission.updateAny(permissionSubject).granted : true
+  const editPermission = permissionSubject
+    ? (permission.updateAny(permissionSubject).granted ||
+        permission.updateOwn(permissionSubject).granted) &&
+      !hideEdit
+    : true
   const deletePermission = permissionSubject
-    ? permission.deleteAny(permissionSubject).granted
+    ? (permission.deleteAny(permissionSubject).granted ||
+        permission.deleteOwn(permissionSubject).granted) &&
+      !hideDelete
     : true
 
   return (
     <>
-      <div className="flex flex-wrap gap-4">
-        {editPermission && (
+      <div className="flex flex-wrap gap-4 justify-center">
+        {extraActions}
+        {editPermission && onEdit && (
           <div className="cursor-pointer hover:opacity-50 transition-all duration-300">
             <Tooltip title="Edit">
               <EditFilled
                 onClick={() => {
-                  onEdit()
+                  onEdit?.()
                 }}
               />
             </Tooltip>
           </div>
         )}
-        {deletePermission && (
+        {deletePermission && onDelete && (
           <div className="cursor-pointer hover:opacity-50 transition-all duration-300">
             <Tooltip title="Delete">
               <DeleteFilled

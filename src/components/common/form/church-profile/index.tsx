@@ -1,16 +1,31 @@
 'use client'
 
-import { Button, Form, Input, Select, Tabs, Typography, Row, Col, Modal } from 'antd'
+import {
+  Alert,
+  Button,
+  Col,
+  Empty,
+  Form,
+  Input,
+  Modal,
+  Row,
+  Select,
+  Skeleton,
+  Tabs,
+  Typography,
+} from 'antd'
 import { ServiceTimeEntry, ServiceTimeScheduleInput } from '@/models/service-time'
 import { ChurchProfileInput, ChurchProfileOutput } from '@/models/church'
 import FormChurchServiceTimes from '../church-service-times'
 import dayjs from 'dayjs'
 import customParseFormat from 'dayjs/plugin/customParseFormat'
-import axios from 'axios'
-import { useEffect, useState, useCallback } from 'react'
+import { useState } from 'react'
 import UploadBox from '@/components/common/upload-box'
-import Image from 'next/image'
-import { useMainNotification } from '@/hooks/ui/notification'
+import PastorImage from '@/components/common/pastor-image'
+import { useChurchPastorAssignments } from '@/hooks/data/central'
+import { useMediaUpload } from '@/hooks/data/media-upload'
+import { ChurchPastorSummary } from '@/models/pastor'
+import { useAccessPermission } from '@/hooks/data/access-permission'
 
 dayjs.extend(customParseFormat)
 
@@ -47,38 +62,6 @@ const toPayload = (
       ...(r.languageCode ? { languageCode: r.languageCode } : {}),
     }))
 
-function PastorListThumbnail({
-  imageAssetId,
-  churchId,
-  name,
-}: {
-  imageAssetId: string
-  churchId: string
-  name: string
-}) {
-  const [src, setSrc] = useState<string | null>(null)
-  useEffect(() => {
-    let isMounted = true
-    axios
-      .get(`/api/v1/uploads/${imageAssetId}/access?churchId=${encodeURIComponent(churchId)}`)
-      .then((res) => {
-        if (isMounted && res.data?.result?.url) setSrc(res.data.result.url)
-      })
-      .catch(() => {})
-    return () => {
-      isMounted = false
-    }
-  }, [imageAssetId, churchId])
-
-  if (!src)
-    return (
-      <div className="w-12 h-12 bg-gray-200 text-gray-500 rounded flex items-center justify-center text-xs">
-        Image
-      </div>
-    )
-  return <Image src={src} width={48} height={48} className="rounded object-cover" alt={name} />
-}
-
 export default function FormChurchProfileTabs({
   initialValues,
   serviceTimes,
@@ -88,16 +71,17 @@ export default function FormChurchProfileTabs({
   onSubmitSchedule,
 }: FormChurchProfileTabsProps) {
   const [form] = Form.useForm<ChurchProfileInput>()
-  const showNotification = useMainNotification()
-  const [pastors, setPastors] = useState<
-    Array<{
-      id: string
-      name: string
-      introduction: string | null
-      pastoralRole: string
-      imageAssetId: string | null
-    }>
-  >([])
+  const {
+    data: pastors = [],
+    fetching: pastorsLoading,
+    updating: isSavingPastor,
+    error: pastorsError,
+    onUpdate: updatePastorAssignment,
+  } = useChurchPastorAssignments({ churchId })
+  const pastorPermission = useAccessPermission()
+  const canEditPastorAssignment =
+    pastorPermission.updateAny('prayer_pastor').granted ||
+    pastorPermission.updateOwn('prayer_pastor').granted
 
   const [coverAsset, setCoverAsset] = useState<{ assetId: string | null; url: string | null }>({
     assetId: initialValues.coverAssetId ?? null,
@@ -106,27 +90,13 @@ export default function FormChurchProfileTabs({
       : null,
   })
 
-  const [isSavingPastor, setIsSavingPastor] = useState(false)
-  const [editingPastor, setEditingPastor] = useState<{
-    id: string
-    name: string
-    pastoralRole: string
-    imageAssetId: string | null
-  } | null>(null)
-
-  const loadPastors = useCallback(async () => {
-    try {
-      const result = await axios.get(`/api/v1/admin/churches/${churchId}/pastors`)
-      setPastors(result.data.result || [])
-    } catch {
-      setPastors([])
-    }
-  }, [churchId])
-
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    loadPastors()
-  }, [loadPastors])
+  const [editingPastor, setEditingPastor] = useState<ChurchPastorSummary | null>(null)
+  const [editingPastorImage, setEditingPastorImage] = useState<{
+    url: string | null
+    assetId?: string | null
+    file?: File | null
+  }>({ url: null, assetId: null })
+  const { onUpload: uploadPastorImage } = useMediaUpload({ churchId, purpose: 'IMAGE' })
 
   const address = (initialValues.address ?? {}) as {
     line1?: string
@@ -344,42 +314,72 @@ export default function FormChurchProfileTabs({
       forceRender: true,
       children: (
         <>
-          <div className="bg-gray-100 p-2 font-semibold mb-2">
-            <Row gutter={16}>
-              <Col span={3}>Photo</Col>
-              <Col span={6}>Pastor name</Col>
-              <Col span={6}>Church role</Col>
-              <Col span={7}>Introduction</Col>
-              <Col span={2}>Action</Col>
-            </Row>
-          </div>
-          <div className="flex flex-col gap-2">
-            {pastors.map((p) => (
-              <Row gutter={16} key={p.id} className="items-center border-b border-gray-100 pb-2">
-                <Col span={3}>
-                  {p.imageAssetId ? (
-                    <PastorListThumbnail
-                      imageAssetId={p.imageAssetId}
-                      churchId={churchId}
-                      name={p.name}
-                    />
-                  ) : (
-                    <div className="w-12 h-12 bg-gray-200 text-gray-500 rounded flex items-center justify-center text-xs">
-                      Image
-                    </div>
-                  )}
-                </Col>
-                <Col span={6}>{p.name}</Col>
-                <Col span={6}>{p.pastoralRole}</Col>
-                <Col span={7}>{p.introduction ?? '—'}</Col>
-                <Col span={2}>
-                  <a onClick={() => setEditingPastor(p)}>Edit</a>
-                </Col>
-              </Row>
-            ))}
-          </div>
+          {pastorsLoading ? (
+            <Skeleton active paragraph={{ rows: 3 }} />
+          ) : pastorsError ? (
+            <Alert
+              type="error"
+              showIcon
+              message="Assigned pastors could not be loaded"
+              description="Refresh the page or try again shortly."
+            />
+          ) : pastors.length === 0 ? (
+            <Empty description="No pastors are assigned to this church." />
+          ) : (
+            <>
+              <div className="bg-gray-100 p-2 font-semibold mb-2">
+                <Row gutter={16}>
+                  <Col span={3}>Photo</Col>
+                  <Col span={6}>Pastor name</Col>
+                  <Col span={6}>Church role</Col>
+                  <Col span={7}>Introduction</Col>
+                  {canEditPastorAssignment && <Col span={2}>Action</Col>}
+                </Row>
+              </div>
+              <div className="flex flex-col gap-2">
+                {pastors.map((p) => (
+                  <Row
+                    gutter={16}
+                    key={p.id}
+                    className="items-center border-b border-gray-100 pb-2"
+                  >
+                    <Col span={3}>
+                      <PastorImage
+                        imageAssetId={p.resolvedImageAssetId}
+                        churchId={churchId}
+                        name={p.name}
+                      />
+                    </Col>
+                    <Col span={6}>{p.name}</Col>
+                    <Col span={6}>{p.pastoralRole}</Col>
+                    <Col span={7}>{p.introduction ?? '—'}</Col>
+                    {canEditPastorAssignment && (
+                      <Col span={2}>
+                        <Button
+                          type="link"
+                          className="p-0"
+                          onClick={() => {
+                            setEditingPastor(p)
+                            setEditingPastorImage({
+                              assetId: p.imageAssetId,
+                              url: p.imageAssetId
+                                ? `/api/v1/uploads/${p.imageAssetId}/access?churchId=${encodeURIComponent(churchId)}`
+                                : null,
+                            })
+                          }}
+                        >
+                          Edit
+                        </Button>
+                      </Col>
+                    )}
+                  </Row>
+                ))}
+              </div>
+            </>
+          )}
           <div className="mt-4 p-4 bg-gray-50 text-gray-500 rounded text-sm">
-            Edit assigned pastor information within granted church permissions.
+            Shared Pastor name, introduction, canonical image, and linked staff identity are managed
+            by Central Pastors. This church can edit only its role and optional image override.
           </div>
         </>
       ),
@@ -428,27 +428,56 @@ export default function FormChurchProfileTabs({
         {editingPastor && (
           <Form
             layout="vertical"
-            initialValues={{ pastoralRole: editingPastor.pastoralRole }}
+            initialValues={{
+              name: editingPastor.name,
+              introduction: editingPastor.introduction,
+              pastoralRole: editingPastor.pastoralRole,
+            }}
             onFinish={async (values) => {
               try {
-                setIsSavingPastor(true)
-                await axios.patch(
-                  `/api/v1/admin/churches/${churchId}/pastors/${editingPastor.id}`,
-                  {
+                let imageAssetId = editingPastorImage.assetId ?? null
+                if (editingPastorImage.file) {
+                  const uploaded = await uploadPastorImage(editingPastorImage.file)
+                  imageAssetId = uploaded?.assetId ?? null
+                }
+                await updatePastorAssignment({
+                  pastorId: editingPastor.id,
+                  payload: {
                     version: initialValues.version,
                     pastoral_role: values.pastoralRole,
-                    image_asset_id: editingPastor.imageAssetId ?? null,
+                    image_asset_id: imageAssetId,
                   },
-                )
-                await loadPastors()
+                })
                 setEditingPastor(null)
               } catch (_e) {
-                showNotification({ type: 'error', entity: 'church pastor', action: 'updated' })
-              } finally {
-                setIsSavingPastor(false)
+                // The data hook keeps the modal open and displays the API error.
               }
             }}
           >
+            <Form.Item name="name" label="Pastor name">
+              <Input disabled />
+            </Form.Item>
+            <Form.Item name="introduction" label="Introduction">
+              <Input.TextArea disabled autoSize={{ minRows: 3, maxRows: 6 }} />
+            </Form.Item>
+            <Form.Item label="Linked staff account">
+              <Input
+                disabled
+                value={
+                  editingPastor.user
+                    ? `${editingPastor.user.name} (${editingPastor.user.email})`
+                    : 'Not linked'
+                }
+              />
+            </Form.Item>
+            <Form.Item label="Canonical pastor image">
+              <PastorImage
+                imageAssetId={editingPastor.profileImageAssetId}
+                churchId={churchId}
+                name={editingPastor.name}
+                size={96}
+              />
+            </Form.Item>
             <Form.Item
               name="pastoralRole"
               label="Church role"
@@ -456,22 +485,16 @@ export default function FormChurchProfileTabs({
             >
               <Input placeholder="Pastor" />
             </Form.Item>
-            <Form.Item label="Pastor image">
+            <Form.Item label="Church image override">
               <UploadBox
                 formName="imageAssetId"
                 churchId={churchId}
                 purpose="IMAGE"
-                upload={{
-                  url: editingPastor.imageAssetId
-                    ? `/api/v1/uploads/${editingPastor.imageAssetId}/access?churchId=${encodeURIComponent(churchId)}`
-                    : null,
-                }}
+                deferUpload
+                upload={editingPastorImage}
                 setUpload={(val) => {
-                  const typedVal = val as { url: string | null; assetId?: string | null }
-                  setEditingPastor({
-                    ...editingPastor,
-                    imageAssetId: typedVal.assetId ?? editingPastor.imageAssetId,
-                  })
+                  const typedVal = typeof val === 'function' ? val(editingPastorImage) : val
+                  setEditingPastorImage(typedVal)
                 }}
               />
             </Form.Item>

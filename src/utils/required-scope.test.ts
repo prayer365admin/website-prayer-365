@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { requiredScope } from './required-scope'
 import { ResolvedUserScope, ScopeRequest } from '@/models/scope'
+import { PRAYER_ROLES } from '../../prisma/seeds/prayer-roles'
 
 const church = { org_node_id: 'node-church-a' }
 void church
@@ -89,6 +90,12 @@ const grant = (
   org_node_id: orgNodeId,
   role: role(roleName, grants),
 })
+
+const seededGrant = (roleName: string, orgNodeId: string) => {
+  const seededRole = PRAYER_ROLES.find(({ name }) => name === roleName)
+  if (!seededRole) throw new Error(`Missing seeded role: ${roleName}`)
+  return grant(roleName, orgNodeId, seededRole.grants)
+}
 
 beforeEach(() => {
   vi.clearAllMocks()
@@ -217,5 +224,62 @@ describe('requiredScope', () => {
     const r = await call({ central: true, subject: 'prayer_church', action: 'read' })
     expect(r.scope.kind).toBe('global')
     expect(r.churchIds.size).toBeGreaterThan(0)
+  })
+
+  it.each(['read', 'create', 'update', 'delete'] as const)(
+    'allows the seeded global admin to %s central pastor profiles',
+    async (action) => {
+      mockScopeData = scopeData({
+        assignments: [seededGrant('prayer_global_admin', GLOBAL.id)],
+      })
+
+      const result = await call({
+        central: true,
+        subject: 'prayer_pastor',
+        action,
+      })
+
+      expect(result.scope.kind).toBe('global')
+      expect(result.churchIds).toEqual(new Set(['church-a', 'church-b']))
+    },
+  )
+
+  it('allows the seeded church admin only within the assigned church', async () => {
+    mockScopeData = scopeData({
+      assignments: [seededGrant('prayer_church_admin', CHURCH_A.id)],
+    })
+
+    await expect(
+      call({ churchId: 'church-a', subject: 'prayer_pastor', action: 'update' }),
+    ).resolves.toMatchObject({ churchIds: new Set(['church-a']) })
+    await expect(
+      call({ churchId: 'church-b', subject: 'prayer_pastor', action: 'update' }),
+    ).rejects.toMatchObject({ code: 403, error_code: 'NOT_ALLOWED' })
+    await expect(
+      call({ central: true, subject: 'prayer_pastor', action: 'read' }),
+    ).rejects.toMatchObject({ code: 403, error_code: 'NOT_ALLOWED' })
+  })
+
+  it('does not derive pastor administration access from a linked identity', async () => {
+    // A Pastor.user_id link is deliberately absent from scope data. With no
+    // active RoleAssignment, the linked user fails closed.
+    mockScopeData = scopeData({ assignments: [], roles: [] })
+
+    await expect(
+      call({ churchId: 'church-a', subject: 'prayer_pastor', action: 'read' }),
+    ).rejects.toMatchObject({ code: 403, error_code: 'NOT_ALLOWED' })
+    await expect(
+      call({ central: true, subject: 'prayer_pastor', action: 'update' }),
+    ).rejects.toMatchObject({ code: 403, error_code: 'NOT_ALLOWED' })
+  })
+
+  it('does not give the seeded pastor role permission to administer pastor profiles', async () => {
+    mockScopeData = scopeData({
+      assignments: [seededGrant('prayer_pastor', CHURCH_A.id)],
+    })
+
+    await expect(
+      call({ churchId: 'church-a', subject: 'prayer_pastor', action: 'update' }),
+    ).rejects.toMatchObject({ code: 403, error_code: 'NOT_ALLOWED' })
   })
 })

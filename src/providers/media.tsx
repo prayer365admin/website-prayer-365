@@ -48,6 +48,34 @@ export const GET_ASSET_BY_ID_AND_CHURCH = ({
     where: { id: assetId, church_id: churchId },
   })
 
+/**
+ * Preview visibility additionally permits a canonical Pastor image when the
+ * Pastor is assigned to the requesting church. The underlying asset remains
+ * owned by its original church; this only broadens read visibility for the
+ * shared profile image.
+ */
+export const GET_ASSET_VISIBLE_TO_CHURCH = ({
+  assetId,
+  churchId,
+}: {
+  assetId: string
+  churchId: string
+}) =>
+  db.mediaAsset.findFirst({
+    where: {
+      id: assetId,
+      OR: [
+        { church_id: churchId },
+        {
+          purpose: 'IMAGE',
+          pastorProfiles: {
+            some: { churchPastors: { some: { church_id: churchId } } },
+          },
+        },
+      ],
+    },
+  })
+
 /** Scoped read: only returns the asset when it belongs to one of `churchIds`. */
 export const GET_ASSET = async ({
   churchIds,
@@ -91,6 +119,7 @@ export const LIST_UNATTACHED_PENDING_OLDER_THAN = ({ olderThan }: { olderThan: D
       status: 'PENDING' as MediaStatus,
       created_at: { lt: olderThan },
       coverOf: { none: {} },
+      pastorProfiles: { none: {} },
       pastorImages: { none: {} },
       voiceSamples: { none: {} },
       consentEvidence: { none: {} },

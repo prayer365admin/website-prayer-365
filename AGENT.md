@@ -4,6 +4,21 @@ This document defines how AI Agents (Gemini, OpenClaw, etc.) should interact wit
 
 ---
 
+## 📚 Documentation-First Protocol
+
+Before planning, implementing, debugging, or reviewing any work, agents must consult the relevant files in `docs/` and keep the work aligned with them. Do not rely on this protocol alone as a substitute for the project documentation.
+
+- Start with `docs/OVERVIEW.md` for the product, users, platform boundaries, and shared-backend context.
+- Use `docs/FEATURE.md` as the current-scope baseline. Items under **Future Approach** are excluded unless the user explicitly expands the scope.
+- Use `docs/SPEC.md` as the authoritative technical implementation guide, including architecture, contracts, security, permissions, data rules, verification, open decisions, and document precedence.
+- Use `docs/DESIGN.md` and `docs/design-assets/` for screen behavior, page mappings, states, and layout intent.
+- Check `docs/TASK.md` before implementation for current completion status, task order, verification commands, blockers, and work that should not be redone. Keep it accurate when a task is completed or its status materially changes.
+- Consult `docs/TIMELINE.md` for sequencing, dependencies, milestones, and release gates, and `docs/BOM.md` for service, infrastructure, capacity, and cost assumptions.
+- If the documentation conflicts with an explicit user instruction, follow the user instruction and update the affected documentation when requested or necessary to keep the repository consistent. If documents conflict with one another, apply the precedence in `docs/SPEC.md` and surface unresolved decisions instead of guessing.
+- Re-check the relevant documentation during verification so acceptance criteria, security boundaries, and explicit exclusions are covered.
+
+---
+
 ## 🏗️ Architectural Guardrails
 
 Agents must respect the following "Law of Layers" to ensure maintainability:
@@ -58,4 +73,4 @@ Agents must always implement the **accesscontrol** pattern:
 
 ---
 
-_Note: This protocol is a supplement to the `template-dashboard-spec.md`. Refer to the main spec for technical deep-dives._
+_Note: This protocol is a concise operating guide. The project documents under `docs/`, especially `docs/SPEC.md`, remain the source of truth for technical detail and scope._

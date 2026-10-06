@@ -1,5 +1,7 @@
+import { Prisma } from '@prisma/client'
 import {
   ChurchPastorAssign,
+  ChurchPastorAssignEntry,
   ChurchPastorPatchInput,
   ChurchPastorSummary,
   PastorCreate,
@@ -7,13 +9,19 @@ import {
 } from '@/models/pastor'
 import {
   CREATE_PASTOR,
+  DELETE_CHURCH_PASTOR,
+  DELETE_PASTOR,
   DELETE_CHURCH_PASTORS_NOT_IN,
   GET_CHURCH_BY_ID,
+  GET_ASSIGNABLE_PASTOR_IMAGE,
+  GET_ASSIGNABLE_VOICE_PROFILE,
   GET_CHURCH_PASTOR,
   GET_CHURCH_PASTORS,
   GET_CHURCH_READY_IMAGE,
+  GET_ASSIGNABLE_PROFILE_IMAGE,
   GET_PASTOR_BY_ID,
   GET_PASTOR_BY_USER_ID,
+  GET_PASTOR_USAGE,
   GET_PASTORS,
   GET_USER_BY_ID,
   UPDATE_CHURCH_PASTOR,
@@ -38,14 +46,20 @@ const notFound = (error_code: string) =>
 export const listPastors = async ({
   page,
   limit,
+  order_by,
   order_direction,
   search,
+  assignment,
+  staff_assignment,
 }: {
   page: number
   limit: number
+  order_by: 'name' | 'introduction' | 'staff_account' | 'churches'
   order_direction: 'asc' | 'desc'
   search?: string
-}) => GET_PASTORS({ page, limit, order_direction, search })
+  assignment?: 'assigned' | 'unassigned'
+  staff_assignment?: 'assigned' | 'unassigned'
+}) => GET_PASTORS({ page, limit, order_by, order_direction, search, assignment, staff_assignment })
 
 export const getPastor = async ({ pastorId }: { pastorId: string }) => {
   const pastor = await GET_PASTOR_BY_ID({ pastorId })
@@ -127,13 +141,31 @@ export const updatePastor = async ({
     }
   }
 
+  if (payload.imageAssetId) {
+    const image = await GET_ASSIGNABLE_PROFILE_IMAGE({
+      pastorId,
+      assetId: payload.imageAssetId,
+    })
+    if (!image) {
+      throw new GeneralError({
+        code: 422,
+        error: 'VALIDATION_ERROR',
+        error_code: 'INVALID_PROFILE_IMAGE',
+        details: 'The canonical image must be ready and belong to an assigned church.',
+        fields: { imageAssetId: 'Not a ready image from an assigned church.' },
+      })
+    }
+  }
+
   return dbTransaction(async (tx) => {
     const row = await UPDATE_PASTOR(
       {
         pastorId,
+        expectedVersion: payload.version,
         payload: {
           name: payload.name,
           introduction: payload.introduction,
+          image_asset_id: payload.imageAssetId,
           user_id: payload.userId,
         },
       },
@@ -150,6 +182,172 @@ export const updatePastor = async ({
       }),
     })
     return row
+  })
+}
+
+export const deletePastor = async ({
+  pastorId,
+  actorId,
+  requestId,
+}: {
+  pastorId: string
+  actorId: string
+  requestId: string
+}) => {
+  const pastor = await GET_PASTOR_BY_ID({ pastorId })
+  if (!pastor) throw notFound('PASTOR_NOT_FOUND')
+  return dbTransaction(async (tx) => {
+    const usage = await GET_PASTOR_USAGE({ pastorId }, tx)
+    if (usage && Object.values(usage._count).some((referenceCount) => referenceCount > 0)) {
+      throw new GeneralError({
+        code: 409,
+        error: 'CONFLICT',
+        error_code: 'PASTOR_IN_USE',
+        details:
+          'A pastor profile with church, prayer, voice, or consent references cannot be deleted.',
+      })
+    }
+    const deleted = await DELETE_PASTOR({ pastorId }, tx)
+    await tx.auditLog.create({
+      data: auditPayload({
+        actorId,
+        action: 'pastor.delete',
+        resourceType: 'pastor',
+        resourceId: pastorId,
+        outcome: 'success',
+        requestId,
+      }),
+    })
+    return deleted
+  })
+}
+
+const validateCentralAssignment = async ({
+  churchId,
+  entry,
+  activeVoiceProfileId,
+  tx,
+}: {
+  churchId: string
+  entry: ChurchPastorAssignEntry
+  activeVoiceProfileId: string | null
+  tx: Prisma.TransactionClient
+}) => {
+  if (entry.imageAssetId) {
+    const image = await GET_ASSIGNABLE_PASTOR_IMAGE({ churchId, assetId: entry.imageAssetId }, tx)
+    if (!image) {
+      throw new GeneralError({
+        code: 422,
+        error: 'VALIDATION_ERROR',
+        error_code: 'INVALID_IMAGE_ASSET',
+        details: 'imageAssetId must be a ready image owned by this church.',
+        fields: { imageAssetId: 'Not a ready image of this church.' },
+      })
+    }
+  }
+
+  if (activeVoiceProfileId) {
+    const voice = await GET_ASSIGNABLE_VOICE_PROFILE({ voiceProfileId: activeVoiceProfileId }, tx)
+    const consent = voice?.consent
+    if (
+      !voice ||
+      !consent ||
+      voice.church_id !== churchId ||
+      voice.pastor_id !== entry.pastorId ||
+      voice.review_state !== 'APPROVED' ||
+      voice.registration_state !== 'READY' ||
+      consent.pastor_id !== entry.pastorId ||
+      consent.purpose !== 'voice_cloning' ||
+      consent.revoked_at !== null
+    ) {
+      throw new GeneralError({
+        code: 422,
+        error: 'VALIDATION_ERROR',
+        error_code: 'INVALID_ACTIVE_VOICE_PROFILE',
+        details:
+          'The active voice must be ready, approved, consented, and belong to this pastor and church.',
+        fields: { activeVoiceProfileId: 'Voice profile is not eligible for this assignment.' },
+      })
+    }
+  }
+}
+
+export const assignPastorToChurch = async ({
+  churchId,
+  entry,
+  actorId,
+  requestId,
+}: {
+  churchId: string
+  entry: ChurchPastorAssignEntry
+  actorId: string
+  requestId: string
+}) => {
+  const church = await GET_CHURCH_BY_ID({ churchId })
+  if (!church) throw notFound('CHURCH_NOT_FOUND')
+  const pastor = await GET_PASTOR_BY_ID({ pastorId: entry.pastorId })
+  if (!pastor) throw notFound('PASTOR_NOT_FOUND')
+
+  return dbTransaction(async (tx) => {
+    await validateCentralAssignment({
+      churchId,
+      entry,
+      activeVoiceProfileId: entry.activeVoiceProfileId ?? null,
+      tx,
+    })
+    const assigned = await UPSERT_CHURCH_PASTOR(
+      {
+        churchId,
+        pastorId: entry.pastorId,
+        pastoralRole: entry.pastoralRole,
+        imageAssetId: entry.imageAssetId,
+        activeVoiceProfileId: entry.activeVoiceProfileId,
+      },
+      tx,
+    )
+    await tx.auditLog.create({
+      data: auditPayload({
+        actorId,
+        churchId,
+        action: 'church_pastor.assign',
+        resourceType: 'church_pastor',
+        resourceId: churchId + ':' + entry.pastorId,
+        outcome: 'success',
+        requestId,
+      }),
+    })
+    return assigned
+  })
+}
+
+export const unassignPastorFromChurch = async ({
+  churchId,
+  pastorId,
+  actorId,
+  requestId,
+}: {
+  churchId: string
+  pastorId: string
+  actorId: string
+  requestId: string
+}) => {
+  const church = await GET_CHURCH_BY_ID({ churchId })
+  if (!church) throw notFound('CHURCH_NOT_FOUND')
+
+  return dbTransaction(async (tx) => {
+    const removed = await DELETE_CHURCH_PASTOR({ churchId, pastorId }, tx)
+    await tx.auditLog.create({
+      data: auditPayload({
+        actorId,
+        churchId,
+        action: 'church_pastor.unassign',
+        resourceType: 'church_pastor',
+        resourceId: churchId + ':' + pastorId,
+        outcome: 'success',
+        requestId,
+      }),
+    })
+    return removed
   })
 }
 
@@ -174,6 +372,14 @@ export const putChurchPastors = async ({
   }
 
   await dbTransaction(async (tx) => {
+    for (const entry of payload.assigned) {
+      await validateCentralAssignment({
+        churchId,
+        entry,
+        activeVoiceProfileId: entry.activeVoiceProfileId ?? payload.activeVoiceProfileId ?? null,
+        tx,
+      })
+    }
     for (const entry of payload.assigned) {
       const voiceId = entry.activeVoiceProfileId ?? payload.activeVoiceProfileId ?? null
       await UPSERT_CHURCH_PASTOR(
@@ -283,7 +489,9 @@ export const patchChurchPastor = async ({
     })
   }
 
-  let imageAssetId: string | null = null
+  // Only a field that is actually present may change the church image: an
+  // omitted image_asset_id must leave the stored override untouched.
+  let imageAssetId: string | null | undefined
   if (input.image_asset_id) {
     const asset = await GET_CHURCH_READY_IMAGE({ churchIds, assetId: input.image_asset_id })
     if (!asset) {

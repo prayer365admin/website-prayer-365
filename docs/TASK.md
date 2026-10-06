@@ -40,11 +40,11 @@ DESIGN S20 | SPEC §8.2/§8.3 pastor endpoints | FEATURE F3/F8
 | ----- | ------------------------------------------------------------------------------------------------------------------------------------------ | ---- |
 | PA-01 | DB: `pastors`, `church_pastors` models + seeds                                                                                             | ✔   |
 | PA-02 | API: pastor provider/controller/models + `A/central/pastors` CRUD, `PATCH C/pastors/:pastorId`, `PUT C/churches/:churchId/pastors` + tests | ✔   |
-| PA-03 | Hooks: `hooks/data/central.tsx` pastor queries/mutations + church pastor assignment hook                                                   | ☐    |
-| PA-04 | Screen: S20 pastor list + create/edit (`/dashboard/central/pastors`) — name, intro, optional linked user                                   | ☐    |
-| PA-05 | Screen: church pastors tab (S04) — assign pastors, church role, image; only church-specific fields                                         | ☐    |
-| PA-06 | Rule check: edit preserves historical prayer attribution; pastor biography never auto-grants staff access                                  | ☐    |
-| PA-07 | Tests: profile without login stays non-admin, assignment scoping, attribution preserved on change                                          | ☐    |
+| PA-03 | Hooks: `hooks/data/central.tsx` pastor queries/mutations + church pastor assignment hook                                                   | ✔   |
+| PA-04 | Screen: S20 pastor list + create/edit (`/dashboard/central/pastors`) — name, intro, optional linked user                                   | ✔   |
+| PA-05 | Screen: church pastors tab (S04) — assign pastors, church role, image; only church-specific fields                                         | ✔   |
+| PA-06 | Rule check: edit preserves historical prayer attribution; pastor biography never auto-grants staff access                                  | ✔   |
+| PA-07 | Tests: profile without login stays non-admin, assignment scoping, attribution preserved on change                                          | ✔   |
 
 ## F3PR — Prayers (text, approval, audio, schedule, publish)
 

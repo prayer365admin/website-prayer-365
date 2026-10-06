@@ -133,7 +133,7 @@ model User {
 
   // OPTIONAL legacy single-role ref (migration-era; assignments supersede it).
   role_id String?
-  role    Role?  @relation(fields: [role_id], references: [id], name: "user_role", onDelete: Cascade, onUpdate: Cascade)
+  role    Role?   @relation(fields: [role_id], references: [id], name: "user_role", onDelete: Cascade, onUpdate: Cascade)
 
   locale          String?   @db.Char(10)
   locale_language Language? @relation(fields: [locale], references: [code])
@@ -141,29 +141,29 @@ model User {
   auth_token AuthToken[] @relation("user_auth_token")
 
   // Mind/Added Prayer relations
-  roleAssignments   RoleAssignment[]      @relation("GrantedTo")
-  grantedAssignments RoleAssignment[]     @relation("GrantedBy")
-  approvedChurches  Church[]              @relation("ChurchApprovedBy")
-  prayerCreations   Prayer[]              @relation("PrayerCreator")
-  versionApprovals  PrayerVersion[]       @relation("VersionApprovedBy")
-  voiceSubmissions  VoiceProfile[]        @relation("VoiceSubmittedBy")
-  voiceReviews      VoiceProfile[]        @relation("VoiceReviewedBy")
-  consentsRecorded  Consent[]             @relation("ConsentRecordedBy")
-  consents          Consent[]             @relation("ConsentSubject")
-  audioApprovals    PrayerAudio[]         @relation("AudioApprovedBy")
-  mediaUploads      MediaAsset[]          @relation("MediaUploadedBy")
-  userChurches      UserChurch[]
-  pastors           Pastor[]
-  requests          Request[]
-  donations         Donation[]
-  donationSubscriptions DonationSubscription[]
-  checkIns          CheckIn[]
-  analyticsEvents   AnalyticsEvent[]
-  deviceTokens      DeviceToken[]
+  roleAssignments         RoleAssignment[]         @relation("GrantedTo")
+  grantedAssignments      RoleAssignment[]         @relation("GrantedBy")
+  approvedChurches        Church[]                 @relation("ChurchApprovedBy")
+  prayerCreations         Prayer[]                 @relation("PrayerCreator")
+  versionApprovals        PrayerVersion[]          @relation("VersionApprovedBy")
+  voiceSubmissions        VoiceProfile[]           @relation("VoiceSubmittedBy")
+  voiceReviews            VoiceProfile[]           @relation("VoiceReviewedBy")
+  consentsRecorded        Consent[]                @relation("ConsentRecordedBy")
+  consents                Consent[]                @relation("ConsentSubject")
+  audioApprovals          PrayerAudio[]            @relation("AudioApprovedBy")
+  mediaUploads            MediaAsset[]             @relation("MediaUploadedBy")
+  userChurches            UserChurch[]
+  pastors                 Pastor[]
+  requests                Request[]
+  donations               Donation[]
+  donationSubscriptions   DonationSubscription[]
+  checkIns                CheckIn[]
+  analyticsEvents         AnalyticsEvent[]
+  deviceTokens            DeviceToken[]
   notificationPreferences NotificationPreference[]
-  notificationDeliveries NotificationDelivery[]
-  privacyJobs       PrivacyJob[]
-  auditLogs         AuditLog[]
+  notificationDeliveries  NotificationDelivery[]
+  privacyJobs             PrivacyJob[]
+  auditLogs               AuditLog[]
 
   created_at DateTime  @default(now())
   updated_at DateTime? @updatedAt
@@ -173,13 +173,13 @@ model User {
 }
 
 model Role {
-  id   String   @id @default(uuid(7))
-  name String   @unique
-  type RoleType @default(USER)
-  version Int   @default(1)
+  id      String   @id @default(uuid(7))
+  name    String   @unique
+  type    RoleType @default(USER)
+  version Int      @default(1)
 
-  user       User[]       @relation(name: "user_role")
-  permission Permission[] @relation(name: "role_permission")
+  user        User[]           @relation(name: "user_role")
+  permission  Permission[]     @relation(name: "role_permission")
   assignments RoleAssignment[]
 
   created_at DateTime  @default(now())
@@ -234,55 +234,55 @@ model Country {
 }
 
 model Language {
-  code       String           @id @db.Char(10) // BCP-47; seed en, et, fi
-  name       String
-  enabled    Boolean          @default(true)
+  code    String  @id @db.Char(10) // BCP-47; seed en, et, fi
+  name    String
+  enabled Boolean @default(true)
 
-  users         User[]
-  churchLangs   ChurchLanguage[]
+  users       User[]
+  churchLangs ChurchLanguage[]
 
   @@map("languages")
 }
 
 model OrgNode {
-  id           String    @id @default(uuid(7))
+  id           String      @id @default(uuid(7))
   parent_id    String?
-  parent       OrgNode?  @relation("OrgParent", fields: [parent_id], references: [id])
-  children     OrgNode[] @relation("OrgParent")
+  parent       OrgNode?    @relation("OrgParent", fields: [parent_id], references: [id])
+  children     OrgNode[]   @relation("OrgParent")
   kind         OrgNodeKind
   name         String
-  country_code String?   @db.Char(2) @unique
-  country      Country?  @relation(fields: [country_code], references: [code])
+  country_code String?     @unique @db.Char(2)
+  country      Country?    @relation(fields: [country_code], references: [code])
 
-  church           Church?
-  roleAssignments  RoleAssignment[]
+  church          Church?
+  roleAssignments RoleAssignment[]
 
-  @@index([parent_id])
   @@unique([kind, country_code])
+  @@index([parent_id])
   @@map("org_nodes")
 }
 
 model Church {
-  id            String    @id @default(uuid(7))
-  org_node_id   String    @unique
-  org_node      OrgNode   @relation(fields: [org_node_id], references: [id])
-  name          String
-  status        ChurchStatus @default(PENDING)
-  timezone      String
-  description   String?
-  denomination  String?
-  cover_asset_id String?
-  cover_asset   MediaAsset? @relation("ChurchCover", fields: [cover_asset_id], references: [id])
-  address       Json
-  latitude      Decimal?  @db.Decimal(9, 6)
-  longitude     Decimal?  @db.Decimal(9, 6)
-  contacts      Json
-  website       String?
-  social_links  Json
-  accessibility String?
-  approved_by   String?
-  approved_by_user User?  @relation("ChurchApprovedBy", fields: [approved_by], references: [id])
-  approved_at   DateTime?
+  id               String       @id @default(uuid(7))
+  org_node_id      String       @unique
+  org_node         OrgNode      @relation(fields: [org_node_id], references: [id])
+  name             String
+  status           ChurchStatus @default(PENDING)
+  timezone         String
+  description      String?
+  denomination     String?
+  cover_asset_id   String?
+  cover_asset      MediaAsset?  @relation("ChurchCover", fields: [cover_asset_id], references: [id])
+  address          Json
+  latitude         Decimal?     @db.Decimal(9, 6)
+  longitude        Decimal?     @db.Decimal(9, 6)
+  contacts         Json
+  website          String?
+  social_links     Json
+  accessibility    String?
+  approved_by      String?
+  approved_by_user User?        @relation("ChurchApprovedBy", fields: [approved_by], references: [id])
+  approved_at      DateTime?
 
   churchLanguages ChurchLanguage[]
   pastors         ChurchPastor[]
@@ -316,17 +316,17 @@ model ChurchLanguage {
 }
 
 model RoleAssignment {
-  id          String   @id @default(uuid(7))
-  user_id     String
-  user        User     @relation("GrantedTo", fields: [user_id], references: [id])
-  role_id     String
-  role        Role     @relation(fields: [role_id], references: [id])
-  org_node_id String
-  org_node    OrgNode  @relation(fields: [org_node_id], references: [id])
-  granted_by  String
-  granted_by_user User @relation("GrantedBy", fields: [granted_by], references: [id])
-  revoked_at  DateTime?
-  created_at  DateTime @default(now())
+  id              String    @id @default(uuid(7))
+  user_id         String
+  user            User      @relation("GrantedTo", fields: [user_id], references: [id])
+  role_id         String
+  role            Role      @relation(fields: [role_id], references: [id])
+  org_node_id     String
+  org_node        OrgNode   @relation(fields: [org_node_id], references: [id])
+  granted_by      String
+  granted_by_user User      @relation("GrantedBy", fields: [granted_by], references: [id])
+  revoked_at      DateTime?
+  created_at      DateTime  @default(now())
 
   @@index([user_id, org_node_id])
   @@map("role_assignments")
@@ -334,11 +334,11 @@ model RoleAssignment {
 
 model UserChurch {
   user_id     String
-  user        User     @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  user        User    @relation(fields: [user_id], references: [id], onDelete: Cascade)
   church_id   String
-  church      Church   @relation(fields: [church_id], references: [id], onDelete: Cascade)
-  is_main     Boolean  @default(false)
-  is_followed Boolean  @default(false)
+  church      Church  @relation(fields: [church_id], references: [id], onDelete: Cascade)
+  is_main     Boolean @default(false)
+  is_followed Boolean @default(false)
 
   @@id([user_id, church_id])
   @@index([church_id])
@@ -346,31 +346,39 @@ model UserChurch {
 }
 
 model Pastor {
-  id           String  @id @default(uuid(7))
-  user_id      String?
-  user         User?   @relation(fields: [user_id], references: [id], onDelete: SetNull)
-  name         String
-  introduction String?
+  id             String      @id @default(uuid(7))
+  user_id        String?
+  user           User?       @relation(fields: [user_id], references: [id], onDelete: SetNull)
+  name           String
+  introduction   String?
+  image_asset_id String?
+  image_asset    MediaAsset? @relation("PastorProfileImage", fields: [image_asset_id], references: [id], onDelete: SetNull)
+  version        Int         @default(1)
 
-  churchPastors   ChurchPastor[]
-  prayerVersions  PrayerVersion[]
-  voiceProfiles   VoiceProfile[]
-  consents        Consent[]
+  churchPastors  ChurchPastor[]
+  prayerVersions PrayerVersion[]
+  voiceProfiles  VoiceProfile[]
+  consents       Consent[]
+
+  created_at DateTime  @default(now())
+  updated_at DateTime? @updatedAt
+  deleted_at DateTime?
 
   @@unique([user_id])
+  @@index([image_asset_id])
   @@map("pastors")
 }
 
 model ChurchPastor {
-  church_id    String
-  church       Church @relation(fields: [church_id], references: [id])
-  pastor_id    String
-  pastor       Pastor @relation(fields: [pastor_id], references: [id])
-  pastoral_role String
-  image_asset_id String?
-  image_asset    MediaAsset? @relation("PastorImage", fields: [image_asset_id], references: [id])
+  church_id               String
+  church                  Church        @relation(fields: [church_id], references: [id])
+  pastor_id               String
+  pastor                  Pastor        @relation(fields: [pastor_id], references: [id])
+  pastoral_role           String
+  image_asset_id          String?
+  image_asset             MediaAsset?   @relation("PastorImage", fields: [image_asset_id], references: [id])
   active_voice_profile_id String?
-  active_voice_profile     VoiceProfile? @relation("ActiveVoice", fields: [active_voice_profile_id], references: [id])
+  active_voice_profile    VoiceProfile? @relation("ActiveVoice", fields: [active_voice_profile_id], references: [id])
 
   @@id([church_id, pastor_id])
   @@map("church_pastors")
@@ -394,17 +402,17 @@ model ServiceTime {
 }
 
 model Prayer {
-  id            String   @id @default(uuid(7))
-  church_id     String
-  church        Church   @relation(fields: [church_id], references: [id])
+  id                   String          @id @default(uuid(7))
+  church_id            String
+  church               Church          @relation(fields: [church_id], references: [id])
   current_version_id   String?
   published_version_id String?
   scheduled_version_id String?
-  scheduled_at DateTime?
-  published_at DateTime?
-  created_by   String
-  creator      User     @relation("PrayerCreator", fields: [created_by], references: [id])
-  versions     PrayerVersion[]
+  scheduled_at         DateTime?
+  published_at         DateTime?
+  created_by           String
+  creator              User            @relation("PrayerCreator", fields: [created_by], references: [id])
+  versions             PrayerVersion[]
 
   created_at DateTime  @default(now())
   updated_at DateTime? @updatedAt
@@ -416,23 +424,23 @@ model Prayer {
 }
 
 model PrayerVersion {
-  id              String   @id @default(uuid(7))
-  prayer_id       String
-  prayer          Prayer   @relation(fields: [prayer_id], references: [id])
-  version_number  Int
-  pastor_id       String
-  pastor          Pastor   @relation(fields: [pastor_id], references: [id])
-  title           String
-  introduction    String?
-  body            String
-  language_code   String
-  text_hash       String
-  approved_by     String?
-  approved_by_user User?    @relation("VersionApprovedBy", fields: [approved_by], references: [id])
-  approved_at     DateTime?
-  selected_audio_id String? @unique
-  selected_audio  PrayerAudio? @relation("SelectedAudio", fields: [selected_audio_id], references: [id])
-  audio           PrayerAudio[] @relation("VersionAudio")
+  id                String        @id @default(uuid(7))
+  prayer_id         String
+  prayer            Prayer        @relation(fields: [prayer_id], references: [id])
+  version_number    Int
+  pastor_id         String
+  pastor            Pastor        @relation(fields: [pastor_id], references: [id])
+  title             String
+  introduction      String?
+  body              String
+  language_code     String
+  text_hash         String
+  approved_by       String?
+  approved_by_user  User?         @relation("VersionApprovedBy", fields: [approved_by], references: [id])
+  approved_at       DateTime?
+  selected_audio_id String?       @unique
+  selected_audio    PrayerAudio?  @relation("SelectedAudio", fields: [selected_audio_id], references: [id])
+  audio             PrayerAudio[] @relation("VersionAudio")
 
   created_at DateTime @default(now())
 
@@ -442,35 +450,35 @@ model PrayerVersion {
 }
 
 model VoiceProfile {
-  id                    String       @id @default(uuid(7))
-  pastor_id             String
-  pastor                Pastor       @relation(fields: [pastor_id], references: [id])
-  church_id             String
-  church                Church       @relation(fields: [church_id], references: [id])
-  submitted_by          String
-  submitter             User         @relation("VoiceSubmittedBy", fields: [submitted_by], references: [id])
-  version               Int          @default(1)
-  replaces_profile_id   String?
-  replaces_profile      VoiceProfile? @relation("Replaces", fields: [replaces_profile_id], references: [id])
-  replaced_by           VoiceProfile[] @relation("Replaces")
-  provider              String
-  cloning_method        String       @default("instant")
-  provider_voice_id     String?
-  consent_id            String
-  consent               Consent      @relation(fields: [consent_id], references: [id])
-  sample_asset_id       String
-  sample_asset          MediaAsset   @relation("VoiceSample", fields: [sample_asset_id], references: [id])
-  submitted_at          DateTime?
-  review_state          ReviewState  @default(DRAFT)
-  reviewed_by           String?
-  reviewer              User?        @relation("VoiceReviewedBy", fields: [reviewed_by], references: [id])
-  reviewed_at           DateTime?
-  review_reason         String?
+  id                       String            @id @default(uuid(7))
+  pastor_id                String
+  pastor                   Pastor            @relation(fields: [pastor_id], references: [id])
+  church_id                String
+  church                   Church            @relation(fields: [church_id], references: [id])
+  submitted_by             String
+  submitter                User              @relation("VoiceSubmittedBy", fields: [submitted_by], references: [id])
+  version                  Int               @default(1)
+  replaces_profile_id      String?
+  replaces_profile         VoiceProfile?     @relation("Replaces", fields: [replaces_profile_id], references: [id])
+  replaced_by              VoiceProfile[]    @relation("Replaces")
+  provider                 String
+  cloning_method           String            @default("instant")
+  provider_voice_id        String?
+  consent_id               String
+  consent                  Consent           @relation(fields: [consent_id], references: [id])
+  sample_asset_id          String
+  sample_asset             MediaAsset        @relation("VoiceSample", fields: [sample_asset_id], references: [id])
+  submitted_at             DateTime?
+  review_state             ReviewState       @default(DRAFT)
+  reviewed_by              String?
+  reviewer                 User?             @relation("VoiceReviewedBy", fields: [reviewed_by], references: [id])
+  reviewed_at              DateTime?
+  review_reason            String?
   approved_sample_checksum String?
-  registration_state    RegistrationState @default(UNREGISTERED)
-  requires_verification Boolean?
-  registration_attempt_id String?
-  last_error_code       String?
+  registration_state       RegistrationState @default(UNREGISTERED)
+  requires_verification    Boolean?
+  registration_attempt_id  String?
+  last_error_code          String?
 
   audio       PrayerAudio[]
   activeVoice ChurchPastor[] @relation("ActiveVoice")
@@ -484,16 +492,16 @@ model VoiceProfile {
 }
 
 model Consent {
-  id                String    @id @default(uuid(7))
+  id                String      @id @default(uuid(7))
   user_id           String?
-  user              User?     @relation("ConsentSubject", fields: [user_id], references: [id])
+  user              User?       @relation("ConsentSubject", fields: [user_id], references: [id])
   pastor_id         String?
-  pastor            Pastor?   @relation(fields: [pastor_id], references: [id])
+  pastor            Pastor?     @relation(fields: [pastor_id], references: [id])
   purpose           String
   terms_version     String
-  recorded_at       DateTime  @default(now())
+  recorded_at       DateTime    @default(now())
   recorded_by       String?
-  recorder          User?     @relation("ConsentRecordedBy", fields: [recorded_by], references: [id])
+  recorder          User?       @relation("ConsentRecordedBy", fields: [recorded_by], references: [id])
   evidence_asset_id String?
   evidence          MediaAsset? @relation("ConsentEvidence", fields: [evidence_asset_id], references: [id])
   revoked_at        DateTime?
@@ -504,20 +512,20 @@ model Consent {
 }
 
 model PrayerAudio {
-  id                String        @id @default(uuid(7))
-  prayer_version_id String
-  verse             PrayerVersion @relation("VersionAudio", fields: [prayer_version_id], references: [id])
-  voice_profile_id  String
-  voice_profile     VoiceProfile  @relation(fields: [voice_profile_id], references: [id])
-  status            AudioStatus   @default(QUEUED)
-  asset_id          String?
-  asset             MediaAsset?   @relation("AudioAsset", fields: [asset_id], references: [id])
+  id                  String         @id @default(uuid(7))
+  prayer_version_id   String
+  verse               PrayerVersion  @relation("VersionAudio", fields: [prayer_version_id], references: [id])
+  voice_profile_id    String
+  voice_profile       VoiceProfile   @relation(fields: [voice_profile_id], references: [id])
+  status              AudioStatus    @default(QUEUED)
+  asset_id            String?
+  asset               MediaAsset?    @relation("AudioAsset", fields: [asset_id], references: [id])
   provider_request_id String?
-  approved_by       String?
-  approver          User?         @relation("AudioApprovedBy", fields: [approved_by], references: [id])
-  approved_at       DateTime?
-  error_code        String?
-  selectedFor       PrayerVersion? @relation("SelectedAudio")
+  approved_by         String?
+  approver            User?          @relation("AudioApprovedBy", fields: [approved_by], references: [id])
+  approved_at         DateTime?
+  error_code          String?
+  selectedFor         PrayerVersion? @relation("SelectedAudio")
 
   created_at DateTime  @default(now())
   updated_at DateTime? @updatedAt
@@ -527,19 +535,20 @@ model PrayerAudio {
 }
 
 model MediaAsset {
-  id         String      @id @default(uuid(7))
-  church_id  String
-  church     Church      @relation(fields: [church_id], references: [id])
-  object_key String      @unique
-  purpose    MediaPurpose
-  mime_type  String
-  byte_size  BigInt
-  checksum   String?
-  status     MediaStatus @default(PENDING)
+  id          String       @id @default(uuid(7))
+  church_id   String
+  church      Church       @relation(fields: [church_id], references: [id])
+  object_key  String       @unique
+  purpose     MediaPurpose
+  mime_type   String
+  byte_size   BigInt
+  checksum    String?
+  status      MediaStatus  @default(PENDING)
   uploaded_by String?
-  uploader   User?       @relation("MediaUploadedBy", fields: [uploaded_by], references: [id])
+  uploader    User?        @relation("MediaUploadedBy", fields: [uploaded_by], references: [id])
 
   coverOf         Church[]       @relation("ChurchCover")
+  pastorProfiles  Pastor[]       @relation("PastorProfileImage")
   pastorImages    ChurchPastor[] @relation("PastorImage")
   voiceSamples    VoiceProfile[] @relation("VoiceSample")
   consentEvidence Consent[]      @relation("ConsentEvidence")
@@ -573,9 +582,9 @@ model Event {
 }
 
 model Announcement {
-  id           String   @id @default(uuid(7))
+  id           String    @id @default(uuid(7))
   church_id    String
-  church       Church   @relation(fields: [church_id], references: [id])
+  church       Church    @relation(fields: [church_id], references: [id])
   title        String
   body         String
   published_at DateTime?
@@ -589,20 +598,20 @@ model Announcement {
 }
 
 model Request {
-  id            String              @id @default(uuid(7))
-  church_id     String
-  church        Church              @relation(fields: [church_id], references: [id])
-  user_id       String?
-  user          User?               @relation(fields: [user_id], references: [id], onDelete: SetNull)
-  kind          RequestKind
-  subject       String?
-  message       String
+  id             String                 @id @default(uuid(7))
+  church_id      String
+  church         Church                 @relation(fields: [church_id], references: [id])
+  user_id        String?
+  user           User?                  @relation(fields: [user_id], references: [id], onDelete: SetNull)
+  kind           RequestKind
+  subject        String?
+  message        String
   classification RequestClassification?
   contact_method String
-  phone         String?
-  email         String?
-  availability  String?
-  created_at    DateTime            @default(now())
+  phone          String?
+  email          String?
+  availability   String?
+  created_at     DateTime               @default(now())
 
   @@index([church_id, created_at, id])
   @@map("requests")
@@ -631,15 +640,15 @@ model PaymentAccount {
 }
 
 model DonationSubscription {
-  id                      String @id @default(uuid(7))
-  payment_account_id      String
-  payment_account         PaymentAccount @relation(fields: [payment_account_id], references: [id])
-  user_id                 String?
-  user                    User?  @relation(fields: [user_id], references: [id], onDelete: SetNull)
+  id                       String         @id @default(uuid(7))
+  payment_account_id       String
+  payment_account          PaymentAccount @relation(fields: [payment_account_id], references: [id])
+  user_id                  String?
+  user                     User?          @relation(fields: [user_id], references: [id], onDelete: SetNull)
   provider_subscription_id String
-  amount_minor            BigInt
-  currency                String @db.Char(3)
-  provider_status         String
+  amount_minor             BigInt
+  currency                 String         @db.Char(3)
+  provider_status          String
 
   donations Donation[]
 
@@ -652,19 +661,19 @@ model DonationSubscription {
 }
 
 model Donation {
-  id                  String  @id @default(uuid(7))
+  id                  String                @id @default(uuid(7))
   payment_account_id  String
-  payment_account     PaymentAccount @relation(fields: [payment_account_id], references: [id])
+  payment_account     PaymentAccount        @relation(fields: [payment_account_id], references: [id])
   user_id             String?
-  user                User?   @relation(fields: [user_id], references: [id], onDelete: SetNull)
+  user                User?                 @relation(fields: [user_id], references: [id], onDelete: SetNull)
   subscription_id     String?
   subscription        DonationSubscription? @relation(fields: [subscription_id], references: [id])
   provider_payment_id String
   amount_minor        BigInt
-  currency            String  @db.Char(3)
+  currency            String                @db.Char(3)
   status              String
   paid_at             DateTime?
-  refunded_minor      BigInt  @default(0)
+  refunded_minor      BigInt                @default(0)
 
   created_at DateTime  @default(now())
   updated_at DateTime? @updatedAt
@@ -707,15 +716,15 @@ model AnalyticsEvent {
 }
 
 model DeviceToken {
-  id               String   @id @default(uuid(7))
+  id               String    @id @default(uuid(7))
   user_id          String
-  user             User     @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  user             User      @relation(fields: [user_id], references: [id], onDelete: Cascade)
   installation_id  String
   platform         String
   token_ciphertext String
-  token_hash       String   @unique
+  token_hash       String    @unique
   disabled_at      DateTime?
-  created_at       DateTime @default(now())
+  created_at       DateTime  @default(now())
 
   notificationDeliveries NotificationDelivery[]
 
@@ -724,7 +733,7 @@ model DeviceToken {
 
 model NotificationPreference {
   user_id String
-  user    User   @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [user_id], references: [id], onDelete: Cascade)
   type    String
   enabled Boolean @default(false)
 
@@ -748,17 +757,17 @@ model NotificationRule {
 }
 
 model NotificationDelivery {
-  id                  String   @id @default(uuid(7))
+  id                  String           @id @default(uuid(7))
   rule_id             String
   rule                NotificationRule @relation(fields: [rule_id], references: [id])
   user_id             String
-  user                User     @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  user                User             @relation(fields: [user_id], references: [id], onDelete: Cascade)
   device_token_id     String?
-  device_token        DeviceToken? @relation(fields: [device_token_id], references: [id])
+  device_token        DeviceToken?     @relation(fields: [device_token_id], references: [id])
   event_key           String
   status              String
   provider_message_id String?
-  attempts            Int      @default(0)
+  attempts            Int              @default(0)
 
   created_at DateTime  @default(now())
   updated_at DateTime? @updatedAt
@@ -773,14 +782,14 @@ model NotificationDelivery {
 // ============================================================================
 
 model OutboxJob {
-  id              String   @id @default(uuid(7))
+  id              String    @id @default(uuid(7))
   kind            String
-  dedupe_key      String   @unique
+  dedupe_key      String    @unique
   resource_id     String?
   payload         Json?
   available_at    DateTime
-  state           JobState @default(PENDING)
-  attempts        Int      @default(0)
+  state           JobState  @default(PENDING)
+  attempts        Int       @default(0)
   lease_until     DateTime?
   last_error_code String?
 
@@ -792,7 +801,7 @@ model OutboxJob {
 }
 
 model WebhookReceipt {
-  id           String   @id @default(uuid(7))
+  id           String    @id @default(uuid(7))
   provider     String
   account_id   String
   event_id     String
@@ -801,7 +810,7 @@ model WebhookReceipt {
   received_at  DateTime
   processed_at DateTime?
   state        String
-  created_at   DateTime @default(now())
+  created_at   DateTime  @default(now())
 
   @@unique([provider, account_id, event_id])
   @@map("webhook_receipts")
@@ -840,12 +849,12 @@ model AuditLog {
 }
 
 model PrivacyJob {
-  id                String   @id @default(uuid(7))
+  id                String    @id @default(uuid(7))
   user_id           String
-  user              User     @relation(fields: [user_id], references: [id])
+  user              User      @relation(fields: [user_id], references: [id])
   kind              String
   state             String
-  requested_at      DateTime @default(now())
+  requested_at      DateTime  @default(now())
   completed_at      DateTime?
   result_object_key String?
   result_expires_at DateTime?

@@ -40,6 +40,9 @@ describe('PATCH /api/v1/admin/churches/[churchId]/pastors/[pastorId]', () => {
     const res = (await PATCH(req, params as never))!
     expect(res.status).toBe(200)
     expect((await res.json()).result.pastoralRole).toBe('Associate')
+    expect(requiredScope).toHaveBeenCalledWith(
+      expect.objectContaining({ subject: 'prayer_pastor', action: 'update' }),
+    )
     expect(patchChurchPastor).toHaveBeenCalledWith(
       expect.objectContaining({
         pastorId: 'p1',

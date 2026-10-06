@@ -16,7 +16,13 @@ const db = vi.hoisted(() => ({
 
 vi.mock('@/utils/db-connection', () => ({ db }))
 
-import { churchLocalDate, CREATE_CHECKIN, UPDATE_ME_PROFILE, GET_PUBLIC_CHURCH } from './mobile'
+import {
+  churchLocalDate,
+  CREATE_CHECKIN,
+  GET_PUBLIC_CHURCH,
+  LIST_PUBLISHED_PRAYERS,
+  UPDATE_ME_PROFILE,
+} from './mobile'
 
 beforeEach(() => vi.clearAllMocks())
 
@@ -201,5 +207,41 @@ describe('GET_PUBLIC_CHURCH — admin profile reflected in mobile contract', () 
     db.church.findFirst.mockResolvedValueOnce(null)
     const result = await GET_PUBLIC_CHURCH({ churchId: 'c1' })
     expect(result).toBeNull()
+  })
+})
+
+describe('LIST_PUBLISHED_PRAYERS — historical pastor attribution', () => {
+  it('returns the pastor stored on the immutable published version', async () => {
+    const publishedRows = [
+      {
+        id: 'prayer-1',
+        church_id: 'church-1',
+        published_at: new Date('2026-09-30T12:00:00.000Z'),
+        published_version_id: 'version-1',
+      },
+    ]
+    db.$transaction.mockResolvedValue([1, publishedRows])
+    db.prayerVersion.findMany.mockResolvedValue([
+      {
+        id: 'version-1',
+        version_number: 2,
+        pastor_id: 'pastor-at-publication',
+        title: 'Morning prayer',
+        introduction: null,
+        body: 'Prayer body',
+        language_code: 'en',
+        selected_audio: null,
+      },
+    ])
+
+    const result = await LIST_PUBLISHED_PRAYERS({
+      churchId: 'church-1',
+      query: { page: 1, limit: 25 },
+    })
+
+    expect(result.result[0].version.pastorId).toBe('pastor-at-publication')
+    expect(db.prayerVersion.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { id: { in: ['version-1'] } } }),
+    )
   })
 })
