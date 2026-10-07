@@ -21,6 +21,7 @@ vi.mock('@/providers/voice', () => ({
   PATCH_DRAFT: vi.fn(),
   REVIEW_APPROVE: vi.fn(),
   REVIEW_DISABLE: vi.fn(),
+  REQUEST_RECLONE: vi.fn(),
   REVIEW_REJECT: vi.fn(),
   REVOKE_CONSENT: vi.fn(),
   SUBMIT_FREEZE: vi.fn(),
@@ -41,6 +42,7 @@ import {
   listCentralProfiles,
   listOwnSubmissions,
   patchSubmission,
+  recloneVoiceProfile,
   rejectProfile,
   revokeProfileConsent,
   submitSubmission,
@@ -517,5 +519,64 @@ describe('createSubmission (Task 36)', () => {
       createSubmission({ userId: U, churchIds: SCORE, input, requestId: 'r' }),
     ).rejects.toMatchObject({ code: 403, error_code: 'CHURCH_NOT_ASSIGNED' })
     expect(voice.CREATE_DRAFT).not.toHaveBeenCalled()
+  })
+})
+
+describe('recloneVoiceProfile (F4VO V8)', () => {
+  const args = {
+    userId: OTHER,
+    churchId: CHURCH,
+    churchIds: SCORE,
+    profileId: PROFILE,
+    requestId: 'r',
+  }
+  const missing = (over: Record<string, unknown> = {}) =>
+    profile({
+      review_state: 'APPROVED',
+      registration_state: 'FAILED',
+      last_error_code: 'PROVIDER_VOICE_MISSING',
+      ...over,
+    })
+
+  it('queues a re-clone for a voice missing at the provider', async () => {
+    vi.mocked(voice.GET_VOICE_PROFILE).mockResolvedValue(missing() as never)
+    vi.mocked(voice.GET_PROFILE_LIST_ITEM).mockResolvedValue({ id: PROFILE } as never)
+    runIdempotently(PROFILE)
+    await recloneVoiceProfile({ ...args, idempotencyKey: 'k' })
+    expect(voice.REQUEST_RECLONE).toHaveBeenCalledWith(
+      fakeTx,
+      expect.objectContaining({ profileId: PROFILE, actorId: OTHER }),
+    )
+  })
+
+  it('denies a church outside the caller scope', async () => {
+    await expect(
+      recloneVoiceProfile({ ...args, churchIds: new Set(['other']) }),
+    ).rejects.toMatchObject({ code: 403 })
+  })
+
+  it('hides a voice from another church (404)', async () => {
+    vi.mocked(voice.GET_VOICE_PROFILE).mockResolvedValue(missing({ church_id: 'c-other' }) as never)
+    await expect(recloneVoiceProfile(args)).rejects.toMatchObject({ code: 404 })
+  })
+
+  it.each([
+    ['READY voice', { registration_state: 'READY', last_error_code: null }, 'INVALID_STATE'],
+    ['FAILED for another reason', { last_error_code: 'VOICE_LIMIT_REACHED' }, 'INVALID_STATE'],
+    ['disabled voice', { registration_state: 'DISABLED' }, 'PROFILE_DISABLED'],
+    ['revoked consent', { consent: { revoked_at: new Date() } }, 'CONSENT_REVOKED'],
+  ])('refuses a %s', async (_name, over, code) => {
+    vi.mocked(voice.GET_VOICE_PROFILE).mockResolvedValue(missing(over) as never)
+    await expect(recloneVoiceProfile(args)).rejects.toMatchObject({ code: 409, error_code: code })
+    expect(voice.REQUEST_RECLONE).not.toHaveBeenCalled()
+  })
+
+  it('a repeat click while re-creating returns the current state', async () => {
+    vi.mocked(voice.GET_VOICE_PROFILE).mockResolvedValue(
+      missing({ registration_state: 'QUEUED' }) as never,
+    )
+    vi.mocked(voice.GET_PROFILE_LIST_ITEM).mockResolvedValue({ id: PROFILE } as never)
+    await expect(recloneVoiceProfile(args)).resolves.toEqual({ id: PROFILE })
+    expect(withIdempotency).not.toHaveBeenCalled()
   })
 })

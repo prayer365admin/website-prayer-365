@@ -678,6 +678,57 @@ export const REVOKE_CONSENT = async (
   return listItemFromRow(row)
 }
 
+/**
+ * Manual re-clone after ElevenLabs lost the voice (F4VO V8). Only a profile the
+ * TTS worker flagged FAILED + PROVIDER_VOICE_MISSING qualifies. The version bump
+ * gives the new clone its own provider name and outbox dedupe key; the worker
+ * clears last_error_code once the new voice is READY.
+ */
+export const REQUEST_RECLONE = async (
+  tx: Prisma.TransactionClient,
+  { profileId, actorId, requestId }: { profileId: string; actorId: string; requestId: string },
+): Promise<VoiceProfileListItem> => {
+  const updated = await tx.voiceProfile.updateMany({
+    where: {
+      id: profileId,
+      review_state: 'APPROVED',
+      registration_state: 'FAILED',
+      last_error_code: 'PROVIDER_VOICE_MISSING',
+    },
+    data: {
+      registration_state: 'QUEUED',
+      provider_voice_id: null,
+      requires_verification: null,
+      registration_attempt_id: null,
+      version: { increment: 1 },
+      updated_at: new Date(),
+    },
+  })
+  if (updated.count === 0) throw stale()
+  const row = await GET_PROFILE_IN_TX(tx, profileId)
+  if (!row) throw notFound()
+  const dedupeKey = `voice-register:${profileId}:${row.version}:reclone`
+  await tx.outboxJob.upsert({
+    where: { dedupe_key: dedupeKey },
+    create: {
+      kind: 'voice.register',
+      dedupe_key: dedupeKey,
+      resource_id: profileId,
+      payload: { voiceProfileId: profileId, version: row.version, reclone: true },
+      available_at: new Date(),
+    },
+    update: {},
+  })
+  await AUDIT_VOICE(tx, {
+    actorId,
+    churchId: row.church_id,
+    action: 'voice.profile.reclone',
+    resourceId: profileId,
+    requestId,
+  })
+  return listItemFromRow(row)
+}
+
 // ============================================================================
 // voice.register worker side (F4VO VO-07). The worker is trusted
 // infrastructure: reads are unscoped; every business guard lives in the job

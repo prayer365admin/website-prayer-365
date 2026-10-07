@@ -9,6 +9,7 @@ const voice = vi.hoisted(() => ({
   useRejectVoiceProfile: vi.fn(() => ({ onReject: vi.fn(), loading: false })),
   useDisableVoiceProfile: vi.fn(() => ({ onDisable: vi.fn(), loading: false })),
   useRevokeVoiceConsent: vi.fn(() => ({ onRevokeConsent: vi.fn(), loading: false })),
+  useRecloneVoiceProfile: vi.fn(() => ({ onReclone: vi.fn(), loading: false })),
 }))
 const granted = vi.hoisted(() => ({ value: true }))
 vi.mock('@/hooks/data/voice', () => voice)
@@ -105,6 +106,29 @@ describe('ContentsVoiceReview (S24)', () => {
     expect(screen.getByRole('button', { name: 'Disable voice' })).toBeTruthy()
     expect(screen.getByRole('button', { name: 'Revoke consent' })).toBeTruthy()
     expect(screen.getByText('Voice ID: vx1')).toBeTruthy()
+  })
+
+  it('offers Re-create voice only when the voice went missing at the provider', () => {
+    show(
+      detail({
+        reviewState: 'APPROVED',
+        registrationState: 'FAILED',
+        lastErrorCode: 'PROVIDER_VOICE_MISSING',
+      }),
+    )
+    expect(screen.getByRole('button', { name: 'Re-create voice' })).toBeTruthy()
+    expect(screen.getByText(/no longer exists at the provider/)).toBeTruthy()
+  })
+
+  it('no Re-create voice for other failures', () => {
+    show(
+      detail({
+        reviewState: 'APPROVED',
+        registrationState: 'FAILED',
+        lastErrorCode: 'VOICE_LIMIT_REACHED',
+      }),
+    )
+    expect(screen.queryByRole('button', { name: 'Re-create voice' })).toBeNull()
   })
 
   it('shows no actions without voice-review update permission', () => {

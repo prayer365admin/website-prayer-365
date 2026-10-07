@@ -16,8 +16,11 @@ import {
   useSchedulePrayer,
 } from '@/hooks/data/prayer'
 import { useMediaAccess } from '@/hooks/data/media-access'
+import { useAccessPermission } from '@/hooks/data/access-permission'
+import { useRecloneVoiceProfile } from '@/hooks/data/voice'
 import { PrayerInput, PrayerOutput } from '@/models/prayer'
 import {
+  Alert,
   Button,
   Card,
   Col,
@@ -81,6 +84,10 @@ export default function ContentsChurchesPrayersEditor({
     prayerId ?? '',
     audioId ?? '',
   )
+  const { onReclone, loading: recloneLoading } = useRecloneVoiceProfile()
+  const [recloneStarted, setRecloneStarted] = useState(false)
+  // Server enforces church scope; this only hides the button from roles without the grant.
+  const canReclone = useAccessPermission().createAny('prayer_voice_generation').granted
   const { onSchedule, loading: scheduleLoading } = useSchedulePrayer(churchId, prayerId ?? '')
   const { onPublish, loading: publishLoading } = usePublishPrayer(churchId, prayerId ?? '')
 
@@ -351,6 +358,30 @@ export default function ContentsChurchesPrayersEditor({
           <div>
             <Spin /> Generating audio…
           </div>
+        ) : audio?.status === 'FAILED' && audio.errorCode === 'VOICE_MISSING_AT_PROVIDER' ? (
+          <Alert
+            type="warning"
+            showIcon
+            message="The pastor's voice no longer exists at the provider."
+            description={
+              recloneStarted ? (
+                'The voice is being re-created. Generate audio again once the pastor voice is ready.'
+              ) : canReclone ? (
+                <Button
+                  className="mt-2"
+                  loading={recloneLoading}
+                  onClick={async () => {
+                    await onReclone({ churchId, id: audio.voiceProfileId })
+                    setRecloneStarted(true)
+                  }}
+                >
+                  Re-create voice
+                </Button>
+              ) : (
+                'Ask an admin to re-create the voice.'
+              )
+            }
+          />
         ) : audio?.status === 'FAILED' ? (
           <div>
             Audio generation failed{audio.errorCode ? ` (${audio.errorCode})` : ''}.

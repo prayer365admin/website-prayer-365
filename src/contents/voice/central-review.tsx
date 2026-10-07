@@ -10,6 +10,7 @@ import {
   useCentralVoiceProfiles,
   useDisableVoiceProfile,
   useRejectVoiceProfile,
+  useRecloneVoiceProfile,
   useRevokeVoiceConsent,
 } from '@/hooks/data/voice'
 import { VoiceProfileDetail, VoiceProfileListItem } from '@/models/voice'
@@ -81,7 +82,10 @@ function ReviewPanel({ profile, onClose }: { profile: VoiceProfileDetail; onClos
   const { onReject, loading: rejecting } = useRejectVoiceProfile()
   const { onDisable, loading: disabling } = useDisableVoiceProfile()
   const { onRevokeConsent, loading: revoking } = useRevokeVoiceConsent()
-  const busy = approving || rejecting || disabling || revoking
+  const { onReclone, loading: recloning } = useRecloneVoiceProfile()
+  const busy = approving || rejecting || disabling || revoking || recloning
+  const voiceMissing =
+    profile.registrationState === 'FAILED' && profile.lastErrorCode === 'PROVIDER_VOICE_MISSING'
 
   const pending = profile.reviewState === 'SUBMITTED'
   const canStop = profile.reviewState === 'APPROVED' && profile.registrationState !== 'DISABLED'
@@ -216,6 +220,26 @@ function ReviewPanel({ profile, onClose }: { profile: VoiceProfileDetail; onClos
             <p className="text-gray-500 m-0">
               Approval automatically queues registration. You cannot approve your own sample.
             </p>
+          </section>
+        )}
+
+        {canUpdate && voiceMissing && !profile.consentRevokedAt && (
+          <section>
+            <Button
+              type="primary"
+              disabled={busy}
+              loading={recloning}
+              onClick={() =>
+                confirm(
+                  'Re-create this voice?',
+                  `ElevenLabs no longer has ${who}'s voice. This creates a new clone from the same approved samples. Prayer audio can be generated again once it is ready.`,
+                  'Re-create voice',
+                  () => onReclone({ churchId: profile.churchId, id: profile.id }),
+                )
+              }
+            >
+              Re-create voice
+            </Button>
           </section>
         )}
 

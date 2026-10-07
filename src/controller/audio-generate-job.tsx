@@ -6,6 +6,7 @@ import {
   RESET_AUDIO_QUEUED,
   FINALIZE_AUDIO_READY,
   FINALIZE_AUDIO_FAILED,
+  FINALIZE_AUDIO_VOICE_MISSING,
 } from '@/providers/prayer-audio'
 import { S3_PUT_OBJECT, S3_DELETE_OBJECT } from '@/providers/s3'
 import { CREATE_PENDING_ASSET, MARK_READY, DELETE_ASSET } from '@/providers/media'
@@ -142,6 +143,17 @@ export const processAudioGenerateJob = async (
   } catch (err) {
     // Transient TTS + any infra hiccup (S3 put, asset create, finalize) share the
     // retryable path; a retry re-proves the guards, so re-entry stays idempotent.
+    if (err instanceof TtsError && err.errorCode === 'TTS_VOICE_NOT_FOUND') {
+      // Clone gone at ElevenLabs: flag the voice for a manual re-create (F4VO V8).
+      await FINALIZE_AUDIO_VOICE_MISSING({
+        audioId: resource.id,
+        voiceProfileId: resource.voice_profile.id,
+        churchId,
+        requestId,
+      })
+      await MARK_JOB_STATE({ jobId, state: 'FAILED', errorCode: 'VOICE_MISSING_AT_PROVIDER' })
+      return 'failed'
+    }
     if (err instanceof TtsError && !err.retryable) {
       await FINALIZE_AUDIO_FAILED({
         audioId: resource.id,

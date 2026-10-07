@@ -114,9 +114,12 @@ export const generateSpeech = async ({
     const retryable = res.status === 429 || res.status >= 500
     const body = await res.text().catch(() => '')
     const message = `ElevenLabs TTS ${res.status}: ${body}`
+    // The clone no longer exists at ElevenLabs (F4VO V8): permanent, an admin re-creates it.
+    // ponytail: matched on 404 / `voice_not_found`; confirm the exact response in the pilot.
+    const voiceMissing = res.status === 404 || body.includes('voice_not_found')
     throw new TtsError(
-      retryable,
-      'TTS_REQUEST_FAILED',
+      retryable && !voiceMissing,
+      voiceMissing ? 'TTS_VOICE_NOT_FOUND' : 'TTS_REQUEST_FAILED',
       message.length > 200 ? `${message.slice(0, 200)}…` : message,
       res.status,
     )

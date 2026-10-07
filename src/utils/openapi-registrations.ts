@@ -88,6 +88,7 @@ import '@/app/api/v1/admin/central/voice-profiles/route'
 import '@/app/api/v1/admin/central/voice-profiles/[voiceId]/route'
 import '@/app/api/v1/admin/central/voice-profiles/[voiceId]/approve/route'
 import '@/app/api/v1/admin/central/voice-profiles/[voiceId]/reject/route'
+import '@/app/api/v1/admin/churches/[churchId]/voice-profiles/[voiceId]/reclone/route'
 
 // --- Mobile shared backend (Phase 9 / Tasks 39-43) ---
 import '@/app/api/v1/mobile/churches/route'

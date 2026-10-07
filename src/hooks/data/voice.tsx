@@ -330,3 +330,27 @@ export const useRevokeVoiceConsent = () => {
   )
   return { onRevokeConsent, loading }
 }
+
+/** F4VO V8: re-create a voice ElevenLabs no longer has (super admin or that church's admin). */
+export const useRecloneVoiceProfile = () => {
+  const queryClient = useQueryClient()
+  const notification = useMainNotification()
+  const onError = useVoiceError()
+  const { mutateAsync: onReclone, isPending: loading } = useMutation({
+    mutationFn: async ({ churchId, id }: { churchId: string; id: string }) => {
+      const response = await axios.post(
+        `/api/v1/admin/churches/${churchId}/voice-profiles/${id}/reclone`,
+        {},
+        idempotent(),
+      )
+      return response.data.result as VoiceProfileListItem
+    },
+    onSuccess: () => {
+      invalidateVoice(queryClient, { activeVoice: true })
+      queryClient.invalidateQueries({ queryKey: ['prayer-audio'] })
+      notification({ type: 'success', entity: 'voice re-creation', action: 'started' })
+    },
+    onError: (error) => onError(error, 'voice re-creation', 'started'),
+  })
+  return { onReclone, loading }
+}

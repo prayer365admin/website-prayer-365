@@ -266,3 +266,21 @@ describe('voice registration (F4VO)', () => {
     expect(String(fetchMock.mock.calls[0][0])).toContain('/v2/voices?search=prayer-test-vp1-v3')
   })
 })
+
+describe('generateSpeech — voice missing at ElevenLabs (F4VO V8)', () => {
+  it.each([
+    ['404', new Response('not found', { status: 404 })],
+    [
+      '400 voice_not_found',
+      new Response('{"detail":{"status":"voice_not_found"}}', { status: 400 }),
+    ],
+  ])('%s → permanent TTS_VOICE_NOT_FOUND', async (_name, response) => {
+    process.env.ELEVENLABS_API_KEY = 'k_test'
+    fetchMock.mockResolvedValue(response)
+    const err = (await generateSpeech({ providerVoiceId: 'gone', text: 'x' }).catch(
+      (e: unknown) => e,
+    )) as TtsError
+    expect(err.errorCode).toBe('TTS_VOICE_NOT_FOUND')
+    expect(err.retryable).toBe(false)
+  })
+})

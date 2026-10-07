@@ -22,6 +22,7 @@ import {
   PATCH_DRAFT,
   REVIEW_APPROVE,
   REVIEW_DISABLE,
+  REQUEST_RECLONE,
   REVIEW_REJECT,
   REVOKE_CONSENT,
   SUBMIT_FREEZE,
@@ -644,6 +645,61 @@ export const revokeProfileConsent = async ({
     REVOKE_CONSENT(tx, { profileId, inputVersion: version, actorId: userId, requestId }),
   )
   const out = await GET_CENTRAL_PROFILE({ profileId })
+  if (!out) throw notFound()
+  return out
+}
+
+/**
+ * Re-create a voice ElevenLabs no longer has (F4VO V8). Church-scoped: super
+ * admin or that church's admin. Repeat clicks while it is already re-creating
+ * return the current state instead of a conflict.
+ */
+export const recloneVoiceProfile = async ({
+  userId,
+  churchId,
+  churchIds,
+  profileId,
+  idempotencyKey,
+  requestId,
+}: {
+  userId: string
+  churchId: string
+  churchIds: Set<string>
+  profileId: string
+  idempotencyKey?: string
+  requestId: string
+}): Promise<VoiceProfileListItem> => {
+  if (!churchIds.has(churchId)) throw scopeError()
+  const profile = await GET_VOICE_PROFILE({ profileId })
+  if (!profile || profile.church_id !== churchId) throw notFound()
+  if (profile.registration_state === 'DISABLED') throw disabled()
+  if (profile.consent.revoked_at) throw revoked()
+  const missing = profile.last_error_code === 'PROVIDER_VOICE_MISSING'
+  if (
+    missing &&
+    ['QUEUED', 'REGISTERING', 'REGISTRATION_UNKNOWN'].includes(profile.registration_state)
+  ) {
+    const current = await GET_PROFILE_LIST_ITEM({ profileId })
+    if (current) return current
+  }
+  if (profile.review_state !== 'APPROVED' || profile.registration_state !== 'FAILED' || !missing)
+    throw new GeneralError({
+      code: 409,
+      error: 'CONFLICT',
+      error_code: 'INVALID_STATE',
+      details: 'Only a voice that went missing at the provider can be re-created.',
+    })
+  const { resource_id } = await withIdempotency({
+    actorKey: `user:${userId}`,
+    operation: `voice.profile.reclone:${profileId}`,
+    key: idempotencyKey ?? '',
+    requestBody: { profileId },
+    run: async (tx) => {
+      await REQUEST_RECLONE(tx, { profileId, actorId: userId, requestId })
+      return profileId
+    },
+  })
+  const out = await GET_PROFILE_LIST_ITEM({ profileId: resource_id ?? '' })
   if (!out) throw notFound()
   return out
 }

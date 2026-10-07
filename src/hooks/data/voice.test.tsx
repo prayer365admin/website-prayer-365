@@ -18,6 +18,7 @@ import {
   useDisableVoiceProfile,
   useMyVoiceSubmissions,
   usePatchVoiceSubmission,
+  useRecloneVoiceProfile,
   useRejectVoiceProfile,
   useRevokeVoiceConsent,
   useSubmitVoiceSubmission,
@@ -196,6 +197,20 @@ describe('Voice hooks', () => {
       })
       expect(spy).toHaveBeenCalledWith({ queryKey: ['church-pastors'] })
       expect(spy).toHaveBeenCalledWith({ queryKey: ['church', 'pastors'] })
+    })
+
+    it('re-clone posts to the church-scoped route with an idempotency key', async () => {
+      const { spy, wrapper } = withClient()
+      axiosMock.post.mockResolvedValue({ data: { result: { id: 'v1' } } })
+      const { result } = renderHook(() => useRecloneVoiceProfile(), { wrapper })
+      await result.current.onReclone({ churchId: 'ch1', id: 'v1' })
+      expect(axiosMock.post).toHaveBeenCalledWith(
+        '/api/v1/admin/churches/ch1/voice-profiles/v1/reclone',
+        {},
+        idempotencyHeader,
+      )
+      expect(spy).toHaveBeenCalledWith({ queryKey: ['prayer-audio'] })
+      expect(spy).toHaveBeenCalledWith({ queryKey: ['church-pastors'] })
     })
 
     it('surfaces the server details on a 403/409', async () => {
