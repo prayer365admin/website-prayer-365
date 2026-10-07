@@ -4,6 +4,7 @@ import {
   VoiceConsentInput,
   VoiceProfileDetail,
   VoiceProfileListItem,
+  VoiceProfileListQuery,
   VoiceSubmissionInput,
   VoiceSubmissionPatch,
 } from '@/models/voice'
@@ -207,6 +208,11 @@ export interface CentralVoiceListOptions {
   reviewState?: 'DRAFT' | 'SUBMITTED' | 'APPROVED' | 'REJECTED'
   registrationState?: string
   churchId?: string
+  search?: string
+  /** ISO datetimes, inclusive. */
+  submittedFrom?: string
+  submittedTo?: string
+  orderBy?: VoiceProfileListQuery['order_by']
   orderDirection?: 'asc' | 'desc'
   enableFetch?: boolean
 }
@@ -218,6 +224,10 @@ export const useCentralVoiceProfiles = (options: CentralVoiceListOptions = {}) =
     reviewState,
     registrationState,
     churchId,
+    search,
+    submittedFrom,
+    submittedTo,
+    orderBy = 'created_at',
     orderDirection = 'desc',
     enableFetch = true,
   } = options
@@ -227,11 +237,14 @@ export const useCentralVoiceProfiles = (options: CentralVoiceListOptions = {}) =
   const params = new URLSearchParams()
   params.set('page', page.toString())
   params.set('limit', limit.toString())
-  params.set('order_by', 'created_at')
+  params.set('order_by', orderBy)
   params.set('order_direction', orderDirection)
   if (reviewState) params.set('review_state', reviewState)
   if (registrationState) params.set('registration_state', registrationState)
   if (churchId) params.set('churchId', churchId)
+  if (search) params.set('search', search)
+  if (submittedFrom) params.set('submitted_from', submittedFrom)
+  if (submittedTo) params.set('submitted_to', submittedTo)
 
   const { data, isLoading } = useQuery({
     queryKey: voiceKeys.centralList(userId, {
@@ -240,6 +253,10 @@ export const useCentralVoiceProfiles = (options: CentralVoiceListOptions = {}) =
       reviewState,
       registrationState,
       churchId,
+      search,
+      submittedFrom,
+      submittedTo,
+      orderBy,
       orderDirection,
     }),
     queryFn: async () => {
@@ -260,7 +277,7 @@ export const useCentralVoiceProfile = (profileId: string | null | undefined) => 
   const { data: session } = useSession()
   const userId = session?.user.user_id ?? null
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, error } = useQuery({
     queryKey: voiceKeys.centralDetail(userId, profileId ?? ''),
     queryFn: async () => {
       const response = await axios.get(`${CENTRAL_URL}/${profileId}`)
@@ -270,7 +287,7 @@ export const useCentralVoiceProfile = (profileId: string | null | undefined) => 
     refetchInterval: voiceDetailPollInterval,
   })
 
-  return { data, loading: isLoading }
+  return { data, loading: isLoading, error }
 }
 
 export const useApproveVoiceProfile = () => {

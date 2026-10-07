@@ -1,3 +1,12 @@
+import {
+  VoiceRegistrationState,
+  VoiceReviewState,
+  voiceRegistrationStateColors,
+  voiceRegistrationStateHelp,
+  voiceRegistrationStateLabels,
+  voiceReviewStateColors,
+  voiceReviewStateLabels,
+} from '@/utils/constant'
 import { Tag } from 'antd'
 
 /*
@@ -6,59 +15,23 @@ import { Tag } from 'antd'
  * Registration is read-only everywhere: no action buttons here.
  */
 
-const REVIEW: Record<string, { label: string; color: string }> = {
-  DRAFT: { label: 'Draft', color: 'default' },
-  SUBMITTED: { label: 'Submitted', color: 'processing' },
-  APPROVED: { label: 'Approved', color: 'success' },
-  REJECTED: { label: 'Rejected', color: 'error' },
-}
+const review = (state: string) => ({
+  label: voiceReviewStateLabels[state as VoiceReviewState] ?? state,
+  color: voiceReviewStateColors[state as VoiceReviewState] ?? 'default',
+})
 
-const REGISTRATION: Record<string, { label: string; color: string; help: string }> = {
-  UNREGISTERED: {
-    label: 'Not registered',
-    color: 'default',
-    help: 'Registration starts automatically after an admin approves the submission.',
-  },
-  QUEUED: {
-    label: 'Queued',
-    color: 'processing',
-    help: 'Approved. Waiting for voice registration to start.',
-  },
-  REGISTERING: {
-    label: 'Registering',
-    color: 'processing',
-    help: 'The voice is being registered with the provider.',
-  },
-  VERIFICATION_REQUIRED: {
-    label: 'Verification required',
-    color: 'warning',
-    help: 'Provider verification is required before this voice can be used. Generation stays blocked; PRAYER support will contact you.',
-  },
-  READY: { label: 'Ready', color: 'success', help: 'This voice can be used for prayer audio.' },
-  FAILED: {
-    label: 'Failed',
-    color: 'error',
-    help: 'Registration failed. An admin can review the error.',
-  },
-  REGISTRATION_UNKNOWN: {
-    label: 'Check registration result',
-    color: 'warning',
-    help: 'The provider did not confirm the registration in time. PRAYER is checking the result; no action is needed.',
-  },
-  DISABLED: {
-    label: 'Disabled',
-    color: 'default',
-    help: 'This voice is disabled and cannot be used for new prayer audio.',
-  },
-}
+const registration = (state: string) => ({
+  label: voiceRegistrationStateLabels[state as VoiceRegistrationState] ?? state,
+  color: voiceRegistrationStateColors[state as VoiceRegistrationState] ?? 'default',
+})
 
 export const ReviewStateTag = ({ state }: { state: string }) => {
-  const s = REVIEW[state] ?? { label: state, color: 'default' }
+  const s = review(state)
   return <Tag color={s.color}>Admin review: {s.label}</Tag>
 }
 
 export const RegistrationStateTag = ({ state }: { state: string }) => {
-  const s = REGISTRATION[state] ?? { label: state, color: 'default' }
+  const s = registration(state)
   return <Tag color={s.color}>Registration: {s.label}</Tag>
 }
 
@@ -66,8 +39,8 @@ export const RegistrationStateTag = ({ state }: { state: string }) => {
 export const registrationHelp = (state: string, lastErrorCode?: string | null): string => {
   if (lastErrorCode === 'PROVIDER_VOICE_MISSING')
     return 'This voice no longer exists at the provider. An admin can re-create it from the approved samples.'
-  return REGISTRATION[state]?.help ?? ''
+  return voiceRegistrationStateHelp[state as VoiceRegistrationState] ?? ''
 }
 
-export const reviewLabel = (state: string) => REVIEW[state]?.label ?? state
-export const registrationLabel = (state: string) => REGISTRATION[state]?.label ?? state
+export const reviewLabel = (state: string) => review(state).label
+export const registrationLabel = (state: string) => registration(state).label

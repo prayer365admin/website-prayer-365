@@ -242,7 +242,18 @@ export type VoiceProfileDetail = VoiceProfileListItem & {
 export const VoiceProfileListQuerySchema = z.object({
   page: z.coerce.number().int().positive().default(1),
   limit: z.coerce.number().int().positive().max(100).default(25),
-  order_by: z.enum(['created_at', 'review_state', 'registration_state']).default('created_at'),
+  order_by: z
+    .enum([
+      'created_at',
+      'submitted_at',
+      'pastor_name',
+      'church_name',
+      'samples',
+      'review_state',
+      'reviewed_by',
+      'registration_state',
+    ])
+    .default('created_at'),
   order_direction: z.enum(['asc', 'desc']).default('desc'),
   review_state: z.enum(['DRAFT', 'SUBMITTED', 'APPROVED', 'REJECTED']).optional(),
   registration_state: z
@@ -258,6 +269,10 @@ export const VoiceProfileListQuerySchema = z.object({
     ])
     .optional(),
   churchId: z.string().uuid().optional(),
+  /** Pastor, church or reviewer name (case-insensitive contains). */
+  search: z.string().trim().max(200).optional(),
+  submitted_from: z.iso.datetime({ offset: true }).optional(),
+  submitted_to: z.iso.datetime({ offset: true }).optional(),
 })
 
 export type VoiceProfileListQuery = z.infer<typeof VoiceProfileListQuerySchema>

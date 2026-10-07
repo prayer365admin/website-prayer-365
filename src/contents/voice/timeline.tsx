@@ -1,4 +1,5 @@
 import { VoiceProfileListItem, VoiceTimelineEvent } from '@/models/voice'
+import { VOICE_TIMELINE_REGISTRATION_STEPS, VOICE_TIMELINE_REVIEW_STEPS } from '@/utils/constant'
 import { Timeline } from 'antd'
 import { registrationLabel } from './status'
 
@@ -9,25 +10,6 @@ import { registrationLabel } from './status'
  */
 
 type Step = { color: string; title: string; when?: string; detail?: string; loading?: boolean }
-
-const REVIEW_STEPS: Record<string, { title: string; color: string }> = {
-  'voice.submission.create': { title: 'Draft created', color: 'gray' },
-  'voice.consent.create': { title: 'Authorization evidence recorded', color: 'gray' },
-  'voice.submission.submit': { title: 'Submitted for review', color: 'blue' },
-  'voice.profile.approve': { title: 'Approved', color: 'green' },
-  'voice.profile.reject': { title: 'Rejected', color: 'red' },
-}
-
-const REGISTRATION_STEPS: Record<string, { title: string; color: string }> = {
-  'voice.profile.approve': { title: 'Queued for registration', color: 'blue' },
-  'voice.profile.reclone': { title: 'Registration requested again', color: 'blue' },
-  'voice.register:success': { title: 'Registered with ElevenLabs', color: 'green' },
-  'voice.register:failure': { title: 'Registration failed', color: 'red' },
-  'voice.register.discarded': { title: 'Discarded (disabled during registration)', color: 'gray' },
-  'voice.provider.missing': { title: 'Voice missing at ElevenLabs', color: 'red' },
-  'voice.profile.disable': { title: 'Disabled', color: 'gray' },
-  'voice.consent.revoke': { title: 'Consent revoked', color: 'red' },
-}
 
 const lastWhere = (steps: Step[], test: (s: Step) => boolean) => [...steps].reverse().find(test)
 
@@ -44,7 +26,7 @@ const pick = (
   })
 
 export const reviewSteps = (p: VoiceProfileListItem): Step[] => {
-  const steps = pick(p.timeline ?? [], REVIEW_STEPS)
+  const steps = pick(p.timeline ?? [], VOICE_TIMELINE_REVIEW_STEPS)
   const rejected = lastWhere(steps, (s) => s.title === 'Rejected')
   if (rejected && p.reviewReason) rejected.detail = `Reason: ${p.reviewReason}`
   if (p.reviewState === 'DRAFT') steps.push({ color: 'gray', title: 'Not submitted yet' })
@@ -54,7 +36,7 @@ export const reviewSteps = (p: VoiceProfileListItem): Step[] => {
 }
 
 export const registrationSteps = (p: VoiceProfileListItem): Step[] => {
-  const steps = pick(p.timeline ?? [], REGISTRATION_STEPS)
+  const steps = pick(p.timeline ?? [], VOICE_TIMELINE_REGISTRATION_STEPS)
   const failed = lastWhere(steps, (s) => s.color === 'red')
   if (failed && p.registrationState === 'FAILED' && p.lastErrorCode)
     failed.detail = `Error: ${p.lastErrorCode}`

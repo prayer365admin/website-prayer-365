@@ -352,11 +352,37 @@ export const LIST_CENTRAL_PROFILES = async ({
         }
       : {}),
     ...(query.churchId ? { church_id: query.churchId } : {}),
+    ...(query.submitted_from || query.submitted_to
+      ? {
+          submitted_at: {
+            ...(query.submitted_from ? { gte: new Date(query.submitted_from) } : {}),
+            ...(query.submitted_to ? { lte: new Date(query.submitted_to) } : {}),
+          },
+        }
+      : {}),
+    ...(query.search
+      ? {
+          OR: [
+            { pastor: { name: { contains: query.search, mode: 'insensitive' } } },
+            { church: { name: { contains: query.search, mode: 'insensitive' } } },
+            { reviewer: { name: { contains: query.search, mode: 'insensitive' } } },
+          ],
+        }
+      : {}),
   }
-  const orderByMap: Record<string, Prisma.VoiceProfileOrderByWithRelationInput[]> = {
-    created_at: [{ created_at: query.order_direction }, { id: 'asc' }],
-    review_state: [{ review_state: query.order_direction }, { id: 'asc' }],
-    registration_state: [{ registration_state: query.order_direction }, { id: 'asc' }],
+  const dir = query.order_direction
+  const orderByMap: Record<
+    VoiceProfileListQuery['order_by'],
+    Prisma.VoiceProfileOrderByWithRelationInput
+  > = {
+    created_at: { created_at: dir },
+    submitted_at: { submitted_at: { sort: dir, nulls: 'last' } },
+    pastor_name: { pastor: { name: dir } },
+    church_name: { church: { name: dir } },
+    samples: { samples: { _count: dir } },
+    review_state: { review_state: dir },
+    reviewed_by: { reviewer: { name: dir } },
+    registration_state: { registration_state: dir },
   }
   const [total, rows] = await db.$transaction([
     db.voiceProfile.count({ where }),
@@ -364,7 +390,7 @@ export const LIST_CENTRAL_PROFILES = async ({
       where,
       take: query.limit,
       skip: (query.page - 1) * query.limit,
-      orderBy: orderByMap[query.order_by],
+      orderBy: [orderByMap[query.order_by], { created_at: 'desc' }, { id: 'asc' }],
       include: PROFILE_INCLUDE,
     }),
   ])

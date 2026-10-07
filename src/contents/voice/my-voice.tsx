@@ -11,6 +11,7 @@ import {
   useSubmitVoiceSubmission,
 } from '@/hooks/data/voice'
 import { VOICE_SAMPLE_MAX_FILES, VoiceProfileListItem } from '@/models/voice'
+import { VOICE_CONSENT_TERMS_VERSION } from '@/utils/constant'
 import { DeleteOutlined, UploadOutlined } from '@ant-design/icons'
 import { Alert, App, Button, Card, Col, Collapse, Result, Row, Select, Upload } from 'antd'
 import axios from 'axios'
@@ -25,9 +26,6 @@ import { RegistrationStateTag, ReviewStateTag, registrationHelp } from './status
  * Only a DRAFT is editable; anything submitted is read-only, and a change after
  * review is a new revision that needs its own approval.
  */
-
-// ponytail: fixed offline-authorization terms label until legal text/versioning lands (D10).
-const CONSENT_TERMS_VERSION = 'offline-authorization-v1'
 
 type Sample = { assetId: string; name: string }
 
@@ -123,7 +121,7 @@ function DraftForm({
       ? (
           await onCreateConsent({
             evidenceAssetId: evidence.assetId,
-            termsVersion: CONSENT_TERMS_VERSION,
+            termsVersion: VOICE_CONSENT_TERMS_VERSION,
           })
         ).id
       : undefined
@@ -228,7 +226,7 @@ function DraftForm({
           Use 1–2 minutes of clear prayer-style speech in total. One speaker, no music and minimal
           echo.
         </p>
-        {hint && <Alert className="mt-2" type={hint.type} showIcon message={hint.text} />}
+        {hint && <Alert className="mt-2" type={hint.type} showIcon title={hint.text} />}
       </section>
 
       <section>
@@ -292,7 +290,7 @@ function StatusCard({ profile }: { profile: VoiceProfileListItem | null }) {
             <Alert
               type="error"
               showIcon
-              message="Rejected by the reviewer"
+              title="Rejected by the reviewer"
               description={profile.reviewReason}
             />
           )}
@@ -378,7 +376,7 @@ export default function ContentsMyVoice() {
           className="mb-4"
           type="error"
           showIcon
-          message="Your voice submissions could not be loaded"
+          title="Your voice submissions could not be loaded"
           description="Refresh the page or try again shortly."
         />
       )}
@@ -408,7 +406,7 @@ export default function ContentsMyVoice() {
                     className="mb-4"
                     type="info"
                     showIcon
-                    message="Your current voice stays active until the new one is approved and ready."
+                    title="Your current voice stays active until the new one is approved and ready."
                   />
                 )}
                 <DraftForm
@@ -423,7 +421,7 @@ export default function ContentsMyVoice() {
               <Alert
                 type="warning"
                 showIcon
-                message="You are not assigned as a pastor of any church yet"
+                title="You are not assigned as a pastor of any church yet"
                 description="Ask a central administrator to assign your pastor profile to a church before submitting a voice."
               />
             ) : latest ? (
@@ -470,7 +468,7 @@ export default function ContentsMyVoice() {
       <Alert
         className="mt-4"
         type="info"
-        message="You only need your PRAYER login. No personal ElevenLabs account or provider Voice ID is requested."
+        title="You only need your PRAYER login. No personal ElevenLabs account or provider Voice ID is requested."
       />
     </>
   )

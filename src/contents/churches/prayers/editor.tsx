@@ -362,7 +362,7 @@ export default function ContentsChurchesPrayersEditor({
           <Alert
             type="warning"
             showIcon
-            message="The pastor's voice no longer exists at the provider."
+            title="The pastor's voice no longer exists at the provider."
             description={
               recloneStarted ? (
                 'The voice is being re-created. Generate audio again once the pastor voice is ready.'

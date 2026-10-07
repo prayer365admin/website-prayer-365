@@ -158,6 +158,32 @@ describe('Voice hooks', () => {
       )
     })
 
+    it('passes search, submitted range, registration and sort', async () => {
+      axiosMock.get.mockResolvedValue({ data: resolveGet([], 0) })
+      const { result } = renderHook(
+        () =>
+          useCentralVoiceProfiles({
+            registrationState: 'READY',
+            search: 'tamm',
+            submittedFrom: '2026-10-01T00:00:00.000Z',
+            submittedTo: '2026-10-07T23:59:59.999Z',
+            orderBy: 'reviewed_by',
+            orderDirection: 'asc',
+          }),
+        { wrapper: Providers },
+      )
+      await waitFor(() => expect(result.current.loading).toBe(false))
+      const url = new URL(axiosMock.get.mock.calls[0][0] as string, 'http://x')
+      expect(Object.fromEntries(url.searchParams)).toMatchObject({
+        order_by: 'reviewed_by',
+        order_direction: 'asc',
+        registration_state: 'READY',
+        search: 'tamm',
+        submitted_from: '2026-10-01T00:00:00.000Z',
+        submitted_to: '2026-10-07T23:59:59.999Z',
+      })
+    })
+
     it('fetches detail only with an id', async () => {
       renderHook(() => useCentralVoiceProfile(null), { wrapper: Providers })
       expect(axiosMock.get).not.toHaveBeenCalled()

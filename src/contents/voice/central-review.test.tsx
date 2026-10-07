@@ -1,4 +1,4 @@
-import { renderWithProviders, sessionMock } from '@/test/frontend/render'
+import { pushMock, renderWithProviders, sessionMock } from '@/test/frontend/render'
 import { fireEvent, screen } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -24,6 +24,7 @@ vi.mock('@/components/common/dashboard/main-header', () => ({
 }))
 
 import ContentsVoiceReview from './central-review'
+import ContentsVoiceReviewDetail from './central-review-detail'
 
 const ADMIN = 'admin-1'
 
@@ -58,27 +59,83 @@ const detail = (over: Record<string, unknown> = {}) => ({
   ...over,
 })
 
+/** Open the detail page for one voice profile. */
 const show = (d: ReturnType<typeof detail>) => {
-  voice.useCentralVoiceProfiles.mockReturnValue({ data: [d], total: 1, loading: false })
-  voice.useCentralVoiceProfile.mockReturnValue({ data: d, loading: false })
-  renderWithProviders(<ContentsVoiceReview />)
-  fireEvent.click(screen.getByText('Pastor A'))
+  voice.useCentralVoiceProfile.mockReturnValue({ data: d, loading: false, error: null })
+  renderWithProviders(<ContentsVoiceReviewDetail voiceId={d.id} />)
 }
 
-describe('ContentsVoiceReview (S24)', () => {
+describe('ContentsVoiceReview list (S24)', () => {
+  beforeEach(() => vi.clearAllMocks())
+
+  it('lists pastor/church with separate review, reviewer and registration columns', () => {
+    voice.useCentralVoiceProfiles.mockReturnValue({
+      data: [detail({ reviewState: 'APPROVED', reviewedByName: 'Global Admin' })],
+      total: 1,
+      loading: false,
+    })
+    renderWithProviders(<ContentsVoiceReview />)
+    expect(screen.getByText('Example Church')).toBeTruthy()
+    expect(screen.getByRole('cell', { name: 'Approved' })).toBeTruthy()
+    expect(screen.getByRole('columnheader', { name: /Reviewed by/ })).toBeTruthy()
+    expect(screen.getByRole('cell', { name: 'Global Admin' })).toBeTruthy()
+    expect(screen.getByRole('cell', { name: 'Not registered' })).toBeTruthy()
+  })
+
+  it('has review, registration, submitted-date filters and a search box above the table', () => {
+    voice.useCentralVoiceProfiles.mockReturnValue({ data: [], total: 0, loading: false })
+    renderWithProviders(<ContentsVoiceReview />)
+    expect(screen.getByLabelText('Filter admin review')).toBeTruthy()
+    expect(screen.getByLabelText('Filter registration')).toBeTruthy()
+    expect(screen.getByPlaceholderText('Submitted from')).toBeTruthy()
+    expect(screen.getByPlaceholderText('Search pastor, church or reviewer')).toBeTruthy()
+    expect(voice.useCentralVoiceProfiles).toHaveBeenLastCalledWith(
+      expect.objectContaining({ orderBy: 'created_at', orderDirection: 'desc', page: 1 }),
+    )
+  })
+
+  it('sorting a column asks the API for that order', () => {
+    voice.useCentralVoiceProfiles.mockReturnValue({ data: [detail()], total: 1, loading: false })
+    renderWithProviders(<ContentsVoiceReview />)
+    fireEvent.click(screen.getByRole('columnheader', { name: /Church/ }))
+    expect(voice.useCentralVoiceProfiles).toHaveBeenLastCalledWith(
+      expect.objectContaining({ orderBy: 'church_name', orderDirection: 'asc' }),
+    )
+  })
+
+  it('the Actions column edit button opens the profile page; rows are not clickable', () => {
+    voice.useCentralVoiceProfiles.mockReturnValue({ data: [detail()], total: 1, loading: false })
+    renderWithProviders(<ContentsVoiceReview />)
+    expect(screen.getByRole('columnheader', { name: 'Actions' })).toBeTruthy()
+    fireEvent.click(screen.getByRole('cell', { name: 'Not registered' }))
+    expect(pushMock).not.toHaveBeenCalled()
+    fireEvent.click(screen.getByRole('img', { name: 'edit' }))
+    expect(pushMock).toHaveBeenCalledWith('/dashboard/central/voice-profiles/v1')
+    expect(screen.queryByRole('img', { name: 'delete' })).toBeNull()
+  })
+})
+
+describe('ContentsVoiceReviewDetail page (S24)', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     granted.value = true
     sessionMock.mockReturnValue({ data: { user: { user_id: ADMIN } }, status: 'authenticated' })
   })
 
-  it('lists pastor/church with separate review and registration columns', () => {
-    voice.useCentralVoiceProfiles.mockReturnValue({ data: [detail()], total: 1, loading: false })
-    voice.useCentralVoiceProfile.mockReturnValue({ data: undefined, loading: false })
-    renderWithProviders(<ContentsVoiceReview />)
-    expect(screen.getByText('Example Church')).toBeTruthy()
-    expect(screen.getByRole('cell', { name: 'Submitted' })).toBeTruthy()
-    expect(screen.getByRole('cell', { name: 'Not registered' })).toBeTruthy()
+  it('uses the pastor-details card wrapper: back-arrow title with the pastor name', () => {
+    show(detail())
+    expect(screen.getByRole('heading', { name: 'Review Pastor A' })).toBeTruthy()
+    expect(screen.getByRole('img', { name: 'arrow-left' })).toBeTruthy()
+  })
+
+  it('shows not found for an unknown voice id', () => {
+    voice.useCentralVoiceProfile.mockReturnValue({
+      data: undefined,
+      loading: false,
+      error: Object.assign(new Error('x'), { isAxiosError: true, response: { status: 404 } }),
+    })
+    renderWithProviders(<ContentsVoiceReviewDetail voiceId="nope" />)
+    expect(screen.getByText('Voice submission not found')).toBeTruthy()
   })
 
   it('offers Approve and register / Reject for a pending submission; reject needs a reason', () => {
@@ -101,7 +158,7 @@ describe('ContentsVoiceReview (S24)', () => {
     expect(screen.queryByRole('button', { name: 'Reject' })).toBeNull()
   })
 
-  it('shows who reviewed it, in the list and the panel', () => {
+  it('shows who reviewed it in the history timeline', () => {
     show(
       detail({
         reviewState: 'APPROVED',
@@ -118,10 +175,8 @@ describe('ContentsVoiceReview (S24)', () => {
         ],
       }),
     )
-    expect(screen.getByRole('columnheader', { name: 'Reviewed by' })).toBeTruthy()
-    expect(screen.getByRole('cell', { name: 'Global Admin' })).toBeTruthy()
-    // timeline: "Approved" (review) + "Queued for registration" (registration), both by the reviewer
-    expect(screen.getAllByText('Approved').length).toBeGreaterThan(1) // table cell + timeline
+    // "Approved" (review) + "Queued for registration" (registration), both by the reviewer
+    expect(screen.getByText('Approved')).toBeTruthy()
     expect(screen.getAllByText(/by Global Admin/)).toHaveLength(2)
   })
 
