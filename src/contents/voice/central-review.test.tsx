@@ -39,6 +39,7 @@ const detail = (over: Record<string, unknown> = {}) => ({
   registrationState: 'UNREGISTERED',
   submittedAt: '2026-09-24T00:00:00.000Z',
   reviewedAt: null,
+  reviewedByName: null,
   reviewReason: null,
   consentRevokedAt: null,
   replacesProfileId: null,
@@ -100,6 +101,30 @@ describe('ContentsVoiceReview (S24)', () => {
     expect(screen.queryByRole('button', { name: 'Reject' })).toBeNull()
   })
 
+  it('shows who reviewed it, in the list and the panel', () => {
+    show(
+      detail({
+        reviewState: 'APPROVED',
+        registrationState: 'READY',
+        reviewedAt: '2026-10-05T00:00:00.000Z',
+        reviewedByName: 'Global Admin',
+        timeline: [
+          {
+            action: 'voice.profile.approve',
+            outcome: 'success',
+            at: '2026-10-05T00:00:00.000Z',
+            actorName: 'Global Admin',
+          },
+        ],
+      }),
+    )
+    expect(screen.getByRole('columnheader', { name: 'Reviewed by' })).toBeTruthy()
+    expect(screen.getByRole('cell', { name: 'Global Admin' })).toBeTruthy()
+    // timeline: "Approved" (review) + "Queued for registration" (registration), both by the reviewer
+    expect(screen.getAllByText('Approved').length).toBeGreaterThan(1) // table cell + timeline
+    expect(screen.getAllByText(/by Global Admin/)).toHaveLength(2)
+  })
+
   it('shows disable / revoke for an approved voice, with the read-only Voice ID', () => {
     show(detail({ reviewState: 'APPROVED', registrationState: 'READY', providerVoiceId: 'vx1' }))
     expect(screen.queryByRole('button', { name: 'Approve and register' })).toBeNull()
@@ -120,15 +145,28 @@ describe('ContentsVoiceReview (S24)', () => {
     expect(screen.getByText(/no longer exists at the provider/)).toBeTruthy()
   })
 
-  it('no Re-create voice for other failures', () => {
+  it('offers Retry registration for a fixable failure', () => {
     show(
       detail({
         reviewState: 'APPROVED',
         registrationState: 'FAILED',
-        lastErrorCode: 'VOICE_LIMIT_REACHED',
+        lastErrorCode: 'VOICE_CREATE_REJECTED',
       }),
     )
+    expect(screen.getByRole('button', { name: 'Retry registration' })).toBeTruthy()
     expect(screen.queryByRole('button', { name: 'Re-create voice' })).toBeNull()
+  })
+
+  it('explains when a retry cannot fix the failure', () => {
+    show(
+      detail({
+        reviewState: 'APPROVED',
+        registrationState: 'FAILED',
+        lastErrorCode: 'CHECKSUM_MISMATCH',
+      }),
+    )
+    expect(screen.queryByRole('button', { name: 'Retry registration' })).toBeNull()
+    expect(screen.getByText(/needs to submit a new revision/)).toBeTruthy()
   })
 
   it('shows no actions without voice-review update permission', () => {

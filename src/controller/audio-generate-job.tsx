@@ -111,6 +111,7 @@ export const processAudioGenerateJob = async (
     const speech = await ELEVENLABS.generateSpeech({
       providerVoiceId: resource.voice_profile.provider_voice_id,
       text: resource.verse.body,
+      languageCode: resource.verse.language_code,
     })
     const objectKey = `media/${churchId}/generated_audio/${crypto.randomUUID()}`
     await S3_PUT_OBJECT({ key: objectKey, body: speech.bytes, contentType: speech.contentType })

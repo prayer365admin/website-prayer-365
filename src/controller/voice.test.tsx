@@ -562,7 +562,16 @@ describe('recloneVoiceProfile (F4VO V8)', () => {
 
   it.each([
     ['READY voice', { registration_state: 'READY', last_error_code: null }, 'INVALID_STATE'],
-    ['FAILED for another reason', { last_error_code: 'VOICE_LIMIT_REACHED' }, 'INVALID_STATE'],
+    [
+      'changed sample (needs new submission)',
+      { last_error_code: 'CHECKSUM_MISMATCH' },
+      'RETRY_NOT_POSSIBLE',
+    ],
+    [
+      'unresolved create (duplicate risk)',
+      { last_error_code: 'REGISTRATION_UNRESOLVED' },
+      'RETRY_NOT_POSSIBLE',
+    ],
     ['disabled voice', { registration_state: 'DISABLED' }, 'PROFILE_DISABLED'],
     ['revoked consent', { consent: { revoked_at: new Date() } }, 'CONSENT_REVOKED'],
   ])('refuses a %s', async (_name, over, code) => {
@@ -570,6 +579,19 @@ describe('recloneVoiceProfile (F4VO V8)', () => {
     await expect(recloneVoiceProfile(args)).rejects.toMatchObject({ code: 409, error_code: code })
     expect(voice.REQUEST_RECLONE).not.toHaveBeenCalled()
   })
+
+  it.each(['VOICE_CREATE_REJECTED', 'VOICE_LIMIT_REACHED', 'INTERNAL_JOB_ERROR'])(
+    'retries a registration that failed with %s',
+    async (code) => {
+      vi.mocked(voice.GET_VOICE_PROFILE).mockResolvedValue(
+        missing({ last_error_code: code }) as never,
+      )
+      vi.mocked(voice.GET_PROFILE_LIST_ITEM).mockResolvedValue({ id: PROFILE } as never)
+      runIdempotently(PROFILE)
+      await recloneVoiceProfile({ ...args, idempotencyKey: 'k' })
+      expect(voice.REQUEST_RECLONE).toHaveBeenCalled()
+    },
+  )
 
   it('a repeat click while re-creating returns the current state', async () => {
     vi.mocked(voice.GET_VOICE_PROFILE).mockResolvedValue(

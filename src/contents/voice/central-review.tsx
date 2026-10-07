@@ -13,21 +13,16 @@ import {
   useRecloneVoiceProfile,
   useRevokeVoiceConsent,
 } from '@/hooks/data/voice'
-import { VoiceProfileDetail, VoiceProfileListItem } from '@/models/voice'
+import { VoiceProfileDetail, VoiceProfileListItem, canRetryRegistration } from '@/models/voice'
 import { CloseOutlined } from '@ant-design/icons'
 import { Alert, App, Button, Card, Col, Input, Row, Select, Table } from 'antd'
 import { ColumnsType } from 'antd/es/table'
 import { useSession } from 'next-auth/react'
 import { useState } from 'react'
 import RecordingTips from './recording-tips'
+import VoiceTimeline from './timeline'
 import SamplePlayer, { formatDuration } from './sample-player'
-import {
-  RegistrationStateTag,
-  ReviewStateTag,
-  registrationHelp,
-  registrationLabel,
-  reviewLabel,
-} from './status'
+import { registrationHelp, registrationLabel, reviewLabel } from './status'
 
 /*
  * S24 Voice Submission Review (F4VO VO-05). Admin previews the exact submitted
@@ -51,6 +46,7 @@ const columns: ColumnsType<VoiceProfileListItem> = [
   { key: 'submitted', title: 'Submitted', render: (_, p) => formatDate(p.submittedAt) },
   { key: 'samples', title: 'Samples', render: (_, p) => p.samples.length },
   { key: 'review', title: 'Admin review', render: (_, p) => reviewLabel(p.reviewState) },
+  { key: 'reviewedBy', title: 'Reviewed by', render: (_, p) => p.reviewedByName ?? '—' },
   {
     key: 'registration',
     title: 'Registration',
@@ -84,8 +80,8 @@ function ReviewPanel({ profile, onClose }: { profile: VoiceProfileDetail; onClos
   const { onRevokeConsent, loading: revoking } = useRevokeVoiceConsent()
   const { onReclone, loading: recloning } = useRecloneVoiceProfile()
   const busy = approving || rejecting || disabling || revoking || recloning
-  const voiceMissing =
-    profile.registrationState === 'FAILED' && profile.lastErrorCode === 'PROVIDER_VOICE_MISSING'
+  const voiceMissing = profile.lastErrorCode === 'PROVIDER_VOICE_MISSING'
+  const canRetry = canRetryRegistration(profile)
 
   const pending = profile.reviewState === 'SUBMITTED'
   const canStop = profile.reviewState === 'APPROVED' && profile.registrationState !== 'DISABLED'
@@ -149,10 +145,7 @@ function ReviewPanel({ profile, onClose }: { profile: VoiceProfileDetail; onClos
         </section>
 
         <section className="space-y-2">
-          <div className="flex flex-wrap gap-2">
-            <ReviewStateTag state={profile.reviewState} />
-            <RegistrationStateTag state={profile.registrationState} />
-          </div>
+          <VoiceTimeline profile={profile} />
           {profile.reviewState === 'APPROVED' && (
             <p className="m-0">
               {registrationHelp(profile.registrationState, profile.lastErrorCode)}
@@ -163,9 +156,6 @@ function ReviewPanel({ profile, onClose }: { profile: VoiceProfileDetail; onClos
           </div>
           {profile.lastErrorCode && (
             <div className="text-gray-500">Last error: {profile.lastErrorCode}</div>
-          )}
-          {profile.reviewReason && (
-            <div className="text-gray-500">Review reason: {profile.reviewReason}</div>
           )}
         </section>
 
@@ -223,7 +213,7 @@ function ReviewPanel({ profile, onClose }: { profile: VoiceProfileDetail; onClos
           </section>
         )}
 
-        {canUpdate && voiceMissing && !profile.consentRevokedAt && (
+        {canUpdate && canRetry && (
           <section>
             <Button
               type="primary"
@@ -231,17 +221,29 @@ function ReviewPanel({ profile, onClose }: { profile: VoiceProfileDetail; onClos
               loading={recloning}
               onClick={() =>
                 confirm(
-                  'Re-create this voice?',
-                  `ElevenLabs no longer has ${who}'s voice. This creates a new clone from the same approved samples. Prayer audio can be generated again once it is ready.`,
-                  'Re-create voice',
+                  voiceMissing ? 'Re-create this voice?' : 'Retry registration?',
+                  voiceMissing
+                    ? `ElevenLabs no longer has ${who}'s voice. This creates a new clone from the same approved samples. Prayer audio can be generated again once it is ready.`
+                    : `Sends ${who}'s approved samples to ElevenLabs again. Fix the cause first (for example the ElevenLabs plan or voice slots), or it will fail the same way.`,
+                  voiceMissing ? 'Re-create voice' : 'Retry registration',
                   () => onReclone({ churchId: profile.churchId, id: profile.id }),
                 )
               }
             >
-              Re-create voice
+              {voiceMissing ? 'Re-create voice' : 'Retry registration'}
             </Button>
           </section>
         )}
+        {canUpdate &&
+          profile.registrationState === 'FAILED' &&
+          !canRetry &&
+          !profile.consentRevokedAt && (
+            <Alert
+              type="info"
+              showIcon
+              message="A retry cannot fix this failure. The pastor needs to submit a new revision."
+            />
+          )}
 
         {canUpdate && canStop && (
           <section className="flex flex-wrap gap-3">

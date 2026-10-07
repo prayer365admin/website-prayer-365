@@ -3,11 +3,13 @@ import { db } from '@/utils/db-connection'
 import { GeneralError } from '@/utils/general-error'
 import { auditPayload } from '@/utils/audit'
 import {
+  VOICE_RETRY_BLOCKED_ERRORS,
   mapConsent,
   ConsentOutput,
   VoiceProfileListItem,
   VoiceProfileDetail,
   VoiceProfileListQuery,
+  VoiceTimelineEvent,
 } from '@/models/voice'
 
 /*
@@ -58,6 +60,16 @@ export const RESOLVE_OWN_SCOPE = async ({
   const churchIds = new Set(rows.map((r) => r.church_id))
   return { anchorChurchId: rows[0]?.church_id ?? null, churchIds }
 }
+
+/** Churches where the caller's linked pastor is assigned (S27 church context). */
+export const LIST_OWN_CHURCHES = ({ userId }: { userId: string }) =>
+  db.churchPastor
+    .findMany({
+      where: { pastor: { user_id: userId } },
+      select: { church: { select: { id: true, name: true } } },
+      orderBy: { church: { name: 'asc' } },
+    })
+    .then((rows) => rows.map((r) => r.church))
 
 /** Generic media asset read (used for evidence + sample validation / review). */
 export const GET_ASSET = async ({
@@ -169,6 +181,7 @@ export const AUDIT_VOICE = (
 const PROFILE_INCLUDE = {
   pastor: { select: { name: true, user_id: true } },
   church: { select: { name: true } },
+  reviewer: { select: { name: true } },
   consent: {
     select: { revoked_at: true, terms_version: true, recorded_at: true, evidence_asset_id: true },
   },
@@ -207,6 +220,56 @@ export const GET_CHURCH_PASTOR = ({ churchId, pastorId }: { churchId: string; pa
     select: { church_id: true },
   })
 
+/** Draft saves are noise in a history view; everything else is a step. */
+const TIMELINE_SKIP = ['voice.submission.update']
+
+/**
+ * Attach each profile's history from audit_logs (one query): its own actions,
+ * plus consent recorded/revoked for the consent it uses. No extra schema.
+ */
+const withTimelines = async <T extends { id: string }>(
+  items: T[],
+  consentIdOf: (item: T) => string,
+): Promise<(T & { timeline: VoiceTimelineEvent[] })[]> => {
+  if (items.length === 0) return []
+  const profileIds = items.map((i) => i.id)
+  const consentIds = Array.from(new Set(items.map(consentIdOf)))
+  const rows = await db.auditLog.findMany({
+    where: {
+      outcome: { in: ['success', 'failure'] },
+      action: { notIn: TIMELINE_SKIP },
+      OR: [
+        { resource_type: 'voice_profile', resource_id: { in: profileIds } },
+        { resource_type: 'consent', resource_id: { in: consentIds } },
+      ],
+    },
+    orderBy: { created_at: 'asc' },
+    select: {
+      action: true,
+      outcome: true,
+      created_at: true,
+      resource_id: true,
+      resource_type: true,
+      actor: { select: { name: true } },
+    },
+  })
+  return items.map((item) => ({
+    ...item,
+    timeline: rows
+      .filter((r) =>
+        r.resource_type === 'consent'
+          ? r.resource_id === consentIdOf(item)
+          : r.resource_id === item.id,
+      )
+      .map((r) => ({
+        action: r.action,
+        outcome: r.outcome,
+        at: r.created_at.toISOString(),
+        actorName: r.actor?.name ?? null,
+      })),
+  }))
+}
+
 const listItemFromRow = (p: VoiceProfileRow): VoiceProfileListItem => ({
   id: p.id,
   pastorId: p.pastor_id,
@@ -219,6 +282,7 @@ const listItemFromRow = (p: VoiceProfileRow): VoiceProfileListItem => ({
   registrationState: p.registration_state,
   submittedAt: p.submitted_at ? p.submitted_at.toISOString() : null,
   reviewedAt: p.reviewed_at ? p.reviewed_at.toISOString() : null,
+  reviewedByName: p.reviewer?.name ?? null,
   reviewReason: p.review_reason,
   consentRevokedAt: p.consent.revoked_at ? p.consent.revoked_at.toISOString() : null,
   replacesProfileId: p.replaces_profile_id,
@@ -262,7 +326,13 @@ export const LIST_OWN_PROFILES = async ({
       include: PROFILE_INCLUDE,
     }),
   ])
-  return { result: rows.map(listItemFromRow), total }
+  return {
+    result: (await withTimelines(rows, (r) => r.consent_id)).map(({ timeline, ...r }) => ({
+      ...listItemFromRow(r),
+      timeline,
+    })),
+    total,
+  }
 }
 
 /** Central review list w/ registration state. */
@@ -298,7 +368,13 @@ export const LIST_CENTRAL_PROFILES = async ({
       include: PROFILE_INCLUDE,
     }),
   ])
-  return { result: rows.map(listItemFromRow), total }
+  return {
+    result: (await withTimelines(rows, (r) => r.consent_id)).map(({ timeline, ...r }) => ({
+      ...listItemFromRow(r),
+      timeline,
+    })),
+    total,
+  }
 }
 
 export const GET_CENTRAL_PROFILE = async ({
@@ -306,10 +382,12 @@ export const GET_CENTRAL_PROFILE = async ({
 }: {
   profileId: string
 }): Promise<VoiceProfileDetail | null> => {
-  const row = await GET_VOICE_PROFILE({ profileId })
-  if (!row) return null
+  const found = await GET_VOICE_PROFILE({ profileId })
+  if (!found) return null
+  const [row] = await withTimelines([found], (r) => r.consent_id)
   return {
     ...listItemFromRow(row),
+    timeline: row.timeline,
     consentId: row.consent_id,
     termsVersion: row.consent.terms_version,
     consentRecordedAt: row.consent.recorded_at.toISOString(),
@@ -679,10 +757,11 @@ export const REVOKE_CONSENT = async (
 }
 
 /**
- * Manual re-clone after ElevenLabs lost the voice (F4VO V8). Only a profile the
- * TTS worker flagged FAILED + PROVIDER_VOICE_MISSING qualifies. The version bump
- * gives the new clone its own provider name and outbox dedupe key; the worker
- * clears last_error_code once the new voice is READY.
+ * Admin retry of a FAILED registration (F4VO): "Re-create voice" after ElevenLabs
+ * lost it (PROVIDER_VOICE_MISSING) or "Retry registration" after a fixable
+ * failure. Failures in VOICE_RETRY_BLOCKED_ERRORS need a new submission. The
+ * version bump gives the new attempt its own provider name and outbox dedupe
+ * key; the worker clears last_error_code once the voice is READY.
  */
 export const REQUEST_RECLONE = async (
   tx: Prisma.TransactionClient,
@@ -693,7 +772,7 @@ export const REQUEST_RECLONE = async (
       id: profileId,
       review_state: 'APPROVED',
       registration_state: 'FAILED',
-      last_error_code: 'PROVIDER_VOICE_MISSING',
+      OR: [{ last_error_code: null }, { last_error_code: { notIn: VOICE_RETRY_BLOCKED_ERRORS } }],
     },
     data: {
       registration_state: 'QUEUED',

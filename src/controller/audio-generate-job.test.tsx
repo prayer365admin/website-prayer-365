@@ -256,6 +256,7 @@ describe('processAudioGenerateJob — generation happy path', () => {
     expect(mocks.elevenlabs.generateSpeech).toHaveBeenCalledWith({
       providerVoiceId: 'pv_1',
       text: 'Praise the Lord',
+      languageCode: 'et',
     })
     const s3Call = mocks.s3.S3_PUT_OBJECT.mock.calls[0][0] as {
       key: string

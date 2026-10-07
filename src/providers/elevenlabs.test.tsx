@@ -68,9 +68,14 @@ describe('generateSpeech', () => {
     const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit]
     expect(url).toBe('https://api.elevenlabs.io/v1/text-to-speech/pv_1?output_format=mp3_44100_128')
     expect((init.headers as Record<string, string>)['xi-api-key']).toBe('k_test')
-    const body = JSON.parse(String(init.body)) as { text: string; model_id: string }
+    const body = JSON.parse(String(init.body)) as {
+      text: string
+      model_id: string
+      language_code?: string
+    }
     expect(body.text).toBe('Praise the Lord')
-    expect(body.model_id).toBe('eleven_v3')
+    expect(body.model_id).toBe('eleven_v4')
+    expect(body.language_code).toBeUndefined()
   })
 
   it('honors env overrides for base url, model and headers variants', async () => {
@@ -264,6 +269,24 @@ describe('voice registration (F4VO)', () => {
     await expect(findVoiceByName('prayer-test-vp1-v3')).resolves.toBe('el_1')
     await expect(findVoiceByName('prayer-test-vp9-v1')).resolves.toBeNull()
     expect(String(fetchMock.mock.calls[0][0])).toContain('/v2/voices?search=prayer-test-vp1-v3')
+  })
+})
+
+describe('generateSpeech — prayer language', () => {
+  it.each([
+    ['et', 'et'],
+    ['fi', 'fi'],
+    ['sv', 'sv'],
+    ['en-GB', 'en'],
+    ['et        ', 'et'], // padded char column value
+  ])('%s is sent as language_code %s', async (code, expected) => {
+    process.env.ELEVENLABS_API_KEY = 'k_test'
+    fetchMock.mockResolvedValue(okResponse(new Uint8Array([1])))
+    await generateSpeech({ providerVoiceId: 'pv_1', text: 'Aamen', languageCode: code })
+    const body = JSON.parse(String((fetchMock.mock.calls[0][1] as RequestInit).body)) as {
+      language_code: string
+    }
+    expect(body.language_code).toBe(expected)
   })
 })
 

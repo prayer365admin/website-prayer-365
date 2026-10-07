@@ -1,11 +1,11 @@
 'use client'
 
 import DashboardMainHeader from '@/components/common/dashboard/main-header'
-import { useChurches } from '@/hooks/data/church'
 import { useMediaUpload } from '@/hooks/data/media-upload'
 import {
   useCreateVoiceConsent,
   useCreateVoiceSubmission,
+  useMyVoiceChurches,
   useMyVoiceSubmissions,
   usePatchVoiceSubmission,
   useSubmitVoiceSubmission,
@@ -16,6 +16,7 @@ import { Alert, App, Button, Card, Col, Collapse, Result, Row, Select, Upload } 
 import axios from 'axios'
 import { useEffect, useState } from 'react'
 import RecordingTips from './recording-tips'
+import VoiceTimeline from './timeline'
 import SamplePlayer, { formatDuration } from './sample-player'
 import { RegistrationStateTag, ReviewStateTag, registrationHelp } from './status'
 
@@ -286,10 +287,7 @@ function StatusCard({ profile }: { profile: VoiceProfileListItem | null }) {
     <Card title="Submission status" className="h-full">
       {profile ? (
         <div className="space-y-3">
-          <div className="flex flex-wrap gap-2">
-            <ReviewStateTag state={profile.reviewState} />
-            <RegistrationStateTag state={profile.registrationState} />
-          </div>
+          <VoiceTimeline profile={profile} />
           {profile.reviewState === 'REJECTED' && profile.reviewReason && (
             <Alert
               type="error"
@@ -305,10 +303,7 @@ function StatusCard({ profile }: { profile: VoiceProfileListItem | null }) {
           )}
         </div>
       ) : (
-        <div className="flex flex-wrap gap-2">
-          <ReviewStateTag state="DRAFT" />
-          <RegistrationStateTag state="UNREGISTERED" />
-        </div>
+        <p className="text-gray-500 m-0">Nothing submitted yet.</p>
       )}
       <p className="mt-4">
         After you submit, an admin reviews your samples and authorization. Approval starts voice
@@ -342,13 +337,9 @@ function ReadOnlyRevision({ profile }: { profile: VoiceProfileListItem }) {
 
 export default function ContentsMyVoice() {
   const { data: submissions, loading, error } = useMyVoiceSubmissions()
-  const { data: churches } = useChurches({
-    queryString: '',
-    limit: 100,
-    page: 1,
-    orderBy: 'name',
-    orderDirection: 'asc',
-  })
+  // Pastor's own assignments (church_pastors), not the role-scoped church list:
+  // a pastor has no prayer_church:read.
+  const { data: churches, loading: churchesLoading } = useMyVoiceChurches()
   const [startNew, setStartNew] = useState(false)
   const [selectedChurchId, setSelectedChurchId] = useState<string>()
 
@@ -428,6 +419,13 @@ export default function ContentsMyVoice() {
                   onCancel={startNew && !draft ? () => setStartNew(false) : undefined}
                 />
               </>
+            ) : editing && !churchesLoading ? (
+              <Alert
+                type="warning"
+                showIcon
+                message="You are not assigned as a pastor of any church yet"
+                description="Ask a central administrator to assign your pastor profile to a church before submitting a voice."
+              />
             ) : latest ? (
               <>
                 <ReadOnlyRevision profile={latest} />
@@ -441,7 +439,7 @@ export default function ContentsMyVoice() {
           </Card>
         </Col>
         <Col xs={24} lg={9}>
-          <StatusCard profile={draft ? null : latest} />
+          <StatusCard profile={latest} />
         </Col>
       </Row>
 

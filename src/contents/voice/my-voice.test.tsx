@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const voice = vi.hoisted(() => ({
   useMyVoiceSubmissions: vi.fn(),
+  useMyVoiceChurches: vi.fn(),
   useCreateVoiceConsent: vi.fn(() => ({ onCreateConsent: vi.fn(), loading: false })),
   useCreateVoiceSubmission: vi.fn(() => ({ onCreate: vi.fn(), loading: false })),
   usePatchVoiceSubmission: vi.fn(() => ({ onPatch: vi.fn(), loading: false })),
@@ -15,9 +16,6 @@ vi.mock('@/hooks/data/media-upload', () => ({
 }))
 vi.mock('@/hooks/data/media-access', () => ({
   useMediaAccess: () => ({ data: { url: 'https://s3/sample' }, loading: false }),
-}))
-vi.mock('@/hooks/data/church', () => ({
-  useChurches: () => ({ data: [{ id: 'ch1', name: 'Example Church' }], loading: false }),
 }))
 vi.mock('@/components/common/dashboard/main-header', () => ({
   default: ({ title }: { title: string }) => <h1>{title}</h1>,
@@ -37,6 +35,7 @@ const profile = (over: Record<string, unknown> = {}) => ({
   registrationState: 'UNREGISTERED',
   submittedAt: null,
   reviewedAt: null,
+  reviewedByName: null,
   reviewReason: null,
   consentRevokedAt: null,
   replacesProfileId: null,
@@ -56,7 +55,21 @@ const list = (items: unknown[], error: unknown = null) =>
   })
 
 describe('ContentsMyVoice (S27)', () => {
-  beforeEach(() => vi.clearAllMocks())
+  beforeEach(() => {
+    vi.clearAllMocks()
+    voice.useMyVoiceChurches.mockReturnValue({
+      data: [{ id: 'ch1', name: 'Example Church' }],
+      loading: false,
+    })
+  })
+
+  it('explains when the pastor is not assigned to any church (no form)', () => {
+    list([])
+    voice.useMyVoiceChurches.mockReturnValue({ data: [], loading: false })
+    renderWithProviders(<ContentsMyVoice />)
+    expect(screen.getByText('You are not assigned as a pastor of any church yet')).toBeTruthy()
+    expect(screen.queryByText('Add audio file')).toBeNull()
+  })
 
   it('shows a neutral state for an account not linked to a pastor', () => {
     list([], Object.assign(new Error('x'), { isAxiosError: true, response: { status: 403 } }))
@@ -105,7 +118,7 @@ describe('ContentsMyVoice (S27)', () => {
   it('is read-only once submitted', () => {
     list([profile({ reviewState: 'SUBMITTED', submittedAt: '2026-10-02T00:00:00.000Z' })])
     renderWithProviders(<ContentsMyVoice />)
-    expect(screen.getByText('Admin review: Submitted')).toBeTruthy()
+    expect(screen.getByText('Waiting for admin review')).toBeTruthy()
     expect(screen.queryByRole('button', { name: 'Save draft' })).toBeNull()
     expect(screen.queryByRole('button', { name: 'Start new revision' })).toBeNull()
     expect(screen.queryByRole('button', { name: /Remove/ })).toBeNull()
@@ -122,8 +135,9 @@ describe('ContentsMyVoice (S27)', () => {
   it('keeps review and registration status separate for an approved voice', () => {
     list([profile({ reviewState: 'APPROVED', registrationState: 'VERIFICATION_REQUIRED' })])
     renderWithProviders(<ContentsMyVoice />)
-    expect(screen.getByText('Admin review: Approved')).toBeTruthy()
-    expect(screen.getByText('Registration: Verification required')).toBeTruthy()
+    expect(screen.getByText('Admin review')).toBeTruthy()
+    expect(screen.getByText('Registration')).toBeTruthy()
+    expect(screen.getAllByText('Verification required').length).toBeGreaterThan(0)
     expect(screen.getByText(/Generation stays blocked/)).toBeTruthy()
     fireEvent.click(screen.getByRole('button', { name: 'Start new revision' }))
     expect(screen.getByText(/current voice stays active/)).toBeTruthy()

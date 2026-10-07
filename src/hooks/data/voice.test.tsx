@@ -16,6 +16,7 @@ import {
   useCreateVoiceConsent,
   useCreateVoiceSubmission,
   useDisableVoiceProfile,
+  useMyVoiceChurches,
   useMyVoiceSubmissions,
   usePatchVoiceSubmission,
   useRecloneVoiceProfile,
@@ -81,6 +82,13 @@ describe('Voice hooks', () => {
       expect(axiosMock.get).toHaveBeenCalledWith(
         '/api/v1/admin/me/voice-submissions?page=1&limit=50',
       )
+    })
+
+    it("lists the pastor's assigned churches from the own-scope endpoint", async () => {
+      axiosMock.get.mockResolvedValue({ data: { result: [{ id: 'ch1', name: 'Tallinn' }] } })
+      const { result } = renderHook(() => useMyVoiceChurches(), { wrapper: Providers })
+      await waitFor(() => expect(result.current.data).toEqual([{ id: 'ch1', name: 'Tallinn' }]))
+      expect(axiosMock.get).toHaveBeenCalledWith('/api/v1/admin/me/voice-churches')
     })
 
     it('exposes the error for an unlinked account', async () => {

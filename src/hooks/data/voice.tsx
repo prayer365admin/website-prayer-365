@@ -112,6 +112,23 @@ export const useMyVoiceSubmissions = ({ enableFetch = true }: { enableFetch?: bo
   return { data: data?.result ?? [], total: data?.total ?? 0, loading: isLoading, error }
 }
 
+/** Churches the pastor is assigned to (church context for S27; not the role-scoped church list). */
+export const useMyVoiceChurches = () => {
+  const { data: session } = useSession()
+  const userId = session?.user.user_id ?? null
+
+  const { data, isLoading } = useQuery({
+    queryKey: ['voice-churches', userId],
+    queryFn: async () => {
+      const response = await axios.get(`${ME_URL}/voice-churches`)
+      return response.data.result as { id: string; name: string }[]
+    },
+    enabled: !!userId,
+  })
+
+  return { data: data ?? [], loading: isLoading }
+}
+
 export const useCreateVoiceConsent = () => {
   const onError = useVoiceError()
   const { mutateAsync: onCreateConsent, isPending: loading } = useMutation({

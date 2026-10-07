@@ -9,6 +9,32 @@ import { z } from 'zod'
  * (F4VO V2); own-submission endpoints never return it.
  */
 
+/**
+ * Registration failures an admin retry cannot fix: they need a new submission.
+ * REGISTRATION_UNRESOLVED is here too: a voice may already exist at ElevenLabs,
+ * so a retry could create a duplicate (SPEC 9.3.1 "no blind duplicate create").
+ */
+export const VOICE_RETRY_BLOCKED_ERRORS = [
+  'CHECKSUM_MISMATCH',
+  'SAMPLE_INVALID',
+  'NO_SAMPLES',
+  'NOT_APPROVED',
+  'VOICE_CONSENT_REVOKED',
+  'REGISTRATION_UNRESOLVED',
+]
+
+/** Approved + FAILED for a reason a retry can fix (incl. PROVIDER_VOICE_MISSING). */
+export const canRetryRegistration = (p: {
+  reviewState: string
+  registrationState: string
+  lastErrorCode: string | null
+  consentRevokedAt: string | null
+}) =>
+  p.reviewState === 'APPROVED' &&
+  p.registrationState === 'FAILED' &&
+  !p.consentRevokedAt &&
+  !VOICE_RETRY_BLOCKED_ERRORS.includes(p.lastErrorCode ?? '')
+
 /** Max sample files per submission (F4VO V7). ElevenLabs IVC documents no hard cap. */
 export const VOICE_SAMPLE_MAX_FILES = Number(process.env.VOICE_SAMPLE_MAX_FILES ?? 5)
 
@@ -122,6 +148,16 @@ export type VoiceProfileSample = {
   checksum: string | null
 }
 
+/** One step of a voice profile's history, from audit_logs (no extra schema). */
+export type VoiceTimelineEvent = {
+  /** Audit action, e.g. voice.submission.submit, voice.profile.approve, voice.register. */
+  action: string
+  outcome: string
+  at: string
+  /** Who did it; null for the worker (system). */
+  actorName: string | null
+}
+
 export const VoiceProfileListItemSchema = z.object({
   id: z.string(),
   pastorId: z.string(),
@@ -134,12 +170,23 @@ export const VoiceProfileListItemSchema = z.object({
   registrationState: z.string(),
   submittedAt: z.string().nullable(),
   reviewedAt: z.string().nullable(),
+  reviewedByName: z.string().nullable(),
   reviewReason: z.string().nullable(),
   consentRevokedAt: z.string().nullable(),
   replacesProfileId: z.string().nullable(),
   requiresVerification: z.boolean().nullable(),
   lastErrorCode: z.string().nullable(),
   samples: z.array(VoiceProfileSampleSchema),
+  timeline: z
+    .array(
+      z.object({
+        action: z.string(),
+        outcome: z.string(),
+        at: z.string(),
+        actorName: z.string().nullable(),
+      }),
+    )
+    .optional(),
   createdAt: z.string(),
 })
 
@@ -155,12 +202,16 @@ export type VoiceProfileListItem = {
   registrationState: string
   submittedAt: string | null
   reviewedAt: string | null
+  /** Reviewer's display name (approve/reject), null until reviewed. */
+  reviewedByName: string | null
   reviewReason: string | null
   consentRevokedAt: string | null
   replacesProfileId: string | null
   requiresVerification: boolean | null
   lastErrorCode: string | null
   samples: VoiceProfileSample[]
+  /** Audit-log history, oldest first (lists + central detail; omitted on write responses). */
+  timeline?: VoiceTimelineEvent[]
   createdAt: string
 }
 

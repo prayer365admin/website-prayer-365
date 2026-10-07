@@ -69,6 +69,8 @@ export interface VoiceReadinessResult {
 export interface SpeechRequest {
   providerVoiceId: string
   text: string
+  /** Prayer language (ISO 639-1: en, et, fi, sv). Stops Estonian/Finnish being guessed wrong. */
+  languageCode?: string | null
 }
 /** Raw provider speech output — asset creation belongs to the worker, not here. */
 export interface SpeechResult {
@@ -89,17 +91,26 @@ const requestIdFrom = (headers: Headers): string | null => {
 export const generateSpeech = async ({
   providerVoiceId,
   text,
+  languageCode,
 }: SpeechRequest): Promise<SpeechResult> => {
   const { apiKey, base, timeoutMs } = config()
   if (!apiKey) throw new TtsError(false, 'TTS_NOT_CONFIGURED', 'ELEVENLABS_API_KEY is not set.')
-  const modelId = process.env.ELEVENLABS_TTS_MODEL_ID ?? 'eleven_v3'
+  // eleven_v4: en/et/fi/sv, 10,000 chars per request, best IVC fidelity. Never use
+  // multilingual_v2 / flash_v2_5 here: neither supports Estonian or Finnish.
+  const modelId = process.env.ELEVENLABS_TTS_MODEL_ID ?? 'eleven_v4'
 
   let res: Response
   try {
     res = await fetch(`${base}/v1/text-to-speech/${providerVoiceId}?output_format=mp3_44100_128`, {
       method: 'POST',
       headers: { 'xi-api-key': apiKey, 'content-type': 'application/json' },
-      body: JSON.stringify({ text, model_id: modelId }),
+      body: JSON.stringify({
+        text,
+        model_id: modelId,
+        // ElevenLabs ignores (no error) a code the model does not support.
+        // DB language codes are fixed-width (padded); send the bare ISO 639-1 part.
+        ...(languageCode?.trim() ? { language_code: languageCode.trim().split('-')[0] } : {}),
+      }),
       signal: AbortSignal.timeout(timeoutMs),
     })
   } catch (err) {

@@ -17,6 +17,7 @@ import {
   GET_PROFILE_LIST_ITEM,
   GET_VOICE_PROFILE,
   LIST_CENTRAL_PROFILES,
+  LIST_OWN_CHURCHES,
   LIST_OWN_PROFILES,
   mapConsent,
   PATCH_DRAFT,
@@ -38,6 +39,7 @@ import {
   VoiceSubmissionInput,
   VoiceSubmissionPatch,
   VoiceSubmitInput,
+  VOICE_RETRY_BLOCKED_ERRORS,
 } from '@/models/voice'
 
 /*
@@ -330,6 +332,13 @@ export const listOwnSubmissions = async ({
   query: VoiceProfileListQuery
 }): Promise<{ result: VoiceProfileListItem[]; total: number }> =>
   LIST_OWN_PROFILES({ userId, churchIds, page: query.page, limit: query.limit })
+
+/** Churches the linked pastor serves: where a voice may be submitted (church_pastors). */
+export const listOwnChurches = async ({
+  userId,
+}: {
+  userId: string
+}): Promise<{ id: string; name: string }[]> => LIST_OWN_CHURCHES({ userId })
 
 export const createSubmission = async ({
   userId,
@@ -650,9 +659,10 @@ export const revokeProfileConsent = async ({
 }
 
 /**
- * Re-create a voice ElevenLabs no longer has (F4VO V8). Church-scoped: super
- * admin or that church's admin. Repeat clicks while it is already re-creating
- * return the current state instead of a conflict.
+ * Re-run registration for a FAILED voice (F4VO): re-create one ElevenLabs no
+ * longer has, or retry a fixable failure (plan limit, provider rejection…).
+ * Church-scoped: super admin or that church's admin. Repeat clicks while it is
+ * already registering return the current state instead of a conflict.
  */
 export const recloneVoiceProfile = async ({
   userId,
@@ -674,20 +684,26 @@ export const recloneVoiceProfile = async ({
   if (!profile || profile.church_id !== churchId) throw notFound()
   if (profile.registration_state === 'DISABLED') throw disabled()
   if (profile.consent.revoked_at) throw revoked()
-  const missing = profile.last_error_code === 'PROVIDER_VOICE_MISSING'
   if (
-    missing &&
+    profile.review_state === 'APPROVED' &&
     ['QUEUED', 'REGISTERING', 'REGISTRATION_UNKNOWN'].includes(profile.registration_state)
   ) {
     const current = await GET_PROFILE_LIST_ITEM({ profileId })
     if (current) return current
   }
-  if (profile.review_state !== 'APPROVED' || profile.registration_state !== 'FAILED' || !missing)
+  if (profile.review_state !== 'APPROVED' || profile.registration_state !== 'FAILED')
     throw new GeneralError({
       code: 409,
       error: 'CONFLICT',
       error_code: 'INVALID_STATE',
-      details: 'Only a voice that went missing at the provider can be re-created.',
+      details: 'Only a failed registration can be retried.',
+    })
+  if (VOICE_RETRY_BLOCKED_ERRORS.includes(profile.last_error_code ?? ''))
+    throw new GeneralError({
+      code: 409,
+      error: 'CONFLICT',
+      error_code: 'RETRY_NOT_POSSIBLE',
+      details: 'A retry cannot fix this failure. The pastor needs to submit a new revision.',
     })
   const { resource_id } = await withIdempotency({
     actorKey: `user:${userId}`,
