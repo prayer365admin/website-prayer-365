@@ -1,6 +1,5 @@
 // @vitest-environment node
 import { describe, expect, it } from 'vitest'
-import { ELEVENLABS } from './elevenlabs'
 import { STRIPE } from './stripe'
 import { NotImplementedError } from '@/utils/not-implemented-error'
 
@@ -10,8 +9,6 @@ import { NotImplementedError } from '@/utils/not-implemented-error'
  */
 describe('external provider adapters are idle pending stubs', () => {
   it.each([
-    ['ELEVENLABS.registerInstantVoice', () => ELEVENLABS.registerInstantVoice({} as never)],
-    ['ELEVENLABS.getVoiceReadiness', () => ELEVENLABS.getVoiceReadiness('voice_1')],
     ['STRIPE.createCheckoutSession', () => STRIPE.createCheckoutSession({} as never)],
     ['STRIPE.constructWebhookEvent', () => STRIPE.constructWebhookEvent('{raw}', 'sig')],
   ])('%s throws NotImplementedError, never silently succeeds', async (_name, call) => {

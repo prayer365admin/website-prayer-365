@@ -678,6 +678,201 @@ export const REVOKE_CONSENT = async (
   return listItemFromRow(row)
 }
 
+// ============================================================================
+// voice.register worker side (F4VO VO-07). The worker is trusted
+// infrastructure: reads are unscoped; every business guard lives in the job
+// controller. Every write refuses to touch a DISABLED profile, so a disable or
+// consent revocation that lands mid-flight always wins.
+// ============================================================================
+
+const NOT_DISABLED = { not: 'DISABLED' } as const
+
+/** Profile + approved samples (with storage keys) + consent, for the worker only. */
+export const GET_PROFILE_FOR_JOB = ({ profileId }: { profileId: string }) =>
+  db.voiceProfile.findUnique({
+    where: { id: profileId },
+    select: {
+      id: true,
+      pastor_id: true,
+      church_id: true,
+      version: true,
+      review_state: true,
+      registration_state: true,
+      provider_voice_id: true,
+      requires_verification: true,
+      consent: { select: { revoked_at: true } },
+      samples: {
+        orderBy: { position: 'asc' },
+        select: {
+          position: true,
+          checksum: true,
+          asset: {
+            select: { church_id: true, status: true, object_key: true, mime_type: true },
+          },
+        },
+      },
+    },
+  })
+
+export type VoiceProfileForJob = NonNullable<Awaited<ReturnType<typeof GET_PROFILE_FOR_JOB>>>
+
+/** QUEUED|REGISTERING → REGISTERING with a fresh attempt id. count 0 = lost to disable/finalize. */
+export const SET_REGISTERING = ({
+  profileId,
+  attemptId,
+}: {
+  profileId: string
+  attemptId: string
+}) =>
+  db.voiceProfile.updateMany({
+    where: { id: profileId, registration_state: { in: ['QUEUED', 'REGISTERING'] } },
+    data: { registration_state: 'REGISTERING', registration_attempt_id: attemptId },
+  })
+
+/** Persist the provider voice immediately after create, before anything else can fail. */
+export const STORE_PROVIDER_VOICE = ({
+  profileId,
+  providerVoiceId,
+  requiresVerification,
+}: {
+  profileId: string
+  providerVoiceId: string
+  requiresVerification: boolean
+}) =>
+  db.voiceProfile.update({
+    where: { id: profileId },
+    data: { provider_voice_id: providerVoiceId, requires_verification: requiresVerification },
+  })
+
+/** Non-terminal / held / failed registration state (never overrides DISABLED). */
+export const SET_REGISTRATION_STATE = ({
+  profileId,
+  state,
+  errorCode,
+}: {
+  profileId: string
+  state: 'QUEUED' | 'REGISTRATION_UNKNOWN' | 'VERIFICATION_REQUIRED' | 'FAILED'
+  errorCode?: string | null
+}) =>
+  db.voiceProfile.updateMany({
+    where: { id: profileId, registration_state: NOT_DISABLED },
+    data: {
+      registration_state: state,
+      ...(errorCode !== undefined ? { last_error_code: errorCode } : {}),
+    },
+  })
+
+const auditWorker = (
+  tx: Prisma.TransactionClient,
+  {
+    churchId,
+    action,
+    profileId,
+    outcome,
+    requestId,
+  }: {
+    churchId: string
+    action: string
+    profileId: string
+    outcome: 'success' | 'failure'
+    requestId: string
+  },
+) =>
+  tx.auditLog.create({
+    data: auditPayload({
+      actorId: null,
+      churchId,
+      action,
+      resourceType: 'voice_profile',
+      resourceId: profileId,
+      outcome,
+      requestId,
+    }),
+  })
+
+/**
+ * READY + make it the pastor's active voice at this church, atomically (SPEC
+ * 9.3.1: swap only once the replacement is ready; the previous profile and its
+ * historical audio are left untouched). Caller checks `.count`.
+ */
+export const FINALIZE_REGISTRATION_READY = ({
+  profileId,
+  churchId,
+  pastorId,
+  requestId,
+}: {
+  profileId: string
+  churchId: string
+  pastorId: string
+  requestId: string
+}) =>
+  db.$transaction(async (tx) => {
+    const done = await tx.voiceProfile.updateMany({
+      where: { id: profileId, review_state: 'APPROVED', registration_state: NOT_DISABLED },
+      data: { registration_state: 'READY', last_error_code: null },
+    })
+    if (done.count === 0) return done
+    await tx.churchPastor.updateMany({
+      where: { church_id: churchId, pastor_id: pastorId },
+      data: { active_voice_profile_id: profileId },
+    })
+    await auditWorker(tx, {
+      churchId,
+      action: 'voice.register',
+      profileId,
+      outcome: 'success',
+      requestId,
+    })
+    return done
+  })
+
+/** Permanent failure + audit. */
+export const FINALIZE_REGISTRATION_FAILED = ({
+  profileId,
+  churchId,
+  errorCode,
+  requestId,
+}: {
+  profileId: string
+  churchId: string
+  errorCode: string
+  requestId: string
+}) =>
+  db.$transaction(async (tx) => {
+    const done = await tx.voiceProfile.updateMany({
+      where: { id: profileId, registration_state: NOT_DISABLED },
+      data: { registration_state: 'FAILED', last_error_code: errorCode },
+    })
+    await auditWorker(tx, {
+      churchId,
+      action: 'voice.register',
+      profileId,
+      outcome: 'failure',
+      requestId,
+    })
+    return done
+  })
+
+/** Provider voice created but the profile was disabled/revoked mid-flight: keep it hidden. */
+export const AUDIT_REGISTRATION_DISCARDED = ({
+  profileId,
+  churchId,
+  requestId,
+}: {
+  profileId: string
+  churchId: string
+  requestId: string
+}) =>
+  db.$transaction((tx) =>
+    auditWorker(tx, {
+      churchId,
+      action: 'voice.register.discarded',
+      profileId,
+      outcome: 'failure',
+      requestId,
+    }),
+  )
+
 // re-export mapConsent so controllers build consent DTO
 export { mapConsent }
 export type { ConsentOutput }
