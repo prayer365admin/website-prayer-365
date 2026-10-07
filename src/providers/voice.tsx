@@ -316,6 +316,8 @@ export const GET_CENTRAL_PROFILE = async ({
     evidenceAssetId: row.consent.evidence_asset_id,
     cloningMethod: row.cloning_method,
     providerVoiceId: row.provider_voice_id,
+    submittedBy: row.submitted_by,
+    pastorUserId: row.pastor.user_id,
   }
 }
 

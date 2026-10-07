@@ -172,6 +172,8 @@ export const VoiceProfileDetailSchema = VoiceProfileListItemSchema.extend({
   evidenceAssetId: z.string().nullable(),
   cloningMethod: z.string(),
   providerVoiceId: z.string().nullable(),
+  submittedBy: z.string(),
+  pastorUserId: z.string().nullable(),
 })
 
 export type VoiceProfileDetail = VoiceProfileListItem & {
@@ -181,6 +183,9 @@ export type VoiceProfileDetail = VoiceProfileListItem & {
   evidenceAssetId: string | null
   cloningMethod: string
   providerVoiceId: string | null
+  /** Lets S24 hide review actions from the submitter / linked pastor (server still enforces). */
+  submittedBy: string
+  pastorUserId: string | null
 }
 
 export const VoiceProfileListQuerySchema = z.object({
