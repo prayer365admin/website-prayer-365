@@ -75,7 +75,10 @@ export default function ContentsChurchesPrayersEditor({
   const { onApproveText, loading: approveLoading } = useApproveText(churchId, prayerId ?? '')
 
   const [pendingAudioId, setPendingAudioId] = useState<string | null>(null)
-  const audioId = pendingAudioId ?? saved?.current?.selectedAudioId
+  // Audio to show: the one generated in this session, else the newest for this text
+  // version (picks up a generation still running in the worker after a reload),
+  // else the approved one.
+  const audioId = pendingAudioId ?? saved?.current?.latestAudioId ?? saved?.current?.selectedAudioId
   const { data: audio } = usePrayerAudio(churchId, prayerId ?? '', audioId ?? undefined)
   const { data: access } = useMediaAccess(churchId, audio?.assetId ?? null)
   const { onEnqueueAudio, loading: enqueueLoading } = useEnqueueAudio(churchId, prayerId ?? '')
@@ -94,7 +97,8 @@ export default function ContentsChurchesPrayersEditor({
   const currentPastor = pastors?.find((p) => p.id === saved?.current?.pastorId)
   const voiceProfileId = currentPastor?.activeVoiceProfileId ?? null
   const voiceReady = currentPastor?.voiceReady ?? false
-  const canGenerate = !!saved?.current && saved.textApproved && voiceReady
+  const audioInFlight = audio?.status === 'QUEUED' || audio?.status === 'GENERATING'
+  const canGenerate = !!saved?.current && saved.textApproved && voiceReady && !audioInFlight
   // The due-scan never re-publishes a version that is already live, so scheduling it
   // again would lie about the state. Publishing a new text version is the way forward.
   const currentAlreadyPublished =
@@ -105,7 +109,9 @@ export default function ContentsChurchesPrayersEditor({
       ? 'Approve the reviewed text first.'
       : !voiceReady
         ? 'The pastor has no verified voice for this church.'
-        : ''
+        : audioInFlight
+          ? 'Audio is already being generated for this text.'
+          : ''
   const canApproveAudio =
     !!saved?.current &&
     saved.textApproved &&
