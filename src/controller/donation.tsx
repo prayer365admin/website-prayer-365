@@ -1,13 +1,19 @@
+import { STRIPE } from '@/providers/stripe'
+import { withIdempotency } from '@/utils/idempotency'
+import { validate } from '@/utils/validate'
 import { GeneralError } from '@/utils/general-error'
 import {
   GET_DONATIONS,
   GET_DONATION_SUBSCRIPTIONS,
   GET_DONATION_SUMMARY,
+  RESOLVE_CHURCH_PAYMENT_ACCOUNT,
 } from '@/providers/donation'
 import {
   DonationListQuery,
   DonationSubscriptionListQuery,
   DonationSummary,
+  DonationInputSchema,
+  assertNoRawCardData,
 } from '@/models/donation'
 
 /*
@@ -65,4 +71,64 @@ export const getDonationSummary = async ({
 }): Promise<DonationSummary> => {
   ensureChurchInScope(churchId, churchIds)
   return GET_DONATION_SUMMARY({ churchIds, month })
+}
+
+export const resolveChurchPaymentAccount = async ({ churchId }: { churchId: string }) => {
+  return RESOLVE_CHURCH_PAYMENT_ACCOUNT({ churchId })
+}
+
+export const initiateDonation = async ({
+  churchId,
+  userId,
+  input,
+  idempotencyKey,
+}: {
+  churchId: string
+  userId?: string
+  input: unknown
+  idempotencyKey?: string
+}) => {
+  assertNoRawCardData(input)
+  const validated = validate(DonationInputSchema, input)
+  const account = await RESOLVE_CHURCH_PAYMENT_ACCOUNT({ churchId })
+
+  const createSession = async () => {
+    return STRIPE.createCheckoutSession({
+      churchId,
+      paymentAccountId: account.paymentAccountId,
+      amountMinor: validated.amountMinor,
+      currency: validated.currency,
+      successUrl:
+        validated.successUrl ?? `https://app.prayer.com/churches/${churchId}/donations/success`,
+      cancelUrl:
+        validated.cancelUrl ?? `https://app.prayer.com/churches/${churchId}/donations/cancel`,
+    })
+  }
+
+  let session
+  if (idempotencyKey && userId) {
+    const idem = await withIdempotency({
+      actorKey: userId,
+      key: idempotencyKey,
+      operation: 'initiate_donation',
+      requestBody: input,
+      run: async () => {
+        const res = await createSession()
+        return JSON.stringify(res)
+      },
+    })
+    session = JSON.parse(idem.resource_id!)
+  } else {
+    session = await createSession()
+  }
+
+  return {
+    sessionId: session.sessionId,
+    url: session.url,
+    churchId,
+    providerAccountId: account.providerAccountId,
+    amountMinor: validated.amountMinor,
+    currency: validated.currency,
+    frequency: validated.frequency,
+  }
 }

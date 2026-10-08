@@ -8,6 +8,7 @@ import {
   DonationSubscriptionRow,
   DonationSummary,
   DonationSummaryRow,
+  ResolvedPaymentAccount,
 } from '@/models/donation'
 
 /*
@@ -167,4 +168,60 @@ export const GET_DONATION_SUMMARY = async ({
     })
     .sort((a, b) => a.currency.localeCompare(b.currency))
   return { month, currencies }
+}
+
+export const RESOLVE_CHURCH_PAYMENT_ACCOUNT = async ({
+  churchId,
+}: {
+  churchId: string
+}): Promise<ResolvedPaymentAccount> => {
+  const church = await db.church.findUnique({
+    where: { id: churchId },
+    include: { paymentAccount: true },
+  })
+
+  if (!church) {
+    throw new GeneralError({
+      code: 404,
+      error: 'NOT_FOUND',
+      error_code: 'CHURCH_NOT_FOUND',
+      details: 'Church not found.',
+    })
+  }
+
+  if (church.status !== 'APPROVED') {
+    throw new GeneralError({
+      code: 400,
+      error: 'PAYMENT_ERROR',
+      error_code: 'CHURCH_NOT_ELIGIBLE',
+      details: `Church is not eligible to receive donations (status: ${church.status}).`,
+    })
+  }
+
+  if (!church.paymentAccount) {
+    throw new GeneralError({
+      code: 400,
+      error: 'PAYMENT_ERROR',
+      error_code: 'PAYMENT_ACCOUNT_NOT_CONFIGURED',
+      details: 'Church does not have a payment account configured.',
+    })
+  }
+
+  if (church.paymentAccount.status !== 'ACTIVE') {
+    throw new GeneralError({
+      code: 400,
+      error: 'PAYMENT_ERROR',
+      error_code: 'PAYMENT_ACCOUNT_NOT_VERIFIED',
+      details: `Church payment account is not verified (status: ${church.paymentAccount.status}).`,
+    })
+  }
+
+  return {
+    churchId: church.id,
+    churchName: church.name,
+    paymentAccountId: church.paymentAccount.id,
+    provider: church.paymentAccount.provider,
+    providerAccountId: church.paymentAccount.provider_account_id,
+    status: church.paymentAccount.status,
+  }
 }

@@ -11,7 +11,7 @@ vi.mock('@/utils/db-transaction', () => ({
 }))
 
 vi.mock('@/utils/hash', () => ({
-  hashSecret: vi.fn(async ({ secret }: { secret: string }) => `hash:${secret}`),
+  hashContent: vi.fn((content: string) => `hash:${content}`),
 }))
 
 const run = vi.fn(async () => 'res-1')

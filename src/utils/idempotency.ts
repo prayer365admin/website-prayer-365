@@ -1,6 +1,6 @@
 import { dbTransaction } from '@/utils/db-transaction'
 import { GeneralError } from '@/utils/general-error'
-import { hashSecret } from '@/utils/hash'
+import { hashContent } from '@/utils/hash'
 import { Prisma } from '@prisma/client'
 
 /*
@@ -24,7 +24,7 @@ interface IdempotentSpec {
   ttlMinutes?: number
 }
 
-export const requestHash = (body: unknown) => hashSecret({ secret: JSON.stringify(body ?? {}) })
+export const requestHash = (body: unknown) => hashContent(JSON.stringify(body ?? {}))
 
 export const withIdempotency = async ({
   actorKey,
@@ -43,7 +43,7 @@ export const withIdempotency = async ({
     })
   }
 
-  const hash = await requestHash(requestBody)
+  const hash = requestHash(requestBody)
 
   return dbTransaction(async (tx) => {
     const expires_at = new Date(Date.now() + ttlMinutes * 60 * 1000)
