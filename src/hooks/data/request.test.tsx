@@ -65,6 +65,29 @@ describe('Request data hooks', () => {
     ).toBeDefined()
   })
 
+  it('sends trimmed search, classification and received range', async () => {
+    const client = createTestQueryClient()
+    axiosMock.get.mockResolvedValueOnce({ data: { result: [], total: 0 } })
+
+    const { result } = renderHook(
+      () =>
+        useRequests({
+          churchId: 'church-1',
+          kinds: ['prayer'],
+          search: '  family & friends ',
+          classification: 'private',
+          receivedFrom: '2026-10-01T00:00:00.000Z',
+          receivedTo: '2026-10-31T23:59:59.999Z',
+        }),
+      { wrapper: ({ children }) => <Providers client={client}>{children}</Providers> },
+    )
+
+    await waitFor(() => expect(result.current.data).toEqual([]))
+    expect(axiosMock.get).toHaveBeenCalledWith(
+      '/api/v1/admin/churches/church-1/requests?page=1&limit=25&order_by=created_at&order_direction=desc&kind=prayer&search=family+%26+friends&classification=private&received_from=2026-10-01T00%3A00%3A00.000Z&received_to=2026-10-31T23%3A59%3A59.999Z',
+    )
+  })
+
   it('omits the kind param when no kinds are given', async () => {
     const client = createTestQueryClient()
     axiosMock.get.mockResolvedValueOnce({ data: { result: [], total: 0 } })

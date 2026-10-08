@@ -8,6 +8,7 @@ import { registerPath } from '@/utils/openapi'
 import {
   RequestKindsParamSchema,
   RequestKindsQuerySchema,
+  RequestListFilterSchema,
   RequestListSummarySchema,
 } from '@/models/request'
 import { resolveRequestReadScope, listRequests } from '@/controller/request'
@@ -30,6 +31,15 @@ registerPath({
     params: [
       { name: 'churchId', in: 'path', schema: z.string() },
       { name: 'kind', in: 'query', required: false, schema: RequestKindsParamSchema },
+      { name: 'search', in: 'query', required: false, schema: z.string().max(200) },
+      {
+        name: 'classification',
+        in: 'query',
+        required: false,
+        schema: z.enum(['private', 'standard']),
+      },
+      { name: 'received_from', in: 'query', required: false, schema: z.string() },
+      { name: 'received_to', in: 'query', required: false, schema: z.string() },
     ],
   },
   responses: [
@@ -48,7 +58,7 @@ registerPath({
     },
     { status: 401, description: 'Not authenticated' },
     { status: 404, description: 'Church or requests out of scope (existence hidden)' },
-    { status: 422, description: 'Invalid kind query' },
+    { status: 422, description: 'Invalid kind, classification or received range' },
   ],
 })
 
@@ -57,6 +67,12 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ chur
     const { churchId } = await params
     const searchParams = new URL(req.url).searchParams
     const kinds = validate(RequestKindsQuerySchema, searchParams.get('kind') ?? undefined)
+    const filter = validate(RequestListFilterSchema, {
+      search: searchParams.get('search') || undefined,
+      classification: searchParams.get('classification') ?? undefined,
+      received_from: searchParams.get('received_from') ?? undefined,
+      received_to: searchParams.get('received_to') ?? undefined,
+    })
     const query = parseListQuery(searchParams, { allowOrderBy: ['created_at'] })
     const { session } = await requiredAuth(req)
     const { churchIds } = await resolveRequestReadScope({ userId: session.user.user_id, churchId })
@@ -65,6 +81,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ chur
       churchId,
       churchIds,
       kinds,
+      filter,
       query,
     })
     return noStore(

@@ -19,6 +19,11 @@ const requestsUrl = (churchId: string) =>
 
 export type RequestListFilters = {
   kinds?: RequestKind[]
+  search?: string
+  classification?: 'private' | 'standard'
+  /** ISO instants bounding the received time. */
+  receivedFrom?: string
+  receivedTo?: string
   page: number
   limit: number
   orderDirection: 'asc' | 'desc'
@@ -47,6 +52,10 @@ const retryTransient = (failureCount: number, error: unknown) =>
 export const useRequests = ({
   churchId,
   kinds,
+  search,
+  classification,
+  receivedFrom,
+  receivedTo,
   page = 1,
   limit = 25,
   orderDirection = 'desc',
@@ -54,7 +63,17 @@ export const useRequests = ({
 }: RequestListOptions) => {
   const { data: session } = useSession()
   const userId = session?.user.user_id
-  const filters: RequestListFilters = { kinds, page, limit, orderDirection }
+  const normalizedSearch = search?.trim() || undefined
+  const filters: RequestListFilters = {
+    kinds,
+    search: normalizedSearch,
+    classification,
+    receivedFrom,
+    receivedTo,
+    page,
+    limit,
+    orderDirection,
+  }
 
   const query = useQuery({
     queryKey: requestKeys.list(userId, churchId, filters),
@@ -66,6 +85,10 @@ export const useRequests = ({
         order_direction: orderDirection,
       })
       if (kinds?.length) params.set('kind', kinds.join(','))
+      if (normalizedSearch) params.set('search', normalizedSearch)
+      if (classification) params.set('classification', classification)
+      if (receivedFrom) params.set('received_from', receivedFrom)
+      if (receivedTo) params.set('received_to', receivedTo)
       const response = await axios.get(`${requestsUrl(churchId)}?${params.toString()}`)
       return {
         result: response.data.result as RequestListSummary[],

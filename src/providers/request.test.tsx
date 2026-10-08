@@ -63,7 +63,8 @@ describe('GET_REQUESTS', () => {
     vi.mocked(db.request.count).mockResolvedValue(2)
     vi.mocked(db.request.findMany).mockResolvedValue([row, { ...row, id: 'r2' }] as never)
     await GET_REQUESTS({ churchId: 'c1', canReadPrivate: true, query })
-    expect(countWhere().AND).toEqual([{}, {}])
+    // No kind, no visibility rule, no filters: every AND entry is empty.
+    expect((countWhere().AND as unknown[]).every((w) => JSON.stringify(w) === '{}')).toBe(true)
   })
 
   it('applies a multi-kind filter without dropping the visibility rule', async () => {
@@ -93,6 +94,76 @@ describe('GET_REQUESTS', () => {
       contactMethod: 'phone',
       createdAt: row.created_at.toISOString(),
     })
+  })
+})
+
+describe('GET_REQUESTS filters', () => {
+  const andOf = () => countWhere().AND as Array<Record<string, unknown>>
+
+  beforeEach(() => {
+    vi.mocked(db.request.count).mockResolvedValue(0)
+    vi.mocked(db.request.findMany).mockResolvedValue([] as never)
+  })
+
+  it('searches the subject only, case-insensitively', async () => {
+    await GET_REQUESTS({
+      churchId: 'c1',
+      canReadPrivate: true,
+      filter: { search: 'family' },
+      query,
+    })
+    expect(andOf()).toContainEqual({ subject: { contains: 'family', mode: 'insensitive' } })
+    expect(JSON.stringify(andOf())).not.toContain('message')
+  })
+
+  it('maps classification private/standard', async () => {
+    await GET_REQUESTS({
+      churchId: 'c1',
+      canReadPrivate: true,
+      filter: { classification: 'private' },
+      query,
+    })
+    expect(andOf()).toContainEqual({ classification: 'PRIVATE' })
+    vi.mocked(db.request.count).mockClear()
+    await GET_REQUESTS({
+      churchId: 'c1',
+      canReadPrivate: true,
+      filter: { classification: 'standard' },
+      query,
+    })
+    expect(andOf()).toContainEqual({
+      OR: [{ classification: null }, { classification: { not: 'PRIVATE' } }],
+    })
+  })
+
+  it('bounds created_at by the received range', async () => {
+    await GET_REQUESTS({
+      churchId: 'c1',
+      canReadPrivate: true,
+      filter: {
+        received_from: '2026-10-01T00:00:00.000Z',
+        received_to: '2026-10-31T23:59:59.999Z',
+      },
+      query,
+    })
+    expect(andOf()).toContainEqual({
+      created_at: {
+        gte: new Date('2026-10-01T00:00:00.000Z'),
+        lte: new Date('2026-10-31T23:59:59.999Z'),
+      },
+    })
+  })
+
+  it('keeps the visibility rule when a standard reader filters for private rows', async () => {
+    await GET_REQUESTS({
+      churchId: 'c1',
+      canReadPrivate: false,
+      filter: { classification: 'private' },
+      query,
+    })
+    // Both apply: the result is empty, never a private row.
+    expect(andOf()).toContainEqual(requestVisibilityWhere(false))
+    expect(andOf()).toContainEqual({ classification: 'PRIVATE' })
   })
 })
 

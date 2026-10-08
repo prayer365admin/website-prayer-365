@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { withIdempotency } from './idempotency'
+import { hashContent } from './hash'
+import { requestHash, withIdempotency } from './idempotency'
 
 const find = vi.fn()
 const create = vi.fn()
@@ -8,10 +9,6 @@ const fakeTx = { idempotencyRecord: { findFirst: find, create, delete: del } }
 
 vi.mock('@/utils/db-transaction', () => ({
   dbTransaction: vi.fn(async (fn: (tx: unknown) => unknown) => fn(fakeTx)),
-}))
-
-vi.mock('@/utils/hash', () => ({
-  hashSecret: vi.fn(async ({ secret }: { secret: string }) => `hash:${secret}`),
 }))
 
 const run = vi.fn(async () => 'res-1')
@@ -54,7 +51,7 @@ describe('withIdempotency', () => {
 
   it('returns stored result on replay with same key+hash, without rerunning', async () => {
     find.mockResolvedValue({
-      request_hash: 'hash:{"sampleAssetId":"s1"}',
+      request_hash: hashContent('{"sampleAssetId":"s1"}'),
       resource_id: 'res-1',
       expires_at: new Date(Date.now() + 60000),
     })
@@ -91,5 +88,10 @@ describe('withIdempotency', () => {
     })
     await expect(call({ run: failing })).rejects.toMatchObject({ code: 429 })
     expect(create).not.toHaveBeenCalled()
+  })
+  it('hashes the same body to the same value every time (replays must match)', async () => {
+    const body = { churchId: 'c1', kind: 'prayer', message: 'hi' }
+    expect(await requestHash(body)).toBe(await requestHash({ ...body }))
+    expect(await requestHash(body)).not.toBe(await requestHash({ ...body, message: 'bye' }))
   })
 })

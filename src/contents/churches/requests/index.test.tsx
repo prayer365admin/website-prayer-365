@@ -1,4 +1,9 @@
-import { renderWithProviders, replaceMock, searchParamsMock } from '@/test/frontend/render'
+import {
+  pushMock,
+  renderWithProviders,
+  replaceMock,
+  searchParamsMock,
+} from '@/test/frontend/render'
 import { screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
@@ -6,6 +11,14 @@ import ContentsChurchRequests from '.'
 
 const m = vi.hoisted(() => ({ useRequests: vi.fn() }))
 vi.mock('@/hooks/data/request', () => ({ useRequests: m.useRequests }))
+vi.mock('@/hooks/data/access-permission', () => ({
+  useAccessPermission: () => ({
+    updateAny: () => ({ granted: true }),
+    updateOwn: () => ({ granted: false }),
+    deleteAny: () => ({ granted: true }),
+    deleteOwn: () => ({ granted: false }),
+  }),
+}))
 
 const rows = [
   {
@@ -74,15 +87,50 @@ describe('ContentsChurchRequests (S10)', () => {
     expect(replaceMock).toHaveBeenCalledWith(expect.stringContaining('?tab=pastoral'))
   })
 
-  it('renders classification labels and an Open link to the detail page', () => {
+  it('renders classification labels and opens the detail from the action icon', async () => {
     renderWithProviders(<ContentsChurchRequests churchId="c1" />)
     const privateRow = screen.getByText('Prayer for family').closest('tr')!
     expect(within(privateRow).getByText('Private')).toBeTruthy()
-    expect(
-      within(privateRow).getByRole('link', { name: 'Open Prayer for family' }).getAttribute('href'),
-    ).toBe('/dashboard/churches/c1/requests/q1')
+    // Shared edit-style action icon, no delete (requests are read-only).
+    expect(within(privateRow).queryByRole('img', { name: 'delete' })).toBeNull()
+    await userEvent.click(within(privateRow).getByRole('img', { name: 'edit' }))
+    expect(pushMock).toHaveBeenCalledWith('/dashboard/churches/c1/requests/q1')
     const standardRow = screen.getByText('Healing').closest('tr')!
     expect(within(standardRow).getByText('Standard')).toBeTruthy()
+  })
+
+  it('searches by subject and resets to page 1', async () => {
+    renderWithProviders(<ContentsChurchRequests churchId="c1" />)
+    await userEvent.type(screen.getByPlaceholderText('Search request subject'), 'family{enter}')
+    expect(m.useRequests).toHaveBeenLastCalledWith(
+      expect.objectContaining({ search: 'family', page: 1 }),
+    )
+  })
+
+  it('filters prayer requests by classification', async () => {
+    renderWithProviders(<ContentsChurchRequests churchId="c1" />)
+    await userEvent.click(screen.getByRole('combobox', { name: 'Filter classification' }))
+    await userEvent.click(await screen.findByTitle('Private'))
+    expect(m.useRequests).toHaveBeenLastCalledWith(
+      expect.objectContaining({ kinds: ['prayer'], classification: 'private', page: 1 }),
+    )
+  })
+
+  it('filters the pastoral/meeting tab by type instead of classification', async () => {
+    searchParamsMock.get.mockImplementation((key: string) => (key === 'tab' ? 'pastoral' : null))
+    renderWithProviders(<ContentsChurchRequests churchId="c1" />)
+    expect(screen.queryByRole('combobox', { name: 'Filter classification' })).toBeNull()
+    await userEvent.click(screen.getByRole('combobox', { name: 'Filter type' }))
+    await userEvent.click(await screen.findByTitle('Meeting request'))
+    expect(m.useRequests).toHaveBeenLastCalledWith(
+      expect.objectContaining({ kinds: ['meeting'], classification: undefined }),
+    )
+  })
+
+  it('shows a received date range filter', () => {
+    renderWithProviders(<ContentsChurchRequests churchId="c1" />)
+    expect(screen.getByPlaceholderText('Received from')).toBeTruthy()
+    expect(screen.getByPlaceholderText('Received until')).toBeTruthy()
   })
 
   it('has no status, assignment or bulk-action controls (D3)', () => {

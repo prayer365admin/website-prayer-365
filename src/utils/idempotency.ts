@@ -1,6 +1,6 @@
 import { dbTransaction } from '@/utils/db-transaction'
 import { GeneralError } from '@/utils/general-error'
-import { hashSecret } from '@/utils/hash'
+import { hashContent } from '@/utils/hash'
 import { Prisma } from '@prisma/client'
 
 /*
@@ -24,7 +24,9 @@ interface IdempotentSpec {
   ttlMinutes?: number
 }
 
-export const requestHash = (body: unknown) => hashSecret({ secret: JSON.stringify(body ?? {}) })
+// Must be deterministic: a replay compares this against the stored hash.
+// (bcrypt `hashSecret` salts randomly, so every replay looked like a conflict.)
+export const requestHash = async (body: unknown) => hashContent(JSON.stringify(body ?? {}))
 
 export const withIdempotency = async ({
   actorKey,

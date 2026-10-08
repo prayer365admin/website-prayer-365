@@ -1,7 +1,7 @@
 import { GeneralError } from '@/utils/general-error'
 import { requiredScope } from '@/utils/required-scope'
 import { GET_REQUEST, GET_REQUESTS } from '@/providers/request'
-import { RequestOutput, RequestListSummary } from '@/models/request'
+import { RequestListFilter, RequestListSummary, RequestOutput } from '@/models/request'
 import { ParsedListQuery } from '@/utils/pagination'
 
 /*
@@ -83,17 +83,19 @@ export const listRequests = async ({
   churchId,
   churchIds,
   kinds,
+  filter,
   query,
 }: {
   userId: string
   churchId: string
   churchIds: Set<string>
   kinds?: string[]
+  filter?: RequestListFilter
   query: ParsedListQuery
 }): Promise<{ result: RequestListSummary[]; total: number }> => {
   assertChurchInScope(churchId, churchIds)
   const canReadPrivate = await hasPrivateGrant({ userId, churchId })
-  return GET_REQUESTS({ churchId, kinds, canReadPrivate, query })
+  return GET_REQUESTS({ churchId, kinds, filter, canReadPrivate, query })
 }
 
 /** GET C/requests/:requestId — authorized detail; 404 for out-of-scope/private. */

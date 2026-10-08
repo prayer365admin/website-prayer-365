@@ -1,7 +1,7 @@
 import { RequestListSummary } from '@/models/request'
 import { TableProps, Tag } from 'antd'
 import dayjs from 'dayjs'
-import Link from 'next/link'
+import ActionsTable from '@/components/common/actions-table'
 
 /*
  * Shared S10/S11 labels. Classification is not a workflow status (DESIGN S10):
@@ -38,9 +38,9 @@ export const requestDetailHref = (churchId: string, requestId: string) =>
 export const formatReceived = (iso: string) => dayjs(iso).format('DD MMM YYYY HH:mm')
 
 export const RequestColumns = ({
-  churchId,
+  onOpen,
 }: {
-  churchId: string
+  onOpen: (request: RequestListSummary) => void
 }): TableProps<RequestListSummary>['columns'] => [
   {
     key: 'subject',
@@ -69,11 +69,16 @@ export const RequestColumns = ({
   },
   {
     key: 'actions',
-    title: 'Action',
+    title: 'Actions',
+    // Same action icon as the other church lists; it opens the read-only detail.
+    // No delete: requests are view/contact only (D3).
     render: (_, r) => (
-      <Link href={requestDetailHref(churchId, r.id)} aria-label={`Open ${requestTitle(r)}`}>
-        Open
-      </Link>
+      <ActionsTable
+        entity="request"
+        details={requestTitle(r)}
+        actions="opening"
+        onEdit={() => onOpen(r)}
+      />
     ),
   },
 ]

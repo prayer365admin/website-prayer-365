@@ -26,6 +26,26 @@ export const RequestKindsParamSchema = z
   .describe('One kind or a comma list of: prayer, pastoral, meeting')
   .optional()
 
+/**
+ * Optional list filters besides `kind`. `search` matches the subject only
+ * (never the message). `classification` is a label filter,
+ * not a workflow status (D3): `standard` means "not PRIVATE". The received
+ * range bounds `created_at` (ISO instants with offset).
+ */
+export const RequestListFilterSchema = z
+  .object({
+    search: z.string().trim().max(200).optional(),
+    classification: z.enum(['private', 'standard']).optional(),
+    received_from: z.iso.datetime({ offset: true }).optional(),
+    received_to: z.iso.datetime({ offset: true }).optional(),
+  })
+  .refine((f) => !f.received_from || !f.received_to || f.received_from <= f.received_to, {
+    message: "'received_from' must not be after 'received_to'.",
+    path: ['received_to'],
+  })
+
+export type RequestListFilter = z.infer<typeof RequestListFilterSchema>
+
 /** Authorized list item (summary — no message/contact PII). */
 export const RequestListSummarySchema = z.object({
   id: z.string(),
