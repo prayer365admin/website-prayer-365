@@ -37,10 +37,18 @@ describe('ContentsChurchDonations', () => {
       id: 't1',
       amountMinor: '5000',
       currency: 'usd',
+      status: 'PAID',
       paidAt: new Date('2024-05-10T12:00:00Z'),
       ref: 'tx-1',
     },
-    { id: 't2', amountMinor: '25000', currency: 'eur', paidAt: null, ref: 'tx-2' },
+    {
+      id: 't2',
+      amountMinor: '25000',
+      currency: 'eur',
+      status: 'FAILED',
+      paidAt: null,
+      ref: 'tx-2',
+    },
   ]
 
   const defaultSubscriptions = [
@@ -110,10 +118,11 @@ describe('ContentsChurchDonations', () => {
     expect(screen.getAllByText('EUR 250.00').length).toBeGreaterThan(0) // t2
   })
 
-  it('renders confirmed and pending payment state tags accurately based on paidAt', async () => {
+  it('renders confirmed, failed, and refunded payment state tags from status', async () => {
     renderWithProviders(<ContentsChurchDonations churchId="c1" />)
     expect(screen.getByText('Confirmed')).toBeTruthy()
-    expect(screen.getByText('Pending')).toBeTruthy()
+    expect(screen.getByText('Failed')).toBeTruthy()
+    expect(screen.queryByText('Pending')).toBeNull()
   })
 
   it('switches to Recurring tab and renders subscriptions, Monthly frequency, and provider state tags', async () => {
@@ -148,7 +157,7 @@ describe('ContentsChurchDonations', () => {
     expect(screen.getAllByText('EUR 0.00').length).toBeGreaterThan(0)
   })
 
-  it('filters by currency when selectors change', async () => {
+  it('requests the selected currency from the server for both lists', async () => {
     const user = userEvent.setup()
     renderWithProviders(<ContentsChurchDonations churchId="c1" />)
 
@@ -159,13 +168,17 @@ describe('ContentsChurchDonations', () => {
     // Click 'USD' option
     await user.click(await screen.findByTitle('USD'))
 
-    // Now only USD is shown
-    expect(screen.queryByText('EUR 250.00')).toBeNull()
-    expect(screen.getAllByText('USD 950.00').length).toBeGreaterThan(0)
+    // Filtering is server-side: hooks receive the currency, no client-side
+    // row slicing of the paginated lists.
+    expect(m.useDonations).toHaveBeenCalledWith(
+      expect.objectContaining({ currency: 'usd', churchId: 'c1' }),
+    )
+    expect(m.useDonationSubscriptions).toHaveBeenCalledWith(
+      expect.objectContaining({ currency: 'usd', churchId: 'c1' }),
+    )
 
-    // Transaction table should only show USD
-    expect(screen.getByText('tx-1')).toBeTruthy()
-    expect(screen.queryByText('tx-2')).toBeNull()
+    // Summary card is per-currency by construction and still shows rows.
+    expect(screen.getAllByText('USD 950.00').length).toBeGreaterThan(0)
   })
 
   it('handles empty states when queries return zero records', async () => {

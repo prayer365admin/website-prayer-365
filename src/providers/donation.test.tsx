@@ -69,6 +69,7 @@ describe('GET_DONATIONS', () => {
         id: 'd1',
         amount_minor: BigInt(1000),
         currency: 'USD',
+        status: 'PAID',
         paid_at: new Date('2026-09-05T00:00:00Z'),
         provider_payment_id: 'pi_1',
       },
@@ -83,11 +84,12 @@ describe('GET_DONATIONS', () => {
       },
     })
     expect(res.total).toBe(1)
-    // DTO carries only amount/currency/date/ref — no user_id / subscription / donor columns.
+    // DTO carries only amount/currency/status/date/ref — no user_id / subscription / donor columns.
     expect(res.result[0]).toEqual({
       id: 'd1',
       amountMinor: '1000',
       currency: 'USD',
+      status: 'PAID',
       paidAt: new Date('2026-09-05T00:00:00Z'),
       ref: 'pi_1',
     })
@@ -100,6 +102,28 @@ describe('GET_DONATIONS', () => {
     expect(where.payment_account.church_id.in).toEqual(['c1'])
     expect(where.paid_at?.gte?.toISOString()).toBe('2026-09-01T00:00:00.000Z')
     expect(where.paid_at?.lte?.toISOString()).toBe('2026-09-30T00:00:00.000Z')
+  })
+  it('filters by normalized currency when requested', async () => {
+    vi.mocked(db.donation.count).mockResolvedValue(1)
+    vi.mocked(db.donation.findMany).mockResolvedValue([
+      {
+        id: 'd1',
+        amount_minor: BigInt(1000),
+        currency: 'usd',
+        status: 'PAID',
+        paid_at: new Date('2026-09-05T00:00:00Z'),
+        provider_payment_id: 'pi_1',
+      },
+    ] as never)
+
+    await GET_DONATIONS({
+      churchIds: scope,
+      query: { ...query, currency: 'USD' },
+    })
+
+    const call = vi.mocked(db.donation.findMany).mock.calls[0]![0]!
+    const where = call.where as { currency?: string }
+    expect(where.currency).toBe('usd')
   })
 
   it('returns empty without querying when the scope resolves no churches', async () => {
@@ -138,5 +162,24 @@ describe('GET_DONATION_SUBSCRIPTIONS', () => {
       providerStatus: 'active',
       createdAt: new Date('2026-08-01T00:00:00Z'),
     })
+  })
+  it('filters subscriptions by normalized currency when requested', async () => {
+    vi.mocked(db.donationSubscription.count).mockResolvedValue(1)
+    vi.mocked(db.donationSubscription.findMany).mockResolvedValue([] as never)
+
+    await GET_DONATION_SUBSCRIPTIONS({
+      churchIds: scope,
+      query: {
+        page: 1,
+        limit: 25,
+        order_by: 'created_at' as const,
+        order_direction: 'desc' as const,
+        currency: 'EUR',
+      },
+    })
+
+    const call = vi.mocked(db.donationSubscription.findMany).mock.calls[0]![0]!
+    const where = call.where as { currency?: string }
+    expect(where.currency).toBe('eur')
   })
 })

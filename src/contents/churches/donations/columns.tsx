@@ -20,15 +20,21 @@ export const formatMinorToMajor = (
   return `${isNegative ? '-' : ''}${currency.toUpperCase()} ${formattedAmount}`
 }
 
-export const PaymentStateTag = ({ paidAt }: { paidAt: Date | string | null }) => {
-  if (paidAt) {
-    return <Tag color="green">Confirmed</Tag>
+export const PaymentStateTag = ({ status }: { status?: string | null }) => {
+  switch (status?.toLowerCase()) {
+    case 'paid':
+      return <Tag color="green">Confirmed</Tag>
+    case 'failed':
+      return <Tag color="red">Failed</Tag>
+    case 'refunded':
+      return <Tag>Refunded</Tag>
+    default:
+      return <Tag color="orange">Pending</Tag>
   }
-  return <Tag color="orange">Pending</Tag>
 }
 
-export const ProviderStateTag = ({ status }: { status: string }) => {
-  switch (status.toLowerCase()) {
+export const ProviderStateTag = ({ status }: { status?: string | null }) => {
+  switch (status?.toLowerCase()) {
     case 'active':
       return <Tag color="green">Active</Tag>
     case 'past_due':
@@ -38,7 +44,7 @@ export const ProviderStateTag = ({ status }: { status: string }) => {
     case 'incomplete':
       return <Tag>Incomplete</Tag>
     default:
-      return <Tag>{status}</Tag>
+      return <Tag>{status || 'Unknown'}</Tag>
   }
 }
 
@@ -62,7 +68,7 @@ export const TransactionsColumns = (): TableProps<DonationRow>['columns'] => [
   {
     title: 'Payment state',
     key: 'state',
-    render: (_, record) => <PaymentStateTag paidAt={record.paidAt} />,
+    render: (_, record) => <PaymentStateTag status={record.status} />,
   },
 ]
 

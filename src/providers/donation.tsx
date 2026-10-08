@@ -39,6 +39,7 @@ export const GET_DONATIONS = async ({
   const where: Prisma.DonationWhereInput = {
     payment_account: { church_id: { in: ids } },
     paid_at: { gte: query.from ?? undefined, lte: query.to ?? undefined },
+    currency: query.currency ? query.currency.toLowerCase() : undefined,
   }
   const orderBy = donationOrderBy(query)
   const [total, rows] = await db.$transaction([
@@ -52,6 +53,7 @@ export const GET_DONATIONS = async ({
         id: true,
         amount_minor: true,
         currency: true,
+        status: true,
         paid_at: true,
         provider_payment_id: true,
       },
@@ -63,6 +65,7 @@ export const GET_DONATIONS = async ({
       id: r.id,
       amountMinor: r.amount_minor.toString(),
       currency: r.currency,
+      status: r.status,
       paidAt: r.paid_at,
       ref: r.provider_payment_id,
     })),
@@ -90,6 +93,7 @@ export const GET_DONATION_SUBSCRIPTIONS = async ({
   if (ids.length === 0) return { result: [], total: 0 }
   const where: Prisma.DonationSubscriptionWhereInput = {
     payment_account: { church_id: { in: ids } },
+    currency: query.currency ? query.currency.toLowerCase() : undefined,
   }
   const orderBy = subscriptionOrderBy(query)
   const [total, rows] = await db.$transaction([

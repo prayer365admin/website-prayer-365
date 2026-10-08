@@ -11,6 +11,7 @@ export interface DonationListOptions {
   orderDirection?: 'asc' | 'desc'
   from?: string | Date
   to?: string | Date
+  currency?: string
   enableFetch?: boolean
 }
 
@@ -22,6 +23,7 @@ export interface DonationSubscriptionListOptions {
   limit?: number
   orderBy?: 'created_at' | 'amount' | 'provider_status'
   orderDirection?: 'asc' | 'desc'
+  currency?: string
   enableFetch?: boolean
 }
 
@@ -64,6 +66,7 @@ export const useDonations = (options: DonationListOptions) => {
     orderDirection = 'desc',
     from,
     to,
+    currency,
     enableFetch = true,
   } = options
   const { data: session } = useSession()
@@ -81,6 +84,9 @@ export const useDonations = (options: DonationListOptions) => {
   if (to) {
     queryParams.set('to', typeof to === 'string' ? to : to.toISOString())
   }
+  if (currency) {
+    queryParams.set('currency', currency)
+  }
 
   const listUrl = `/api/v1/admin/churches/${encodeURIComponent(churchId)}/donations`
 
@@ -92,6 +98,7 @@ export const useDonations = (options: DonationListOptions) => {
       orderDirection,
       from: from instanceof Date ? from.toISOString() : from,
       to: to instanceof Date ? to.toISOString() : to,
+      currency,
     }),
     queryFn: async () => {
       const response = await axios.get(`${listUrl}?${queryParams.toString()}`)
@@ -113,6 +120,7 @@ export const useDonationSubscriptions = (options: DonationSubscriptionListOption
     limit = 25,
     orderBy = 'created_at',
     orderDirection = 'desc',
+    currency,
     enableFetch = true,
   } = options
   const { data: session } = useSession()
@@ -123,11 +131,20 @@ export const useDonationSubscriptions = (options: DonationSubscriptionListOption
   queryParams.set('limit', limit.toString())
   queryParams.set('order_by', orderBy)
   queryParams.set('order_direction', orderDirection)
+  if (currency) {
+    queryParams.set('currency', currency)
+  }
 
   const listUrl = `/api/v1/admin/churches/${encodeURIComponent(churchId)}/donation-subscriptions`
 
   const { data, isLoading, error, refetch } = useQuery({
-    queryKey: donationKeys.recurring(userId, churchId, { page, limit, orderBy, orderDirection }),
+    queryKey: donationKeys.recurring(userId, churchId, {
+      page,
+      limit,
+      orderBy,
+      orderDirection,
+      currency,
+    }),
     queryFn: async () => {
       const response = await axios.get(`${listUrl}?${queryParams.toString()}`)
       return {

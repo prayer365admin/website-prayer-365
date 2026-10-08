@@ -23,6 +23,7 @@ const row = {
   id: 'd1',
   amountMinor: '1000',
   currency: 'USD',
+  status: 'PAID',
   paidAt: '2026-09-05T00:00:00.000Z',
   ref: 'pi_1',
 }
@@ -49,6 +50,23 @@ describe('GET /api/v1/admin/churches/[churchId]/donations', () => {
     expect(body.result[0]).toEqual(row)
     expect(requiredScope).toHaveBeenCalledWith(
       expect.objectContaining({ churchId: 'c1', subject: 'prayer_donation', action: 'read' }),
+    )
+  })
+  it('forwards currency filter to listDonations', async () => {
+    vi.mocked(requiredAuth).mockResolvedValue(auth() as never)
+    vi.mocked(requiredScope).mockResolvedValue(scope() as never)
+    vi.mocked(listDonations).mockResolvedValue({ result: [row], total: 1 } as never)
+
+    const res = (await GET(
+      new NextRequest('http://localhost/api/v1/admin/churches/c1/donations?currency=eur'),
+      params as never,
+    ))!
+    expect(res.status).toBe(200)
+    expect(listDonations).toHaveBeenCalledWith(
+      expect.objectContaining({
+        churchId: 'c1',
+        query: expect.objectContaining({ currency: 'eur' }),
+      }),
     )
   })
 

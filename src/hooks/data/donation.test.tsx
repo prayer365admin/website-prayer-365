@@ -5,8 +5,15 @@ import { useDonations, useDonationSubscriptions, useDonationSummary } from './do
 import { DonationRow, DonationSubscriptionRow, DonationSummary } from '@/models/donation'
 
 const mockDonations: DonationRow[] = [
-  { id: '1', amountMinor: '1000', currency: 'USD', paidAt: new Date(), ref: 'tx_1' },
-  { id: '2', amountMinor: '2000', currency: 'USD', paidAt: new Date(), ref: 'tx_2' },
+  {
+    id: '1',
+    amountMinor: '1000',
+    currency: 'USD',
+    status: 'PAID',
+    paidAt: new Date(),
+    ref: 'tx_1',
+  },
+  { id: '2', amountMinor: '2000', currency: 'USD', status: 'FAILED', paidAt: null, ref: 'tx_2' },
 ]
 
 const mockSubscriptions: DonationSubscriptionRow[] = [

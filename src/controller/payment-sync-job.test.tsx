@@ -1,5 +1,5 @@
 // @vitest-environment node
-import { describe, it, expect, beforeEach } from 'vitest'
+import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { db } from '@/utils/db-connection'
 import { processPaymentSyncJob, runPaymentSyncTick } from './payment-sync-job'
 import crypto from 'node:crypto'
@@ -10,6 +10,7 @@ describe('payment-sync-job controller', () => {
 
   beforeEach(async () => {
     // No global deleteMany to prevent concurrent test collision
+    vi.useRealTimers()
 
     const org = await db.orgNode.create({
       data: {
@@ -49,7 +50,7 @@ describe('payment-sync-job controller', () => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     payload: any,
     state: 'RUNNING' | 'PENDING' = 'RUNNING',
-    availableAt: Date = new Date(),
+    availableAt: Date = new Date(Date.now() - 5000),
   ) => {
     const receipt = await db.webhookReceipt.create({
       data: {
@@ -101,6 +102,7 @@ describe('payment-sync-job controller', () => {
   it('successfully processes payment_intent.succeeded and marks job/receipt SUCCEEDED', async () => {
     const { job, receipt } = await createJob({
       eventType: 'payment_intent.succeeded',
+      eventCreated: 1750000000,
       dataObject: {
         id: 'pi_test',
         amount: 5000,
@@ -113,6 +115,8 @@ describe('payment-sync-job controller', () => {
     const p = await db.donation.findFirst({ where: { payment_account_id: paymentAccountId } })
     expect(p?.status).toBe('PAID')
     expect(p?.amount_minor).toBe(BigInt(5000))
+    // paid_at derives from the provider event time, not processing time.
+    expect(p?.paid_at?.toISOString()).toBe(new Date(1750000000 * 1000).toISOString())
 
     const j = await db.outboxJob.findUnique({ where: { id: job.id } })
     expect(j?.state).toBe('SUCCEEDED')
@@ -186,6 +190,26 @@ describe('payment-sync-job controller', () => {
     expect(p?.status).toBe('REFUNDED')
     expect(p?.refunded_minor).toBe(BigInt(2000))
   })
+  it('marks job as FAILED when attempts reaches MAX_ATTEMPTS (dead-letter)', async () => {
+    const { job, receipt } = await createJob(
+      { eventType: 'unknown.event_type' }, // Will fail to process event
+      'RUNNING',
+    )
+    // Set attempts to 3 (MAX_ATTEMPTS)
+    await db.outboxJob.update({
+      where: { id: job.id },
+      data: { attempts: 3 },
+    })
+
+    const outcome = await processPaymentSyncJob(job.id, 'req_dlq')
+    expect(outcome).toBe('failed')
+    const updatedJob = await db.outboxJob.findUnique({ where: { id: job.id } })
+    expect(updatedJob?.state).toBe('FAILED')
+    expect(updatedJob?.last_error_code).toBe('MISSING_EVENT_OBJECT')
+
+    const updatedReceipt = await db.webhookReceipt.findUnique({ where: { id: receipt.id } })
+    expect(updatedReceipt?.state).toBe('PROCESSED')
+  })
 
   describe('runPaymentSyncTick', () => {
     it('claims and runs batch of jobs', async () => {
@@ -195,10 +219,12 @@ describe('payment-sync-job controller', () => {
       const { job: job1, receipt: r1 } = await createJob(
         { eventType: 'test1', dataObject: { id: 'a' } },
         'PENDING',
+        new Date(Date.now() - 5000),
       )
       const { job: job2, receipt: r2 } = await createJob(
         { eventType: 'test2', dataObject: { id: 'b' } },
         'PENDING',
+        new Date(Date.now() - 5000),
       )
       try {
         const summary = await runPaymentSyncTick({ limit: 5 })

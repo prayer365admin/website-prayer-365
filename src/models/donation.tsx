@@ -76,6 +76,7 @@ export const DonationRowSchema = z.object({
   id: z.string(),
   amountMinor: z.string(), // BigInt minor units serialized as string
   currency: z.string(),
+  status: z.string(), // PAID | FAILED | REFUNDED | provider-reported state
   paidAt: z.date().nullable(),
   ref: z.string(), // provider payment reference (no donor PII)
 })
@@ -84,6 +85,7 @@ export type DonationRow = {
   id: string
   amountMinor: string
   currency: string
+  status: string
   paidAt: Date | null
   ref: string
 }
@@ -146,7 +148,7 @@ export const DateRangeSchema = z
 
 export type DateRange = { from?: Date; to?: Date }
 
-/** Paginated donation list query (page/limit/order_by + optional from/to bounds). */
+/** Paginated donation list query (page/limit/order_by + optional from/to bounds + optional currency filter). */
 export type DonationListQuery = {
   page: number
   limit: number
@@ -154,6 +156,7 @@ export type DonationListQuery = {
   order_direction: 'asc' | 'desc'
   from?: Date
   to?: Date
+  currency?: string
 }
 
 /** Paginated recurring-subscription list query (read-only). */
@@ -162,4 +165,5 @@ export type DonationSubscriptionListQuery = {
   limit: number
   order_by: 'created_at' | 'amount' | 'provider_status'
   order_direction: 'asc' | 'desc'
+  currency?: string
 }

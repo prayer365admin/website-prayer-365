@@ -45,6 +45,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ chur
     const q = parseListQuery(req.nextUrl.searchParams, {
       allowOrderBy: ['created_at', 'amount', 'provider_status'],
     })
+    const currency = req.nextUrl.searchParams.get('currency')
     const { result, total } = await listDonationSubscriptions({
       churchId,
       churchIds,
@@ -53,6 +54,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ chur
         limit: q.limit,
         order_by: q.order_by as DonationSubscriptionListQuery['order_by'],
         order_direction: q.order_direction,
+        currency: currency ?? undefined,
       },
     })
     return list(result, total, q.page, q.limit, 'Donation subscriptions retrieved.')

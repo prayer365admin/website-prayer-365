@@ -97,6 +97,9 @@ describe('ContentsChurchOverview', () => {
 
     expect(screen.getByText('Announcements')).toBeTruthy()
     expect(screen.getByText('4 draft • 6 published')).toBeTruthy()
+
+    expect(screen.getByText('Donations')).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Open donations' })).toBeTruthy()
   })
 
   it('hides recent requests when missing from the server payload', async () => {
@@ -147,5 +150,9 @@ describe('ContentsChurchOverview', () => {
     const requestsBtn = screen.getByRole('button', { name: 'Open requests' })
     await user.click(requestsBtn)
     expect(pushMock).toHaveBeenCalledWith('/dashboard/churches/c1/requests')
+
+    const donationsBtn = screen.getByRole('button', { name: 'Open donations' })
+    await user.click(donationsBtn)
+    expect(pushMock).toHaveBeenCalledWith('/dashboard/churches/c1/donations')
   })
 })

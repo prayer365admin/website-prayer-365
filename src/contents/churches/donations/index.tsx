@@ -26,6 +26,7 @@ export default function ContentsChurchDonations({ churchId }: { churchId: string
   const [selectedMonth, setSelectedMonth] = useState<Dayjs>(dayjs())
   const [customRange, setCustomRange] = useState<[Dayjs | null, Dayjs | null] | null>(null)
   const [selectedCurrency, setSelectedCurrency] = useState<string | undefined>()
+  const [discoveredCurrencies, setDiscoveredCurrencies] = useState<string[]>([])
 
   const [txPage, setTxPage] = useState(1)
   const [txPageSize, setTxPageSize] = useState(10)
@@ -57,6 +58,7 @@ export default function ContentsChurchDonations({ churchId }: { churchId: string
     orderDirection: 'desc',
     from,
     to,
+    currency: selectedCurrency,
     enableFetch: canRead,
   })
 
@@ -71,6 +73,7 @@ export default function ContentsChurchDonations({ churchId }: { churchId: string
     limit: recPageSize,
     orderBy: 'created_at',
     orderDirection: 'desc',
+    currency: selectedCurrency,
     enableFetch: canRead,
   })
 
@@ -83,6 +86,21 @@ export default function ContentsChurchDonations({ churchId }: { churchId: string
     month: selectedMonth.format('YYYY-MM'),
     enableFetch: canRead,
   })
+  // Accumulate discovered currencies so selecting a currency filter does not
+  // shrink the options dropdown when results filter down.
+  const incomingCurrencies = [
+    ...(summaryData?.currencies.map((c) => c.currency) ?? []),
+    ...txData.map((t) => t.currency),
+    ...recData.map((r) => r.currency),
+  ].filter(Boolean)
+
+  const hasNewCurrency = incomingCurrencies.some((c) => !discoveredCurrencies.includes(c))
+  if (hasNewCurrency) {
+    setDiscoveredCurrencies((prev) => Array.from(new Set([...prev, ...incomingCurrencies])).sort())
+  }
+  const uniqueCurrencies = Array.from(
+    new Set([...discoveredCurrencies, ...incomingCurrencies]),
+  ).sort()
 
   if (!canRead) {
     return (
@@ -92,48 +110,32 @@ export default function ContentsChurchDonations({ churchId }: { churchId: string
           description="Review provider-confirmed transactions, recurring donations, and monthly totals."
         />
         <Alert
-          title="Access restricted"
+          message="Access restricted"
           description="You do not have permission to view donations."
           type="warning"
+          showIcon
         />
       </div>
     )
   }
 
-  // Derive currencies for the filter
-  const summaryCurrencies = summaryData?.currencies.map((c) => c.currency) ?? []
-  const txCurrencies = txData.map((t) => t.currency)
-  const recCurrencies = recData.map((r) => r.currency)
-  const uniqueCurrencies = Array.from(
-    new Set([...summaryCurrencies, ...txCurrencies, ...recCurrencies, 'eur', 'usd']),
-  )
-    .filter(Boolean)
-    .sort()
-
   const handleCurrencyChange = (val: string) => {
     setSelectedCurrency(val)
+    setTxPage(1)
+    setRecPage(1)
   }
 
-  // Compute metrics
-  let displayCurrencies = summaryData?.currencies ?? []
-  if (selectedCurrency) {
-    displayCurrencies = displayCurrencies.filter((c) => c.currency === selectedCurrency)
-  }
+  // Server already filters transactions/recurring by the selected currency; the
+  // summary endpoint is per-currency by construction, so filter its rows only.
+  const displayCurrencies = summaryData?.currencies ?? []
   const confirmedContent = displayCurrencies.map((c) => (
     <div key={c.currency} className="mb-1">
       {formatMinorToMajor(c.netMinor, c.currency)}
     </div>
   ))
-
-  const filteredTxData = selectedCurrency
-    ? txData.filter((t) => t.currency === selectedCurrency)
-    : txData
-  const filteredRecData = selectedCurrency
-    ? recData.filter((r) => r.currency === selectedCurrency)
-    : recData
   const filteredSummaryData = selectedCurrency
-    ? summaryData?.currencies.filter((c) => c.currency === selectedCurrency)
-    : summaryData?.currencies
+    ? displayCurrencies.filter((c) => c.currency === selectedCurrency)
+    : displayCurrencies
 
   return (
     <div className="flex flex-col gap-4">
@@ -189,7 +191,13 @@ export default function ContentsChurchDonations({ churchId }: { churchId: string
 
       <Tabs
         activeKey={activeTab}
-        onChange={(key) => setActiveTab(key as typeof activeTab)}
+        onChange={(key) => {
+          const nextTab = key as typeof activeTab
+          setActiveTab(nextTab)
+          if (nextTab !== 'transactions') {
+            setCustomRange(null)
+          }
+        }}
         items={[
           {
             key: 'transactions',
@@ -197,10 +205,15 @@ export default function ContentsChurchDonations({ churchId }: { churchId: string
             children: (
               <div>
                 {txError && (
-                  <Alert title="Failed to load transactions" type="error" className="mb-4" />
+                  <Alert
+                    message="Failed to load transactions"
+                    type="error"
+                    showIcon
+                    className="mb-4"
+                  />
                 )}
                 <Table
-                  dataSource={filteredTxData}
+                  dataSource={txData}
                   columns={TransactionsColumns()}
                   rowKey="id"
                   loading={txLoading}
@@ -223,10 +236,15 @@ export default function ContentsChurchDonations({ churchId }: { churchId: string
             children: (
               <div>
                 {recError && (
-                  <Alert title="Failed to load recurring donations" type="error" className="mb-4" />
+                  <Alert
+                    message="Failed to load recurring donations"
+                    type="error"
+                    showIcon
+                    className="mb-4"
+                  />
                 )}
                 <Table
-                  dataSource={filteredRecData}
+                  dataSource={recData}
                   columns={RecurringColumns()}
                   rowKey="id"
                   loading={recLoading}
@@ -249,7 +267,7 @@ export default function ContentsChurchDonations({ churchId }: { churchId: string
             children: (
               <div>
                 {summaryError && (
-                  <Alert title="Failed to load summary" type="error" className="mb-4" />
+                  <Alert message="Failed to load summary" type="error" showIcon className="mb-4" />
                 )}
                 <Table
                   dataSource={filteredSummaryData}

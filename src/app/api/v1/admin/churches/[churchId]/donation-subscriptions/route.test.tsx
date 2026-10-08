@@ -46,6 +46,25 @@ describe('GET /api/v1/admin/churches/[churchId]/donation-subscriptions', () => {
       expect.objectContaining({ churchId: 'c1', subject: 'prayer_donation', action: 'read' }),
     )
   })
+  it('forwards currency filter to listDonationSubscriptions', async () => {
+    vi.mocked(requiredAuth).mockResolvedValue(auth() as never)
+    vi.mocked(requiredScope).mockResolvedValue(scope() as never)
+    vi.mocked(listDonationSubscriptions).mockResolvedValue({ result: [sub], total: 1 } as never)
+
+    const res = (await GET(
+      new NextRequest(
+        'http://localhost/api/v1/admin/churches/c1/donation-subscriptions?currency=eur',
+      ),
+      params as never,
+    ))!
+    expect(res.status).toBe(200)
+    expect(listDonationSubscriptions).toHaveBeenCalledWith(
+      expect.objectContaining({
+        churchId: 'c1',
+        query: expect.objectContaining({ currency: 'eur' }),
+      }),
+    )
+  })
 
   it('returns 403 when scope is denied', async () => {
     vi.mocked(requiredAuth).mockResolvedValue(auth() as never)

@@ -99,6 +99,9 @@ export const processPaymentSyncJob = async (
     if (!obj) return requeueOrFail(job, 'MISSING_EVENT_OBJECT')
 
     const eventCreated = payload.eventCreated || Math.floor(Date.now() / 1000)
+    /** Provider event time; processing time would bucket events into the wrong
+     * monthly summary when a backlog drains after a month boundary. */
+    const providerPaidAt = new Date(eventCreated * 1000)
 
     if (payload.eventType === 'payment_intent.succeeded') {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -115,7 +118,7 @@ export const processPaymentSyncJob = async (
         amountMinor: Number(pi.amount),
         currency: String(pi.currency),
         status: 'PAID',
-        paidAt: new Date(),
+        paidAt: providerPaidAt,
         providerSubscriptionId: subscriptionId ? String(subscriptionId) : undefined,
       })
     } else if (payload.eventType === 'payment_intent.payment_failed') {
@@ -141,7 +144,7 @@ export const processPaymentSyncJob = async (
         amountMinor: Number(ch.amount),
         currency: String(ch.currency),
         status: 'PAID',
-        paidAt: new Date(),
+        paidAt: providerPaidAt,
       })
     } else if (payload.eventType === 'charge.failed') {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -210,7 +213,7 @@ export const processPaymentSyncJob = async (
         amountMinor: Number(inv.amount_paid ?? inv.total ?? 0),
         currency: String(inv.currency ?? 'usd'),
         status: 'PAID',
-        paidAt: new Date(),
+        paidAt: providerPaidAt,
         providerSubscriptionId: inv.subscription ? String(inv.subscription) : undefined,
       })
     } else if (payload.eventType === 'invoice.payment_failed') {
