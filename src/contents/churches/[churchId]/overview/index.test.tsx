@@ -40,8 +40,8 @@ const overviewWithRequests = {
     recent: [
       {
         id: 'q1',
-        kind: 'PRAYER',
-        classification: 'STANDARD',
+        kind: 'prayer',
+        classification: 'standard',
         createdAt: '2026-09-30T00:00:00.000Z',
       },
     ],
@@ -114,8 +114,8 @@ describe('ContentsChurchOverview', () => {
 
     await screen.findByText('Recent requests')
     await screen.findByText('7 requests')
-    expect(screen.getByText(/PRAYER/)).toBeTruthy()
-    expect(screen.getByText(/STANDARD/)).toBeTruthy()
+    const link = screen.getByRole('link', { name: 'Prayer request • Standard' })
+    expect(link.getAttribute('href')).toBe('/dashboard/churches/c1/requests/q1')
   })
 
   it('navigates to specific sub-routes when action buttons are clicked', async () => {
