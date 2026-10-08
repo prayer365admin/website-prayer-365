@@ -56,6 +56,11 @@ describe('GET /api/v1/admin/churches/[churchId]/requests/:requestId', () => {
     )
     const res = (await GET(new NextRequest('http://x/requests/r1'), churchParams as never))!
     expect(res.status).toBe(404)
+    const body = await res.json()
+    expect(body).not.toHaveProperty('result')
+    for (const k of ['message', 'phone', 'email', 'classification', 'subject']) {
+      expect(JSON.stringify(body)).not.toContain(`"${k}"`)
+    }
   })
 
   it('returns 404 for a cross-church scope (existence hidden)', async () => {

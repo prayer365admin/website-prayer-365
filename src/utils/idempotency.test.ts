@@ -84,4 +84,12 @@ describe('withIdempotency', () => {
     expect(result.fresh).toBe(true)
     expect(run).toHaveBeenCalledTimes(1)
   })
+  it('writes no record and rethrows when the business action fails (e.g. rate limit)', async () => {
+    find.mockResolvedValue(null)
+    const failing = vi.fn(async () => {
+      throw Object.assign(new Error('limited'), { code: 429 })
+    })
+    await expect(call({ run: failing })).rejects.toMatchObject({ code: 429 })
+    expect(create).not.toHaveBeenCalled()
+  })
 })

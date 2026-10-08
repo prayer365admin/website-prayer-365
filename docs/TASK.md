@@ -112,12 +112,25 @@ DESIGN S10–S11 | SPEC §9.5 | FEATURE F6
 | ----- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---- |
 | RQ-01 | DB: `requests` model + seeds                                                                                                                                              | ✔   |
 | RQ-02 | API: request provider/controller/models + `GET C/requests` (filtered before pagination), `GET C/requests/:requestId`, mobile `POST M/churches/:churchId/requests` + tests | ✔   |
-| RQ-03 | Hooks: `hooks/data/request.tsx` — list (allowed kinds), detail                                                                                                            | ☐    |
-| RQ-04 | Screen: S10 request list (`.../requests`) — authorized kinds only, no content to unauthorized staff                                                                       | ☐    |
-| RQ-05 | Screen: S11 request detail (`.../requests/:requestId`) — message + preferred contact method, external phone/email action, sensitive-data guard                            | ☐    |
-| RQ-06 | Security: private rows filtered before count/pagination, logs/notifications never carry message/contact/classification, submission rate-limited + idempotent              | ☐    |
-| RQ-07 | Tests: unauthorized detail returns nothing, duplicate submission same result, scope bypass attempts fail                                                                  | ☐    |
-| RQ-08 | Note: D3 blocks anything beyond view/contact — do not invent status/assignment UI                                                                                         | ☐    |
+| RQ-03 | Hooks: `hooks/data/request.tsx` — list (allowed kinds), detail                                                                                                            | ✔   |
+| RQ-04 | Screen: S10 request list (`.../requests`) — authorized kinds only, no content to unauthorized staff                                                                       | ✔   |
+| RQ-05 | Screen: S11 request detail (`.../requests/:requestId`) — message + preferred contact method, external phone/email action, sensitive-data guard                            | ✔   |
+| RQ-06 | Security: private rows filtered before count/pagination, logs/notifications never carry message/contact/classification, submission rate-limited + idempotent              | ✔   |
+| RQ-07 | Tests: unauthorized detail returns nothing, duplicate submission same result, scope bypass attempts fail                                                                  | ✔   |
+| RQ-08 | Note: D3 blocks anything beyond view/contact — do not invent status/assignment UI                                                                                         | ✔   |
+
+F7RQ notes (2026-10-08, plan `.codex/tasks/F7RQ-requests.md`):
+
+- RQ-02 hardened: pastoral/meeting requests are always restricted (need the church-local
+  private grant), queries use the exact route church, `?kind=` takes a comma list, request
+  and overview responses are `Cache-Control: private, no-store`, duplicate submission
+  returns the original ack, idempotency keys are church-scoped, submissions are limited to
+  5 per user per church per 10 minutes (`REQUEST_SUBMIT_LIMIT`,
+  `REQUEST_SUBMIT_WINDOW_MINUTES`). `prayer_private_request_reader` now includes
+  `prayer_request:read`.
+- RQ-08: only view and external contact are built. F6 "manage" is **not** complete; it stays
+  blocked on D3.
+- Manual acceptance run pending (see the plan's "Manual acceptance test").
 
 ## F8DO — Donations (reporting + Stripe)
 
