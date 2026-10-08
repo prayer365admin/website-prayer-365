@@ -130,7 +130,7 @@ F7RQ notes (2026-10-08, plan `.codex/tasks/F7RQ-requests.md`):
   `prayer_request:read`.
 - RQ-08: only view and external contact are built. F6 "manage" is **not** complete; it stays
   blocked on D3.
-- Manual acceptance run pending (see the plan's "Manual acceptance test").
+- Manual acceptance signed off by the owner on 2026-10-08.
 
 ## F8DO — Donations (reporting + Stripe)
 
