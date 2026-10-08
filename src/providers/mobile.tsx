@@ -2,6 +2,7 @@ import { EventCategory, Prisma, RequestKind } from '@prisma/client'
 import { db } from '@/utils/db-connection'
 import { GeneralError } from '@/utils/general-error'
 import { auditPayload } from '@/utils/audit'
+import { fromKind } from '@/providers/request'
 import {
   MobileAnnouncementListQuery,
   MobileCheckInAck,
@@ -686,6 +687,41 @@ export const CREATE_USER_REQUEST = async ({
     }),
   })
   return { id: created.id, kind: data.kind, createdAt: created.created_at.toISOString() }
+}
+
+/** User's submissions to one church since `since` (submission rate limit). */
+export const COUNT_RECENT_USER_REQUESTS = async ({
+  churchId,
+  userId,
+  since,
+  tx,
+}: {
+  churchId: string
+  userId: string
+  since: Date
+  tx: Prisma.TransactionClient | null
+}): Promise<number> => {
+  const client: Prisma.TransactionClient = tx ?? (db as unknown as Prisma.TransactionClient)
+  return client.request.count({
+    where: { church_id: churchId, user_id: userId, created_at: { gte: since } },
+  })
+}
+
+/** Ack for an already-accepted submission (idempotent replay). Own rows only. */
+export const GET_USER_REQUEST_ACK = async ({
+  id,
+  userId,
+}: {
+  id: string
+  userId: string
+}): Promise<{ id: string; kind: string; createdAt: string } | null> => {
+  const row = await db.request.findFirst({
+    where: { id, user_id: userId },
+    select: { id: true, kind: true, created_at: true },
+  })
+  return row
+    ? { id: row.id, kind: fromKind(row.kind), createdAt: row.created_at.toISOString() }
+    : null
 }
 
 /** Church-timezone local calendar date string YYYY-MM-DD (falls back to UTC). */

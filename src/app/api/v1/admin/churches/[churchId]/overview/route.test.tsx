@@ -46,6 +46,7 @@ describe('GET /api/v1/admin/churches/[churchId]/overview', () => {
       params as never,
     ))!
     expect(res.status).toBe(200)
+    expect(res.headers.get('Cache-Control')).toBe('private, no-store')
     expect((await res.json()).result.church.id).toBe('c1')
     expect(requiredScope).toHaveBeenCalledWith(
       expect.objectContaining({ churchId: 'c1', subject: 'prayer_church', action: 'read' }),

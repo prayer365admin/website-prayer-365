@@ -6,10 +6,12 @@ import { RequestOutput, RequestListSummary } from '@/models/request'
 
 /*
  * Request data adapter (Task 28). Sensitive filter: a caller WITHOUT the
- * church-local `prayer_private_request:read` grant never sees a PRIVATE row.
- * The SAME where is used for count and rows so hidden rows do not leak into
- * `total`. Detail lookups that miss (out of scope or private-to-caller) return
- * null so the controller maps them to 404 (existence hidden).
+ * church-local `prayer_private_request:read` grant only sees STANDARD prayer
+ * requests. PRIVATE rows and every pastoral/meeting row (always restricted,
+ * F7RQ R2) stay hidden. The SAME where is used for count and rows so hidden
+ * rows do not leak into `total`. Queries target the exact route church. Detail
+ * lookups that miss (out of scope or private-to-caller) return null so the
+ * controller maps them to 404 (existence hidden).
  */
 
 const KIND_TO_DB: Record<string, RequestKind> = {
@@ -24,43 +26,52 @@ const KIND_FROM_DB: Record<RequestKind, string> = {
   MEETING: 'meeting',
 }
 
-const fromClassification = (c: string | null): string | null => (c ? c.toLowerCase() : null)
+export const fromKind = (k: RequestKind): string => KIND_FROM_DB[k]
 
-const toIds = (churchIds: Set<string>) => Array.from(churchIds)
+export const fromClassification = (c: string | null): string | null => (c ? c.toLowerCase() : null)
 
-/** Rows visible to the caller: everything, or only non-PRIVATE (incl. null). */
-const prismaPrivateFilter = (canReadPrivate: boolean): Prisma.RequestWhereInput =>
-  canReadPrivate ? {} : { OR: [{ classification: null }, { classification: { not: 'PRIVATE' } }] }
+/**
+ * Rows the caller may see. Shared with the church overview so its counts use
+ * the same rule as the request list.
+ */
+export const requestVisibilityWhere = (canReadPrivate: boolean): Prisma.RequestWhereInput =>
+  canReadPrivate
+    ? {}
+    : {
+        kind: 'PRAYER',
+        OR: [{ classification: null }, { classification: { not: 'PRIVATE' } }],
+      }
 
 const listWhere = ({
-  churchIds,
-  kind,
+  churchId,
+  kinds,
   canReadPrivate,
 }: {
-  churchIds: Set<string>
-  kind?: string
+  churchId: string
+  kinds?: string[]
   canReadPrivate: boolean
 }): Prisma.RequestWhereInput => ({
-  church_id: { in: toIds(churchIds) },
-  ...(kind ? { kind: KIND_TO_DB[kind] } : {}),
-  ...prismaPrivateFilter(canReadPrivate),
+  church_id: churchId,
+  // AND keeps the kind filter and the visibility rule from overwriting each other.
+  AND: [
+    kinds?.length ? { kind: { in: kinds.map((k) => KIND_TO_DB[k]) } } : {},
+    requestVisibilityWhere(canReadPrivate),
+  ],
 })
 
 /** Paginated authorized summaries; count and rows share the same scoped filter. */
 export const GET_REQUESTS = async ({
-  churchIds,
-  kind,
+  churchId,
+  kinds,
   canReadPrivate,
   query,
 }: {
-  churchIds: Set<string>
-  kind?: string
+  churchId: string
+  kinds?: string[]
   canReadPrivate: boolean
   query: ParsedListQuery
 }): Promise<{ result: RequestListSummary[]; total: number }> => {
-  const ids = toIds(churchIds)
-  if (ids.length === 0) return { result: [], total: 0 }
-  const where = listWhere({ churchIds, kind, canReadPrivate })
+  const where = listWhere({ churchId, kinds, canReadPrivate })
   const orderBy: Prisma.RequestOrderByWithRelationInput[] = [
     { created_at: query.order_direction },
     { id: 'asc' },
@@ -78,7 +89,7 @@ export const GET_REQUESTS = async ({
     total,
     result: rows.map((r) => ({
       id: r.id,
-      kind: KIND_FROM_DB[r.kind],
+      kind: fromKind(r.kind),
       subject: r.subject,
       classification: fromClassification(r.classification),
       contactMethod: r.contact_method,
@@ -93,22 +104,20 @@ export const GET_REQUESTS = async ({
  * writes a minimal access-audit line with NO message/contact/classification.
  */
 export const GET_REQUEST = async ({
-  churchIds,
+  churchId,
   requestId,
   canReadPrivate,
   actorId,
   traceId,
 }: {
-  churchIds: Set<string>
+  churchId: string
   requestId: string
   canReadPrivate: boolean
   actorId?: string | null
   traceId: string
 }): Promise<RequestOutput | null> => {
-  const ids = toIds(churchIds)
-  if (ids.length === 0) return null
   const row = await db.request.findFirst({
-    where: { id: requestId, ...listWhere({ churchIds, canReadPrivate }) },
+    where: { id: requestId, ...listWhere({ churchId, canReadPrivate }) },
   })
   if (!row) return null
   // Access-audit on the sensitive read. writeAudit never accepts sensitive
@@ -124,7 +133,7 @@ export const GET_REQUEST = async ({
   })
   return {
     id: row.id,
-    kind: KIND_FROM_DB[row.kind],
+    kind: fromKind(row.kind),
     subject: row.subject,
     message: row.message,
     classification: fromClassification(row.classification),

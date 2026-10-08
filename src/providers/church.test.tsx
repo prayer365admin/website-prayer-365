@@ -5,6 +5,7 @@ import {
   UPDATE_CHURCH_PROFILE,
   GET_CHURCH_OVERVIEW,
   GET_CHURCH_PROFILE,
+  GET_REQUEST_OVERVIEW,
 } from './church'
 import { Prisma } from '@prisma/client'
 
@@ -38,6 +39,7 @@ const { db, tx } = vi.hoisted(() => {
       event: { count: vi.fn() },
       announcement: { count: vi.fn() },
       userChurch: { count: vi.fn() },
+      request: { count: vi.fn(), findMany: vi.fn() },
       auditLog: { create: vi.fn() },
     },
   }
@@ -286,6 +288,44 @@ describe('Church Provider', () => {
       expect(result?.aggregates.mediaCount).toBe(7)
       expect(result?.aggregates.announcementDraftCount).toBe(5)
       expect(result?.aggregates.announcementPublishedCount).toBe(8)
+    })
+  })
+  describe('GET_REQUEST_OVERVIEW', () => {
+    const recentRow = {
+      id: 'r1',
+      kind: 'PRAYER',
+      classification: 'STANDARD',
+      created_at: new Date('2026-01-01T00:00:00Z'),
+    }
+
+    it('hides private/restricted rows from count and recent for a standard reader', async () => {
+      db.request.count.mockResolvedValueOnce(1)
+      db.request.findMany.mockResolvedValueOnce([recentRow])
+
+      const result = await GET_REQUEST_OVERVIEW({ churchId: 'c1', canReadPrivate: false })
+
+      const where = {
+        church_id: 'c1',
+        kind: 'PRAYER',
+        OR: [{ classification: null }, { classification: { not: 'PRIVATE' } }],
+      }
+      expect(db.request.count).toHaveBeenCalledWith({ where })
+      expect(db.request.findMany).toHaveBeenCalledWith(expect.objectContaining({ where }))
+      expect(result).toEqual({
+        total: 1,
+        recent: [
+          { id: 'r1', kind: 'prayer', classification: 'standard', createdAt: recentRow.created_at },
+        ],
+      })
+    })
+
+    it('counts every row of the exact church for a private reader', async () => {
+      db.request.count.mockResolvedValueOnce(4)
+      db.request.findMany.mockResolvedValueOnce([])
+
+      await GET_REQUEST_OVERVIEW({ churchId: 'c1', canReadPrivate: true })
+
+      expect(db.request.count).toHaveBeenCalledWith({ where: { church_id: 'c1' } })
     })
   })
 })

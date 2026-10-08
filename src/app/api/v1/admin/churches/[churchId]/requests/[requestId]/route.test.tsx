@@ -40,6 +40,7 @@ describe('GET /api/v1/admin/churches/[churchId]/requests/:requestId', () => {
     const res = (await GET(new NextRequest('http://x/requests/r1'), churchParams as never))!
     expect(res.status).toBe(200)
     expect((await res.json()).result.id).toBe('r1')
+    expect(res.headers.get('Cache-Control')).toBe('private, no-store')
   })
 
   it('returns 404 for an out-of-scope or private-to-caller row', async () => {

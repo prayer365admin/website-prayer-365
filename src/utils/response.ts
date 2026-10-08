@@ -26,6 +26,12 @@ export const list = (
   message: string,
 ) => ok(result, message, 200, { total, page, limit })
 
+/** Mark a response carrying private data as uncacheable (SPEC §2.2). */
+export const noStore = (res: NextResponse) => {
+  res.headers.set('Cache-Control', 'private, no-store')
+  return res
+}
+
 export const httpError = (e: unknown) => {
   if (e instanceof GeneralError) {
     const body: Record<string, unknown> = {

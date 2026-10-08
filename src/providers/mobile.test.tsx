@@ -11,6 +11,7 @@ const db = vi.hoisted(() => ({
   announcement: { count: vi.fn(), findMany: vi.fn() },
   checkIn: { createMany: vi.fn(), findFirst: vi.fn() },
   analyticsEvent: { createMany: vi.fn() },
+  request: { count: vi.fn(), findFirst: vi.fn() },
   auditLog: { create: vi.fn() },
 }))
 
@@ -25,6 +26,8 @@ import {
   LIST_PUBLIC_ANNOUNCEMENTS,
   LIST_PUBLIC_EVENTS,
   LIST_PUBLISHED_PRAYERS,
+  COUNT_RECENT_USER_REQUESTS,
+  GET_USER_REQUEST_ACK,
 } from './mobile'
 
 beforeEach(() => vi.clearAllMocks())
@@ -426,5 +429,39 @@ describe('LIST_PUBLIC_ANNOUNCEMENTS — only live published rows', () => {
     }
     expect(db.announcement.count).toHaveBeenCalledWith({ where })
     expect(db.announcement.findMany.mock.calls[0][0].where).toEqual(where)
+  })
+})
+
+describe('COUNT_RECENT_USER_REQUESTS — submission rate limit window', () => {
+  it("counts only this user's requests at this church since the window start", async () => {
+    db.request.count.mockResolvedValue(3)
+    const since = new Date('2026-01-01T00:00:00Z')
+    await expect(
+      COUNT_RECENT_USER_REQUESTS({ churchId: 'c1', userId: 'u1', since, tx: null }),
+    ).resolves.toBe(3)
+    expect(db.request.count).toHaveBeenCalledWith({
+      where: { church_id: 'c1', user_id: 'u1', created_at: { gte: since } },
+    })
+  })
+})
+
+describe('GET_USER_REQUEST_ACK — idempotent replay', () => {
+  it("returns the caller's own request as a minimal lowercase ack", async () => {
+    const created_at = new Date('2026-01-01T00:00:00Z')
+    db.request.findFirst.mockResolvedValue({ id: 'r1', kind: 'MEETING', created_at })
+    await expect(GET_USER_REQUEST_ACK({ id: 'r1', userId: 'u1' })).resolves.toEqual({
+      id: 'r1',
+      kind: 'meeting',
+      createdAt: created_at.toISOString(),
+    })
+    expect(db.request.findFirst).toHaveBeenCalledWith({
+      where: { id: 'r1', user_id: 'u1' },
+      select: { id: true, kind: true, created_at: true },
+    })
+  })
+
+  it('returns null for a request the caller does not own', async () => {
+    db.request.findFirst.mockResolvedValue(null)
+    await expect(GET_USER_REQUEST_ACK({ id: 'r1', userId: 'u2' })).resolves.toBeNull()
   })
 })

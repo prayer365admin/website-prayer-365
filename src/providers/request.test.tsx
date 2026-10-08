@@ -12,7 +12,7 @@ vi.mock('@/utils/db-connection', () => ({
 
 import { db } from '@/utils/db-connection'
 import { writeAudit } from '@/utils/audit'
-import { GET_REQUESTS, GET_REQUEST } from './request'
+import { GET_REQUESTS, GET_REQUEST, requestVisibilityWhere } from './request'
 
 const query: ParsedListQuery = {
   page: 1,
@@ -40,40 +40,50 @@ const countWhere = () => (vi.mocked(db.request.count).mock.calls[0][0] as unknow
 beforeEach(() => vi.clearAllMocks())
 
 describe('GET_REQUESTS', () => {
-  it('count uses the SAME private filter as rows for a standard reader', async () => {
+  it('count uses the SAME visibility filter as rows for a standard reader', async () => {
     vi.mocked(db.request.count).mockResolvedValue(1)
     vi.mocked(db.request.findMany).mockResolvedValue([row] as never)
-    await GET_REQUESTS({ churchIds: new Set(['c1']), canReadPrivate: false, query })
+    await GET_REQUESTS({ churchId: 'c1', canReadPrivate: false, query })
     const where = countWhere()
-    const or = where.OR as Array<Record<string, unknown>>
-    expect(or).toBeDefined()
-    expect(or[0]).toEqual({ classification: null })
-    expect((or[1].classification as { not: string }).not).toBe('PRIVATE')
+    const findWhere = (vi.mocked(db.request.findMany).mock.calls[0][0] as unknown as CountArg).where
+    expect(findWhere).toEqual(where)
+    expect(where.church_id).toBe('c1')
+    // Standard readers see only non-PRIVATE prayer rows (pastoral/meeting restricted, R2).
+    expect((where.AND as unknown[])[1]).toEqual(requestVisibilityWhere(false))
   })
 
-  it('omits the private filter for a church-local private reader', async () => {
+  it('targets the exact route church, never a broader scope set', async () => {
+    vi.mocked(db.request.count).mockResolvedValue(0)
+    vi.mocked(db.request.findMany).mockResolvedValue([] as never)
+    await GET_REQUESTS({ churchId: 'c1', canReadPrivate: true, query })
+    expect(countWhere().church_id).toBe('c1')
+  })
+
+  it('omits the visibility filter for a church-local private reader', async () => {
     vi.mocked(db.request.count).mockResolvedValue(2)
     vi.mocked(db.request.findMany).mockResolvedValue([row, { ...row, id: 'r2' }] as never)
-    await GET_REQUESTS({ churchIds: new Set(['c1']), canReadPrivate: true, query })
-    expect(countWhere().OR).toBeUndefined()
+    await GET_REQUESTS({ churchId: 'c1', canReadPrivate: true, query })
+    expect(countWhere().AND).toEqual([{}, {}])
   })
 
-  it('applies the kind allowlist filter to count and rows', async () => {
+  it('applies a multi-kind filter without dropping the visibility rule', async () => {
     vi.mocked(db.request.count).mockResolvedValue(1)
     vi.mocked(db.request.findMany).mockResolvedValue([row] as never)
     await GET_REQUESTS({
-      churchIds: new Set(['c1']),
+      churchId: 'c1',
       canReadPrivate: false,
-      kind: 'pastoral',
+      kinds: ['pastoral', 'meeting'],
       query,
     })
-    expect(countWhere().kind).toBe('PASTORAL')
+    const and = countWhere().AND as Array<Record<string, unknown>>
+    expect(and[0]).toEqual({ kind: { in: ['PASTORAL', 'MEETING'] } })
+    expect(and[1]).toEqual(requestVisibilityWhere(false))
   })
 
   it('maps rows to camelCase lowercase summaries', async () => {
     vi.mocked(db.request.count).mockResolvedValue(1)
     vi.mocked(db.request.findMany).mockResolvedValue([row] as never)
-    const res = await GET_REQUESTS({ churchIds: new Set(['c1']), canReadPrivate: true, query })
+    const res = await GET_REQUESTS({ churchId: 'c1', canReadPrivate: true, query })
     expect(res.total).toBe(1)
     expect(res.result[0]).toEqual({
       id: 'r1',
@@ -84,11 +94,18 @@ describe('GET_REQUESTS', () => {
       createdAt: row.created_at.toISOString(),
     })
   })
+})
 
-  it('returns empty for an empty scope', async () => {
-    await expect(
-      GET_REQUESTS({ churchIds: new Set(), canReadPrivate: false, query }),
-    ).resolves.toEqual({ result: [], total: 0 })
+describe('requestVisibilityWhere', () => {
+  it('limits standard readers to non-PRIVATE prayer rows', () => {
+    expect(requestVisibilityWhere(false)).toEqual({
+      kind: 'PRAYER',
+      OR: [{ classification: null }, { classification: { not: 'PRIVATE' } }],
+    })
+  })
+
+  it('is empty for a private reader', () => {
+    expect(requestVisibilityWhere(true)).toEqual({})
   })
 })
 
@@ -96,7 +113,7 @@ describe('GET_REQUEST', () => {
   it('returns a private row for a private reader and audits WITHOUT sensitive fields', async () => {
     vi.mocked(db.request.findFirst).mockResolvedValue(row as never)
     const res = await GET_REQUEST({
-      churchIds: new Set(['c1']),
+      churchId: 'c1',
       requestId: 'r1',
       canReadPrivate: true,
       actorId: 'u1',
@@ -129,7 +146,7 @@ describe('GET_REQUEST', () => {
     vi.mocked(db.request.findFirst).mockResolvedValue(null)
     await expect(
       GET_REQUEST({
-        churchIds: new Set(['c1']),
+        churchId: 'c1',
         requestId: 'r1',
         canReadPrivate: false,
         actorId: 'u1',
@@ -139,15 +156,17 @@ describe('GET_REQUEST', () => {
     expect(writeAudit).not.toHaveBeenCalled()
   })
 
-  it('returns null for an empty scope', async () => {
-    await expect(
-      GET_REQUEST({
-        churchIds: new Set(),
-        requestId: 'r1',
-        canReadPrivate: true,
-        actorId: 'u1',
-        traceId: 't1',
-      }),
-    ).resolves.toBeNull()
+  it('looks up by id within the exact church and the visibility rule', async () => {
+    vi.mocked(db.request.findFirst).mockResolvedValue(null)
+    await GET_REQUEST({
+      churchId: 'c1',
+      requestId: 'r-pastoral',
+      canReadPrivate: false,
+      actorId: 'u1',
+      traceId: 't1',
+    })
+    const where = (vi.mocked(db.request.findFirst).mock.calls[0][0] as unknown as CountArg).where
+    expect(where).toMatchObject({ id: 'r-pastoral', church_id: 'c1' })
+    expect((where.AND as unknown[])[1]).toEqual(requestVisibilityWhere(false))
   })
 })
