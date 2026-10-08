@@ -71,17 +71,21 @@ export function ReviewPanel({ profile }: { profile: VoiceProfileDetail }) {
   return (
     <Row gutter={[16, 16]}>
       <Col xs={24} lg={15}>
-        <div className="space-y-5">
+        {/* One inner card per flow: submission evidence, registration, review, controls. */}
+        <div className="space-y-4">
           <div className="text-gray-500">
             {profile.churchName} / Submitted {formatDate(profile.submittedAt)}
             {profile.replacesProfileId && ' / Replaces an earlier voice'}
           </div>
 
-          <section>
-            <div className="flex items-center gap-2 mb-2">
-              <h3 className="font-semibold text-base m-0">Voice samples</h3>
-              <RecordingTips />
-            </div>
+          <Card
+            type="inner"
+            title={
+              <span className="flex items-center gap-2">
+                Voice samples <RecordingTips />
+              </span>
+            }
+          >
             <div className="space-y-2">
               {profile.samples.map((s, i) => (
                 <div key={s.assetId} className="flex flex-wrap items-center gap-3">
@@ -100,10 +104,9 @@ export function ReviewPanel({ profile }: { profile: VoiceProfileDetail }) {
               {profile.samples.length} file{profile.samples.length === 1 ? '' : 's'}
               {totalSeconds > 0 && ` · ${formatDuration(totalSeconds)} total`} · Private samples
             </div>
-          </section>
+          </Card>
 
-          <section>
-            <h3 className="font-semibold text-base mb-2">Offline authorization</h3>
+          <Card type="inner" title="Offline authorization">
             <EvidenceLink churchId={profile.churchId} assetId={profile.evidenceAssetId} />
             <div className="text-gray-500 mt-2">
               Terms {profile.termsVersion} · Recorded {formatDate(profile.consentRecordedAt)}
@@ -116,79 +119,25 @@ export function ReviewPanel({ profile }: { profile: VoiceProfileDetail }) {
                 title={`Consent revoked ${formatDate(profile.consentRevokedAt)}`}
               />
             )}
-          </section>
+          </Card>
 
-          <section className="space-y-2">
-            {profile.reviewState === 'APPROVED' && (
-              <p className="m-0">
-                {registrationHelp(profile.registrationState, profile.lastErrorCode)}
-              </p>
-            )}
-            <div className="text-gray-500">
-              Voice ID: {profile.providerVoiceId ?? 'Assigned after registration'}
-            </div>
-            {profile.lastErrorCode && (
-              <div className="text-gray-500">Last error: {profile.lastErrorCode}</div>
-            )}
-          </section>
-
-          {canUpdate && pending && isSelf && (
-            <Alert type="info" showIcon title="You cannot review your own submission." />
-          )}
-
-          {canUpdate && pending && !isSelf && (
-            <section className="space-y-3">
-              <label className="block">
-                <span className="font-semibold">Reason — required when rejecting</span>
-                <Input.TextArea
-                  className="mt-1"
-                  rows={2}
-                  maxLength={500}
-                  placeholder="Explain what needs correction"
-                  value={reason}
-                  onChange={(e) => setReason(e.target.value)}
-                />
-              </label>
-              <div className="flex flex-wrap gap-3">
-                <Button
-                  disabled={!reason.trim() || busy}
-                  loading={rejecting}
-                  onClick={() =>
-                    confirm(
-                      'Reject this submission?',
-                      `${who} will see your reason and can submit a corrected sample.`,
-                      'Reject',
-                      () => onReject({ ...ref, reason: reason.trim() }),
-                    )
-                  }
-                >
-                  Reject
-                </Button>
-                <Button
-                  type="primary"
-                  disabled={busy}
-                  loading={approving}
-                  onClick={() =>
-                    confirm(
-                      'Approve and register?',
-                      `Approving ${who} sends these samples to the PRAYER ElevenLabs account to create the voice.`,
-                      'Approve and register',
-                      () => onApprove(ref),
-                    )
-                  }
-                >
-                  Approve and register
-                </Button>
+          <Card type="inner" title="Registration">
+            <div className="space-y-2">
+              {profile.reviewState === 'APPROVED' && (
+                <p className="m-0">
+                  {registrationHelp(profile.registrationState, profile.lastErrorCode)}
+                </p>
+              )}
+              <div className="text-gray-500">
+                Voice ID: {profile.providerVoiceId ?? 'Assigned after registration'}
               </div>
-              <p className="text-gray-500 m-0">
-                Approval automatically queues registration. You cannot approve your own sample.
-              </p>
-            </section>
-          )}
-
-          {canUpdate && canRetry && (
-            <section>
+              {profile.lastErrorCode && (
+                <div className="text-gray-500">Last error: {profile.lastErrorCode}</div>
+              )}
+            </div>
+            {canUpdate && canRetry && (
               <Button
+                className="mt-3"
                 type="primary"
                 disabled={busy}
                 loading={recloning}
@@ -205,54 +154,113 @@ export function ReviewPanel({ profile }: { profile: VoiceProfileDetail }) {
               >
                 {voiceMissing ? 'Re-create voice' : 'Retry registration'}
               </Button>
-            </section>
-          )}
-          {canUpdate &&
-            profile.registrationState === 'FAILED' &&
-            !canRetry &&
-            !profile.consentRevokedAt && (
-              <Alert
-                type="info"
-                showIcon
-                title="A retry cannot fix this failure. The pastor needs to submit a new revision."
-              />
             )}
+            {canUpdate &&
+              profile.registrationState === 'FAILED' &&
+              !canRetry &&
+              !profile.consentRevokedAt && (
+                <Alert
+                  className="mt-3"
+                  type="info"
+                  showIcon
+                  title="A retry cannot fix this failure. The pastor needs to submit a new revision."
+                />
+              )}
+          </Card>
+
+          {canUpdate && pending && isSelf && (
+            <Alert type="info" showIcon title="You cannot review your own submission." />
+          )}
+
+          {canUpdate && pending && !isSelf && (
+            <Card type="inner" title="Review decision">
+              <div className="space-y-3">
+                <label className="block">
+                  <span className="font-semibold">Reason — required when rejecting</span>
+                  <Input.TextArea
+                    className="mt-1"
+                    rows={2}
+                    maxLength={500}
+                    placeholder="Explain what needs correction"
+                    value={reason}
+                    onChange={(e) => setReason(e.target.value)}
+                  />
+                </label>
+                <div className="flex flex-wrap gap-3">
+                  <Button
+                    disabled={!reason.trim() || busy}
+                    loading={rejecting}
+                    onClick={() =>
+                      confirm(
+                        'Reject this submission?',
+                        `${who} will see your reason and can submit a corrected sample.`,
+                        'Reject',
+                        () => onReject({ ...ref, reason: reason.trim() }),
+                      )
+                    }
+                  >
+                    Reject
+                  </Button>
+                  <Button
+                    type="primary"
+                    disabled={busy}
+                    loading={approving}
+                    onClick={() =>
+                      confirm(
+                        'Approve and register?',
+                        `Approving ${who} sends these samples to the PRAYER ElevenLabs account to create the voice.`,
+                        'Approve and register',
+                        () => onApprove(ref),
+                      )
+                    }
+                  >
+                    Approve and register
+                  </Button>
+                </div>
+                <p className="text-gray-500 m-0">
+                  Approval automatically queues registration. You cannot approve your own sample.
+                </p>
+              </div>
+            </Card>
+          )}
 
           {canUpdate && canStop && (
-            <section className="flex flex-wrap gap-3">
-              <Button
-                danger
-                disabled={busy}
-                loading={disabling}
-                onClick={() =>
-                  confirm(
-                    'Disable this voice?',
-                    `Blocks new prayer audio with ${who}'s voice. Existing audio keeps playing. The clone at ElevenLabs is not deleted.`,
-                    'Disable',
-                    () => onDisable(ref),
-                  )
-                }
-              >
-                Disable voice
-              </Button>
-              {!profile.consentRevokedAt && (
+            <Card type="inner" title="Voice controls">
+              <div className="flex flex-wrap gap-3">
                 <Button
                   danger
                   disabled={busy}
-                  loading={revoking}
+                  loading={disabling}
                   onClick={() =>
                     confirm(
-                      'Revoke consent?',
-                      `Records that ${who} withdrew permission. Every voice using this consent is disabled permanently; using the voice again needs a new submission. The clone at ElevenLabs is not deleted.`,
-                      'Revoke consent',
-                      () => onRevokeConsent(ref),
+                      'Disable this voice?',
+                      `Blocks new prayer audio with ${who}'s voice. Existing audio keeps playing. The clone at ElevenLabs is not deleted.`,
+                      'Disable',
+                      () => onDisable(ref),
                     )
                   }
                 >
-                  Revoke consent
+                  Disable voice
                 </Button>
-              )}
-            </section>
+                {!profile.consentRevokedAt && (
+                  <Button
+                    danger
+                    disabled={busy}
+                    loading={revoking}
+                    onClick={() =>
+                      confirm(
+                        'Revoke consent?',
+                        `Records that ${who} withdrew permission. Every voice using this consent is disabled permanently; using the voice again needs a new submission. The clone at ElevenLabs is not deleted.`,
+                        'Revoke consent',
+                        () => onRevokeConsent(ref),
+                      )
+                    }
+                  >
+                    Revoke consent
+                  </Button>
+                )}
+              </div>
+            </Card>
           )}
         </div>
       </Col>

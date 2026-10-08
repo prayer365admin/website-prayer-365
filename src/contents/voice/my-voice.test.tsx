@@ -87,7 +87,6 @@ describe('ContentsMyVoice (S27)', () => {
       true,
     )
     expect(screen.getByRole('button', { name: 'Save draft' })).toHaveProperty('disabled', true)
-    expect(screen.getByText(/No personal ElevenLabs account/)).toBeTruthy()
   })
 
   it('opens the recording tips', async () => {

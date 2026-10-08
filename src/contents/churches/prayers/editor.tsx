@@ -335,29 +335,31 @@ export default function ContentsChurchesPrayersEditor({
     </Modal>
   )
 
+  // One inner card per step (generate → review → publish) so each flow reads on its own.
   const audioJSX = (
-    <div className="space-y-6">
-      <Row gutter={16}>
-        <Col span={12}>
-          <div>Reviewed text: {saved?.textApproved ? 'Ready' : 'Not approved'}</div>
-          <Button onClick={() => setReviewOpen(true)}>View reviewed text</Button>
-        </Col>
-        <Col span={12}>
-          <div>Pastor voice: {voiceReady ? 'Verified' : 'Not ready'}</div>
-          <Button
-            type="primary"
-            loading={enqueueLoading}
-            disabled={!canGenerate}
-            onClick={handleGenerate}
-          >
-            Generate audio
-          </Button>
-          {!canGenerate && <div className="text-gray-500">{generateDisabledReason}</div>}
-        </Col>
-      </Row>
+    <div className="space-y-4">
+      <Card type="inner" title="Audio generation">
+        <Row gutter={16}>
+          <Col span={12}>
+            <div>Reviewed text: {saved?.textApproved ? 'Ready' : 'Not approved'}</div>
+            <Button onClick={() => setReviewOpen(true)}>View reviewed text</Button>
+          </Col>
+          <Col span={12}>
+            <div>Pastor voice: {voiceReady ? 'Verified' : 'Not ready'}</div>
+            <Button
+              type="primary"
+              loading={enqueueLoading}
+              disabled={!canGenerate}
+              onClick={handleGenerate}
+            >
+              Generate audio
+            </Button>
+            {!canGenerate && <div className="text-gray-500">{generateDisabledReason}</div>}
+          </Col>
+        </Row>
+      </Card>
 
-      <div className="border p-4 rounded">
-        <h3 className="font-semibold mb-2">Audio preview</h3>
+      <Card type="inner" title="Audio review">
         {!audioId ? (
           <div>No audio generated yet.</div>
         ) : audio?.status === 'QUEUED' || audio?.status === 'GENERATING' ? (
@@ -396,10 +398,8 @@ export default function ContentsChurchesPrayersEditor({
         ) : (
           <div>{!access?.url ? <Spin /> : <audio controls src={access.url} />}</div>
         )}
-      </div>
 
-      <div>
-        <div>State: {stateLabel}</div>
+        <div className="mt-4">State: {stateLabel}</div>
         {audio?.approvedAt ? (
           <div className="text-gray-500">Audio approved.</div>
         ) : (
@@ -412,9 +412,9 @@ export default function ContentsChurchesPrayersEditor({
             Approve audio
           </Button>
         )}
-      </div>
+      </Card>
 
-      <div>
+      <Card type="inner" title="Publication">
         <Row gutter={16}>
           <Col span={8}>
             <div>Publication date</div>
@@ -459,33 +459,33 @@ export default function ContentsChurchesPrayersEditor({
             )}
           </div>
         ) : null}
-      </div>
 
-      <div className="flex justify-end gap-2">
-        <Button
-          type="primary"
-          loading={scheduleLoading}
-          disabled={
-            !scheduledIso || !saved?.current || !saved?.textApproved || currentAlreadyPublished
-          }
-          onClick={handleSchedule}
-        >
-          Schedule publication
-        </Button>
-        <Button
-          type="primary"
-          loading={publishLoading}
-          disabled={!saved?.current || !saved?.textApproved}
-          onClick={handlePublish}
-        >
-          Publish now
-        </Button>
-      </div>
-      {currentAlreadyPublished && (
-        <div className="text-gray-500">
-          This version is already published. Edit the text to publish a new version.
+        <div className="flex justify-end gap-2 mt-4">
+          <Button
+            type="primary"
+            loading={scheduleLoading}
+            disabled={
+              !scheduledIso || !saved?.current || !saved?.textApproved || currentAlreadyPublished
+            }
+            onClick={handleSchedule}
+          >
+            Schedule publication
+          </Button>
+          <Button
+            type="primary"
+            loading={publishLoading}
+            disabled={!saved?.current || !saved?.textApproved}
+            onClick={handlePublish}
+          >
+            Publish now
+          </Button>
         </div>
-      )}
+        {currentAlreadyPublished && (
+          <div className="text-gray-500">
+            This version is already published. Edit the text to publish a new version.
+          </div>
+        )}
+      </Card>
     </div>
   )
 

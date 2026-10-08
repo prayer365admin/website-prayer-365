@@ -17,9 +17,9 @@ import { Alert, App, Button, Card, Col, Collapse, Result, Row, Select, Upload } 
 import axios from 'axios'
 import { useEffect, useState } from 'react'
 import RecordingTips from './recording-tips'
-import VoiceTimeline from './timeline'
 import SamplePlayer, { formatDuration } from './sample-player'
 import { RegistrationStateTag, ReviewStateTag, registrationHelp } from './status'
+import VoiceTimeline from './timeline'
 
 /*
  * S27 My Voice (F4VO VO-04). Pastor identity comes from the signed-in account.
@@ -185,12 +185,16 @@ function DraftForm({
     }
 
   return (
-    <div className="space-y-6">
-      <section>
-        <div className="flex items-center gap-2 mb-2">
-          <h3 className="font-semibold text-base m-0">Voice samples</h3>
-          <RecordingTips />
-        </div>
+    // Samples and authorization are separate steps, so each gets its own inner card.
+    <div className="space-y-4">
+      <Card
+        type="inner"
+        title={
+          <span className="flex items-center gap-2">
+            Voice samples <RecordingTips />
+          </span>
+        }
+      >
         <SampleList
           churchId={churchId}
           samples={samples}
@@ -227,10 +231,9 @@ function DraftForm({
           echo.
         </p>
         {hint && <Alert className="mt-2" type={hint.type} showIcon title={hint.text} />}
-      </section>
+      </Card>
 
-      <section>
-        <h3 className="font-semibold text-base mb-2">Offline authorization evidence</h3>
+      <Card type="inner" title="Offline authorization evidence">
         <div className="flex flex-wrap items-center gap-3">
           <Upload
             accept="application/pdf,image/jpeg,image/png"
@@ -248,7 +251,7 @@ function DraftForm({
             {evidence?.name ?? (draft ? 'Authorization evidence attached' : 'PDF, JPG or PNG')}
           </span>
         </div>
-      </section>
+      </Card>
 
       <div className="flex flex-wrap gap-3">
         {onCancel && (
@@ -283,43 +286,51 @@ function DraftForm({
 function StatusCard({ profile }: { profile: VoiceProfileListItem | null }) {
   return (
     <Card title="Submission status" className="h-full">
-      {profile ? (
-        <div className="space-y-3">
-          <VoiceTimeline profile={profile} />
-          {profile.reviewState === 'REJECTED' && profile.reviewReason && (
-            <Alert
-              type="error"
-              showIcon
-              title="Rejected by the reviewer"
-              description={profile.reviewReason}
-            />
+      <div className="space-y-4">
+        <Card type="inner" title="Current status">
+          {profile ? (
+            <div className="space-y-3">
+              <VoiceTimeline profile={profile} />
+              {profile.reviewState === 'REJECTED' && profile.reviewReason && (
+                <Alert
+                  type="error"
+                  showIcon
+                  title="Rejected by the reviewer"
+                  description={profile.reviewReason}
+                />
+              )}
+              {profile.reviewState === 'APPROVED' && (
+                <p className="m-0">
+                  {registrationHelp(profile.registrationState, profile.lastErrorCode)}
+                </p>
+              )}
+            </div>
+          ) : (
+            <p className="text-gray-500 m-0">Nothing submitted yet.</p>
           )}
-          {profile.reviewState === 'APPROVED' && (
-            <p className="m-0">
-              {registrationHelp(profile.registrationState, profile.lastErrorCode)}
+        </Card>
+        <Card type="inner" title="What happens next">
+          <div className="richtext">
+            <p>
+              After you submit, an admin reviews your samples and authorization. Approval starts
+              voice registration automatically.
             </p>
-          )}
-        </div>
-      ) : (
-        <p className="text-gray-500 m-0">Nothing submitted yet.</p>
-      )}
-      <p className="mt-4">
-        After you submit, an admin reviews your samples and authorization. Approval starts voice
-        registration automatically.
-      </p>
-      <p>If rejected, the reason appears here and you can submit a corrected sample.</p>
-      <p className="mb-0">
-        If provider verification is required, your voice stays unavailable until that step is
-        completed.
-      </p>
+            <p>If rejected, the reason appears here and you can submit a corrected sample.</p>
+            <p>
+              If provider verification is required, your voice stays unavailable until that step is
+              completed.
+            </p>
+          </div>
+        </Card>
+      </div>
     </Card>
   )
 }
 
 function ReadOnlyRevision({ profile }: { profile: VoiceProfileListItem }) {
   return (
-    <div className="space-y-2">
-      <div className="text-gray-500">
+    <Card type="inner" title="Submitted samples">
+      <div className="text-gray-500 mb-2">
         {profile.submittedAt
           ? `Submitted ${new Date(profile.submittedAt).toLocaleDateString()}`
           : 'Not submitted'}{' '}
@@ -329,7 +340,7 @@ function ReadOnlyRevision({ profile }: { profile: VoiceProfileListItem }) {
         churchId={profile.churchId}
         samples={profile.samples.map((s, i) => ({ assetId: s.assetId, name: `Sample ${i + 1}` }))}
       />
-    </div>
+    </Card>
   )
 }
 
@@ -382,94 +393,93 @@ export default function ContentsMyVoice() {
       )}
 
       <Row gutter={[16, 16]}>
-        <Col xs={24} lg={15}>
-          <Card loading={loading}>
-            <div className="mb-4">
-              <div className="text-lg font-semibold">{latest?.pastorName ?? 'Your voice'}</div>
-              {editing && !draft && (churches?.length ?? 0) > 1 ? (
-                <Select
-                  className="w-64 mt-1"
-                  aria-label="Church"
-                  value={churchId || undefined}
-                  onChange={setSelectedChurchId}
-                  options={churches?.map((c) => ({ label: c.name, value: c.id }))}
-                />
-              ) : (
-                <div className="text-gray-500">{churchName} · Your linked profile</div>
-              )}
-            </div>
-
-            {editing && churchId ? (
-              <>
-                {startNew && latest?.reviewState === 'APPROVED' && (
-                  <Alert
-                    className="mb-4"
-                    type="info"
-                    showIcon
-                    title="Your current voice stays active until the new one is approved and ready."
+        <Col xs={24} lg={15} className="flex flex-col gap-4">
+          <Col>
+            <Card loading={loading}>
+              <div className="mb-4">
+                <div className="text-lg font-semibold">{latest?.pastorName ?? 'Your voice'}</div>
+                {editing && !draft && (churches?.length ?? 0) > 1 ? (
+                  <Select
+                    className="w-64 mt-1"
+                    aria-label="Church"
+                    value={churchId || undefined}
+                    onChange={setSelectedChurchId}
+                    options={churches?.map((c) => ({ label: c.name, value: c.id }))}
                   />
+                ) : (
+                  <div className="text-gray-500">{churchName} · Your linked profile</div>
                 )}
-                <DraftForm
-                  key={draft ? `${draft.id}:${draft.version}` : `new:${churchId}`}
-                  draft={draft}
-                  churchId={churchId}
-                  replacesProfileId={draft ? undefined : replacesProfileId}
-                  onCancel={startNew && !draft ? () => setStartNew(false) : undefined}
+              </div>
+
+              {editing && churchId ? (
+                <>
+                  {startNew && latest?.reviewState === 'APPROVED' && (
+                    <Alert
+                      className="mb-4"
+                      type="info"
+                      showIcon
+                      title="Your current voice stays active until the new one is approved and ready."
+                    />
+                  )}
+                  <DraftForm
+                    key={draft ? `${draft.id}:${draft.version}` : `new:${churchId}`}
+                    draft={draft}
+                    churchId={churchId}
+                    replacesProfileId={draft ? undefined : replacesProfileId}
+                    onCancel={startNew && !draft ? () => setStartNew(false) : undefined}
+                  />
+                </>
+              ) : editing && !churchesLoading ? (
+                <Alert
+                  type="warning"
+                  showIcon
+                  title="You are not assigned as a pastor of any church yet"
+                  description="Ask a central administrator to assign your pastor profile to a church before submitting a voice."
                 />
-              </>
-            ) : editing && !churchesLoading ? (
-              <Alert
-                type="warning"
-                showIcon
-                title="You are not assigned as a pastor of any church yet"
-                description="Ask a central administrator to assign your pastor profile to a church before submitting a voice."
+              ) : latest ? (
+                <>
+                  <ReadOnlyRevision profile={latest} />
+                  {canRevise && (
+                    <Button className="mt-4" onClick={() => setStartNew(true)}>
+                      Start new revision
+                    </Button>
+                  )}
+                </>
+              ) : null}
+            </Card>
+          </Col>
+          {submissions.length > 1 && (
+            <Col className="mt-4">
+              <Collapse
+                defaultActiveKey={['history']}
+                items={[
+                  {
+                    key: 'history',
+                    label: `Earlier revisions (${submissions.length - 1})`,
+                    children: (
+                      <div className="space-y-2">
+                        {submissions.slice(1).map((p) => (
+                          <div key={p.id} className="flex flex-wrap items-center gap-2">
+                            <span>{new Date(p.createdAt).toLocaleDateString()}</span>
+                            <ReviewStateTag state={p.reviewState} />
+                            <RegistrationStateTag state={p.registrationState} />
+                            {p.reviewReason && (
+                              <span className="text-gray-500">{p.reviewReason}</span>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    ),
+                  },
+                ]}
               />
-            ) : latest ? (
-              <>
-                <ReadOnlyRevision profile={latest} />
-                {canRevise && (
-                  <Button className="mt-4" onClick={() => setStartNew(true)}>
-                    Start new revision
-                  </Button>
-                )}
-              </>
-            ) : null}
-          </Card>
+            </Col>
+          )}
         </Col>
         <Col xs={24} lg={9}>
           <StatusCard profile={latest} />
         </Col>
       </Row>
-
-      {submissions.length > 1 && (
-        <Collapse
-          className="mt-4"
-          items={[
-            {
-              key: 'history',
-              label: `Earlier revisions (${submissions.length - 1})`,
-              children: (
-                <div className="space-y-2">
-                  {submissions.slice(1).map((p) => (
-                    <div key={p.id} className="flex flex-wrap items-center gap-2">
-                      <span>{new Date(p.createdAt).toLocaleDateString()}</span>
-                      <ReviewStateTag state={p.reviewState} />
-                      <RegistrationStateTag state={p.registrationState} />
-                      {p.reviewReason && <span className="text-gray-500">{p.reviewReason}</span>}
-                    </div>
-                  ))}
-                </div>
-              ),
-            },
-          ]}
-        />
-      )}
-
-      <Alert
-        className="mt-4"
-        type="info"
-        title="You only need your PRAYER login. No personal ElevenLabs account or provider Voice ID is requested."
-      />
     </>
   )
 }
