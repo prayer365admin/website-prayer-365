@@ -694,23 +694,24 @@ The approved product flow is pastor self-submission inside PRAYER followed by ad
 
 These exist in the admin backend to support the mobile scope. Detailed mobile screen behavior belongs to the mobile specification.
 
-| Method and path                                                             | Responsibility                                      | Access                                                                    |
-| --------------------------------------------------------------------------- | --------------------------------------------------- | ------------------------------------------------------------------------- |
-| `POST M/auth/login`, `POST M/auth/refresh`, `POST M/auth/logout`            | Issue / rotate / revoke mobile bearer (plan 002)    | Public (login); login+refresh return access+refresh pair, logout revokes  |
-| `GET M/churches`, `GET M/churches/:churchId`                                | Search/nearby approved churches, public profile     | Public or authenticated discovery policy to confirm; never private fields |
-| `GET M/home`                                                                | Selected/followed church content and shortcuts      | Authenticated user                                                        |
-| `GET / PATCH M/me`                                                          | Profile, locale, main church                        | Subject only; main-church update transactional                            |
-| `GET M/me/churches`, `PUT / DELETE M/me/follows/:churchId`                  | Main/followed church relationships                  | Subject only                                                              |
-| `GET M/churches/:churchId/prayers`, `GET M/prayers/:prayerId`               | Published text/archive and approved audio URL       | Public-content policy; active church/publication checks                   |
-| `GET M/churches/:churchId/events`, `GET M/churches/:churchId/announcements` | Published church activity/news                      | Public-content policy                                                     |
-| `POST M/churches/:churchId/requests`                                        | RequestInput → accepted request ID                  | Authenticated subject; idempotent; no private payload in logs             |
-| `POST M/churches/:churchId/donations`                                       | DonationInput → provider session/payment parameters | Authenticated subject; server determines church account; idempotent       |
-| `POST M/churches/:churchId/check-ins`                                       | Empty/minimal body → check-in acknowledgement       | Authenticated; server time; deduplication D7                              |
-| `POST M/analytics-events`                                                   | Allowlisted event and resource IDs → accepted       | Authenticated; bounded batch/rate, deduplicated                           |
-| `GET / PUT M/me/notification-preferences`                                   | Required type settings                              | Subject only; donation opt-in defaults false                              |
-| `PUT / DELETE M/me/devices/:installationId`                                 | Register/remove push destination                    | Subject only; token ownership binding                                     |
-| `POST M/me/data-exports`, `GET M/me/data-exports/:jobId`                    | Request export / obtain private result when ready   | Reauthenticated subject; no admin privacy screen                          |
-| `DELETE M/me`                                                               | Begin durable account/data deletion, 202            | Reauthenticated subject; deletion policy D10                              |
+| Method and path                                                             | Responsibility                                       | Access                                                                        |
+| --------------------------------------------------------------------------- | ---------------------------------------------------- | ----------------------------------------------------------------------------- |
+| `POST M/auth/login`, `POST M/auth/refresh`, `POST M/auth/logout`            | Issue / rotate / revoke mobile bearer (plan 002)     | Public (login); login+refresh return access+refresh pair, logout revokes      |
+| `GET M/churches`, `GET M/churches/:churchId`                                | Search/nearby approved churches, public profile      | Public or authenticated discovery policy to confirm; never private fields     |
+| `GET M/home`                                                                | Selected/followed church content and shortcuts       | Authenticated user                                                            |
+| `GET / PATCH M/me`                                                          | Profile, locale, main church, profile picture        | Subject only; main-church update transactional; `profilePicture` nullable URL |
+| `POST M/me/avatar`                                                          | Sign a user-scoped avatar upload (S3 presigned POST) | Subject only; image-only (jpeg/png/webp/heic) ≤8MB; no media_asset row        |
+| `GET M/me/churches`, `PUT / DELETE M/me/follows/:churchId`                  | Main/followed church relationships                   | Subject only                                                                  |
+| `GET M/churches/:churchId/prayers`, `GET M/prayers/:prayerId`               | Published text/archive and approved audio URL        | Public-content policy; active church/publication checks                       |
+| `GET M/churches/:churchId/events`, `GET M/churches/:churchId/announcements` | Published church activity/news                       | Public-content policy                                                         |
+| `POST M/churches/:churchId/requests`                                        | RequestInput → accepted request ID                   | Authenticated subject; idempotent; no private payload in logs                 |
+| `POST M/churches/:churchId/donations`                                       | DonationInput → provider session/payment parameters  | Authenticated subject; server determines church account; idempotent           |
+| `POST M/churches/:churchId/check-ins`                                       | Empty/minimal body → check-in acknowledgement        | Authenticated; server time; deduplication D7                                  |
+| `POST M/analytics-events`                                                   | Allowlisted event and resource IDs → accepted        | Authenticated; bounded batch/rate, deduplicated                               |
+| `GET / PUT M/me/notification-preferences`                                   | Required type settings                               | Subject only; donation opt-in defaults false                                  |
+| `PUT / DELETE M/me/devices/:installationId`                                 | Register/remove push destination                     | Subject only; token ownership binding                                         |
+| `POST M/me/data-exports`, `GET M/me/data-exports/:jobId`                    | Request export / obtain private result when ready    | Reauthenticated subject; no admin privacy screen                              |
+| `DELETE M/me`                                                               | Begin durable account/data deletion, 202             | Reauthenticated subject; deletion policy D10                                  |
 
 Admin authentication uses the template NextAuth credentials flow. Mobile credentials reuse the
 User identity model + password verification (no second password DB). Mobile token contract

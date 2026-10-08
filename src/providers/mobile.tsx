@@ -255,16 +255,23 @@ export const UPDATE_ME_PROFILE = async ({
   name,
   locale,
   mainChurchId,
+  profilePicture,
 }: {
   userId: string
   name?: string
   locale?: string | null
   mainChurchId?: string | null
+  profilePicture?: string | null
 }): Promise<MobileChurchSummary['id']> => {
   await db.$transaction(async (tx) => {
     await tx.user.update({
       where: { id: userId },
-      data: { name: name ?? undefined, locale: locale ?? undefined },
+      data: {
+        name: name ?? undefined,
+        locale: locale ?? undefined,
+        // explicit null clears the avatar; undefined leaves it untouched
+        profile_picture: profilePicture === undefined ? undefined : profilePicture,
+      },
     })
     if (mainChurchId === undefined) return
     if (mainChurchId) {

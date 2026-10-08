@@ -129,6 +129,30 @@ describe('UPDATE_ME_PROFILE — main-church is exactly one row', () => {
     ).rejects.toMatchObject({ code: 404 })
     expect(tx.userChurch.upsert).not.toHaveBeenCalled()
   })
+
+  it('writes profile_picture; explicit null clears it', async () => {
+    db.$transaction.mockImplementation(async (fn) => fn(tx))
+    await UPDATE_ME_PROFILE({ userId: 'u1', profilePicture: 'https://cdn.example.com/a.png' })
+    expect(tx.user.update).toHaveBeenCalledWith({
+      where: { id: 'u1' },
+      data: expect.objectContaining({ profile_picture: 'https://cdn.example.com/a.png' }),
+    })
+
+    await UPDATE_ME_PROFILE({ userId: 'u1', profilePicture: null })
+    expect(tx.user.update).toHaveBeenLastCalledWith({
+      where: { id: 'u1' },
+      data: expect.objectContaining({ profile_picture: null }),
+    })
+  })
+
+  it('leaves profile_picture untouched when the field is absent', async () => {
+    db.$transaction.mockImplementation(async (fn) => fn(tx))
+    await UPDATE_ME_PROFILE({ userId: 'u1', name: 'A' })
+    expect(tx.user.update).toHaveBeenCalledWith({
+      where: { id: 'u1' },
+      data: expect.objectContaining({ profile_picture: undefined }),
+    })
+  })
 })
 
 describe('GET_PUBLIC_CHURCH — admin profile reflected in mobile contract', () => {

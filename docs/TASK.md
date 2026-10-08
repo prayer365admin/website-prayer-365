@@ -240,11 +240,13 @@ All rows ☐ unless marked. Register any new `M/` route with OpenAPI + tests.
 | MB-13 | **Profile version field**: add `version` to `MobileMe` + `PATCH M/me` optimistic-concurrency guard for multi-device stale-write protection.                                                                                                  | Profile (P1)                                 | ☐    |
 | MB-14 | **Event timezone**: add `timezone` to `MobilePublicEvent`.                                                                                                                                                                                   | Events (EV3)                                 | ☐    |
 | MB-15 | **Password recovery (mobile)**: `POST M/auth/forgot-password` + `POST M/auth/reset-password` — deep-link reset, soft-success, incremental 429 cooldown (1→3→5→10 min max).                                                                   | Accounts+Onboarding                          | ✓    |
+| MB-16 | **Mobile avatar**: `PATCH M/me` accepts + persists `profilePicture` (existing `user.profile_picture`); `POST M/me/avatar` signs a user-scoped S3 upload (image-only ≤8MB, no media_asset).                                                   | Profile (P-03a / F3)                         | ☐    |
 
 **Build order (parallel):** MB-10/11/12/13/14 are pure DTO additions to already-live routes —
 fast, independent, no auth dependency. MB-04/05 build on the existing notification provider.
 MB-01 (auth) should go first — it unblocks the mobile authenticated flows. MB-02/06/07 need
-D6/D9 decisions before implementation. MB-09 reuses the X-04 media-signing flow.
+D6/D9 decisions before implementation. MB-09 reuses the X-04 media-signing flow. MB-16 is a small
+additive schema change plus one new subject-only route — independent of the others.
 
 Convention: these are the sharing handoffs consumed by the mobile client per
 `prayer-365-mobile-app/docs/TASK.md`. Do not change an already-live `M/` field name/shape

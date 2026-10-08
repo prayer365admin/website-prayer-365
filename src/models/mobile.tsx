@@ -112,6 +112,7 @@ export const MobileMePatchSchema = z
     name: z.string().trim().min(1).max(200).optional(),
     locale: z.string().trim().max(10).nullable().optional(),
     mainChurchId: z.string().uuid().nullable().optional(),
+    profilePicture: z.string().trim().url().max(2048).nullable().optional(),
   })
   .strict()
 
