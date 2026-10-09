@@ -5,6 +5,7 @@ import { NextRequest } from 'next/server'
 vi.mock('@/utils/required-auth', () => ({ default: vi.fn() }))
 vi.mock('@/controller/mobile', () => ({
   checkIn: vi.fn(),
+  getHome: vi.fn(),
   getMe: vi.fn(),
   getPublicChurch: vi.fn(),
   getPublishedPrayer: vi.fn(),
@@ -19,6 +20,7 @@ vi.mock('@/controller/mobile-avatar', () => ({ createMobileAvatar: vi.fn() }))
 import requiredAuth from '@/utils/required-auth'
 import {
   checkIn,
+  getHome,
   getMe,
   patchMe,
   recordAnalyticsEvents,
@@ -34,6 +36,7 @@ import { PUT as PUT_FOLLOW } from './me/follows/[churchId]/route'
 import { POST as POST_REQUEST } from './churches/[churchId]/requests/route'
 import { POST as POST_CHECKIN } from './churches/[churchId]/check-ins/route'
 import { POST as POST_ANALYTICS } from './analytics-events/route'
+import { GET as GET_HOME } from './home/route'
 
 const authUser = (userId: string) => () => ({ session: { user: { user_id: userId } } })
 
@@ -288,5 +291,36 @@ describe('analytics — allowlist enforced at the route boundary', () => {
     const res = (await POST_ANALYTICS(req))!
     expect(res.status).toBe(200)
     expect(recordAnalyticsEvents).toHaveBeenCalled()
+  })
+})
+
+describe('home — MB-10 typed projection', () => {
+  it('GET /mobile/home requires authentication (401)', async () => {
+    vi.mocked(requiredAuth).mockRejectedValue(UNAUTH)
+    const res = (await GET_HOME(new NextRequest('http://x/home')))!
+    expect(res.status).toBe(401)
+  })
+
+  it('returns mainChurch/followedChurches + the three typed arrays', async () => {
+    vi.mocked(requiredAuth).mockResolvedValue(authUser('u1')() as never)
+    vi.mocked(getHome).mockResolvedValue({
+      mainChurch: { id: 'c1' },
+      followedChurches: [{ id: 'c2' }],
+      latestPrayers: [],
+      latestEvents: [],
+      latestAnnouncements: [],
+    } as never)
+
+    const res = (await GET_HOME(new NextRequest('http://x/home')))!
+    const body = await res.json()
+
+    expect(res.status).toBe(200)
+    expect(body.result.mainChurch.id).toBe('c1')
+    expect(body.result.followedChurches).toHaveLength(1)
+    expect(body.result.latestPrayers).toEqual([])
+    expect(body.result.latestEvents).toEqual([])
+    expect(body.result.latestAnnouncements).toEqual([])
+    expect(body.result).not.toHaveProperty('main')
+    expect(getHome).toHaveBeenCalledWith({ userId: 'u1' })
   })
 })

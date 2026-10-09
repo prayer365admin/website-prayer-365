@@ -106,6 +106,21 @@ export const S3_PUT_OBJECT = async ({
   return { key, byteSize: body.byteLength }
 }
 
+/*
+ * Stable public URL for an object. Returns null when storage is not configured.
+ * NOTE (temporary): the whole bucket is public-read, so every key prefix
+ * (media/<churchId>/image, media/<churchId>/voice_sample, media/<churchId>/consent_evidence,
+ * media/<churchId>/generated_audio, user-avatars/<userId>) yields a working URL.
+ * No private media exists yet — see SPEC §10.4.1 / D13 for the pre-production revert.
+ */
+export const S3_PUBLIC_URL = ({ key }: { key: string }): string | null => {
+  const base = process.env.S3_PUBLIC_BASE_URL?.replace(/\/$/, '')
+  if (base) return `${base}/${key}`
+  const b = bucket()
+  if (!b) return null
+  return `https://${b}.s3.${region()}.amazonaws.com/${key}`
+}
+
 /** Short-lived signed GET URL for preview/download. */
 export const S3_GET_SIGNED_URL = async ({
   key,

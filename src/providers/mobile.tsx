@@ -2,12 +2,14 @@ import { EventCategory, Prisma, RequestKind } from '@prisma/client'
 import { db } from '@/utils/db-connection'
 import { GeneralError } from '@/utils/general-error'
 import { auditPayload } from '@/utils/audit'
+import { S3_PUBLIC_URL } from '@/providers/s3'
 import {
   MobileAnnouncementListQuery,
   MobileCheckInAck,
   MobileChurchListQuery,
   MobileChurchSummary,
   MobileEventListQuery,
+  MobileHome,
   MobileMyChurch,
   MobilePrayerListQuery,
   MobilePublicAnnouncement,
@@ -46,6 +48,29 @@ const activeChurchWhere = (id: string): Prisma.ChurchWhereInput => ({
   status: APPROVED,
 })
 
+/* ── Church cover URLs (MB-17) ───────────────────────────────────────────────
+ * The bucket is public-read for now (SPEC §10.4.1 / D13), so a cover URL is a
+ * plain stable URL — no signature, no expiry. `coverAssetId` stays on the
+ * payload; `coverUrl` is null when there is no READY IMAGE asset. */
+
+/** Public cover URL for a READY IMAGE asset. null when absent / not READY / storage not configured. */
+const coverUrlFor = async (assetId: string | null): Promise<string | null> => {
+  if (!assetId) return null
+  const asset = await db.mediaAsset.findFirst({
+    where: { id: assetId, status: 'READY', purpose: 'IMAGE' },
+    select: { object_key: true },
+  })
+  return asset ? S3_PUBLIC_URL({ key: asset.object_key }) : null
+}
+
+/** Attach `coverUrl` to a mapped summary/profile row. */
+const withCover = async <T extends { coverAssetId: string | null }>(
+  row: T,
+): Promise<T & { coverUrl: string | null }> => ({
+  ...row,
+  coverUrl: await coverUrlFor(row.coverAssetId),
+})
+
 const toSummary = (
   c: {
     id: string
@@ -58,7 +83,7 @@ const toSummary = (
   },
   lat?: number,
   lng?: number,
-): MobileChurchSummary => {
+): Omit<MobileChurchSummary, 'coverUrl'> => {
   const city = (c.address as { city?: string } | null)?.city ?? null
   let distanceKm: number | null = null
   if (lat !== undefined && lng !== undefined && c.latitude !== null && c.longitude !== null) {
@@ -109,7 +134,7 @@ const mapPublicChurch = (
   },
   lat?: number,
   lng?: number,
-): MobilePublicChurch => {
+): Omit<MobilePublicChurch, 'coverUrl'> => {
   const latitude = c.latitude as number | null
   const longitude = c.longitude as number | null
   const addr = (c.address as Record<string, string | null> | null) ?? {}
@@ -145,7 +170,8 @@ const mapPublicChurch = (
     languageCodes: c.churchLanguages.map((l) => l.language_code),
     serviceTimes: c.serviceTimes.map((s) => ({
       weekday: s.weekday,
-      localTime: s.local_time.toISOString(),
+      // HH:MM church wall clock (Europe/Tallinn etc. via church.timezone)
+      localTime: s.local_time.toISOString().slice(11, 16),
       label: s.label,
       languageCode: s.language_code,
     })),
@@ -185,7 +211,9 @@ export const LIST_PUBLIC_CHURCHES = async ({
     }),
   ])
   return {
-    result: rows.map((r) => toSummary(r, query.latitude, query.longitude)),
+    result: await Promise.all(
+      rows.map((r) => withCover(toSummary(r, query.latitude, query.longitude))),
+    ),
     total,
   }
 }
@@ -209,7 +237,7 @@ export const GET_PUBLIC_CHURCH = async ({
     },
   })
   if (!row) return null
-  return mapPublicChurch(row as never, lat, lng)
+  return withCover(mapPublicChurch(row as never, lat, lng))
 }
 
 // ---------------------------------------------------------------------------
@@ -315,16 +343,20 @@ export const LIST_MY_CHURCHES = async ({
       },
     },
   })
-  return rows
-    .filter((r) => r.church.status === APPROVED)
-    .map((r) => ({
-      churchId: r.church.id,
-      churchName: r.church.name,
-      city: (r.church.address as { city?: string } | null)?.city ?? null,
-      coverAssetId: r.church.cover_asset_id,
-      isMain: r.is_main,
-      isFollowed: r.is_followed,
-    }))
+  return Promise.all(
+    rows
+      .filter((r) => r.church.status === APPROVED)
+      .map((r) =>
+        withCover({
+          churchId: r.church.id,
+          churchName: r.church.name,
+          city: (r.church.address as { city?: string } | null)?.city ?? null,
+          coverAssetId: r.church.cover_asset_id,
+          isMain: r.is_main,
+          isFollowed: r.is_followed,
+        }),
+      ),
+  )
 }
 
 export const SET_FOLLOW = async ({
@@ -349,17 +381,7 @@ export const SET_FOLLOW = async ({
   return { churchId, isFollowed }
 }
 
-export const GET_HOME = async ({
-  userId,
-}: {
-  userId: string
-}): Promise<{
-  main: MobilePublicChurch | null
-  followed: MobileChurchSummary[]
-  latestPrayers: unknown[]
-  latestEvents: unknown[]
-  latestAnnouncements: unknown[]
-}> => {
+export const GET_HOME = async ({ userId }: { userId: string }): Promise<MobileHome> => {
   const rows = await db.userChurch.findMany({
     where: { user_id: userId, church: { status: APPROVED } },
     select: {
@@ -375,13 +397,13 @@ export const GET_HOME = async ({
       r.is_main || r.is_followed,
   )
   const mainRow = approved.find((r) => r.is_main) ?? approved[0]
-  let main: MobilePublicChurch | null = null
-  let latestPrayers: unknown[] = []
-  let latestEvents: unknown[] = []
-  let latestAnnouncements: unknown[] = []
+  let mainChurch: MobilePublicChurch | null = null
+  let latestPrayers: MobilePublishedPrayer[] = []
+  let latestEvents: MobilePublicEvent[] = []
+  let latestAnnouncements: MobilePublicAnnouncement[] = []
   if (mainRow) {
-    main = await GET_PUBLIC_CHURCH({ churchId: mainRow.church_id })
-    if (main) {
+    mainChurch = await GET_PUBLIC_CHURCH({ churchId: mainRow.church_id })
+    if (mainChurch) {
       latestPrayers = (
         await LIST_PUBLISHED_PRAYERS({ churchId: mainRow.church_id, query: { page: 1, limit: 3 } })
       ).result
@@ -412,8 +434,8 @@ export const GET_HOME = async ({
       })
     : []
   return {
-    main,
-    followed: followed.map((f) => toSummary(f)),
+    mainChurch,
+    followedChurches: await Promise.all(followed.map((f) => withCover(toSummary(f)))),
     latestPrayers,
     latestEvents,
     latestAnnouncements,
