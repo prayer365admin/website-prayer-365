@@ -1,4 +1,5 @@
 import crypto from 'crypto'
+import { PLATFORM_ACCOUNT_ID } from './stripe'
 import { db } from '@/utils/db-connection'
 import { GeneralError } from '@/utils/general-error'
 import {
@@ -125,7 +126,8 @@ export async function RECORD_STRIPE_WEBHOOK_RECEIPT({
 }: {
   event: ParsedWebhookEvent
 }): Promise<StripeWebhookResult> {
-  const accountId = event.account ?? (event.data.object.account as string | undefined) ?? 'platform'
+  const accountId =
+    event.account ?? (event.data.object.account as string | undefined) ?? PLATFORM_ACCOUNT_ID()
 
   try {
     return await db.$transaction(async (tx) => {
@@ -174,14 +176,9 @@ export async function RECORD_STRIPE_WEBHOOK_RECEIPT({
             }
           }
 
-          const paymentAccount = await tx.paymentAccount.findFirst({
-            where: {
-              provider: 'stripe',
-              provider_account_id: accountId,
-            },
-          })
+          const isPlatform = accountId === PLATFORM_ACCOUNT_ID()
 
-          if (paymentAccount) {
+          if (isPlatform) {
             const newJob = await tx.outboxJob.create({
               data: {
                 kind: 'payment.sync',
@@ -195,8 +192,6 @@ export async function RECORD_STRIPE_WEBHOOK_RECEIPT({
                   objectId: event.objectId,
                   eventCreated: event.created,
                   dataObject: event.data.object as Prisma.InputJsonValue,
-                  paymentAccountId: paymentAccount.id,
-                  churchId: paymentAccount.church_id,
                 },
                 available_at: new Date(),
                 state: 'PENDING',
@@ -225,14 +220,9 @@ export async function RECORD_STRIPE_WEBHOOK_RECEIPT({
       }
 
       // Step 2: Unknown account protection
-      const paymentAccount = await tx.paymentAccount.findFirst({
-        where: {
-          provider: 'stripe',
-          provider_account_id: accountId,
-        },
-      })
+      const isPlatform = accountId === PLATFORM_ACCOUNT_ID()
 
-      if (!paymentAccount) {
+      if (!isPlatform) {
         const receipt = await tx.webhookReceipt.create({
           data: {
             provider: 'stripe',
@@ -302,14 +292,11 @@ export async function RECORD_STRIPE_WEBHOOK_RECEIPT({
             objectId: event.objectId,
             eventCreated: event.created,
             dataObject: event.data.object as Prisma.InputJsonValue,
-            paymentAccountId: paymentAccount.id,
-            churchId: paymentAccount.church_id,
           },
           available_at: new Date(),
           state: 'PENDING',
         },
       })
-
       return {
         received: true,
         duplicate: false,

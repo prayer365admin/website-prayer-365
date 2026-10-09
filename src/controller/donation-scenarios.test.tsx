@@ -4,11 +4,11 @@ import { db } from '@/utils/db-connection'
 import { processPaymentSyncJob } from './payment-sync-job'
 import { RECORD_STRIPE_WEBHOOK_RECEIPT } from '@/providers/stripe-webhook'
 import crypto from 'node:crypto'
+import { PLATFORM_ACCOUNT_ID } from '@/providers/stripe'
 import { GET_DONATION_SUMMARY } from '@/providers/donation'
 
 describe('DO-08 Donation Tests and Edge-Case Synchronization', () => {
   let churchId: string
-  let paymentAccountId: string
   let providerAccountId: string
 
   beforeEach(async () => {
@@ -33,17 +33,32 @@ describe('DO-08 Donation Tests and Edge-Case Synchronization', () => {
     })
     churchId = church.id
 
-    providerAccountId = 'acct_' + crypto.randomBytes(8).toString('hex')
-    const account = await db.paymentAccount.create({
-      data: {
-        id: crypto.randomUUID(),
-        church_id: churchId,
-        provider: 'stripe',
-        provider_account_id: providerAccountId,
-        status: 'ACTIVE',
+    providerAccountId = PLATFORM_ACCOUNT_ID()
+
+    await db.donation.deleteMany({
+      where: {
+        provider_payment_id: {
+          in: [
+            'pi_dup',
+            'pi_outoforder',
+            'pi_123',
+            'pi_month1',
+            'pi_month2',
+            'pi_usd',
+            'pi_eur',
+            'pi_other',
+            'pi_redirect',
+            'pi_unknown',
+            'pi_test',
+          ],
+        },
       },
     })
-    paymentAccountId = account.id
+    await db.donationSubscription.deleteMany({
+      where: {
+        provider_subscription_id: { in: ['sub_outoforder', 'sub_monthly'] },
+      },
+    })
   })
 
   // Helper to simulate webhook arrival and processing
@@ -57,14 +72,22 @@ describe('DO-08 Donation Tests and Edge-Case Synchronization', () => {
     const eventId = 'evt_' + crypto.randomBytes(8).toString('hex')
     const created = Math.floor(Date.now() / 1000)
 
+    const payloadObj = {
+      ...dataObject,
+      metadata: {
+        churchId,
+        ...(dataObject.metadata || {}),
+      },
+    }
+
     const receipt = await RECORD_STRIPE_WEBHOOK_RECEIPT({
       event: {
         account: accountId,
         id: eventId,
         type: eventType,
         created,
-        objectId: dataObject.id || 'test_obj',
-        data: { object: dataObject },
+        objectId: payloadObj.id || 'test_obj',
+        data: { object: payloadObj },
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
       } as any,
     })
@@ -98,7 +121,7 @@ describe('DO-08 Donation Tests and Edge-Case Synchronization', () => {
       expect(summary.currencies).toEqual([]) // Failed payments don't show up in summary
 
       const donations = await db.donation.findMany({
-        where: { payment_account_id: paymentAccountId },
+        where: { church_id: churchId },
       })
       expect(donations.length).toBe(1)
       expect(donations[0].status).toBe('FAILED')
@@ -124,7 +147,7 @@ describe('DO-08 Donation Tests and Edge-Case Synchronization', () => {
       })
 
       const donations = await db.donation.findMany({
-        where: { payment_account_id: paymentAccountId },
+        where: { church_id: churchId },
       })
       expect(donations.length).toBe(1)
       expect(donations[0].status).toBe('PAID') // Retained PAID status
@@ -149,7 +172,7 @@ describe('DO-08 Donation Tests and Edge-Case Synchronization', () => {
       })
 
       let donations = await db.donation.findMany({
-        where: { payment_account_id: paymentAccountId },
+        where: { church_id: churchId },
       })
       expect(donations.length).toBe(0)
 
@@ -162,7 +185,7 @@ describe('DO-08 Donation Tests and Edge-Case Synchronization', () => {
       })
 
       donations = await db.donation.findMany({
-        where: { payment_account_id: paymentAccountId },
+        where: { church_id: churchId },
       })
       expect(donations.length).toBe(1)
       expect(donations[0].status).toBe('FAILED')
@@ -183,7 +206,7 @@ describe('DO-08 Donation Tests and Edge-Case Synchronization', () => {
       })
 
       const donations = await db.donation.findMany({
-        where: { payment_account_id: paymentAccountId },
+        where: { church_id: churchId },
       })
       expect(donations.length).toBe(1)
       expect(donations[0].status).toBe('FAILED')
@@ -234,8 +257,9 @@ describe('DO-08 Donation Tests and Edge-Case Synchronization', () => {
     })
 
     it('idempotently handles duplicate job execution', async () => {
+      const piId = 'pi_' + crypto.randomBytes(8).toString('hex')
       const { receipt, outcome } = await injectWebhook('payment_intent.succeeded', {
-        id: 'pi_dup',
+        id: piId,
         amount: 2000,
         currency: 'usd',
       })
@@ -246,14 +270,14 @@ describe('DO-08 Donation Tests and Edge-Case Synchronization', () => {
       expect(outcome2).toBe('succeeded') // already processed
 
       const donations = await db.donation.findMany({
-        where: { payment_account_id: paymentAccountId },
+        where: { church_id: churchId },
       })
       expect(donations.length).toBe(1)
       expect(donations[0].amount_minor).toBe(BigInt(2000))
     })
 
     it('resolves out-of-order failure before success', async () => {
-      const piId = 'pi_outoforder'
+      const piId = 'pi_' + crypto.randomBytes(8).toString('hex')
 
       // 1. Failure arrives first
       await injectWebhook('payment_intent.payment_failed', {
@@ -263,7 +287,7 @@ describe('DO-08 Donation Tests and Edge-Case Synchronization', () => {
       })
 
       let donations = await db.donation.findMany({
-        where: { payment_account_id: paymentAccountId },
+        where: { church_id: churchId },
       })
       expect(donations[0].status).toBe('FAILED')
 
@@ -274,7 +298,7 @@ describe('DO-08 Donation Tests and Edge-Case Synchronization', () => {
         currency: 'usd',
       })
 
-      donations = await db.donation.findMany({ where: { payment_account_id: paymentAccountId } })
+      donations = await db.donation.findMany({ where: { church_id: churchId } })
       expect(donations[0].status).toBe('PAID')
       expect(donations[0].paid_at).not.toBeNull()
 
@@ -287,19 +311,21 @@ describe('DO-08 Donation Tests and Edge-Case Synchronization', () => {
     })
 
     it('resolves out-of-order installment before subscription created', async () => {
-      const subId = 'sub_outoforder'
+      const subId = 'sub_' + crypto.randomBytes(8).toString('hex')
+      const invId = 'in_' + crypto.randomBytes(8).toString('hex')
+      const piId = 'pi_' + crypto.randomBytes(8).toString('hex')
 
       // 1. Installment payment succeeds first
       await injectWebhook('invoice.payment_succeeded', {
-        id: 'in_123',
-        payment_intent: 'pi_123',
+        id: invId,
+        payment_intent: piId,
         subscription: subId,
         amount_paid: 1000,
         currency: 'usd',
       })
 
       let subs = await db.donationSubscription.findMany({
-        where: { payment_account_id: paymentAccountId },
+        where: { church_id: churchId },
       })
       expect(subs.length).toBe(1)
       expect(subs[0].provider_status).toBe('active')
@@ -312,16 +338,67 @@ describe('DO-08 Donation Tests and Edge-Case Synchronization', () => {
       })
 
       subs = await db.donationSubscription.findMany({
-        where: { payment_account_id: paymentAccountId },
+        where: { church_id: churchId },
       })
       expect(subs.length).toBe(1)
       expect(subs[0].provider_status).toBe('active')
+    })
+
+    it('resolves out-of-order refunds so a late partial refund never reduces the refunded total', async () => {
+      const piId = 'pi_' + crypto.randomBytes(8).toString('hex')
+      const chId = 'ch_' + crypto.randomBytes(8).toString('hex')
+
+      // 1. Initial payment succeeds
+      await injectWebhook('payment_intent.succeeded', {
+        id: piId,
+        amount: 5000,
+        currency: 'usd',
+      })
+
+      // 2. Full refund arrives first
+      await injectWebhook('charge.refunded', {
+        id: chId,
+        payment_intent: piId,
+        amount_refunded: 5000,
+      })
+
+      let donations = await db.donation.findMany({
+        where: { church_id: churchId },
+      })
+      expect(donations[0].refunded_minor).toBe(BigInt(5000))
+      expect(donations[0].status).toBe('REFUNDED')
+
+      // 3. Stale / late partial refund arrives after full refund
+      await injectWebhook('charge.refunded', {
+        id: chId,
+        payment_intent: piId,
+        amount_refunded: 2000,
+      })
+
+      donations = await db.donation.findMany({
+        where: { church_id: churchId },
+      })
+      expect(donations[0].refunded_minor).toBe(BigInt(5000))
+      expect(donations[0].status).toBe('REFUNDED')
+
+      const currentMonth = new Date().toISOString().substring(0, 7)
+      const summary = await GET_DONATION_SUMMARY({
+        churchIds: new Set([churchId]),
+        month: currentMonth,
+      })
+      const usdSummary = summary.currencies.find((c) => c.currency === 'usd')!
+      expect(usdSummary.refundedMinor).toBe('5000')
+      expect(usdSummary.netMinor).toBe('0')
     })
   })
 
   describe('Scenario 3: Monthly Installments', () => {
     it('tracks 1 subscription + multiple distinct donation rows', async () => {
-      const subId = 'sub_monthly'
+      const subId = 'sub_' + crypto.randomBytes(8).toString('hex')
+      const invMonth1 = 'in_' + crypto.randomBytes(8).toString('hex')
+      const piMonth1 = 'pi_' + crypto.randomBytes(8).toString('hex')
+      const invMonth2 = 'in_' + crypto.randomBytes(8).toString('hex')
+      const piMonth2 = 'pi_' + crypto.randomBytes(8).toString('hex')
 
       // Setup subscription
       await injectWebhook('customer.subscription.created', {
@@ -331,14 +408,14 @@ describe('DO-08 Donation Tests and Edge-Case Synchronization', () => {
       })
 
       let donations = await db.donation.findMany({
-        where: { payment_account_id: paymentAccountId },
+        where: { church_id: churchId },
       })
       expect(donations.length).toBe(0)
 
       // Month 1
       await injectWebhook('invoice.payment_succeeded', {
-        id: 'in_month1',
-        payment_intent: 'pi_month1',
+        id: invMonth1,
+        payment_intent: piMonth1,
         subscription: subId,
         amount_paid: 4000,
         currency: 'usd',
@@ -346,14 +423,14 @@ describe('DO-08 Donation Tests and Edge-Case Synchronization', () => {
 
       // Month 2
       await injectWebhook('invoice.payment_succeeded', {
-        id: 'in_month2',
-        payment_intent: 'pi_month2',
+        id: invMonth2,
+        payment_intent: piMonth2,
         subscription: subId,
         amount_paid: 4000,
         currency: 'usd',
       })
 
-      donations = await db.donation.findMany({ where: { payment_account_id: paymentAccountId } })
+      donations = await db.donation.findMany({ where: { church_id: churchId } })
       expect(donations.length).toBe(2)
 
       const subRefs = new Set(donations.map((d) => d.subscription_id))
@@ -370,33 +447,37 @@ describe('DO-08 Donation Tests and Edge-Case Synchronization', () => {
 
   describe('Scenario 4: Refunds', () => {
     it('applies partial and full refunds with multi-currency isolation', async () => {
+      const piUsd = 'pi_' + crypto.randomBytes(8).toString('hex')
+      const piEur = 'pi_' + crypto.randomBytes(8).toString('hex')
+      const chUsd = 'ch_' + crypto.randomBytes(8).toString('hex')
+      const chEur = 'ch_' + crypto.randomBytes(8).toString('hex')
+
       // Create USD donation
       await injectWebhook('payment_intent.succeeded', {
-        id: 'pi_usd',
+        id: piUsd,
         amount: 10000,
         currency: 'usd',
       })
       // Create EUR donation
       await injectWebhook('payment_intent.succeeded', {
-        id: 'pi_eur',
+        id: piEur,
         amount: 5000,
         currency: 'eur',
       })
 
       // Partial refund USD
       await injectWebhook('charge.refunded', {
-        id: 'ch_usd',
-        payment_intent: 'pi_usd',
+        id: chUsd,
+        payment_intent: piUsd,
         amount_refunded: 2000,
       })
 
       // Full refund EUR
       await injectWebhook('charge.refunded', {
-        id: 'ch_eur',
-        payment_intent: 'pi_eur',
+        id: chEur,
+        payment_intent: piEur,
         amount_refunded: 5000,
       })
-
       const currentMonth = new Date().toISOString().substring(0, 7)
       const summary = await GET_DONATION_SUMMARY({
         churchIds: new Set([churchId]),
@@ -415,7 +496,7 @@ describe('DO-08 Donation Tests and Edge-Case Synchronization', () => {
       expect(Number(eurSum.netMinor)).toBe(0)
 
       const donations = await db.donation.findMany({
-        where: { payment_account_id: paymentAccountId },
+        where: { church_id: churchId },
       })
       const usdDon = donations.find((d) => d.currency === 'usd')!
       expect(usdDon.status).toBe('PAID')
@@ -427,11 +508,13 @@ describe('DO-08 Donation Tests and Edge-Case Synchronization', () => {
 
   describe('Scenario 5: Wrong Connected Account', () => {
     it('ignores unknown accounts and isolates cross-church events', async () => {
+      const piUnknown = 'pi_' + crypto.randomBytes(8).toString('hex')
+      const piOther = 'pi_' + crypto.randomBytes(8).toString('hex')
       // 1. Unknown account
       const { receipt } = await injectWebhook(
         'payment_intent.succeeded',
         {
-          id: 'pi_unknown',
+          id: piUnknown,
           amount: 1000,
           currency: 'usd',
         },
@@ -450,39 +533,27 @@ describe('DO-08 Donation Tests and Edge-Case Synchronization', () => {
           name: 'Other Church',
           timezone: 'UTC',
           org_node_id: otherOrg.id,
+          status: 'APPROVED',
           address: {},
           contacts: [],
           social_links: {},
         },
       })
-      const otherAcctId = 'acct_' + crypto.randomBytes(8).toString('hex')
-      const otherAccount = await db.paymentAccount.create({
-        data: {
-          id: crypto.randomUUID(),
-          church_id: otherChurch.id,
-          provider: 'stripe',
-          provider_account_id: otherAcctId,
-          status: 'ACTIVE',
-        },
+
+      await injectWebhook('payment_intent.succeeded', {
+        id: piOther,
+        amount: 2000,
+        currency: 'usd',
+        metadata: { churchId: otherChurch.id },
       })
 
-      await injectWebhook(
-        'payment_intent.succeeded',
-        {
-          id: 'pi_other',
-          amount: 2000,
-          currency: 'usd',
-        },
-        otherAcctId,
-      )
-
       const mainDonations = await db.donation.findMany({
-        where: { payment_account_id: paymentAccountId },
+        where: { church_id: churchId },
       })
       expect(mainDonations.length).toBe(0) // Untouched
 
       const otherDonations = await db.donation.findMany({
-        where: { payment_account_id: otherAccount.id },
+        where: { church_id: otherChurch.id },
       })
       expect(otherDonations.length).toBe(1) // Recorded for other church
       expect(otherDonations[0].amount_minor).toBe(BigInt(2000))
@@ -494,7 +565,7 @@ describe('DO-08 Donation Tests and Edge-Case Synchronization', () => {
       // A user is redirected with session_id to success URL.
       // But no webhook arrived yet.
       const donations = await db.donation.findMany({
-        where: { payment_account_id: paymentAccountId },
+        where: { church_id: churchId },
       })
       expect(donations.length).toBe(0)
 
@@ -506,14 +577,15 @@ describe('DO-08 Donation Tests and Edge-Case Synchronization', () => {
       expect(summary.currencies).toEqual([])
 
       // Only when webhook arrives does the system synchronize.
+      const piRedirect = 'pi_' + crypto.randomBytes(8).toString('hex')
       await injectWebhook('payment_intent.succeeded', {
-        id: 'pi_redirect',
+        id: piRedirect,
         amount: 4000,
         currency: 'usd',
       })
 
       const syncedDonations = await db.donation.findMany({
-        where: { payment_account_id: paymentAccountId },
+        where: { church_id: churchId },
       })
       expect(syncedDonations.length).toBe(1)
       expect(syncedDonations[0].status).toBe('PAID')

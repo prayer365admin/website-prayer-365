@@ -1,26 +1,16 @@
 import { db } from '@/utils/db-connection'
 import { GeneralError } from '@/utils/general-error'
 
-export async function GET_PAYMENT_SYNC_CONTEXT({
-  receiptId,
-  paymentAccountId,
-}: {
-  receiptId?: string
-  paymentAccountId: string
-}) {
-  const [receipt, account] = await Promise.all([
-    receiptId ? db.webhookReceipt.findUnique({ where: { id: receiptId } }) : Promise.resolve(null),
-    db.paymentAccount.findUnique({
-      where: { id: paymentAccountId },
-      include: { church: true },
-    }),
-  ])
+export async function GET_PAYMENT_SYNC_CONTEXT({ receiptId }: { receiptId?: string }) {
+  const receipt = receiptId
+    ? await db.webhookReceipt.findUnique({ where: { id: receiptId } })
+    : null
 
-  return { receipt, account }
+  return { receipt }
 }
 
 export async function UPSERT_DONATION_SUBSCRIPTION({
-  paymentAccountId,
+  churchId,
   providerSubscriptionId,
   amountMinor,
   currency,
@@ -28,7 +18,7 @@ export async function UPSERT_DONATION_SUBSCRIPTION({
   eventCreated,
   userId,
 }: {
-  paymentAccountId: string
+  churchId: string
   providerSubscriptionId: string
   amountMinor: number
   currency: string
@@ -39,10 +29,7 @@ export async function UPSERT_DONATION_SUBSCRIPTION({
   return await db.$transaction(async (tx) => {
     const existing = await tx.donationSubscription.findUnique({
       where: {
-        payment_account_id_provider_subscription_id: {
-          payment_account_id: paymentAccountId,
-          provider_subscription_id: providerSubscriptionId,
-        },
+        provider_subscription_id: providerSubscriptionId,
       },
     })
 
@@ -62,6 +49,7 @@ export async function UPSERT_DONATION_SUBSCRIPTION({
       return tx.donationSubscription.update({
         where: { id: existing.id },
         data: {
+          church_id: churchId,
           amount_minor: amountMinor,
           currency: currency.toLowerCase(),
           provider_status: providerStatus,
@@ -72,7 +60,7 @@ export async function UPSERT_DONATION_SUBSCRIPTION({
 
     return tx.donationSubscription.create({
       data: {
-        payment_account_id: paymentAccountId,
+        church_id: churchId,
         provider_subscription_id: providerSubscriptionId,
         amount_minor: amountMinor,
         currency: currency.toLowerCase(),
@@ -84,7 +72,7 @@ export async function UPSERT_DONATION_SUBSCRIPTION({
 }
 
 export async function UPSERT_DONATION_PAYMENT({
-  paymentAccountId,
+  churchId,
   providerPaymentId,
   amountMinor,
   currency,
@@ -93,7 +81,7 @@ export async function UPSERT_DONATION_PAYMENT({
   providerSubscriptionId,
   userId,
 }: {
-  paymentAccountId: string
+  churchId: string
   providerPaymentId: string
   amountMinor: number
   currency: string
@@ -108,21 +96,23 @@ export async function UPSERT_DONATION_PAYMENT({
     if (providerSubscriptionId) {
       let sub = await tx.donationSubscription.findUnique({
         where: {
-          payment_account_id_provider_subscription_id: {
-            payment_account_id: paymentAccountId,
-            provider_subscription_id: providerSubscriptionId,
-          },
+          provider_subscription_id: providerSubscriptionId,
         },
       })
       if (!sub) {
         sub = await tx.donationSubscription.create({
           data: {
-            payment_account_id: paymentAccountId,
+            church_id: churchId,
             provider_subscription_id: providerSubscriptionId,
             amount_minor: 0, // Placeholder
             currency: currency.toLowerCase(),
             provider_status: 'active', // Placeholder
           },
+        })
+      } else if (sub.church_id !== churchId) {
+        sub = await tx.donationSubscription.update({
+          where: { id: sub.id },
+          data: { church_id: churchId },
         })
       }
       subscriptionId = sub.id
@@ -130,10 +120,7 @@ export async function UPSERT_DONATION_PAYMENT({
 
     const existing = await tx.donation.findUnique({
       where: {
-        payment_account_id_provider_payment_id: {
-          payment_account_id: paymentAccountId,
-          provider_payment_id: providerPaymentId,
-        },
+        provider_payment_id: providerPaymentId,
       },
     })
 
@@ -175,7 +162,7 @@ export async function UPSERT_DONATION_PAYMENT({
 
     return tx.donation.create({
       data: {
-        payment_account_id: paymentAccountId,
+        church_id: churchId,
         provider_payment_id: providerPaymentId,
         amount_minor: amountMinor,
         currency: currency.toLowerCase(),
@@ -189,12 +176,10 @@ export async function UPSERT_DONATION_PAYMENT({
 }
 
 export async function APPLY_DONATION_REFUND({
-  paymentAccountId,
   providerPaymentId,
   fallbackPaymentId,
   refundedMinor,
 }: {
-  paymentAccountId: string
   providerPaymentId: string
   fallbackPaymentId?: string
   refundedMinor: number
@@ -202,24 +187,17 @@ export async function APPLY_DONATION_REFUND({
   return await db.$transaction(async (tx) => {
     let existing = await tx.donation.findUnique({
       where: {
-        payment_account_id_provider_payment_id: {
-          payment_account_id: paymentAccountId,
-          provider_payment_id: providerPaymentId,
-        },
+        provider_payment_id: providerPaymentId,
       },
     })
 
     if (!existing && fallbackPaymentId) {
       existing = await tx.donation.findUnique({
         where: {
-          payment_account_id_provider_payment_id: {
-            payment_account_id: paymentAccountId,
-            provider_payment_id: fallbackPaymentId,
-          },
+          provider_payment_id: fallbackPaymentId,
         },
       })
     }
-
     if (!existing) {
       throw new GeneralError({
         code: 404,
@@ -229,12 +207,14 @@ export async function APPLY_DONATION_REFUND({
       })
     }
     const newRefunded = BigInt(refundedMinor)
-    const isFullyRefunded = newRefunded >= existing.amount_minor
+    const nextRefunded =
+      newRefunded > existing.refunded_minor ? newRefunded : existing.refunded_minor
+    const isFullyRefunded = nextRefunded >= existing.amount_minor
 
     return tx.donation.update({
       where: { id: existing.id },
       data: {
-        refunded_minor: newRefunded,
+        refunded_minor: nextRefunded,
         status: isFullyRefunded ? 'REFUNDED' : existing.status,
       },
     })

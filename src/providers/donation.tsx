@@ -8,15 +8,15 @@ import {
   DonationSubscriptionRow,
   DonationSummary,
   DonationSummaryRow,
-  ResolvedPaymentAccount,
 } from '@/models/donation'
 
 /*
- * Donation adapter (Tasks 29-30). Donations are scoped to a church through
- * their PaymentAccount (one payment account per church). Every query filters
- * BOTH count and rows by the resolved `churchIds` and NEVER selects donor PII
- * (user_id, subscription owner). Money stays in minor units and every summary
- * is grouped per-currency — there is no cross-currency total.
+ * Donation adapter (Tasks 29-30). Donations are scoped to a church directly
+ * via church_id (one platform Stripe account; church attribution mirrored from
+ * provider metadata). Every query filters BOTH count and rows by the resolved
+ * `churchIds` and NEVER selects donor PII (user_id, subscription owner). Money
+ * stays in minor units and every summary is grouped per-currency — there is no
+ * cross-currency total.
  */
 
 const donationOrderBy = (q: DonationListQuery): Prisma.DonationOrderByWithRelationInput[] =>
@@ -37,7 +37,7 @@ export const GET_DONATIONS = async ({
   const ids = Array.from(churchIds)
   if (ids.length === 0) return { result: [], total: 0 }
   const where: Prisma.DonationWhereInput = {
-    payment_account: { church_id: { in: ids } },
+    church_id: { in: ids },
     paid_at: { gte: query.from ?? undefined, lte: query.to ?? undefined },
     currency: query.currency ? query.currency.toLowerCase() : undefined,
   }
@@ -92,7 +92,7 @@ export const GET_DONATION_SUBSCRIPTIONS = async ({
   const ids = Array.from(churchIds)
   if (ids.length === 0) return { result: [], total: 0 }
   const where: Prisma.DonationSubscriptionWhereInput = {
-    payment_account: { church_id: { in: ids } },
+    church_id: { in: ids },
     currency: query.currency ? query.currency.toLowerCase() : undefined,
   }
   const orderBy = subscriptionOrderBy(query)
@@ -154,7 +154,7 @@ export const GET_DONATION_SUMMARY = async ({
   const grouped = await db.donation.groupBy({
     by: ['currency'],
     where: {
-      payment_account: { church_id: { in: ids } },
+      church_id: { in: ids },
       paid_at: { gte: start, lt: end },
     },
     _sum: { amount_minor: true, refunded_minor: true },
@@ -174,14 +174,14 @@ export const GET_DONATION_SUMMARY = async ({
   return { month, currencies }
 }
 
-export const RESOLVE_CHURCH_PAYMENT_ACCOUNT = async ({
+export const ENSURE_CHURCH_DONATION_ELIGIBLE = async ({
   churchId,
 }: {
   churchId: string
-}): Promise<ResolvedPaymentAccount> => {
+}): Promise<{ churchId: string; churchName: string }> => {
   const church = await db.church.findUnique({
     where: { id: churchId },
-    include: { paymentAccount: true },
+    select: { id: true, name: true, status: true },
   })
 
   if (!church) {
@@ -202,30 +202,8 @@ export const RESOLVE_CHURCH_PAYMENT_ACCOUNT = async ({
     })
   }
 
-  if (!church.paymentAccount) {
-    throw new GeneralError({
-      code: 400,
-      error: 'PAYMENT_ERROR',
-      error_code: 'PAYMENT_ACCOUNT_NOT_CONFIGURED',
-      details: 'Church does not have a payment account configured.',
-    })
-  }
-
-  if (church.paymentAccount.status !== 'ACTIVE') {
-    throw new GeneralError({
-      code: 400,
-      error: 'PAYMENT_ERROR',
-      error_code: 'PAYMENT_ACCOUNT_NOT_VERIFIED',
-      details: `Church payment account is not verified (status: ${church.paymentAccount.status}).`,
-    })
-  }
-
   return {
     churchId: church.id,
     churchName: church.name,
-    paymentAccountId: church.paymentAccount.id,
-    provider: church.paymentAccount.provider,
-    providerAccountId: church.paymentAccount.provider_account_id,
-    status: church.paymentAccount.status,
   }
 }

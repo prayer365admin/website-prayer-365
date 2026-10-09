@@ -5,25 +5,9 @@ export const seedDonations = async () => {
   const church = await getDemoChurch()
   if (!church) return
 
-  let paymentAccount = await db.paymentAccount.findUnique({
-    where: { church_id: church.id },
-  })
-
-  if (!paymentAccount) {
-    paymentAccount = await db.paymentAccount.create({
-      data: {
-        church_id: church.id,
-        provider: 'stripe',
-        provider_account_id: 'acct_demo_tallinn',
-        status: 'ACTIVE',
-      },
-    })
-  }
-
   // Seed recurring subscription
-  const existingSub = await db.donationSubscription.findFirst({
+  const existingSub = await db.donationSubscription.findUnique({
     where: {
-      payment_account_id: paymentAccount.id,
       provider_subscription_id: 'sub_demo_monthly_1',
     },
   })
@@ -32,7 +16,7 @@ export const seedDonations = async () => {
   if (!existingSub) {
     const sub = await db.donationSubscription.create({
       data: {
-        payment_account_id: paymentAccount.id,
+        church_id: church.id,
         provider_subscription_id: 'sub_demo_monthly_1',
         amount_minor: BigInt(2500),
         currency: 'eur',
@@ -44,7 +28,7 @@ export const seedDonations = async () => {
 
   // Seed sample donations if none exist
   const existingDonations = await db.donation.count({
-    where: { payment_account_id: paymentAccount.id },
+    where: { church_id: church.id },
   })
 
   if (existingDonations === 0) {
@@ -54,7 +38,7 @@ export const seedDonations = async () => {
     await db.donation.createMany({
       data: [
         {
-          payment_account_id: paymentAccount.id,
+          church_id: church.id,
           provider_payment_id: 'pi_demo_eur_paid',
           amount_minor: BigInt(5000),
           currency: 'eur',
@@ -63,7 +47,7 @@ export const seedDonations = async () => {
           subscription_id: subId,
         },
         {
-          payment_account_id: paymentAccount.id,
+          church_id: church.id,
           provider_payment_id: 'pi_demo_usd_paid',
           amount_minor: BigInt(10000),
           currency: 'usd',
@@ -71,7 +55,7 @@ export const seedDonations = async () => {
           paid_at: yesterday,
         },
         {
-          payment_account_id: paymentAccount.id,
+          church_id: church.id,
           provider_payment_id: 'pi_demo_eur_failed',
           amount_minor: BigInt(2500),
           currency: 'eur',
@@ -79,7 +63,7 @@ export const seedDonations = async () => {
           paid_at: null,
         },
         {
-          payment_account_id: paymentAccount.id,
+          church_id: church.id,
           provider_payment_id: 'pi_demo_eur_refunded',
           amount_minor: BigInt(3000),
           refunded_minor: BigInt(3000),

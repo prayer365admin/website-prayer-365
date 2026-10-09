@@ -293,7 +293,8 @@ model Church {
   announcements   Announcement[]
   requests        Request[]
   mediaAssets     MediaAsset[]
-  paymentAccount  PaymentAccount?
+  donations             Donation[]
+  donationSubscriptions DonationSubscription[]
   checkIns        CheckIn[]
   analyticsEvents AnalyticsEvent[]
   userChurches    UserChurch[]
@@ -622,31 +623,13 @@ model Request {
 // Payments, Analytics and Delivery
 // ============================================================================
 
-model PaymentAccount {
-  id                  String @id @default(uuid(7))
-  church_id           String @unique
-  church              Church @relation(fields: [church_id], references: [id])
-  provider            String
-  provider_account_id String @unique
-  status              String
-
-  donations     Donation[]
-  subscriptions DonationSubscription[]
-
-  created_at DateTime  @default(now())
-  updated_at DateTime? @updatedAt
-  version    Int       @default(1)
-
-  @@map("payment_accounts")
-}
-
 model DonationSubscription {
   id                       String         @id @default(uuid(7))
-  payment_account_id       String
-  payment_account          PaymentAccount @relation(fields: [payment_account_id], references: [id])
+  church_id                String
+  church                   Church         @relation(fields: [church_id], references: [id])
   user_id                  String?
   user                     User?          @relation(fields: [user_id], references: [id], onDelete: SetNull)
-  provider_subscription_id String
+  provider_subscription_id String         @unique
   amount_minor             BigInt
   currency                 String         @db.Char(3)
   provider_status          String
@@ -656,20 +639,19 @@ model DonationSubscription {
   created_at DateTime  @default(now())
   updated_at DateTime? @updatedAt
 
-  @@unique([payment_account_id, provider_subscription_id])
-  @@index([payment_account_id, provider_status])
+  @@index([church_id, provider_status])
   @@map("donation_subscriptions")
 }
 
 model Donation {
   id                  String                @id @default(uuid(7))
-  payment_account_id  String
-  payment_account     PaymentAccount        @relation(fields: [payment_account_id], references: [id])
+  church_id           String
+  church              Church                @relation(fields: [church_id], references: [id])
   user_id             String?
   user                User?                 @relation(fields: [user_id], references: [id], onDelete: SetNull)
   subscription_id     String?
   subscription        DonationSubscription? @relation(fields: [subscription_id], references: [id])
-  provider_payment_id String
+  provider_payment_id String                @unique
   amount_minor        BigInt
   currency            String                @db.Char(3)
   status              String
@@ -679,8 +661,7 @@ model Donation {
   created_at DateTime  @default(now())
   updated_at DateTime? @updatedAt
 
-  @@unique([payment_account_id, provider_payment_id])
-  @@index([payment_account_id, paid_at])
+  @@index([church_id, paid_at])
   @@map("donations")
 }
 

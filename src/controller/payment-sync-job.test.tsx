@@ -4,10 +4,10 @@ import { db } from '@/utils/db-connection'
 import { processPaymentSyncJob, runPaymentSyncTick } from './payment-sync-job'
 import crypto from 'node:crypto'
 import { RECORD_STRIPE_WEBHOOK_RECEIPT } from '@/providers/stripe-webhook'
+import { PLATFORM_ACCOUNT_ID } from '@/providers/stripe'
 
 describe('payment-sync-job controller', () => {
   let churchId: string
-  let paymentAccountId: string
 
   beforeEach(async () => {
     // No global deleteMany to prevent concurrent test collision
@@ -35,16 +35,16 @@ describe('payment-sync-job controller', () => {
     })
     churchId = church.id
 
-    const account = await db.paymentAccount.create({
-      data: {
-        id: crypto.randomUUID(),
-        church_id: churchId,
-        provider: 'stripe',
-        provider_account_id: `acct_test_${crypto.randomUUID()}`,
-        status: 'active',
+    await db.donation.deleteMany({
+      where: {
+        provider_payment_id: { in: ['pi_test', 'pi_test_fail', 'ch_test'] },
       },
     })
-    paymentAccountId = account.id
+    await db.donationSubscription.deleteMany({
+      where: {
+        provider_subscription_id: { in: ['sub_test'] },
+      },
+    })
   })
 
   const createJob = async (
@@ -73,8 +73,6 @@ describe('payment-sync-job controller', () => {
         resource_id: receipt.id,
         payload: {
           ...payload,
-          paymentAccountId,
-          churchId,
         },
         available_at: availableAt,
         state,
@@ -101,95 +99,134 @@ describe('payment-sync-job controller', () => {
   })
 
   it('successfully processes payment_intent.succeeded and marks job/receipt SUCCEEDED', async () => {
+    const piId = `pi_test_${crypto.randomUUID()}`
     const { job, receipt } = await createJob({
       eventType: 'payment_intent.succeeded',
       eventCreated: 1750000000,
       dataObject: {
-        id: 'pi_test',
+        id: piId,
         amount: 5000,
         currency: 'usd',
+        metadata: { churchId },
       },
     })
-    const outcome = await processPaymentSyncJob(job.id, 'req3')
-    expect(outcome).toBe('succeeded')
+    try {
+      const outcome = await processPaymentSyncJob(job.id, 'req3')
+      expect(outcome).toBe('succeeded')
 
-    const p = await db.donation.findFirst({ where: { payment_account_id: paymentAccountId } })
-    expect(p?.status).toBe('PAID')
-    expect(p?.amount_minor).toBe(BigInt(5000))
-    // paid_at derives from the provider event time, not processing time.
-    expect(p?.paid_at?.toISOString()).toBe(new Date(1750000000 * 1000).toISOString())
+      const p = await db.donation.findFirst({
+        where: { church_id: churchId, provider_payment_id: piId },
+      })
+      expect(p?.status).toBe('PAID')
+      expect(p?.amount_minor).toBe(BigInt(5000))
+      // paid_at derives from the provider event time, not processing time.
+      expect(p?.paid_at?.toISOString()).toBe(new Date(1750000000 * 1000).toISOString())
 
-    const j = await db.outboxJob.findUnique({ where: { id: job.id } })
-    expect(j?.state).toBe('SUCCEEDED')
+      const j = await db.outboxJob.findUnique({ where: { id: job.id } })
+      expect(j?.state).toBe('SUCCEEDED')
 
-    const r = await db.webhookReceipt.findUnique({ where: { id: receipt.id } })
-    expect(r?.state).toBe('PROCESSED')
+      const r = await db.webhookReceipt.findUnique({ where: { id: receipt.id } })
+      expect(r?.state).toBe('PROCESSED')
+    } finally {
+      await db.donation.deleteMany({ where: { provider_payment_id: piId } })
+      await db.outboxJob.deleteMany({ where: { id: job.id } })
+      await db.webhookReceipt.deleteMany({ where: { id: receipt.id } })
+    }
   })
 
   it('successfully processes payment_intent.payment_failed without overwriting PAID', async () => {
+    const piId = `pi_test_fail_${crypto.randomUUID()}`
     // 1. Paid
-    const { job: job1 } = await createJob({
+    const { job: job1, receipt: receipt1 } = await createJob({
       eventType: 'payment_intent.succeeded',
-      dataObject: { id: 'pi_test_fail', amount: 5000, currency: 'usd' },
+      dataObject: { id: piId, amount: 5000, currency: 'usd', metadata: { churchId } },
     })
-    await processPaymentSyncJob(job1.id, 'req_fail_1')
-
     // 2. Failed (stale)
-    const { job: job2 } = await createJob({
+    const { job: job2, receipt: receipt2 } = await createJob({
       eventType: 'payment_intent.payment_failed',
-      dataObject: { id: 'pi_test_fail', amount: 5000, currency: 'usd' },
+      dataObject: { id: piId, amount: 5000, currency: 'usd', metadata: { churchId } },
     })
-    await processPaymentSyncJob(job2.id, 'req_fail_2')
+    try {
+      await processPaymentSyncJob(job1.id, 'req_fail_1')
+      await processPaymentSyncJob(job2.id, 'req_fail_2')
 
-    // Must remain PAID
-    const p = await db.donation.findFirst({
-      where: { payment_account_id: paymentAccountId, provider_payment_id: 'pi_test_fail' },
-    })
-    expect(p?.status).toBe('PAID')
+      // Must remain PAID
+      const p = await db.donation.findFirst({
+        where: { church_id: churchId, provider_payment_id: piId },
+      })
+      expect(p?.status).toBe('PAID')
+    } finally {
+      await db.donation.deleteMany({ where: { provider_payment_id: piId } })
+      await db.outboxJob.deleteMany({ where: { id: { in: [job1.id, job2.id] } } })
+      await db.webhookReceipt.deleteMany({ where: { id: { in: [receipt1.id, receipt2.id] } } })
+    }
   })
 
   it('successfully processes customer.subscription.created and customer.subscription.deleted', async () => {
-    const { job: job1 } = await createJob({
+    const subId = `sub_test_${crypto.randomUUID()}`
+    const { job: job1, receipt: receipt1 } = await createJob({
       eventType: 'customer.subscription.created',
-      dataObject: { id: 'sub_test', status: 'active', plan: { amount: 1000, currency: 'usd' } },
+      dataObject: {
+        id: subId,
+        status: 'active',
+        plan: { amount: 1000, currency: 'usd' },
+        metadata: { churchId },
+      },
     })
-    await processPaymentSyncJob(job1.id, 'req_sub_1')
-
-    let sub = await db.donationSubscription.findFirst({
-      where: { payment_account_id: paymentAccountId, provider_subscription_id: 'sub_test' },
-    })
-    expect(sub?.provider_status).toBe('active')
-
-    const { job: job2 } = await createJob({
+    const { job: job2, receipt: receipt2 } = await createJob({
       eventType: 'customer.subscription.deleted',
-      dataObject: { id: 'sub_test', status: 'canceled', plan: { amount: 1000, currency: 'usd' } },
+      dataObject: {
+        id: subId,
+        status: 'canceled',
+        plan: { amount: 1000, currency: 'usd' },
+        metadata: { churchId },
+      },
     })
-    await processPaymentSyncJob(job2.id, 'req_sub_2')
+    try {
+      await processPaymentSyncJob(job1.id, 'req_sub_1')
 
-    sub = await db.donationSubscription.findFirst({
-      where: { payment_account_id: paymentAccountId, provider_subscription_id: 'sub_test' },
-    })
-    expect(sub?.provider_status).toBe('canceled')
+      let sub = await db.donationSubscription.findFirst({
+        where: { church_id: churchId, provider_subscription_id: subId },
+      })
+      expect(sub?.provider_status).toBe('active')
+
+      await processPaymentSyncJob(job2.id, 'req_sub_2')
+
+      sub = await db.donationSubscription.findFirst({
+        where: { church_id: churchId, provider_subscription_id: subId },
+      })
+      expect(sub?.provider_status).toBe('canceled')
+    } finally {
+      await db.donationSubscription.deleteMany({ where: { provider_subscription_id: subId } })
+      await db.outboxJob.deleteMany({ where: { id: { in: [job1.id, job2.id] } } })
+      await db.webhookReceipt.deleteMany({ where: { id: { in: [receipt1.id, receipt2.id] } } })
+    }
   })
 
   it('successfully processes charge.refunded', async () => {
-    const { job: job1 } = await createJob({
+    const chId = `ch_test_${crypto.randomUUID()}`
+    const { job: job1, receipt: receipt1 } = await createJob({
       eventType: 'charge.succeeded',
-      dataObject: { id: 'ch_test', amount: 2000, currency: 'usd' },
+      dataObject: { id: chId, amount: 2000, currency: 'usd', metadata: { churchId } },
     })
-    await processPaymentSyncJob(job1.id, 'req_ref_1')
-
-    const { job: job2 } = await createJob({
+    const { job: job2, receipt: receipt2 } = await createJob({
       eventType: 'charge.refunded',
-      dataObject: { id: 'ch_test', amount_refunded: 2000, currency: 'usd' },
+      dataObject: { id: chId, amount_refunded: 2000, currency: 'usd', metadata: { churchId } },
     })
-    await processPaymentSyncJob(job2.id, 'req_ref_2')
+    try {
+      await processPaymentSyncJob(job1.id, 'req_ref_1')
+      await processPaymentSyncJob(job2.id, 'req_ref_2')
 
-    const p = await db.donation.findFirst({
-      where: { payment_account_id: paymentAccountId, provider_payment_id: 'ch_test' },
-    })
-    expect(p?.status).toBe('REFUNDED')
-    expect(p?.refunded_minor).toBe(BigInt(2000))
+      const p = await db.donation.findFirst({
+        where: { church_id: churchId, provider_payment_id: chId },
+      })
+      expect(p?.status).toBe('REFUNDED')
+      expect(p?.refunded_minor).toBe(BigInt(2000))
+    } finally {
+      await db.donation.deleteMany({ where: { provider_payment_id: chId } })
+      await db.outboxJob.deleteMany({ where: { id: { in: [job1.id, job2.id] } } })
+      await db.webhookReceipt.deleteMany({ where: { id: { in: [receipt1.id, receipt2.id] } } })
+    }
   })
   it('marks job as FAILED when attempts reaches MAX_ATTEMPTS (dead-letter)', async () => {
     const { job, receipt } = await createJob(
@@ -214,8 +251,7 @@ describe('payment-sync-job controller', () => {
 
   it('re-arms job and receipt when redelivering an event whose receipt is FAILED', async () => {
     const eventId = `evt_${crypto.randomUUID()}`
-    const account = await db.paymentAccount.findUnique({ where: { id: paymentAccountId } })
-    const accountId = account!.provider_account_id
+    const accountId = PLATFORM_ACCOUNT_ID()
 
     const receipt = await db.webhookReceipt.create({
       data: {
@@ -237,9 +273,7 @@ describe('payment-sync-job controller', () => {
         resource_id: receipt.id,
         payload: {
           eventType: 'payment_intent.succeeded',
-          dataObject: { id: 'pi_test_recovery' },
-          paymentAccountId,
-          churchId,
+          dataObject: { id: 'pi_test_recovery', metadata: { churchId } },
         },
         available_at: new Date(),
         state: 'FAILED',
@@ -287,6 +321,7 @@ describe('payment-sync-job controller', () => {
         payment_intent: 'pi_missing',
         amount_refunded: 100,
         currency: 'usd',
+        metadata: { churchId },
       },
     })
 
@@ -312,6 +347,7 @@ describe('payment-sync-job controller', () => {
         payment_intent: 'pi_missing',
         amount_refunded: 100,
         currency: 'usd',
+        metadata: { churchId },
       },
     })
     await db.outboxJob.update({
@@ -336,8 +372,7 @@ describe('payment-sync-job controller', () => {
 
   it('records receipt without outbox job for checkout.session.completed', async () => {
     const eventId = `evt_${crypto.randomUUID()}`
-    const account = await db.paymentAccount.findUnique({ where: { id: paymentAccountId } })
-    const accountId = account!.provider_account_id
+    const accountId = PLATFORM_ACCOUNT_ID()
 
     const res = await RECORD_STRIPE_WEBHOOK_RECEIPT({
       event: {
@@ -372,7 +407,13 @@ describe('payment-sync-job controller', () => {
   it('skips orphan donation row for charge.failed without payment_intent', async () => {
     const { job, receipt } = await createJob({
       eventType: 'charge.failed',
-      dataObject: { id: 'ch_x', payment_intent: null, amount: 1000, currency: 'usd' },
+      dataObject: {
+        id: 'ch_x',
+        payment_intent: null,
+        amount: 1000,
+        currency: 'usd',
+        metadata: { churchId },
+      },
     })
 
     try {
@@ -380,7 +421,7 @@ describe('payment-sync-job controller', () => {
       expect(outcome).toBe('succeeded')
 
       const count = await db.donation.count({
-        where: { payment_account_id: paymentAccountId },
+        where: { church_id: churchId },
       })
       expect(count).toBe(0)
     } finally {
@@ -395,12 +436,12 @@ describe('payment-sync-job controller', () => {
         where: { kind: 'payment.sync', state: 'PENDING' },
       })
       const { job: job1, receipt: r1 } = await createJob(
-        { eventType: 'test1', dataObject: { id: 'a' } },
+        { eventType: 'test1', dataObject: { id: 'a', metadata: { churchId } } },
         'PENDING',
         new Date(Date.now() - 5000),
       )
       const { job: job2, receipt: r2 } = await createJob(
-        { eventType: 'test2', dataObject: { id: 'b' } },
+        { eventType: 'test2', dataObject: { id: 'b', metadata: { churchId } } },
         'PENDING',
         new Date(Date.now() - 5000),
       )
@@ -413,5 +454,124 @@ describe('payment-sync-job controller', () => {
         await db.webhookReceipt.deleteMany({ where: { id: { in: [r1.id, r2.id] } } })
       }
     })
+
+    it('claims and counts requeued jobs when encountering retryable error', async () => {
+      await db.outboxJob.deleteMany({
+        where: { kind: 'payment.sync', state: 'PENDING' },
+      })
+      const { job, receipt } = await createJob(
+        { eventType: 'unknown.tick.event' },
+        'PENDING',
+        new Date(Date.now() - 5000),
+      )
+      try {
+        const summary = await runPaymentSyncTick({ limit: 5 })
+        expect(summary.claimed).toBeGreaterThanOrEqual(1)
+        expect(summary.requeued).toBeGreaterThanOrEqual(1)
+      } finally {
+        await db.outboxJob.deleteMany({ where: { id: job.id } })
+        await db.webhookReceipt.deleteMany({ where: { id: receipt.id } })
+      }
+    })
+  })
+  it('creates donation row with church_id when metadata.churchId is present', async () => {
+    const paymentId = `pi_meta_${crypto.randomUUID()}`
+    const { job, receipt } = await createJob({
+      eventType: 'payment_intent.succeeded',
+      eventCreated: 1750000000,
+      dataObject: {
+        id: paymentId,
+        amount: 7500,
+        currency: 'usd',
+        metadata: { churchId },
+      },
+    })
+    const outcome = await processPaymentSyncJob(job.id, 'req_meta_1')
+    expect(outcome).toBe('succeeded')
+
+    const donation = await db.donation.findUnique({
+      where: { provider_payment_id: paymentId },
+    })
+    expect(donation).toBeDefined()
+    expect(donation?.church_id).toBe(churchId)
+    expect(donation?.amount_minor).toBe(BigInt(7500))
+
+    const r = await db.webhookReceipt.findUnique({ where: { id: receipt.id } })
+    expect(r?.state).toBe('PROCESSED')
+  })
+
+  it('skips event and creates no donation row when metadata.churchId is missing', async () => {
+    const paymentId = `pi_nometa_${crypto.randomUUID()}`
+    const { job, receipt } = await createJob({
+      eventType: 'payment_intent.succeeded',
+      dataObject: {
+        id: paymentId,
+        amount: 5000,
+        currency: 'usd',
+      },
+    })
+    const outcome = await processPaymentSyncJob(job.id, 'req_nometa_1')
+    expect(outcome).toBe('skipped')
+
+    const donation = await db.donation.findUnique({
+      where: { provider_payment_id: paymentId },
+    })
+    expect(donation).toBeNull()
+
+    const r = await db.webhookReceipt.findUnique({ where: { id: receipt.id } })
+    expect(r?.state).toBe('PROCESSED')
+
+    const j = await db.outboxJob.findUnique({ where: { id: job.id } })
+    expect(j?.state).toBe('SUCCEEDED')
+  })
+
+  it('requeues job with future available_at and MISSING_EVENT_OBJECT when event object is missing and attempts < MAX_ATTEMPTS', async () => {
+    const { job, receipt } = await createJob({
+      eventType: 'custom.unknown.event',
+    })
+    try {
+      const outcome = await processPaymentSyncJob(job.id, 'req_requeue_unknown')
+      expect(outcome).toBe('requeued')
+
+      const updatedJob = await db.outboxJob.findUnique({ where: { id: job.id } })
+      expect(updatedJob?.state).toBe('PENDING')
+      expect(updatedJob?.last_error_code).toBe('MISSING_EVENT_OBJECT')
+      expect(updatedJob?.available_at.getTime()).toBeGreaterThan(Date.now())
+    } finally {
+      await db.outboxJob.deleteMany({ where: { id: job.id } })
+      await db.webhookReceipt.deleteMany({ where: { id: receipt.id } })
+    }
+  })
+
+  it('stores donation under payment_intent id when payment_intent is an object on charge.succeeded', async () => {
+    const paymentId = `pi_obj_${crypto.randomUUID()}`
+    const chargeId = `ch_obj_${crypto.randomUUID()}`
+    const { job, receipt } = await createJob({
+      eventType: 'charge.succeeded',
+      eventCreated: 1750000000,
+      dataObject: {
+        id: chargeId,
+        payment_intent: { id: paymentId },
+        amount: 3500,
+        currency: 'usd',
+        metadata: { churchId },
+      },
+    })
+    try {
+      const outcome = await processPaymentSyncJob(job.id, 'req_ch_obj_pi')
+      expect(outcome).toBe('succeeded')
+
+      const donation = await db.donation.findUnique({
+        where: { provider_payment_id: paymentId },
+      })
+      expect(donation).toBeDefined()
+      expect(donation?.church_id).toBe(churchId)
+      expect(donation?.amount_minor).toBe(BigInt(3500))
+      expect(donation?.status).toBe('PAID')
+    } finally {
+      await db.donation.deleteMany({ where: { provider_payment_id: paymentId } })
+      await db.outboxJob.deleteMany({ where: { id: job.id } })
+      await db.webhookReceipt.deleteMany({ where: { id: receipt.id } })
+    }
   })
 })

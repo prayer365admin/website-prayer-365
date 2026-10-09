@@ -6,7 +6,7 @@ import {
   GET_DONATIONS,
   GET_DONATION_SUBSCRIPTIONS,
   GET_DONATION_SUMMARY,
-  RESOLVE_CHURCH_PAYMENT_ACCOUNT,
+  ENSURE_CHURCH_DONATION_ELIGIBLE,
 } from '@/providers/donation'
 import {
   DonationListQuery,
@@ -73,10 +73,6 @@ export const getDonationSummary = async ({
   return GET_DONATION_SUMMARY({ churchIds, month })
 }
 
-export const resolveChurchPaymentAccount = async ({ churchId }: { churchId: string }) => {
-  return RESOLVE_CHURCH_PAYMENT_ACCOUNT({ churchId })
-}
-
 export const initiateDonation = async ({
   churchId,
   userId,
@@ -90,14 +86,14 @@ export const initiateDonation = async ({
 }) => {
   assertNoRawCardData(input)
   const validated = validate(DonationInputSchema, input)
-  const account = await RESOLVE_CHURCH_PAYMENT_ACCOUNT({ churchId })
+  await ENSURE_CHURCH_DONATION_ELIGIBLE({ churchId })
 
   const createSession = async () => {
     return STRIPE.createCheckoutSession({
       churchId,
-      paymentAccountId: account.paymentAccountId,
       amountMinor: validated.amountMinor,
       currency: validated.currency,
+      frequency: validated.frequency,
       successUrl:
         validated.successUrl ?? `https://app.prayer.com/churches/${churchId}/donations/success`,
       cancelUrl:
@@ -126,7 +122,6 @@ export const initiateDonation = async ({
     sessionId: session.sessionId,
     url: session.url,
     churchId,
-    providerAccountId: account.providerAccountId,
     amountMinor: validated.amountMinor,
     currency: validated.currency,
     frequency: validated.frequency,

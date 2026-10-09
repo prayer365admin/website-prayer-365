@@ -56,18 +56,14 @@ export const processPaymentSyncJob = async (
     eventId: string
     eventType: string
     objectId: string
-    paymentAccountId: string
-    churchId: string
     eventCreated?: number
     dataObject?: Record<string, unknown>
   }
 
-  const { receipt, account } = await GET_PAYMENT_SYNC_CONTEXT({
+  const { receipt } = await GET_PAYMENT_SYNC_CONTEXT({
     receiptId: job.resource_id ?? undefined,
-    paymentAccountId: payload.paymentAccountId,
   })
 
-  if (!account) return requeueOrFail(job, 'PAYMENT_ACCOUNT_MISSING')
   if (receipt?.state === 'PROCESSED') {
     await FINALIZE_PAYMENT_SYNC_JOB({ jobId: job.id, state: 'SUCCEEDED' })
     return 'succeeded'
@@ -100,6 +96,24 @@ export const processPaymentSyncJob = async (
 
     if (!obj) return requeueOrFail(job, 'MISSING_EVENT_OBJECT')
 
+    const metadata =
+      obj &&
+      typeof obj === 'object' &&
+      'metadata' in obj &&
+      typeof obj.metadata === 'object' &&
+      obj.metadata !== null
+        ? (obj.metadata as Record<string, unknown>)
+        : null
+    const churchId = metadata && typeof metadata.churchId === 'string' ? metadata.churchId : ''
+
+    if (!churchId) {
+      await FINALIZE_PAYMENT_SYNC_JOB({
+        jobId: job.id,
+        receiptId: job.resource_id ?? undefined,
+        state: 'SUCCEEDED',
+      })
+      return 'skipped'
+    }
     const eventCreated = payload.eventCreated || Math.floor(Date.now() / 1000)
     /** Provider event time; processing time would bucket events into the wrong
      * monthly summary when a backlog drains after a month boundary. */
@@ -115,7 +129,7 @@ export const processPaymentSyncJob = async (
           : undefined) ??
         (pi.metadata && pi.metadata.subscription_id)
       await UPSERT_DONATION_PAYMENT({
-        paymentAccountId: payload.paymentAccountId,
+        churchId,
         providerPaymentId: String(pi.id),
         amountMinor: Number(pi.amount),
         currency: String(pi.currency),
@@ -127,7 +141,7 @@ export const processPaymentSyncJob = async (
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const pi = obj as any
       await UPSERT_DONATION_PAYMENT({
-        paymentAccountId: payload.paymentAccountId,
+        churchId,
         providerPaymentId: String(pi.id),
         amountMinor: Number(pi.amount),
         currency: String(pi.currency),
@@ -138,7 +152,7 @@ export const processPaymentSyncJob = async (
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const ch = obj as any
       await UPSERT_DONATION_PAYMENT({
-        paymentAccountId: payload.paymentAccountId,
+        churchId,
         providerPaymentId:
           typeof ch.payment_intent === 'string'
             ? ch.payment_intent
@@ -155,7 +169,7 @@ export const processPaymentSyncJob = async (
         const providerPaymentId =
           typeof ch.payment_intent === 'string' ? ch.payment_intent : ch.payment_intent?.id || ch.id
         await UPSERT_DONATION_PAYMENT({
-          paymentAccountId: payload.paymentAccountId,
+          churchId,
           providerPaymentId: String(providerPaymentId),
           amountMinor: Number(ch.amount ?? 0),
           currency: String(ch.currency ?? 'usd'),
@@ -170,7 +184,6 @@ export const processPaymentSyncJob = async (
         typeof ch.payment_intent === 'string' ? ch.payment_intent : ch.payment_intent?.id || ch.id
       const fallbackId = ch.id
       await APPLY_DONATION_REFUND({
-        paymentAccountId: payload.paymentAccountId,
         providerPaymentId: primaryId,
         fallbackPaymentId: fallbackId !== primaryId ? fallbackId : undefined,
         refundedMinor: Number(ch.amount_refunded),
@@ -184,7 +197,7 @@ export const processPaymentSyncJob = async (
       const amount = Number(sub.plan?.amount ?? sub.items?.data?.[0]?.price?.unit_amount ?? 0)
       const currency = String(sub.plan?.currency ?? sub.items?.data?.[0]?.price?.currency ?? 'usd')
       await UPSERT_DONATION_SUBSCRIPTION({
-        paymentAccountId: payload.paymentAccountId,
+        churchId,
         providerSubscriptionId: String(sub.id),
         amountMinor: amount,
         currency: currency,
@@ -197,7 +210,7 @@ export const processPaymentSyncJob = async (
       const amount = Number(sub.plan?.amount ?? sub.items?.data?.[0]?.price?.unit_amount ?? 0)
       const currency = String(sub.plan?.currency ?? sub.items?.data?.[0]?.price?.currency ?? 'usd')
       await UPSERT_DONATION_SUBSCRIPTION({
-        paymentAccountId: payload.paymentAccountId,
+        churchId,
         providerSubscriptionId: String(sub.id),
         amountMinor: amount,
         currency: currency,
@@ -212,7 +225,7 @@ export const processPaymentSyncJob = async (
       const pi = inv.payment_intent
       const paymentId = typeof pi === 'string' ? pi : pi?.id || inv.id
       await UPSERT_DONATION_PAYMENT({
-        paymentAccountId: payload.paymentAccountId,
+        churchId,
         providerPaymentId: String(paymentId),
         amountMinor: Number(inv.amount_paid ?? inv.total ?? 0),
         currency: String(inv.currency ?? 'usd'),
@@ -228,7 +241,7 @@ export const processPaymentSyncJob = async (
           ? inv.payment_intent
           : inv.payment_intent?.id || inv.id
       await UPSERT_DONATION_PAYMENT({
-        paymentAccountId: payload.paymentAccountId,
+        churchId,
         providerPaymentId: String(paymentId),
         amountMinor: Number(inv.amount_due ?? inv.total ?? 0),
         currency: String(inv.currency ?? 'usd'),

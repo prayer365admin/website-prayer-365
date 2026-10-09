@@ -4,66 +4,49 @@
 import crypto from 'node:crypto'
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { db } from '@/utils/db-connection'
-import { initiateDonation, resolveChurchPaymentAccount } from '@/controller/donation'
+import { initiateDonation } from '@/controller/donation'
+import { ENSURE_CHURCH_DONATION_ELIGIBLE } from '@/providers/donation'
 import { STRIPE } from '@/providers/stripe'
 import { GeneralError } from '@/utils/general-error'
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-async function createTestChurch(opts: { status: any; paymentAccount?: any }) {
+async function createTestChurch(opts: { status: any }) {
   const org = await db.orgNode.create({
     data: {
-      id: crypto.randomUUID(),
       name: 'Test Org ' + crypto.randomUUID(),
       kind: 'CHURCH',
     },
   })
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const data: any = {
-    id: crypto.randomUUID(),
-    name: 'Test Church ' + crypto.randomUUID(),
-    timezone: 'UTC',
-    org_node_id: org.id,
-    address: {},
-    contacts: [],
-    social_links: {},
-    status: opts.status,
-  }
-
-  if (opts.paymentAccount) {
-    data.paymentAccount = { create: opts.paymentAccount }
-  }
-
-  return await db.church.create({ data, include: { paymentAccount: true } })
+  return await db.church.create({
+    data: {
+      id: crypto.randomUUID(),
+      name: 'Test Church ' + crypto.randomUUID(),
+      timezone: 'UTC',
+      org_node_id: org.id,
+      address: {},
+      contacts: [],
+      social_links: {},
+      status: opts.status,
+    },
+  })
 }
 
-describe('DO-09: Payment Account Resolution and Security Constraints', () => {
+describe('DO-09: Platform Account Resolution and Security Constraints', () => {
   beforeEach(async () => {
     vi.restoreAllMocks()
   })
 
-  describe('Category 1: Church Verified Payment Account Resolution', () => {
-    it('successfully resolves an active account for an approved church', async () => {
-      const pid = crypto.randomUUID()
-      const providerAcct = 'acct_' + crypto.randomUUID()
-      const church = await createTestChurch({
-        status: 'APPROVED',
-        paymentAccount: {
-          id: pid,
-          provider: 'stripe',
-          provider_account_id: providerAcct,
-          status: 'ACTIVE',
-        },
-      })
-      const result = await resolveChurchPaymentAccount({ churchId: church.id })
+  describe('Category 1: Church Donation Eligibility', () => {
+    it('successfully confirms an approved church is eligible to receive donations', async () => {
+      const church = await createTestChurch({ status: 'APPROVED' })
+      const result = await ENSURE_CHURCH_DONATION_ELIGIBLE({ churchId: church.id })
       expect(result.churchId).toBe(church.id)
-      expect(result.paymentAccountId).toBe(pid)
-      expect(result.providerAccountId).toBe(providerAcct)
-      expect(result.status).toBe('ACTIVE')
+      expect(result.churchName).toBe(church.name)
     })
 
     it('returns 404 CHURCH_NOT_FOUND for non-existent church', async () => {
-      await expect(resolveChurchPaymentAccount({ churchId: 'nope' })).rejects.toThrow(
+      await expect(ENSURE_CHURCH_DONATION_ELIGIBLE({ churchId: 'nope' })).rejects.toThrow(
         new GeneralError({
           code: 404,
           error: 'NOT_FOUND',
@@ -75,59 +58,22 @@ describe('DO-09: Payment Account Resolution and Security Constraints', () => {
 
     it('returns 400 CHURCH_NOT_ELIGIBLE if church status is PENDING', async () => {
       const church = await createTestChurch({ status: 'PENDING' })
-      await expect(resolveChurchPaymentAccount({ churchId: church.id })).rejects.toMatchObject({
+      await expect(ENSURE_CHURCH_DONATION_ELIGIBLE({ churchId: church.id })).rejects.toMatchObject({
         error_code: 'CHURCH_NOT_ELIGIBLE',
       })
     })
 
     it('returns 400 CHURCH_NOT_ELIGIBLE if church status is SUSPENDED', async () => {
       const church = await createTestChurch({ status: 'SUSPENDED' })
-      await expect(resolveChurchPaymentAccount({ churchId: church.id })).rejects.toMatchObject({
+      await expect(ENSURE_CHURCH_DONATION_ELIGIBLE({ churchId: church.id })).rejects.toMatchObject({
         error_code: 'CHURCH_NOT_ELIGIBLE',
       })
     })
 
     it('returns 400 CHURCH_NOT_ELIGIBLE if church status is ARCHIVED', async () => {
       const church = await createTestChurch({ status: 'ARCHIVED' })
-      await expect(resolveChurchPaymentAccount({ churchId: church.id })).rejects.toMatchObject({
+      await expect(ENSURE_CHURCH_DONATION_ELIGIBLE({ churchId: church.id })).rejects.toMatchObject({
         error_code: 'CHURCH_NOT_ELIGIBLE',
-      })
-    })
-
-    it('returns 400 PAYMENT_ACCOUNT_NOT_CONFIGURED if church has no payment account', async () => {
-      const church = await createTestChurch({ status: 'APPROVED' })
-      await expect(resolveChurchPaymentAccount({ churchId: church.id })).rejects.toMatchObject({
-        error_code: 'PAYMENT_ACCOUNT_NOT_CONFIGURED',
-      })
-    })
-
-    it('returns 400 PAYMENT_ACCOUNT_NOT_VERIFIED if account is PENDING', async () => {
-      const church = await createTestChurch({
-        status: 'APPROVED',
-        paymentAccount: {
-          id: crypto.randomUUID(),
-          provider: 'stripe',
-          provider_account_id: 'acct_' + crypto.randomUUID(),
-          status: 'PENDING',
-        },
-      })
-      await expect(resolveChurchPaymentAccount({ churchId: church.id })).rejects.toMatchObject({
-        error_code: 'PAYMENT_ACCOUNT_NOT_VERIFIED',
-      })
-    })
-
-    it('returns 400 PAYMENT_ACCOUNT_NOT_VERIFIED if account is UNVERIFIED', async () => {
-      const church = await createTestChurch({
-        status: 'APPROVED',
-        paymentAccount: {
-          id: crypto.randomUUID(),
-          provider: 'stripe',
-          provider_account_id: 'acct_' + crypto.randomUUID(),
-          status: 'UNVERIFIED',
-        },
-      })
-      await expect(resolveChurchPaymentAccount({ churchId: church.id })).rejects.toMatchObject({
-        error_code: 'PAYMENT_ACCOUNT_NOT_VERIFIED',
       })
     })
   })
@@ -135,15 +81,7 @@ describe('DO-09: Payment Account Resolution and Security Constraints', () => {
   describe('Category 2: Raw Card Data Rejection', () => {
     let churchId: string
     beforeEach(async () => {
-      const church = await createTestChurch({
-        status: 'APPROVED',
-        paymentAccount: {
-          id: crypto.randomUUID(),
-          provider: 'stripe',
-          provider_account_id: 'acct_' + crypto.randomUUID(),
-          status: 'ACTIVE',
-        },
-      })
+      const church = await createTestChurch({ status: 'APPROVED' })
       churchId = church.id
     })
 
@@ -171,25 +109,53 @@ describe('DO-09: Payment Account Resolution and Security Constraints', () => {
       })
     })
 
-    it('rejects payload with cvv', async () => {
+    it('rejects payload with cvc', async () => {
       const input = {
         amountMinor: 5000,
         currency: 'usd',
         frequency: 'one_time',
-        nested: { cvv: '123' },
+        cvc: '123',
       }
       await expect(initiateDonation({ churchId, input })).rejects.toMatchObject({
         error_code: 'RAW_CARD_DATA_FORBIDDEN',
       })
     })
 
-    it('rejects payload with expiry / pan', async () => {
+    it('rejects payload with cvv', async () => {
       const input = {
         amountMinor: 5000,
         currency: 'usd',
         frequency: 'one_time',
-        eXpiry: '12/24',
-        paN: '123',
+        cvv: '123',
+      }
+      await expect(initiateDonation({ churchId, input })).rejects.toMatchObject({
+        error_code: 'RAW_CARD_DATA_FORBIDDEN',
+      })
+    })
+
+    it('rejects payload with exp_month and exp_year', async () => {
+      const input = {
+        amountMinor: 5000,
+        currency: 'usd',
+        frequency: 'one_time',
+        exp_month: 12,
+        exp_year: 2028,
+      }
+      await expect(initiateDonation({ churchId, input })).rejects.toMatchObject({
+        error_code: 'RAW_CARD_DATA_FORBIDDEN',
+      })
+    })
+
+    it('rejects deeply nested card data in payload', async () => {
+      const input = {
+        amountMinor: 5000,
+        currency: 'usd',
+        frequency: 'one_time',
+        customMetadata: {
+          nested: {
+            pan: '4111222233334444',
+          },
+        },
       }
       await expect(initiateDonation({ churchId, input })).rejects.toMatchObject({
         error_code: 'RAW_CARD_DATA_FORBIDDEN',
@@ -201,7 +167,7 @@ describe('DO-09: Payment Account Resolution and Security Constraints', () => {
         amountMinor: 5000,
         currency: 'usd',
         frequency: 'one_time',
-        someRandomField: true,
+        extraField: 'should_fail',
       }
       await expect(initiateDonation({ churchId, input })).rejects.toMatchObject({
         error_code: 'VALIDATION_ERROR',
@@ -212,15 +178,7 @@ describe('DO-09: Payment Account Resolution and Security Constraints', () => {
   describe('Category 3: D6 Charge Model, Currencies, and Amounts', () => {
     let churchId: string
     beforeEach(async () => {
-      const church = await createTestChurch({
-        status: 'APPROVED',
-        paymentAccount: {
-          id: crypto.randomUUID(),
-          provider: 'stripe',
-          provider_account_id: 'acct_' + crypto.randomUUID(),
-          status: 'ACTIVE',
-        },
-      })
+      const church = await createTestChurch({ status: 'APPROVED' })
       churchId = church.id
     })
 
@@ -274,18 +232,8 @@ describe('DO-09: Payment Account Resolution and Security Constraints', () => {
 
   describe('Category 4: Provider Delegation & Idempotency', () => {
     let churchId: string
-    let accountId: string
     beforeEach(async () => {
-      accountId = crypto.randomUUID()
-      const church = await createTestChurch({
-        status: 'APPROVED',
-        paymentAccount: {
-          id: accountId,
-          provider: 'stripe',
-          provider_account_id: 'acct_' + crypto.randomUUID(),
-          status: 'ACTIVE',
-        },
-      })
+      const church = await createTestChurch({ status: 'APPROVED' })
       churchId = church.id
     })
 
@@ -300,13 +248,14 @@ describe('DO-09: Payment Account Resolution and Security Constraints', () => {
       expect(createSpy).toHaveBeenCalledWith(
         expect.objectContaining({
           churchId,
-          paymentAccountId: accountId,
           amountMinor: 6000,
           currency: 'eur',
+          frequency: 'monthly',
         }),
       )
       expect(res.sessionId).toBe('cs_test_delegate')
       expect(res.url).toBe('https://checkout.stripe.com/pay/cs_test_delegate')
+      expect((res as Record<string, unknown>).providerAccountId).toBeUndefined()
     })
 
     it('replays identical session for identical idempotencyKey', async () => {

@@ -4,7 +4,6 @@ import {
   DonationInputSchema,
   assertNoRawCardData,
   DateRangeSchema,
-  ResolvedPaymentAccountSchema,
   DonationRowSchema,
   DonationSubscriptionRowSchema,
   DonationSummarySchema,
@@ -185,18 +184,6 @@ describe('Donation Models and Schemas', () => {
         ],
       }
       expect(DonationSummarySchema.parse(summary)).toEqual(summary)
-    })
-
-    it('validates ResolvedPaymentAccountSchema', () => {
-      const acct = {
-        churchId: 'c1',
-        churchName: 'Test Church',
-        paymentAccountId: 'pa1',
-        provider: 'stripe',
-        providerAccountId: 'acct_stripe_1',
-        status: 'ACTIVE',
-      }
-      expect(ResolvedPaymentAccountSchema.parse(acct)).toEqual(acct)
     })
   })
 })

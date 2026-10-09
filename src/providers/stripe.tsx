@@ -27,11 +27,24 @@ const pending = (method: string): never => {
 /** Feature flag: true only when the Phase 10 integration is enabled. */
 export const isStripeEnabled = () => process.env.STRIPE_ENABLED === 'true'
 
+export const PLATFORM_ACCOUNT_ID = (): string => {
+  const id = process.env.STRIPE_PLATFORM_ACCOUNT_ID
+  if (!id) {
+    throw new GeneralError({
+      code: 500,
+      error: 'CONFIGURATION_ERROR',
+      error_code: 'STRIPE_PLATFORM_ACCOUNT_ID_MISSING',
+      details: 'Stripe platform account id is not configured.',
+    })
+  }
+  return id
+}
+
 export interface CheckoutSessionRequest {
   churchId: string
-  paymentAccountId: string
   amountMinor: number
   currency: string
+  frequency: 'one_time' | 'monthly'
   successUrl: string
   cancelUrl: string
 }

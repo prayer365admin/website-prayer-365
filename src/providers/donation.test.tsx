@@ -44,13 +44,25 @@ describe('GET_DONATION_SUMMARY', () => {
     await GET_DONATION_SUMMARY({ churchIds: scope, month: '2026-09' })
     const g = vi.mocked(db.donation.groupBy).mock.calls[0]![0]
     const where = g.where as {
-      payment_account: { church_id: { in: string[] } }
+      church_id: { in: string[] }
       paid_at?: { gte?: Date; lt?: Date }
     }
-    expect(where.payment_account.church_id.in).toEqual(['c1'])
+    expect(where.church_id.in).toEqual(['c1'])
     // 2026-09-01T00:00:00Z <= paid_at < 2026-10-01T00:00:00Z
     expect(where.paid_at?.gte?.toISOString()).toBe('2026-09-01T00:00:00.000Z')
     expect(where.paid_at?.lt?.toISOString()).toBe('2026-10-01T00:00:00.000Z')
+  })
+
+  it('rejects invalid months with INVALID_MONTH 422 and never calls db.donation.groupBy', async () => {
+    for (const invalidMonth of ['2026-13', '2026-00', 'abc']) {
+      await expect(
+        GET_DONATION_SUMMARY({ churchIds: scope, month: invalidMonth }),
+      ).rejects.toMatchObject({
+        code: 422,
+        error_code: 'INVALID_MONTH',
+      })
+      expect(db.donation.groupBy).not.toHaveBeenCalled()
+    }
   })
 })
 
@@ -96,10 +108,10 @@ describe('GET_DONATIONS', () => {
 
     const call = vi.mocked(db.donation.findMany).mock.calls[0]![0]!
     const where = call.where as {
-      payment_account: { church_id: { in: string[] } }
+      church_id: { in: string[] }
       paid_at?: { gte?: Date; lte?: Date }
     }
-    expect(where.payment_account.church_id.in).toEqual(['c1'])
+    expect(where.church_id.in).toEqual(['c1'])
     expect(where.paid_at?.gte?.toISOString()).toBe('2026-09-01T00:00:00.000Z')
     expect(where.paid_at?.lte?.toISOString()).toBe('2026-09-30T00:00:00.000Z')
   })
@@ -162,6 +174,9 @@ describe('GET_DONATION_SUBSCRIPTIONS', () => {
       providerStatus: 'active',
       createdAt: new Date('2026-08-01T00:00:00Z'),
     })
+    const call = vi.mocked(db.donationSubscription.findMany).mock.calls[0]![0]!
+    const where = call.where as { church_id: { in: string[] } }
+    expect(where.church_id.in).toEqual(['c1'])
   })
   it('filters subscriptions by normalized currency when requested', async () => {
     vi.mocked(db.donationSubscription.count).mockResolvedValue(1)

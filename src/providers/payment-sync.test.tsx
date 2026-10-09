@@ -2,6 +2,7 @@
 import { describe, it, expect, beforeEach } from 'vitest'
 import { db } from '@/utils/db-connection'
 import {
+  GET_PAYMENT_SYNC_CONTEXT,
   UPSERT_DONATION_PAYMENT,
   UPSERT_DONATION_SUBSCRIPTION,
   APPLY_DONATION_REFUND,
@@ -11,11 +12,7 @@ import crypto from 'node:crypto'
 
 describe('payment-sync provider', () => {
   let churchId: string
-  let paymentAccountId: string
-
   beforeEach(async () => {
-    // No global deleteMany to prevent concurrent test collision
-
     const org = await db.orgNode.create({
       data: {
         id: crypto.randomUUID(),
@@ -37,24 +34,37 @@ describe('payment-sync provider', () => {
       },
     })
     churchId = church.id
+  })
 
-    const account = await db.paymentAccount.create({
-      data: {
-        id: crypto.randomUUID(),
-        church_id: churchId,
-        provider: 'stripe',
-        provider_account_id: `acct_test_${crypto.randomUUID()}`,
-        status: 'active',
-      },
+  describe('GET_PAYMENT_SYNC_CONTEXT', () => {
+    it('returns receipt without payment account', async () => {
+      const receipt = await db.webhookReceipt.create({
+        data: {
+          id: crypto.randomUUID(),
+          provider: 'stripe',
+          account_id: 'acct_test_ctx',
+          event_id: `evt_${crypto.randomUUID()}`,
+          event_type: 'payment_intent.succeeded',
+          object_id: 'pi_test_ctx',
+          received_at: new Date(),
+          state: 'PENDING',
+        },
+      })
+      const ctx = await GET_PAYMENT_SYNC_CONTEXT({ receiptId: receipt.id })
+      expect(ctx.receipt?.id).toBe(receipt.id)
     })
-    paymentAccountId = account.id
+    it('returns null receipt when receiptId is undefined', async () => {
+      const ctx = await GET_PAYMENT_SYNC_CONTEXT({ receiptId: undefined })
+      expect(ctx.receipt).toBeNull()
+    })
   })
 
   describe('UPSERT_DONATION_SUBSCRIPTION', () => {
     it('inserts a new DonationSubscription without creating a Donation', async () => {
+      const subId = `sub_${crypto.randomUUID()}`
       const sub = await UPSERT_DONATION_SUBSCRIPTION({
-        paymentAccountId,
-        providerSubscriptionId: 'sub_123',
+        churchId,
+        providerSubscriptionId: subId,
         amountMinor: 1000,
         currency: 'usd',
         providerStatus: 'active',
@@ -66,16 +76,17 @@ describe('payment-sync provider', () => {
       expect(sub.provider_status).toBe('active')
 
       const donations = await db.donation.findMany({
-        where: { payment_account_id: paymentAccountId },
+        where: { church_id: churchId },
       })
       expect(donations.length).toBe(0)
     })
 
     it('enforces stale-event guard on canceled subscriptions', async () => {
+      const subId = `sub_stale_${crypto.randomUUID()}`
       // 1. Create a canceled subscription
       await UPSERT_DONATION_SUBSCRIPTION({
-        paymentAccountId,
-        providerSubscriptionId: 'sub_stale',
+        churchId,
+        providerSubscriptionId: subId,
         amountMinor: 1000,
         currency: 'usd',
         providerStatus: 'canceled',
@@ -84,8 +95,8 @@ describe('payment-sync provider', () => {
 
       // 2. Incoming older event with active status
       const staleSub = await UPSERT_DONATION_SUBSCRIPTION({
-        paymentAccountId,
-        providerSubscriptionId: 'sub_stale',
+        churchId,
+        providerSubscriptionId: subId,
         amountMinor: 2000,
         currency: 'usd',
         providerStatus: 'active',
@@ -96,28 +107,55 @@ describe('payment-sync provider', () => {
       expect(staleSub.provider_status).toBe('canceled')
       const dbSub = await db.donationSubscription.findUnique({
         where: {
-          payment_account_id_provider_subscription_id: {
-            payment_account_id: paymentAccountId,
-            provider_subscription_id: 'sub_stale',
-          },
+          provider_subscription_id: subId,
         },
       })
       expect(dbSub?.provider_status).toBe('canceled')
       expect(dbSub?.amount_minor).toBe(BigInt(1000))
       expect(dbSub?.currency).toBe('usd')
     })
+
+    it('allows fresh non-terminal event to reactivate a canceled subscription', async () => {
+      const subId = `sub_fresh_${crypto.randomUUID()}`
+      const now = Math.floor(Date.now() / 1000)
+      await UPSERT_DONATION_SUBSCRIPTION({
+        churchId,
+        providerSubscriptionId: subId,
+        amountMinor: 1000,
+        currency: 'usd',
+        providerStatus: 'canceled',
+        eventCreated: now,
+      })
+
+      const updated = await UPSERT_DONATION_SUBSCRIPTION({
+        churchId,
+        providerSubscriptionId: subId,
+        amountMinor: 1000,
+        currency: 'usd',
+        providerStatus: 'active',
+        eventCreated: now + 100,
+      })
+
+      expect(updated.provider_status).toBe('active')
+      const dbSub = await db.donationSubscription.findUnique({
+        where: { provider_subscription_id: subId },
+      })
+      expect(dbSub?.provider_status).toBe('active')
+    })
   })
 
   describe('UPSERT_DONATION_PAYMENT', () => {
     it('creates new payment and links placeholder subscription if missing', async () => {
+      const piId = `pi_${crypto.randomUUID()}`
+      const subId = `sub_placeholder_${crypto.randomUUID()}`
       const p = await UPSERT_DONATION_PAYMENT({
-        paymentAccountId,
-        providerPaymentId: 'pi_123',
+        churchId,
+        providerPaymentId: piId,
         amountMinor: 5000,
         currency: 'usd',
         status: 'PAID',
         paidAt: new Date(),
-        providerSubscriptionId: 'sub_placeholder',
+        providerSubscriptionId: subId,
       })
       expect(p.status).toBe('PAID')
       expect(p.subscription_id).not.toBeNull()
@@ -125,22 +163,23 @@ describe('payment-sync provider', () => {
       const sub = await db.donationSubscription.findUniqueOrThrow({
         where: { id: p.subscription_id! },
       })
-      expect(sub.provider_subscription_id).toBe('sub_placeholder')
+      expect(sub.provider_subscription_id).toBe(subId)
       expect(sub.amount_minor).toBe(BigInt(0)) // Placeholder logic
     })
 
     it('idempotently handles duplicate PAID', async () => {
+      const piId = `pi_idem_${crypto.randomUUID()}`
       await UPSERT_DONATION_PAYMENT({
-        paymentAccountId,
-        providerPaymentId: 'pi_idem',
+        churchId,
+        providerPaymentId: piId,
         amountMinor: 1000,
         currency: 'usd',
         status: 'PAID',
         paidAt: new Date(),
       })
       const p2 = await UPSERT_DONATION_PAYMENT({
-        paymentAccountId,
-        providerPaymentId: 'pi_idem',
+        churchId,
+        providerPaymentId: piId,
         amountMinor: 1000,
         currency: 'usd',
         status: 'PAID',
@@ -150,17 +189,18 @@ describe('payment-sync provider', () => {
     })
 
     it('does not downgrade PAID to FAILED on stale failure event', async () => {
+      const piId = `pi_stale_${crypto.randomUUID()}`
       await UPSERT_DONATION_PAYMENT({
-        paymentAccountId,
-        providerPaymentId: 'pi_stale',
+        churchId,
+        providerPaymentId: piId,
         amountMinor: 1000,
         currency: 'usd',
         status: 'PAID',
         paidAt: new Date(),
       })
       const p2 = await UPSERT_DONATION_PAYMENT({
-        paymentAccountId,
-        providerPaymentId: 'pi_stale',
+        churchId,
+        providerPaymentId: piId,
         amountMinor: 1000,
         currency: 'usd',
         status: 'FAILED',
@@ -170,17 +210,18 @@ describe('payment-sync provider', () => {
     })
 
     it('upgrades FAILED to PAID when succeeded event arrives', async () => {
+      const piId = `pi_upgrade_${crypto.randomUUID()}`
       await UPSERT_DONATION_PAYMENT({
-        paymentAccountId,
-        providerPaymentId: 'pi_upgrade',
+        churchId,
+        providerPaymentId: piId,
         amountMinor: 1000,
         currency: 'usd',
         status: 'FAILED',
         paidAt: null,
       })
       const p2 = await UPSERT_DONATION_PAYMENT({
-        paymentAccountId,
-        providerPaymentId: 'pi_upgrade',
+        churchId,
+        providerPaymentId: piId,
         amountMinor: 1000,
         currency: 'usd',
         status: 'PAID',
@@ -188,13 +229,31 @@ describe('payment-sync provider', () => {
       })
       expect(p2.status).toBe('PAID')
     })
+
+    it('normalizes currency to lowercase upon insertion', async () => {
+      const piId = `pi_currency_case_${crypto.randomUUID()}`
+      const p = await UPSERT_DONATION_PAYMENT({
+        churchId,
+        providerPaymentId: piId,
+        amountMinor: 2500,
+        currency: 'USD',
+        status: 'PAID',
+        paidAt: new Date(),
+      })
+      expect(p.currency).toBe('usd')
+      const record = await db.donation.findUnique({
+        where: { provider_payment_id: piId },
+      })
+      expect(record?.currency).toBe('usd')
+    })
   })
 
   describe('APPLY_DONATION_REFUND', () => {
     it('updates refunded_minor and sets REFUNDED if fully refunded', async () => {
+      const piId = `pi_refund_${crypto.randomUUID()}`
       await UPSERT_DONATION_PAYMENT({
-        paymentAccountId,
-        providerPaymentId: 'pi_refund',
+        churchId,
+        providerPaymentId: piId,
         amountMinor: 2000,
         currency: 'usd',
         status: 'PAID',
@@ -202,20 +261,63 @@ describe('payment-sync provider', () => {
       })
 
       const p1 = await APPLY_DONATION_REFUND({
-        paymentAccountId,
-        providerPaymentId: 'pi_refund',
+        providerPaymentId: piId,
         refundedMinor: 1000,
       })
       expect(p1.refunded_minor).toBe(BigInt(1000))
       expect(p1.status).toBe('PAID') // Partial refund
 
       const p2 = await APPLY_DONATION_REFUND({
-        paymentAccountId,
-        providerPaymentId: 'pi_refund',
+        providerPaymentId: piId,
         refundedMinor: 2000,
       })
       expect(p2.refunded_minor).toBe(BigInt(2000))
       expect(p2.status).toBe('REFUNDED') // Full refund
+    })
+
+    it('rejects with DONATION_NOT_FOUND 404 when payment does not exist', async () => {
+      const piId = `pi_nonexistent_${crypto.randomUUID()}`
+      await expect(
+        APPLY_DONATION_REFUND({
+          providerPaymentId: piId,
+          refundedMinor: 500,
+        }),
+      ).rejects.toMatchObject({
+        code: 404,
+        error_code: 'DONATION_NOT_FOUND',
+      })
+    })
+
+    it('does not decrease refunded_minor when a stale lower-cumulative refund arrives after a full refund', async () => {
+      const piId = `pi_refund_${crypto.randomUUID()}`
+      await UPSERT_DONATION_PAYMENT({
+        churchId,
+        providerPaymentId: piId,
+        amountMinor: 5000,
+        currency: 'usd',
+        status: 'PAID',
+        paidAt: new Date(),
+      })
+
+      const fullRefund = await APPLY_DONATION_REFUND({
+        providerPaymentId: piId,
+        refundedMinor: 5000,
+      })
+      expect(fullRefund.refunded_minor).toBe(BigInt(5000))
+      expect(fullRefund.status).toBe('REFUNDED')
+
+      const staleRefund = await APPLY_DONATION_REFUND({
+        providerPaymentId: piId,
+        refundedMinor: 2000,
+      })
+      expect(staleRefund.refunded_minor).toBe(BigInt(5000))
+      expect(staleRefund.status).toBe('REFUNDED')
+
+      const record = await db.donation.findUnique({
+        where: { provider_payment_id: piId },
+      })
+      expect(record?.refunded_minor).toBe(BigInt(5000))
+      expect(record?.status).toBe('REFUNDED')
     })
   })
 
@@ -267,6 +369,30 @@ describe('payment-sync provider', () => {
       } finally {
         await db.outboxJob.deleteMany({ where: { id: job.id } })
         await db.webhookReceipt.deleteMany({ where: { id: receipt.id } })
+      }
+    })
+
+    it('updates job state only when receiptId is not provided', async () => {
+      const job = await db.outboxJob.create({
+        data: {
+          id: crypto.randomUUID(),
+          kind: 'payment.sync',
+          dedupe_key: `dedupe_${crypto.randomUUID()}`,
+          payload: { test: 'no_receipt' },
+          available_at: new Date(),
+          state: 'RUNNING',
+        },
+      })
+      try {
+        await FINALIZE_PAYMENT_SYNC_JOB({
+          jobId: job.id,
+          state: 'SUCCEEDED',
+        })
+        const updatedJob = await db.outboxJob.findUnique({ where: { id: job.id } })
+        expect(updatedJob?.state).toBe('SUCCEEDED')
+        expect(updatedJob?.last_error_code).toBeNull()
+      } finally {
+        await db.outboxJob.deleteMany({ where: { id: job.id } })
       }
     })
   })

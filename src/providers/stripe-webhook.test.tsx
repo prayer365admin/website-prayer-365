@@ -152,22 +152,24 @@ describe('parseStripeWebhookEvent', () => {
 })
 describe('RECORD_STRIPE_WEBHOOK_RECEIPT', () => {
   let mockTx: {
-    webhookReceipt: { findUnique: Mock; create: Mock }
-    paymentAccount: { findFirst: Mock }
-    outboxJob: { create: Mock }
+    webhookReceipt: { findUnique: Mock; create: Mock; update: Mock }
+    outboxJob: { create: Mock; findFirst: Mock; update: Mock }
   }
 
+  const PLATFORM_ID = 'acct_platform_test'
+
   beforeEach(() => {
+    vi.stubEnv('STRIPE_PLATFORM_ACCOUNT_ID', PLATFORM_ID)
     mockTx = {
       webhookReceipt: {
         findUnique: vi.fn(),
         create: vi.fn(),
-      },
-      paymentAccount: {
-        findFirst: vi.fn(),
+        update: vi.fn(),
       },
       outboxJob: {
         create: vi.fn(),
+        findFirst: vi.fn().mockResolvedValue(null),
+        update: vi.fn(),
       },
     }
     vi.spyOn(db, '$transaction').mockImplementation(
@@ -177,20 +179,20 @@ describe('RECORD_STRIPE_WEBHOOK_RECEIPT', () => {
   })
 
   afterEach(() => {
+    vi.unstubAllEnvs()
     vi.restoreAllMocks()
   })
 
   const validEvent = {
     id: 'evt_123',
     type: 'payment_intent.succeeded',
-    account: 'acct_123',
+    account: PLATFORM_ID,
     data: { object: { id: 'pi_123' } },
     objectId: 'pi_123',
   }
 
-  test('Known account: creates WebhookReceipt and OutboxJob in one transaction', async () => {
+  test('Platform account: creates WebhookReceipt and OutboxJob with clean payload', async () => {
     mockTx.webhookReceipt.findUnique.mockResolvedValue(null)
-    mockTx.paymentAccount.findFirst.mockResolvedValue({ id: 'pa_123', church_id: 'ch_123' })
     mockTx.webhookReceipt.create.mockResolvedValue({ id: 'wr_123' })
     mockTx.outboxJob.create.mockResolvedValue({ id: 'job_123' })
 
@@ -206,15 +208,24 @@ describe('RECORD_STRIPE_WEBHOOK_RECEIPT', () => {
     expect(mockTx.webhookReceipt.create).toHaveBeenCalledWith(
       expect.objectContaining({ data: expect.objectContaining({ state: 'PENDING' }) }),
     )
-    expect(mockTx.outboxJob.create).toHaveBeenCalled()
+    expect(mockTx.outboxJob.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          payload: expect.not.objectContaining({
+            paymentAccountId: expect.anything(),
+            churchId: expect.anything(),
+          }),
+        }),
+      }),
+    )
   })
 
-  test('Unknown account: creates WebhookReceipt (IGNORED_UNKNOWN_ACCOUNT) and no OutboxJob', async () => {
+  test('Non-platform account: creates WebhookReceipt (IGNORED_UNKNOWN_ACCOUNT) and no OutboxJob', async () => {
     mockTx.webhookReceipt.findUnique.mockResolvedValue(null)
-    mockTx.paymentAccount.findFirst.mockResolvedValue(null)
     mockTx.webhookReceipt.create.mockResolvedValue({ id: 'wr_123' })
 
-    const result = await RECORD_STRIPE_WEBHOOK_RECEIPT({ event: validEvent })
+    const otherEvent = { ...validEvent, account: 'acct_other_foreign' }
+    const result = await RECORD_STRIPE_WEBHOOK_RECEIPT({ event: otherEvent })
 
     expect(result).toEqual({ received: true, duplicate: false, ignored: true, receiptId: 'wr_123' })
     expect(mockTx.webhookReceipt.create).toHaveBeenCalledWith(
@@ -236,7 +247,6 @@ describe('RECORD_STRIPE_WEBHOOK_RECEIPT', () => {
 
   test('Concurrent delivery collision (P2002): catches and safely returns duplicate: true', async () => {
     mockTx.webhookReceipt.findUnique.mockResolvedValue(null)
-    mockTx.paymentAccount.findFirst.mockResolvedValue({ id: 'pa_123', church_id: 'ch_123' })
     const p2002 = new Prisma.PrismaClientKnownRequestError('Unique constraint failed', {
       code: 'P2002',
       clientVersion: 'test',
@@ -246,5 +256,99 @@ describe('RECORD_STRIPE_WEBHOOK_RECEIPT', () => {
     const result = await RECORD_STRIPE_WEBHOOK_RECEIPT({ event: validEvent })
 
     expect(result).toEqual({ received: true, duplicate: true, ignored: false })
+  })
+
+  test('Platform account with checkout.session.completed: creates WebhookReceipt (PROCESSED) and no OutboxJob', async () => {
+    mockTx.webhookReceipt.findUnique.mockResolvedValue(null)
+    mockTx.webhookReceipt.create.mockResolvedValue({ id: 'wr_cs' })
+
+    const checkoutEvent = {
+      ...validEvent,
+      type: 'checkout.session.completed',
+      id: 'evt_cs_123',
+    }
+
+    const result = await RECORD_STRIPE_WEBHOOK_RECEIPT({ event: checkoutEvent })
+
+    expect(result).toEqual({
+      received: true,
+      duplicate: false,
+      ignored: true,
+      receiptId: 'wr_cs',
+    })
+    expect(result.jobId).toBeUndefined()
+    expect(mockTx.webhookReceipt.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          state: 'PROCESSED',
+          processed_at: expect.any(Date),
+        }),
+      }),
+    )
+    expect(mockTx.outboxJob.create).not.toHaveBeenCalled()
+  })
+
+  test('Duplicate redelivery of PROCESSED receipt returns duplicate: true without outbox calls', async () => {
+    mockTx.webhookReceipt.findUnique.mockResolvedValue({
+      id: 'wr_proc',
+      state: 'PROCESSED',
+    })
+
+    const result = await RECORD_STRIPE_WEBHOOK_RECEIPT({ event: validEvent })
+
+    expect(result).toEqual({
+      received: true,
+      duplicate: true,
+      ignored: false,
+      receiptId: 'wr_proc',
+    })
+    expect(mockTx.outboxJob.create).not.toHaveBeenCalled()
+    expect(mockTx.outboxJob.findFirst).not.toHaveBeenCalled()
+    expect(mockTx.outboxJob.update).not.toHaveBeenCalled()
+    expect(mockTx.webhookReceipt.update).not.toHaveBeenCalled()
+  })
+
+  test('Duplicate redelivery of an IGNORED receipt returns duplicate: true and ignored: true without outbox calls', async () => {
+    mockTx.webhookReceipt.findUnique.mockResolvedValue({
+      id: 'wr_ign',
+      state: 'IGNORED_UNKNOWN_ACCOUNT',
+    })
+
+    const result = await RECORD_STRIPE_WEBHOOK_RECEIPT({ event: validEvent })
+
+    expect(result).toEqual({
+      received: true,
+      duplicate: true,
+      ignored: true,
+      receiptId: 'wr_ign',
+    })
+    expect(mockTx.outboxJob.create).not.toHaveBeenCalled()
+    expect(mockTx.outboxJob.findFirst).not.toHaveBeenCalled()
+    expect(mockTx.outboxJob.update).not.toHaveBeenCalled()
+    expect(mockTx.webhookReceipt.update).not.toHaveBeenCalled()
+  })
+
+  test('Duplicate redelivery of FAILED receipt for non-platform account does not re-arm', async () => {
+    mockTx.webhookReceipt.findUnique.mockResolvedValue({
+      id: 'wr_failed',
+      state: 'FAILED',
+    })
+
+    const foreignEvent = {
+      ...validEvent,
+      account: 'acct_foreign',
+    }
+
+    const result = await RECORD_STRIPE_WEBHOOK_RECEIPT({ event: foreignEvent })
+
+    expect(result).toEqual({
+      received: true,
+      duplicate: true,
+      ignored: false,
+      receiptId: 'wr_failed',
+    })
+    expect(mockTx.outboxJob.create).not.toHaveBeenCalled()
+    expect(mockTx.outboxJob.update).not.toHaveBeenCalled()
+    expect(mockTx.webhookReceipt.update).not.toHaveBeenCalled()
   })
 })

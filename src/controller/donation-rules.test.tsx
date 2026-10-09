@@ -7,7 +7,6 @@ import crypto from 'node:crypto'
 
 describe('DO-07 Domain Rules', () => {
   let churchId: string
-  let paymentAccountId: string
 
   beforeEach(async () => {
     // No global deleteMany to prevent concurrent test collision
@@ -32,17 +31,6 @@ describe('DO-07 Domain Rules', () => {
       },
     })
     churchId = church.id
-
-    const account = await db.paymentAccount.create({
-      data: {
-        id: crypto.randomUUID(),
-        church_id: churchId,
-        provider: 'stripe',
-        provider_account_id: `acct_test_${crypto.randomUUID()}`,
-        status: 'active',
-      },
-    })
-    paymentAccountId = account.id
   })
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -67,8 +55,12 @@ describe('DO-07 Domain Rules', () => {
         resource_id: receipt.id,
         payload: {
           ...payload,
-          paymentAccountId,
-          churchId,
+          dataObject: payload.dataObject
+            ? {
+                ...payload.dataObject,
+                metadata: { churchId, ...(payload.dataObject.metadata || {}) },
+              }
+            : undefined,
         },
         available_at: new Date(),
         state: 'RUNNING',
@@ -115,7 +107,7 @@ describe('DO-07 Domain Rules', () => {
       await processPaymentSyncJob(job3.id, 'req')
 
       const donations = await db.donation.findMany({
-        where: { payment_account_id: paymentAccountId },
+        where: { church_id: churchId },
       })
       expect(donations).toHaveLength(0)
 
@@ -169,7 +161,7 @@ describe('DO-07 Domain Rules', () => {
       await processPaymentSyncJob(jobInv2.id, 'req')
 
       const donations = await db.donation.findMany({
-        where: { payment_account_id: paymentAccountId },
+        where: { church_id: churchId },
         orderBy: { created_at: 'asc' },
       })
 

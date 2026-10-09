@@ -150,7 +150,8 @@ Table churches {
   announcements announcements [not null]
   requests requests [not null]
   mediaAssets media_assets [not null]
-  paymentAccount payment_accounts
+  donations donations [not null]
+  donationSubscriptions donation_subscriptions [not null]
   checkIns check_ins [not null]
   analyticsEvents analytics_events [not null]
   userChurches user_churches [not null]
@@ -423,48 +424,30 @@ Table requests {
   created_at DateTime [default: `now()`, not null]
 }
 
-Table payment_accounts {
-  id String [pk]
-  church_id String [unique, not null]
-  church churches [not null]
-  provider String [not null]
-  provider_account_id String [unique, not null]
-  status String [not null]
-  donations donations [not null]
-  subscriptions donation_subscriptions [not null]
-  created_at DateTime [default: `now()`, not null]
-  updated_at DateTime
-  version Int [not null, default: 1]
-}
-
 Table donation_subscriptions {
   id String [pk]
-  payment_account_id String [not null]
-  payment_account payment_accounts [not null]
+  church_id String [not null]
+  church churches [not null]
   user_id String
   user user
-  provider_subscription_id String [not null]
+  provider_subscription_id String [unique, not null]
   amount_minor BigInt [not null]
   currency String [not null]
   provider_status String [not null]
   donations donations [not null]
   created_at DateTime [default: `now()`, not null]
   updated_at DateTime
-
-  indexes {
-    (payment_account_id, provider_subscription_id) [unique]
-  }
 }
 
 Table donations {
   id String [pk]
-  payment_account_id String [not null]
-  payment_account payment_accounts [not null]
+  church_id String [not null]
+  church churches [not null]
   user_id String
   user user
   subscription_id String
   subscription donation_subscriptions
-  provider_payment_id String [not null]
+  provider_payment_id String [unique, not null]
   amount_minor BigInt [not null]
   currency String [not null]
   status String [not null]
@@ -472,10 +455,6 @@ Table donations {
   refunded_minor BigInt [not null, default: 0]
   created_at DateTime [default: `now()`, not null]
   updated_at DateTime
-
-  indexes {
-    (payment_account_id, provider_payment_id) [unique]
-  }
 }
 
 Table check_ins {
@@ -833,13 +812,11 @@ Ref: requests.church_id > churches.id
 
 Ref: requests.user_id > user.id [delete: Set Null]
 
-Ref: payment_accounts.church_id - churches.id
-
-Ref: donation_subscriptions.payment_account_id > payment_accounts.id
+Ref: donation_subscriptions.church_id > churches.id
 
 Ref: donation_subscriptions.user_id > user.id [delete: Set Null]
 
-Ref: donations.payment_account_id > payment_accounts.id
+Ref: donations.church_id > churches.id
 
 Ref: donations.user_id > user.id [delete: Set Null]
 

@@ -53,17 +53,6 @@ export const assertNoRawCardData = (payload: unknown) => {
   check(payload)
 }
 
-export const ResolvedPaymentAccountSchema = z.object({
-  churchId: z.string(),
-  churchName: z.string(),
-  paymentAccountId: z.string(),
-  provider: z.string(),
-  providerAccountId: z.string(),
-  status: z.string(),
-})
-
-export type ResolvedPaymentAccount = z.infer<typeof ResolvedPaymentAccountSchema>
-
 /*
  * Donation DTOs (SPEC §8.2, F7 / Tasks 29-30). Donor PII is never returned:
  * a donation row exposes amount/currency/date/ref only (ref is the provider
