@@ -5,6 +5,7 @@ import {
   UPSERT_DONATION_PAYMENT,
   UPSERT_DONATION_SUBSCRIPTION,
   APPLY_DONATION_REFUND,
+  FINALIZE_PAYMENT_SYNC_JOB,
 } from './payment-sync'
 import crypto from 'node:crypto'
 
@@ -91,8 +92,19 @@ describe('payment-sync provider', () => {
         eventCreated: Math.floor(Date.now() / 1000) - 100000, // much older
       })
 
-      // Status remains canceled, but amount can be updated if logic allows
+      // Status remains canceled and amounts are not mutated by stale event
       expect(staleSub.provider_status).toBe('canceled')
+      const dbSub = await db.donationSubscription.findUnique({
+        where: {
+          payment_account_id_provider_subscription_id: {
+            payment_account_id: paymentAccountId,
+            provider_subscription_id: 'sub_stale',
+          },
+        },
+      })
+      expect(dbSub?.provider_status).toBe('canceled')
+      expect(dbSub?.amount_minor).toBe(BigInt(1000))
+      expect(dbSub?.currency).toBe('usd')
     })
   })
 
@@ -204,6 +216,58 @@ describe('payment-sync provider', () => {
       })
       expect(p2.refunded_minor).toBe(BigInt(2000))
       expect(p2.status).toBe('REFUNDED') // Full refund
+    })
+  })
+
+  describe('FINALIZE_PAYMENT_SYNC_JOB', () => {
+    it('sets receipt state to FAILED without processed_at on job failure, and PROCESSED with processed_at on success', async () => {
+      const receipt = await db.webhookReceipt.create({
+        data: {
+          id: crypto.randomUUID(),
+          provider: 'stripe',
+          account_id: 'acct_test_fin',
+          event_id: `evt_${crypto.randomUUID()}`,
+          event_type: 'payment_intent.succeeded',
+          object_id: 'pi_test_fin',
+          received_at: new Date(),
+          state: 'PENDING',
+        },
+      })
+      const job = await db.outboxJob.create({
+        data: {
+          id: crypto.randomUUID(),
+          kind: 'payment.sync',
+          dedupe_key: `dedupe_${crypto.randomUUID()}`,
+          resource_id: receipt.id,
+          payload: { foo: 'bar' },
+          available_at: new Date(),
+          state: 'RUNNING',
+        },
+      })
+
+      try {
+        await FINALIZE_PAYMENT_SYNC_JOB({
+          jobId: job.id,
+          receiptId: receipt.id,
+          state: 'FAILED',
+          errorCode: 'X',
+        })
+        const failedReceipt = await db.webhookReceipt.findUnique({ where: { id: receipt.id } })
+        expect(failedReceipt?.state).toBe('FAILED')
+        expect(failedReceipt?.processed_at).toBeNull()
+
+        await FINALIZE_PAYMENT_SYNC_JOB({
+          jobId: job.id,
+          receiptId: receipt.id,
+          state: 'SUCCEEDED',
+        })
+        const succeededReceipt = await db.webhookReceipt.findUnique({ where: { id: receipt.id } })
+        expect(succeededReceipt?.state).toBe('PROCESSED')
+        expect(succeededReceipt?.processed_at).not.toBeNull()
+      } finally {
+        await db.outboxJob.deleteMany({ where: { id: job.id } })
+        await db.webhookReceipt.deleteMany({ where: { id: receipt.id } })
+      }
     })
   })
 })

@@ -8,6 +8,9 @@ import {
 } from '@/models/stripe-webhook'
 import { Prisma } from '@prisma/client'
 
+/** Events recorded but with nothing to sync — receipt finalized at ingress, no job. */
+const NO_SYNC_EVENT_TYPES = new Set(['checkout.session.completed'])
+
 export function verifyStripeWebhookSignature({
   rawBody,
   signatureHeader,
@@ -138,6 +141,81 @@ export async function RECORD_STRIPE_WEBHOOK_RECEIPT({
       })
 
       if (existing) {
+        if (existing.state === 'FAILED') {
+          const dedupeKey = `payment.sync:stripe:${accountId}:${event.id}`
+          const job = await tx.outboxJob.findFirst({
+            where: {
+              kind: 'payment.sync',
+              dedupe_key: dedupeKey,
+            },
+          })
+
+          if (job) {
+            await tx.outboxJob.update({
+              where: { id: job.id },
+              data: {
+                state: 'PENDING',
+                attempts: 0,
+                lease_until: null,
+                available_at: new Date(),
+                last_error_code: null,
+              },
+            })
+            await tx.webhookReceipt.update({
+              where: { id: existing.id },
+              data: { state: 'PENDING' },
+            })
+            return {
+              received: true,
+              duplicate: true,
+              ignored: false,
+              receiptId: existing.id,
+              jobId: job.id,
+            }
+          }
+
+          const paymentAccount = await tx.paymentAccount.findFirst({
+            where: {
+              provider: 'stripe',
+              provider_account_id: accountId,
+            },
+          })
+
+          if (paymentAccount) {
+            const newJob = await tx.outboxJob.create({
+              data: {
+                kind: 'payment.sync',
+                dedupe_key: dedupeKey,
+                resource_id: existing.id,
+                payload: {
+                  provider: 'stripe',
+                  accountId,
+                  eventId: event.id,
+                  eventType: event.type,
+                  objectId: event.objectId,
+                  eventCreated: event.created,
+                  dataObject: event.data.object as Prisma.InputJsonValue,
+                  paymentAccountId: paymentAccount.id,
+                  churchId: paymentAccount.church_id,
+                },
+                available_at: new Date(),
+                state: 'PENDING',
+              },
+            })
+            await tx.webhookReceipt.update({
+              where: { id: existing.id },
+              data: { state: 'PENDING' },
+            })
+            return {
+              received: true,
+              duplicate: true,
+              ignored: false,
+              receiptId: existing.id,
+              jobId: newJob.id,
+            }
+          }
+        }
+
         return {
           received: true,
           duplicate: true,
@@ -177,6 +255,28 @@ export async function RECORD_STRIPE_WEBHOOK_RECEIPT({
       }
 
       // Step 3: Known account persistence & job outbox
+      if (NO_SYNC_EVENT_TYPES.has(event.type)) {
+        const receipt = await tx.webhookReceipt.create({
+          data: {
+            provider: 'stripe',
+            account_id: accountId,
+            event_id: event.id,
+            event_type: event.type,
+            object_id: event.objectId,
+            received_at: new Date(),
+            processed_at: new Date(),
+            state: 'PROCESSED',
+          },
+        })
+
+        return {
+          received: true,
+          duplicate: false,
+          ignored: true,
+          receiptId: receipt.id,
+        }
+      }
+
       const receipt = await tx.webhookReceipt.create({
         data: {
           provider: 'stripe',

@@ -1,4 +1,5 @@
 import { db } from '@/utils/db-connection'
+import { GeneralError } from '@/utils/general-error'
 
 export async function GET_PAYMENT_SYNC_CONTEXT({
   receiptId,
@@ -55,14 +56,7 @@ export async function UPSERT_DONATION_SUBSCRIPTION({
 
       if (isCanceled && isIncomingNonTerminal && isStale) {
         // Enforce stale-event guard: if existing status is canceled and incoming is non-terminal with an older timestamp, preserve canceled.
-        return tx.donationSubscription.update({
-          where: { id: existing.id },
-          data: {
-            amount_minor: amountMinor,
-            currency: currency.toLowerCase(),
-            user_id: userId || existing.user_id,
-          },
-        })
+        return existing
       }
 
       return tx.donationSubscription.update({
@@ -227,7 +221,12 @@ export async function APPLY_DONATION_REFUND({
     }
 
     if (!existing) {
-      throw new Error(`Donation not found for payment ${providerPaymentId}`)
+      throw new GeneralError({
+        code: 404,
+        error: 'NOT_FOUND',
+        error_code: 'DONATION_NOT_FOUND',
+        details: `Donation not found for payment ${providerPaymentId}`,
+      })
     }
     const newRefunded = BigInt(refundedMinor)
     const isFullyRefunded = newRefunded >= existing.amount_minor
@@ -263,13 +262,22 @@ export async function FINALIZE_PAYMENT_SYNC_JOB({
     })
 
     if (receiptId) {
-      await tx.webhookReceipt.update({
-        where: { id: receiptId },
-        data: {
-          state: 'PROCESSED',
-          processed_at: new Date(),
-        },
-      })
+      if (state === 'SUCCEEDED') {
+        await tx.webhookReceipt.update({
+          where: { id: receiptId },
+          data: {
+            state: 'PROCESSED',
+            processed_at: new Date(),
+          },
+        })
+      } else {
+        await tx.webhookReceipt.update({
+          where: { id: receiptId },
+          data: {
+            state: 'FAILED',
+          },
+        })
+      }
     }
 
     return job

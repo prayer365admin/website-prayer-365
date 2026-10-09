@@ -3,6 +3,7 @@ import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { db } from '@/utils/db-connection'
 import { processPaymentSyncJob, runPaymentSyncTick } from './payment-sync-job'
 import crypto from 'node:crypto'
+import { RECORD_STRIPE_WEBHOOK_RECEIPT } from '@/providers/stripe-webhook'
 
 describe('payment-sync-job controller', () => {
   let churchId: string
@@ -208,7 +209,184 @@ describe('payment-sync-job controller', () => {
     expect(updatedJob?.last_error_code).toBe('MISSING_EVENT_OBJECT')
 
     const updatedReceipt = await db.webhookReceipt.findUnique({ where: { id: receipt.id } })
-    expect(updatedReceipt?.state).toBe('PROCESSED')
+    expect(updatedReceipt?.state).toBe('FAILED')
+  })
+
+  it('re-arms job and receipt when redelivering an event whose receipt is FAILED', async () => {
+    const eventId = `evt_${crypto.randomUUID()}`
+    const account = await db.paymentAccount.findUnique({ where: { id: paymentAccountId } })
+    const accountId = account!.provider_account_id
+
+    const receipt = await db.webhookReceipt.create({
+      data: {
+        id: crypto.randomUUID(),
+        provider: 'stripe',
+        account_id: accountId,
+        event_id: eventId,
+        event_type: 'payment_intent.succeeded',
+        object_id: 'pi_test_recovery',
+        received_at: new Date(),
+        state: 'FAILED',
+      },
+    })
+    const job = await db.outboxJob.create({
+      data: {
+        id: crypto.randomUUID(),
+        kind: 'payment.sync',
+        dedupe_key: `payment.sync:stripe:${accountId}:${eventId}`,
+        resource_id: receipt.id,
+        payload: {
+          eventType: 'payment_intent.succeeded',
+          dataObject: { id: 'pi_test_recovery' },
+          paymentAccountId,
+          churchId,
+        },
+        available_at: new Date(),
+        state: 'FAILED',
+        attempts: 3,
+        last_error_code: 'SOME_ERROR',
+      },
+    })
+
+    try {
+      const redelivery = await RECORD_STRIPE_WEBHOOK_RECEIPT({
+        event: {
+          id: eventId,
+          type: 'payment_intent.succeeded',
+          account: accountId,
+          objectId: 'pi_test_recovery',
+          data: {
+            object: { id: 'pi_test_recovery' },
+          },
+        },
+      })
+
+      expect(redelivery.duplicate).toBe(true)
+      expect(redelivery.ignored).toBe(false)
+      expect(redelivery.jobId).toBe(job.id)
+
+      const updatedJob = await db.outboxJob.findUnique({ where: { id: job.id } })
+      expect(updatedJob?.state).toBe('PENDING')
+      expect(updatedJob?.attempts).toBe(0)
+      expect(updatedJob?.last_error_code).toBeNull()
+
+      const updatedReceipt = await db.webhookReceipt.findUnique({ where: { id: receipt.id } })
+      expect(updatedReceipt?.state).toBe('PENDING')
+    } finally {
+      await db.outboxJob.deleteMany({ where: { id: job.id } })
+      await db.webhookReceipt.deleteMany({ where: { id: receipt.id } })
+    }
+  })
+
+  it('requeues charge.refunded when donation is not found (refund before payment)', async () => {
+    const before = new Date()
+    const { job, receipt } = await createJob({
+      eventType: 'charge.refunded',
+      dataObject: {
+        id: 'ch_r',
+        payment_intent: 'pi_missing',
+        amount_refunded: 100,
+        currency: 'usd',
+      },
+    })
+
+    try {
+      const outcome = await processPaymentSyncJob(job.id, 'req_ref_missing')
+      expect(outcome).toBe('requeued')
+
+      const updatedJob = await db.outboxJob.findUnique({ where: { id: job.id } })
+      expect(updatedJob?.state).toBe('PENDING')
+      expect(updatedJob?.last_error_code).toBe('DONATION_NOT_FOUND')
+      expect(updatedJob?.available_at && updatedJob.available_at > before).toBe(true)
+    } finally {
+      await db.outboxJob.deleteMany({ where: { id: job.id } })
+      await db.webhookReceipt.deleteMany({ where: { id: receipt.id } })
+    }
+  })
+
+  it('marks job and receipt FAILED when refund-before-payment reaches REFUND_MAX_ATTEMPTS', async () => {
+    const { job, receipt } = await createJob({
+      eventType: 'charge.refunded',
+      dataObject: {
+        id: 'ch_r',
+        payment_intent: 'pi_missing',
+        amount_refunded: 100,
+        currency: 'usd',
+      },
+    })
+    await db.outboxJob.update({
+      where: { id: job.id },
+      data: { attempts: 10 },
+    })
+
+    try {
+      const outcome = await processPaymentSyncJob(job.id, 'req_ref_exhausted')
+      expect(outcome).toBe('failed')
+
+      const updatedJob = await db.outboxJob.findUnique({ where: { id: job.id } })
+      expect(updatedJob?.state).toBe('FAILED')
+
+      const updatedReceipt = await db.webhookReceipt.findUnique({ where: { id: receipt.id } })
+      expect(updatedReceipt?.state).toBe('FAILED')
+    } finally {
+      await db.outboxJob.deleteMany({ where: { id: job.id } })
+      await db.webhookReceipt.deleteMany({ where: { id: receipt.id } })
+    }
+  })
+
+  it('records receipt without outbox job for checkout.session.completed', async () => {
+    const eventId = `evt_${crypto.randomUUID()}`
+    const account = await db.paymentAccount.findUnique({ where: { id: paymentAccountId } })
+    const accountId = account!.provider_account_id
+
+    const res = await RECORD_STRIPE_WEBHOOK_RECEIPT({
+      event: {
+        id: eventId,
+        type: 'checkout.session.completed',
+        account: accountId,
+        objectId: 'cs_test_123',
+        data: {
+          object: { id: 'cs_test_123' },
+        },
+      },
+    })
+
+    expect(res.ignored).toBe(true)
+    expect(res.jobId).toBeUndefined()
+    expect(res.receiptId).toBeDefined()
+
+    try {
+      const receipt = await db.webhookReceipt.findUnique({ where: { id: res.receiptId } })
+      expect(receipt?.state).toBe('PROCESSED')
+      expect(receipt?.processed_at).not.toBeNull()
+
+      const jobCount = await db.outboxJob.count({ where: { resource_id: res.receiptId } })
+      expect(jobCount).toBe(0)
+    } finally {
+      if (res.receiptId) {
+        await db.webhookReceipt.deleteMany({ where: { id: res.receiptId } })
+      }
+    }
+  })
+
+  it('skips orphan donation row for charge.failed without payment_intent', async () => {
+    const { job, receipt } = await createJob({
+      eventType: 'charge.failed',
+      dataObject: { id: 'ch_x', payment_intent: null, amount: 1000, currency: 'usd' },
+    })
+
+    try {
+      const outcome = await processPaymentSyncJob(job.id, 'req_ch_failed_orphan')
+      expect(outcome).toBe('succeeded')
+
+      const count = await db.donation.count({
+        where: { payment_account_id: paymentAccountId },
+      })
+      expect(count).toBe(0)
+    } finally {
+      await db.outboxJob.deleteMany({ where: { id: job.id } })
+      await db.webhookReceipt.deleteMany({ where: { id: receipt.id } })
+    }
   })
 
   describe('runPaymentSyncTick', () => {

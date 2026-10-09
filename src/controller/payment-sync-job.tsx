@@ -1,4 +1,5 @@
 import crypto from 'node:crypto'
+import { GeneralError } from '@/utils/general-error'
 import { CLAIM_PENDING_JOBS, GET_JOB, MARK_JOB_STATE } from '@/providers/outbox-job'
 import {
   GET_PAYMENT_SYNC_CONTEXT,
@@ -10,6 +11,7 @@ import {
 import { STRIPE, isStripeEnabled } from '@/providers/stripe'
 
 const MAX_ATTEMPTS = 3
+const REFUND_MAX_ATTEMPTS = 10
 const backoff = (attempts: number) => new Date(Date.now() + 30_000 * 2 ** attempts)
 export type JobOutcome = 'succeeded' | 'failed' | 'requeued' | 'skipped'
 export type JobSummary = {
@@ -149,16 +151,18 @@ export const processPaymentSyncJob = async (
     } else if (payload.eventType === 'charge.failed') {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const ch = obj as any
-      const providerPaymentId =
-        typeof ch.payment_intent === 'string' ? ch.payment_intent : ch.payment_intent?.id || ch.id
-      await UPSERT_DONATION_PAYMENT({
-        paymentAccountId: payload.paymentAccountId,
-        providerPaymentId: String(providerPaymentId),
-        amountMinor: Number(ch.amount ?? 0),
-        currency: String(ch.currency ?? 'usd'),
-        status: 'FAILED',
-        paidAt: null,
-      })
+      if (ch.payment_intent != null) {
+        const providerPaymentId =
+          typeof ch.payment_intent === 'string' ? ch.payment_intent : ch.payment_intent?.id || ch.id
+        await UPSERT_DONATION_PAYMENT({
+          paymentAccountId: payload.paymentAccountId,
+          providerPaymentId: String(providerPaymentId),
+          amountMinor: Number(ch.amount ?? 0),
+          currency: String(ch.currency ?? 'usd'),
+          status: 'FAILED',
+          paidAt: null,
+        })
+      }
     } else if (payload.eventType === 'charge.refunded') {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const ch = obj as any
@@ -241,7 +245,25 @@ export const processPaymentSyncJob = async (
     })
     return 'succeeded'
   } catch (e: unknown) {
-    const code = e instanceof Error && 'code' in e ? String(e.code) : 'INTERNAL_JOB_ERROR'
+    if (
+      e instanceof GeneralError &&
+      e.error_code === 'DONATION_NOT_FOUND' &&
+      job.attempts < REFUND_MAX_ATTEMPTS
+    ) {
+      await MARK_JOB_STATE({
+        jobId: job.id,
+        state: 'PENDING',
+        errorCode: 'DONATION_NOT_FOUND',
+        availableAt: backoff(Math.min(job.attempts, 5)),
+      })
+      return 'requeued'
+    }
+    const code =
+      e instanceof GeneralError
+        ? e.error_code
+        : e instanceof Error && 'code' in e
+          ? String(e.code)
+          : 'INTERNAL_JOB_ERROR'
     return requeueOrFail(job, code)
   }
 }

@@ -67,8 +67,6 @@ export const PRAYER_CATALOGUE: PrayerGrant[] = [
 
   // Financial / analytics
   { subject: 'prayer_donation', actions: 'read', scope: 'ANY' },
-  { subject: 'prayer_donation_summary', actions: 'read', scope: 'ANY' },
-  { subject: 'prayer_donation_subscription', actions: 'read', scope: 'ANY' },
   { subject: 'prayer_analytics', actions: 'read', scope: 'ANY' },
   { subject: 'prayer_attendance', actions: 'read', scope: 'ANY' },
   { subject: 'prayer_platform_statistics', actions: 'read', scope: 'ANY' },

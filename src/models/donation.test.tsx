@@ -1,3 +1,4 @@
+import { PRAYER_CATALOGUE, PRAYER_ROLES } from '../../prisma/seeds/prayer-roles'
 import { describe, expect, it } from 'vitest'
 import {
   DonationInputSchema,
@@ -197,5 +198,18 @@ describe('Donation Models and Schemas', () => {
       }
       expect(ResolvedPaymentAccountSchema.parse(acct)).toEqual(acct)
     })
+  })
+})
+
+describe('F8DO permission catalogue guard', () => {
+  it('defines no donation subjects beyond prayer_donation (SPEC §Permissions)', () => {
+    const subjects = PRAYER_CATALOGUE.map((g) => g.subject)
+    expect(subjects.filter((s) => s.startsWith('prayer_donation'))).toEqual(['prayer_donation'])
+  })
+  it('role grant matrices reference only catalogue subjects', () => {
+    const catalogue = new Set(PRAYER_CATALOGUE.map((g) => g.subject))
+    for (const role of PRAYER_ROLES) {
+      for (const g of role.grants) expect(catalogue.has(g.subject)).toBe(true)
+    }
   })
 })

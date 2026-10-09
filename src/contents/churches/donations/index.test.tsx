@@ -1,5 +1,5 @@
 import { renderWithProviders } from '@/test/frontend/render'
-import { screen } from '@testing-library/react'
+import { screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import ContentsChurchDonations from '.'
@@ -253,5 +253,32 @@ describe('ContentsChurchDonations', () => {
 
     const unallowedLinks = screen.queryAllByRole('link', { name: unallowedText })
     expect(unallowedLinks).toHaveLength(0)
+  })
+
+  it('filters Confirmed amount card when currency is selected (finding 8)', async () => {
+    const user = userEvent.setup()
+    renderWithProviders(<ContentsChurchDonations churchId="c1" />)
+
+    // Open Select dropdown and click 'EUR'
+    const select = screen.getByRole('combobox')
+    await user.click(select)
+    await user.click(await screen.findByTitle('EUR'))
+
+    const card = screen.getByText('Confirmed amount').closest<HTMLElement>('.ant-card')
+    expect(card).not.toBeNull()
+    expect(within(card!).queryByText('USD 950.00')).toBeNull()
+    expect(within(card!).getByText('EUR 250.00')).toBeDefined()
+    expect(screen.queryByText('USD 950.00')).toBeNull()
+    expect(screen.getAllByText('EUR 250.00').length).toBeGreaterThan(0)
+  })
+
+  it('renders without React setState-during-render warning (finding 7)', () => {
+    const spy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    try {
+      renderWithProviders(<ContentsChurchDonations churchId="c1" />)
+      expect(spy).not.toHaveBeenCalledWith(expect.stringContaining('Cannot update a component'))
+    } finally {
+      spy.mockRestore()
+    }
   })
 })

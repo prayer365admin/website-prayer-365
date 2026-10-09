@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { Alert, Card, Col, DatePicker, Row, Select, Statistic, Table, Tabs } from 'antd'
 import dayjs, { Dayjs } from 'dayjs'
 
@@ -26,7 +26,6 @@ export default function ContentsChurchDonations({ churchId }: { churchId: string
   const [selectedMonth, setSelectedMonth] = useState<Dayjs>(dayjs())
   const [customRange, setCustomRange] = useState<[Dayjs | null, Dayjs | null] | null>(null)
   const [selectedCurrency, setSelectedCurrency] = useState<string | undefined>()
-  const [discoveredCurrencies, setDiscoveredCurrencies] = useState<string[]>([])
 
   const [txPage, setTxPage] = useState(1)
   const [txPageSize, setTxPageSize] = useState(10)
@@ -86,21 +85,19 @@ export default function ContentsChurchDonations({ churchId }: { churchId: string
     month: selectedMonth.format('YYYY-MM'),
     enableFetch: canRead,
   })
-  // Accumulate discovered currencies so selecting a currency filter does not
-  // shrink the options dropdown when results filter down.
-  const incomingCurrencies = [
-    ...(summaryData?.currencies.map((c) => c.currency) ?? []),
-    ...txData.map((t) => t.currency),
-    ...recData.map((r) => r.currency),
-  ].filter(Boolean)
-
-  const hasNewCurrency = incomingCurrencies.some((c) => !discoveredCurrencies.includes(c))
-  if (hasNewCurrency) {
-    setDiscoveredCurrencies((prev) => Array.from(new Set([...prev, ...incomingCurrencies])).sort())
-  }
-  const uniqueCurrencies = Array.from(
-    new Set([...discoveredCurrencies, ...incomingCurrencies]),
-  ).sort()
+  const uniqueCurrencies = useMemo(
+    () =>
+      Array.from(
+        new Set(
+          [
+            ...(summaryData?.currencies.map((c) => c.currency) ?? []),
+            ...txData.map((t) => t.currency),
+            ...recData.map((r) => r.currency),
+          ].filter(Boolean),
+        ),
+      ).sort(),
+    [summaryData, txData, recData],
+  )
 
   if (!canRead) {
     return (
@@ -127,15 +124,16 @@ export default function ContentsChurchDonations({ churchId }: { churchId: string
 
   // Server already filters transactions/recurring by the selected currency; the
   // summary endpoint is per-currency by construction, so filter its rows only.
+  // The confirmed amount card and summary table both follow the currency filter.
   const displayCurrencies = summaryData?.currencies ?? []
-  const confirmedContent = displayCurrencies.map((c) => (
+  const filteredSummaryData = selectedCurrency
+    ? displayCurrencies.filter((c) => c.currency === selectedCurrency)
+    : displayCurrencies
+  const confirmedContent = filteredSummaryData.map((c) => (
     <div key={c.currency} className="mb-1">
       {formatMinorToMajor(c.netMinor, c.currency)}
     </div>
   ))
-  const filteredSummaryData = selectedCurrency
-    ? displayCurrencies.filter((c) => c.currency === selectedCurrency)
-    : displayCurrencies
 
   return (
     <div className="flex flex-col gap-4">

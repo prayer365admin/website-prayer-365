@@ -148,14 +148,27 @@ describe('DO-08 Donation Tests and Edge-Case Synchronization', () => {
         currency: 'eur',
       })
 
-      const donations = await db.donation.findMany({
+      let donations = await db.donation.findMany({
+        where: { payment_account_id: paymentAccountId },
+      })
+      expect(donations.length).toBe(0)
+
+      const piId = 'pi_' + crypto.randomBytes(8).toString('hex')
+      await injectWebhook('charge.failed', {
+        id: 'ch_' + crypto.randomBytes(8).toString('hex'),
+        payment_intent: piId,
+        amount: 2500,
+        currency: 'eur',
+      })
+
+      donations = await db.donation.findMany({
         where: { payment_account_id: paymentAccountId },
       })
       expect(donations.length).toBe(1)
       expect(donations[0].status).toBe('FAILED')
       expect(donations[0].paid_at).toBeNull()
       expect(donations[0].currency).toBe('eur')
-      expect(donations[0].provider_payment_id).toBe(chId)
+      expect(donations[0].provider_payment_id).toBe(piId)
     })
 
     it('processes invoice.payment_failed', async () => {
