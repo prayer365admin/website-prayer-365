@@ -92,6 +92,7 @@ Table countries {
   code String [pk]
   name String [not null]
   enabled Boolean [not null, default: true]
+  version Int [not null, default: 1]
   orgNode org_nodes
 }
 
@@ -99,6 +100,7 @@ Table languages {
   code String [pk]
   name String [not null]
   enabled Boolean [not null, default: true]
+  version Int [not null, default: 1]
   users user [not null]
   churchLangs church_languages [not null]
 }
@@ -112,6 +114,7 @@ Table org_nodes {
   name String [not null]
   country_code String [unique]
   country countries
+  version Int [not null, default: 1]
   church churches
   roleAssignments role_assignments [not null]
 

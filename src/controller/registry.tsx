@@ -1,4 +1,11 @@
-import { CountryCreate, CountryUpdate, LanguageCreate, LanguageUpdate } from '@/models/registry'
+import {
+  CountryCreate,
+  CountryUpdate,
+  isLanguageReady,
+  LanguageCreate,
+  LanguageSummary,
+  LanguageUpdate,
+} from '@/models/registry'
 import {
   COUNT_COUNTRY_REFERENCES,
   COUNT_LANGUAGE_REFERENCES,
@@ -33,6 +40,42 @@ const referenced = (resource: 'country' | 'language') =>
     error_code: 'REFERENCED_ROWS',
     details: `This ${resource} is referenced and cannot be deleted.`,
   })
+
+const stale = (resource: 'country' | 'language') =>
+  new GeneralError({
+    code: 409,
+    error: 'CONFLICT',
+    error_code: 'STALE_VERSION',
+    details: `This ${resource} has changed. Refresh and try again.`,
+  })
+
+/** Enabling a language before its app resources ship is refused (SPEC §8.3, DESIGN S23). */
+const assertLanguageReady = (code: string, enabled: boolean | undefined) => {
+  if (enabled && !isLanguageReady(code)) {
+    throw new GeneralError({
+      code: 422,
+      error: 'VALIDATION_ERROR',
+      error_code: 'LANGUAGE_NOT_READY',
+      details: 'This language cannot be enabled until its translations are ready.',
+    })
+  }
+}
+
+const toLanguageSummary = (row: {
+  code: string
+  name: string
+  enabled: boolean
+  version: number
+}): LanguageSummary => {
+  const code = row.code.trim()
+  return {
+    code,
+    name: row.name,
+    enabled: row.enabled,
+    version: row.version,
+    ready: isLanguageReady(code),
+  }
+}
 
 export const listCountries = async ({
   page,
@@ -96,9 +139,14 @@ export const updateCountry = async ({
   if (!existing) throw notFound('COUNTRY_NOT_FOUND')
   return dbTransaction(async (tx) => {
     const row = await UPDATE_COUNTRY(
-      { code, payload: { name: payload.name, enabled: payload.enabled } },
+      {
+        code,
+        expectedVersion: payload.version,
+        payload: { name: payload.name, enabled: payload.enabled },
+      },
       tx,
     )
+    if (!row) throw stale('country')
     await tx.auditLog.create({
       data: auditPayload({
         actorId,
@@ -150,7 +198,10 @@ export const listLanguages = async ({
   page: number
   limit: number
   order_direction: 'asc' | 'desc'
-}) => GET_LANGUAGES({ page, limit, order_direction })
+}) => {
+  const data = await GET_LANGUAGES({ page, limit, order_direction })
+  return { total: data.total, result: data.result.map(toLanguageSummary) }
+}
 
 export const createLanguage = async ({
   payload,
@@ -161,6 +212,7 @@ export const createLanguage = async ({
   actorId: string
   requestId: string
 }) => {
+  assertLanguageReady(payload.code, payload.enabled)
   const existing = await GET_LANGUAGE_BY_CODE({ code: payload.code })
   if (existing) {
     throw new GeneralError({
@@ -185,7 +237,7 @@ export const createLanguage = async ({
         requestId,
       }),
     })
-    return row
+    return toLanguageSummary(row)
   })
 }
 
@@ -202,11 +254,17 @@ export const updateLanguage = async ({
 }) => {
   const existing = await GET_LANGUAGE_BY_CODE({ code })
   if (!existing) throw notFound('LANGUAGE_NOT_FOUND')
+  assertLanguageReady(code, payload.enabled)
   return dbTransaction(async (tx) => {
     const row = await UPDATE_LANGUAGE(
-      { code, payload: { name: payload.name, enabled: payload.enabled } },
+      {
+        code,
+        expectedVersion: payload.version,
+        payload: { name: payload.name, enabled: payload.enabled },
+      },
       tx,
     )
+    if (!row) throw stale('language')
     await tx.auditLog.create({
       data: auditPayload({
         actorId,
@@ -217,7 +275,7 @@ export const updateLanguage = async ({
         requestId,
       }),
     })
-    return row
+    return toLanguageSummary(row)
   })
 }
 

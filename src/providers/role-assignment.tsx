@@ -49,19 +49,27 @@ export const GET_ROLE_ASSIGNMENTS = async ({
   page,
   limit,
   order_direction,
+  userId,
+  orgNodeId,
 }: {
   page: number
   limit: number
   order_direction: 'asc' | 'desc'
+  userId?: string
+  orgNodeId?: string
 }) => {
-  const where: Prisma.RoleAssignmentWhereInput = { revoked_at: null }
+  const where: Prisma.RoleAssignmentWhereInput = {
+    revoked_at: null,
+    ...(userId ? { user_id: userId } : {}),
+    ...(orgNodeId ? { org_node_id: orgNodeId } : {}),
+  }
   const [total, rows] = await db.$transaction([
     db.roleAssignment.count({ where }),
     db.roleAssignment.findMany({
       where,
       take: limit,
       skip: (page - 1) * limit,
-      orderBy: { created_at: order_direction },
+      orderBy: [{ created_at: order_direction }, { id: order_direction }],
       include: {
         role: { select: { name: true } },
         org_node: { select: { name: true } },

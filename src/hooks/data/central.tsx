@@ -2,6 +2,16 @@
 
 import { useMainNotification } from '@/hooks/ui/notification'
 import { GeneralHooks } from '@/models/general-hook'
+import { HierarchyNode, NodeCreate, NodeUpdate } from '@/models/hierarchy'
+import {
+  CountryCreate,
+  CountryData,
+  CountryUpdate,
+  LanguageCreate,
+  LanguageSummary,
+  LanguageUpdate,
+} from '@/models/registry'
+import { RoleAssignmentCreate, RoleAssignmentSummary } from '@/models/role-assignment'
 import {
   ChurchPastorAssign,
   ChurchPastorPatchInput,
@@ -352,5 +362,229 @@ export const useChurchPastorAssignments = ({
     error: query.error,
     onReplace: replace.mutateAsync,
     onUpdate: update.mutateAsync,
+  }
+}
+
+// --- Organization (F11ORG): hierarchy, countries, languages, role assignments ---
+
+const centralUrl = '/api/v1/admin/central'
+
+export const orgKeys = {
+  hierarchy: (userId: string | undefined) => ['central', 'hierarchy', userId] as const,
+  countries: (userId: string | undefined) => ['central', 'countries', userId] as const,
+  languages: (userId: string | undefined) => ['central', 'languages', userId] as const,
+  roleAssignments: (userId: string | undefined) => ['central', 'role-assignments', userId] as const,
+}
+
+/** Server `details` are already safe, readable messages (cycle, stale, escalation, …). */
+const useOrgNotifications = () => {
+  const notification = useMainNotification()
+  const { notification: antdNotification } = App.useApp()
+
+  const mutationError = (error: unknown, entity: string, action: string) => {
+    if (axios.isAxiosError(error)) {
+      const status = error.response?.status ?? 0
+      const data = error.response?.data as { error_code?: string; details?: string } | undefined
+      if (status >= 400 && status < 500 && data?.details) {
+        antdNotification.error({
+          title: data.error_code === 'STALE_VERSION' ? 'Version Conflict' : `Unable to ${action}`,
+          description: data.details,
+        })
+        return
+      }
+    }
+    notification({ type: 'error', entity, action })
+  }
+
+  return { notification, mutationError }
+}
+
+export const useHierarchy = (enableFetch = true) => {
+  const { data: session } = useSession()
+  const userId = session?.user.user_id
+  const queryClient = useQueryClient()
+  const { notification, mutationError } = useOrgNotifications()
+
+  const query = useQuery({
+    queryKey: orgKeys.hierarchy(userId),
+    queryFn: async () => {
+      const response = await axios.get(`${centralUrl}/hierarchy`)
+      return response.data.result as HierarchyNode[]
+    },
+    enabled: enableFetch,
+  })
+
+  // A move changes descendant reporting scope and assignment node names.
+  const invalidate = () =>
+    Promise.all([
+      queryClient.invalidateQueries({ queryKey: orgKeys.hierarchy(userId) }),
+      queryClient.invalidateQueries({ queryKey: orgKeys.roleAssignments(userId) }),
+    ])
+
+  const create = useMutation({
+    mutationFn: async (payload: NodeCreate) => axios.post(`${centralUrl}/hierarchy`, payload),
+    onSuccess: async () => {
+      await invalidate()
+      notification({ type: 'success', entity: 'Node', action: 'created' })
+    },
+    onError: (error) => mutationError(error, 'Node', 'create'),
+  })
+
+  const update = useMutation({
+    mutationFn: async ({ nodeId, payload }: { nodeId: string; payload: NodeUpdate }) =>
+      axios.patch(`${centralUrl}/hierarchy/${encodeURIComponent(nodeId)}`, payload),
+    onSuccess: async () => {
+      await invalidate()
+      notification({ type: 'success', entity: 'Node', action: 'updated' })
+    },
+    onError: (error) => mutationError(error, 'Node', 'update'),
+  })
+
+  return {
+    data: query.data,
+    loading: query.isLoading,
+    saving: create.isPending || update.isPending,
+    error: query.error,
+    onCreate: create.mutateAsync,
+    onUpdate: update.mutateAsync,
+  }
+}
+
+const useRegistry = <Row, Create, Update>({
+  resource,
+  entity,
+  key,
+  enableFetch,
+}: {
+  resource: 'countries' | 'languages'
+  entity: string
+  key: (userId: string | undefined) => readonly unknown[]
+  enableFetch: boolean
+}) => {
+  const { data: session } = useSession()
+  const userId = session?.user.user_id
+  const queryClient = useQueryClient()
+  const { notification, mutationError } = useOrgNotifications()
+  const url = `${centralUrl}/${resource}`
+
+  const query = useQuery({
+    queryKey: key(userId),
+    queryFn: async () => {
+      // ponytail: single 100-row page; paginate when a registry outgrows it.
+      const response = await axios.get(url, {
+        params: { page: 1, limit: 100, order_direction: 'asc' },
+      })
+      return response.data.result as Row[]
+    },
+    enabled: enableFetch,
+  })
+
+  const invalidate = () => queryClient.invalidateQueries({ queryKey: key(userId) })
+
+  const create = useMutation({
+    mutationFn: async (payload: Create) => axios.post(url, payload),
+    onSuccess: async () => {
+      await invalidate()
+      notification({ type: 'success', entity, action: 'created' })
+    },
+    onError: (error) => mutationError(error, entity, 'create'),
+  })
+
+  const update = useMutation({
+    mutationFn: async ({ code, payload }: { code: string; payload: Update }) =>
+      axios.patch(`${url}/${encodeURIComponent(code)}`, payload),
+    onSuccess: async () => {
+      await invalidate()
+      notification({ type: 'success', entity, action: 'updated' })
+    },
+    onError: (error) => mutationError(error, entity, 'update'),
+  })
+
+  return {
+    data: query.data,
+    loading: query.isLoading,
+    saving: create.isPending || update.isPending,
+    error: query.error,
+    onCreate: create.mutateAsync,
+    onUpdate: update.mutateAsync,
+  }
+}
+
+export const useCountries = (enableFetch = true) =>
+  useRegistry<CountryData, CountryCreate, CountryUpdate>({
+    resource: 'countries',
+    entity: 'Country',
+    key: orgKeys.countries,
+    enableFetch,
+  })
+
+export const useLanguages = (enableFetch = true) =>
+  useRegistry<LanguageSummary, LanguageCreate, LanguageUpdate>({
+    resource: 'languages',
+    entity: 'Language',
+    key: orgKeys.languages,
+    enableFetch,
+  })
+
+export const useRoleAssignments = ({
+  userId: assigneeId,
+  orgNodeId,
+  enableFetch = true,
+}: {
+  userId?: string
+  orgNodeId?: string
+  enableFetch?: boolean
+} = {}) => {
+  const { data: session } = useSession()
+  const userId = session?.user.user_id
+  const queryClient = useQueryClient()
+  const { notification, mutationError } = useOrgNotifications()
+  const url = `${centralUrl}/role-assignments`
+
+  const query = useQuery({
+    queryKey: [...orgKeys.roleAssignments(userId), { assigneeId, orgNodeId }],
+    queryFn: async () => {
+      const params = new URLSearchParams({ page: '1', limit: '100', order_direction: 'desc' })
+      if (assigneeId) params.set('userId', assigneeId)
+      if (orgNodeId) params.set('orgNodeId', orgNodeId)
+      const response = await axios.get(url, { params })
+      return {
+        result: response.data.result as RoleAssignmentSummary[],
+        total: response.data.total as number,
+      }
+    },
+    enabled: enableFetch,
+  })
+
+  const invalidate = () =>
+    queryClient.invalidateQueries({ queryKey: orgKeys.roleAssignments(userId) })
+
+  const create = useMutation({
+    mutationFn: async (payload: RoleAssignmentCreate) => axios.post(url, payload),
+    onSuccess: async () => {
+      await invalidate()
+      notification({ type: 'success', entity: 'Assignment', action: 'granted' })
+    },
+    onError: (error) => mutationError(error, 'Assignment', 'grant'),
+  })
+
+  const revoke = useMutation({
+    mutationFn: async (assignmentId: string) =>
+      axios.delete(`${url}/${encodeURIComponent(assignmentId)}`),
+    onSuccess: async () => {
+      await invalidate()
+      notification({ type: 'success', entity: 'Assignment', action: 'revoked' })
+    },
+    onError: (error) => mutationError(error, 'Assignment', 'revoke'),
+  })
+
+  return {
+    data: query.data?.result,
+    total: query.data?.total,
+    loading: query.isLoading,
+    saving: create.isPending || revoke.isPending,
+    error: query.error,
+    onCreate: create.mutateAsync,
+    onRevoke: revoke.mutateAsync,
   }
 }

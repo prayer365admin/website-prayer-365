@@ -7,6 +7,7 @@ import { UserPayloadUpdateModel } from '@/models/user'
 import { Card, Skeleton } from 'antd'
 import { useParams, useRouter } from 'next/navigation'
 import { Fragment } from 'react'
+import ScopeAssignments from './scope-assignments'
 
 export default function ContentsUserManagementUserEdit() {
   const { id } = useParams()
@@ -34,6 +35,7 @@ export default function ContentsUserManagementUserEdit() {
           <Skeleton />
         )}
       </Card>
+      <ScopeAssignments userId={`${id}`} />
     </Fragment>
   )
 }

@@ -2,9 +2,11 @@ import { HIERARCHY_PARENT, HierarchyNode, NodeCreate, NodeUpdate } from '@/model
 import {
   CREATE_ORG_NODE,
   GET_ALL_ORG_NODES,
+  GET_ORG_NODE_BY_COUNTRY,
   GET_ORG_NODE_BY_ID,
   UPDATE_ORG_NODE,
 } from '@/providers/hierarchy'
+import { GET_COUNTRY_BY_CODE } from '@/providers/registry'
 import { auditPayload } from '@/utils/audit'
 import { dbTransaction } from '@/utils/db-transaction'
 import { GeneralError } from '@/utils/general-error'
@@ -30,12 +32,21 @@ const cycle = () =>
     details: 'The proposed parent would create a cycle in the hierarchy.',
   })
 
+const stale = () =>
+  new GeneralError({
+    code: 409,
+    error: 'CONFLICT',
+    error_code: 'STALE_VERSION',
+    details: 'This node has changed. Refresh and try again.',
+  })
+
 interface FlatNode {
   id: string
   parent_id: string | null
   kind: OrgNodeKind
   name: string
   country_code: string | null
+  version: number
 }
 
 const isDescendantOf = (candidate: string, ancestor: string, nodes: FlatNode[]): boolean => {
@@ -52,7 +63,15 @@ export const getHierarchyTree = async (): Promise<HierarchyNode[]> => {
   const nodes = await GET_ALL_ORG_NODES()
   const byId = new Map<string, HierarchyNode>()
   for (const n of nodes) {
-    byId.set(n.id, { id: n.id, kind: n.kind, name: n.name, parentId: n.parent_id, children: [] })
+    byId.set(n.id, {
+      id: n.id,
+      kind: n.kind,
+      name: n.name,
+      parentId: n.parent_id,
+      countryCode: n.country_code,
+      version: n.version,
+      children: [],
+    })
   }
   const roots: HierarchyNode[] = []
   for (const n of nodes) {
@@ -63,9 +82,22 @@ export const getHierarchyTree = async (): Promise<HierarchyNode[]> => {
   return roots
 }
 
-const pendingCountry = (payload: NodeCreate) => {
+const assertCountryAvailable = async (payload: NodeCreate) => {
   if (!payload.countryCode) {
     throw validation('COUNTRY_CODE_REQUIRED', 'A COUNTRY node requires a countryCode.')
+  }
+  const country = await GET_COUNTRY_BY_CODE({ code: payload.countryCode })
+  if (!country) throw notFound('COUNTRY_NOT_FOUND')
+  if (!country.enabled) {
+    throw validation('COUNTRY_DISABLED', 'A disabled country cannot receive a new node.')
+  }
+  if (await GET_ORG_NODE_BY_COUNTRY({ countryCode: payload.countryCode })) {
+    throw new GeneralError({
+      code: 409,
+      error: 'CONFLICT',
+      error_code: 'COUNTRY_NODE_EXISTS',
+      details: 'This country already has a hierarchy node.',
+    })
   }
 }
 
@@ -97,7 +129,7 @@ export const createNode = async ({
   }
 
   if (payload.kind === 'COUNTRY') {
-    pendingCountry(payload)
+    await assertCountryAvailable(payload)
   } else if (payload.countryCode) {
     throw validation(
       'COUNTRY_CODE_ONLY_FOR_COUNTRY',
@@ -143,6 +175,11 @@ export const updateNode = async ({
   const node = await GET_ORG_NODE_BY_ID({ nodeId })
   if (!node) throw notFound()
 
+  // The church record owns its name; renaming only the node would desync them.
+  if (node.kind === 'CHURCH' && payload.name !== undefined && payload.name !== node.name) {
+    throw validation('CHURCH_RENAME_VIA_PROFILE', 'Rename a church from its church profile.')
+  }
+
   if (payload.parentId !== undefined) {
     if (payload.parentId === nodeId) throw cycle()
     if (payload.parentId !== null) {
@@ -163,15 +200,23 @@ export const updateNode = async ({
     }
   }
 
+  const moved = payload.parentId !== undefined && payload.parentId !== node.parent_id
+
   return dbTransaction(async (tx) => {
     const row = await UPDATE_ORG_NODE(
-      { nodeId, payload: { name: payload.name, parent_id: payload.parentId } },
+      {
+        nodeId,
+        expectedVersion: payload.version,
+        payload: { name: payload.name, parent_id: payload.parentId },
+      },
       tx,
     )
+    if (!row) throw stale()
     await tx.auditLog.create({
       data: auditPayload({
         actorId,
-        action: 'hierarchy.update',
+        // Reassignment is audited separately: it changes descendant reporting scope (D8).
+        action: moved ? 'hierarchy.move' : 'hierarchy.update',
         resourceType: 'org_node',
         resourceId: nodeId,
         outcome: 'success',

@@ -42,15 +42,13 @@ const holdsGrant = (roles: RoleDataModel[], subject: string, action: string): bo
   })
 }
 
-export const listRoleAssignments = async ({
-  page,
-  limit,
-  order_direction,
-}: {
+export const listRoleAssignments = async (query: {
   page: number
   limit: number
   order_direction: 'asc' | 'desc'
-}) => GET_ROLE_ASSIGNMENTS({ page, limit, order_direction })
+  userId?: string
+  orgNodeId?: string
+}) => GET_ROLE_ASSIGNMENTS(query)
 
 export const createRoleAssignment = async ({
   payload,

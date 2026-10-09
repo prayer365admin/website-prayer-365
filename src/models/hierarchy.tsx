@@ -29,6 +29,7 @@ export type NodeCreate = z.infer<typeof NodeCreateSchema>
 
 export const NodeUpdateSchema = z
   .object({
+    version: z.number().int().positive(),
     name: z.string().min(1).optional(),
     parentId: z.string().nullable().optional(),
   })
@@ -47,5 +48,7 @@ export interface HierarchyNode {
   kind: OrgNodeKind
   name: string
   parentId: string | null
+  countryCode: string | null
+  version: number
   children: HierarchyNode[]
 }

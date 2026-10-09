@@ -173,12 +173,12 @@ DESIGN S21–S23 | SPEC §8.3 | FEATURE F8
 | ----- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- | ---- |
 | OR-01 | DB: `org_nodes`, `countries`, `languages`, `role_assignments` + seeds                                                                                      | ✔   |
 | OR-02 | API: hierarchy/country/language/role-assignment providers + controllers + routes + tests                                                                   | ✔   |
-| OR-03 | Hooks: extend `hooks/data/central.tsx` — hierarchy tree/node, countries, languages, role-assignments                                                       | ☐    |
-| OR-04 | Screen: S21 hierarchy (`/dashboard/central/hierarchy`) — tree view, new-node panel (kind/name/parent), invalid-parent + cycle rejection, move confirmation | ☐    |
-| OR-05 | Screen: S22 countries (`/dashboard/central/countries`) — list + create/edit/enable; no destructive removal of referenced countries                         | ☐    |
-| OR-06 | Screen: S23 languages (`/dashboard/central/languages`) — list + edit/enable; block enable until translations ready                                         | ☐    |
-| OR-07 | Screen: role-assignment management — grant/revoke staff church/region scope (tenancy layer), escalation guard                                              | ☐    |
-| OR-08 | Tests: hierarchy cycles rejected, reassignment reporting (D8), country-role powers bounded, revoke loses access                                            | ☐    |
+| OR-03 | Hooks: extend `hooks/data/central.tsx` — hierarchy tree/node, countries, languages, role-assignments                                                       | ✔   |
+| OR-04 | Screen: S21 hierarchy (`/dashboard/central/hierarchy`) — tree view, new-node panel (kind/name/parent), invalid-parent + cycle rejection, move confirmation | ✔   |
+| OR-05 | Screen: S22 countries (`/dashboard/central/countries`) — list + create/edit/enable; no destructive removal of referenced countries                         | ✔   |
+| OR-06 | Screen: S23 languages (`/dashboard/central/languages`) — list + edit/enable; block enable until translations ready                                         | ✔   |
+| OR-07 | Screen: role-assignment management — grant/revoke staff church/region scope (tenancy layer), escalation guard                                              | ✔   |
+| OR-08 | Tests: hierarchy cycles rejected, reassignment reporting (D8), country-role powers bounded, revoke loses access                                            | ✔   |
 
 ## F12ST — Staff, Roles, Permissions
 
@@ -276,7 +276,7 @@ without a joint announce, because the mobile `api.ts` layer maps to the built sh
 | D5  | ElevenLabs verification completion path, voice-slot limits                                                                                                      | VO-07                |
 | D6  | Payment charge model, currencies, fees, reporting totals                                                                                                        | DO-09                |
 | D7  | Check-in dedupe rule                                                                                                                                            | check-in API         |
-| D8  | Hierarchy reassignment reporting, country powers                                                                                                                | OR-08                |
+| D8  | Hierarchy reassignment reporting, country powers — ADOPTED SPEC defaults (current-hierarchy attribution, labeled; country admin = aggregate reads only)         | OR-08 (done)         |
 | D9  | Notification recipients/timing defaults                                                                                                                         | NO-09                |
 | D10 | Retention/deletion policy + legal text                                                                                                                          | privacy jobs         |
 | D11 | Hosting + tooling confirmation                                                                                                                                  | X-09                 |
