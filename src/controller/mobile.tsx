@@ -117,18 +117,21 @@ export const patchMe = async ({
   const existing = await GET_ME_PROFILE({ userId })
   if (!existing) throw notFound('User not found.')
   const mainChurchId = data.mainChurchId === undefined ? existing.mainChurchId : data.mainChurchId
+  const profilePicture =
+    data.profilePicture === undefined ? existing.profilePicture : data.profilePicture
   await UPDATE_ME_PROFILE({
     userId,
     name: data.name,
     locale: data.locale,
     mainChurchId,
+    profilePicture,
   })
   return {
     id: existing.id,
     email: existing.email,
     name: data.name ?? existing.name,
     locale: data.locale === undefined ? existing.locale : data.locale,
-    profilePicture: existing.profilePicture,
+    profilePicture,
     mainChurchId: mainChurchId ?? null,
   }
 }

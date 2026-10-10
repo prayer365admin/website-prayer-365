@@ -40,10 +40,16 @@ export const MobilePublicContactsSchema = z
 
 export const MobileSocialLinkSchema = z.object({ label: z.string(), url: z.string() }).strict()
 
+/* `localTime` is a CHURCH WALL CLOCK (HH:MM) in `MobilePublicChurch.timezone`, not a UTC instant.
+ * The `service_times.local_time` column is a PostgreSQL TIME; it is stored on a fixed 1970-01-01
+ * UTC reference date (providers/service-time.tsx) so the wall clock survives round-trips. Clients
+ * localize for display. */
 export const MobileServiceTimeSchema = z
   .object({
-    weekday: z.number(),
-    localTime: z.string(),
+    weekday: z.number().int().min(1).max(7), // 1 = Monday … 7 = Sunday
+    localTime: z
+      .string()
+      .regex(/^([01]\d|2[0-3]):[0-5]\d$/, 'localTime must be HH:MM (church wall clock)'),
     label: z.string().nullable(),
     languageCode: z.string().nullable(),
   })
@@ -56,6 +62,7 @@ export const MobileChurchSummarySchema = z.object({
   denomination: z.string().nullable(),
   city: z.string().nullable(),
   coverAssetId: z.string().nullable(),
+  coverUrl: z.string().nullable(),
   distanceKm: z.number().nullable(),
 })
 
@@ -75,6 +82,7 @@ export const MobilePublicChurchSchema = z.object({
   socialLinks: z.array(MobileSocialLinkSchema),
   accessibility: z.string().nullable(),
   coverAssetId: z.string().nullable(),
+  coverUrl: z.string().nullable(),
   languageCodes: z.array(z.string()),
   serviceTimes: z.array(MobileServiceTimeSchema),
   distanceKm: z.number().nullable(),
@@ -112,6 +120,7 @@ export const MobileMePatchSchema = z
     name: z.string().trim().min(1).max(200).optional(),
     locale: z.string().trim().max(10).nullable().optional(),
     mainChurchId: z.string().uuid().nullable().optional(),
+    profilePicture: z.string().trim().url().max(2048).nullable().optional(),
   })
   .strict()
 
@@ -122,27 +131,17 @@ export const MobileMyChurchSchema = z.object({
   churchName: z.string(),
   city: z.string().nullable(),
   coverAssetId: z.string().nullable(),
+  coverUrl: z.string().nullable(),
   isMain: z.boolean(),
   isFollowed: z.boolean(),
 })
 
 export type MobileMyChurch = z.infer<typeof MobileMyChurchSchema>
 
-export const MobileHomeSchema = z.object({
-  mainChurch: MobilePublicChurchSchema.nullable(),
-  followedChurches: z.array(MobileChurchSummarySchema),
-  latestPrayers: z.array(z.unknown()).default([]),
-  latestEvents: z.array(z.unknown()).default([]),
-  latestAnnouncements: z.array(z.unknown()).default([]),
-})
-
-export type MobileHome = {
-  mainChurch: MobilePublicChurch | null
-  followedChurches: MobileChurchSummary[]
-  latestPrayers: unknown[]
-  latestEvents: unknown[]
-  latestAnnouncements: unknown[]
-}
+/* MobileHomeSchema lives at the END of the "Published content" section: it references
+ * MobilePublishedPrayerSchema / MobilePublicEventSchema / MobilePublicAnnouncementSchema, which are
+ * declared later in this file. Referencing them here would hit the const temporal dead zone at module
+ * load. */
 
 // ---------------------------------------------------------------------------
 // Published content (Tasks 41/42)
@@ -250,6 +249,26 @@ export const MobileAnnouncementListQuerySchema = z.object({
 })
 
 export type MobileAnnouncementListQuery = z.infer<typeof MobileAnnouncementListQuerySchema>
+
+/* ── Home projection (MB-10) ─────────────────────────────────────────────────
+ * Typed projection for GET /api/v1/mobile/home. Declared after the content DTOs
+ * it embeds (see the note in the Home/me section above). */
+
+export const MobileHomeSchema = z.object({
+  mainChurch: MobilePublicChurchSchema.nullable(),
+  followedChurches: z.array(MobileChurchSummarySchema),
+  latestPrayers: z.array(MobilePublishedPrayerSchema).default([]),
+  latestEvents: z.array(MobilePublicEventSchema).default([]),
+  latestAnnouncements: z.array(MobilePublicAnnouncementSchema).default([]),
+})
+
+export type MobileHome = {
+  mainChurch: MobilePublicChurch | null
+  followedChurches: MobileChurchSummary[]
+  latestPrayers: MobilePublishedPrayer[]
+  latestEvents: MobilePublicEvent[]
+  latestAnnouncements: MobilePublicAnnouncement[]
+}
 
 // ---------------------------------------------------------------------------
 // Intake: requests, check-ins, analytics (Task 43)

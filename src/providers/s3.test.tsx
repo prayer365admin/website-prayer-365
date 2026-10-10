@@ -22,7 +22,13 @@ vi.mock('@aws-sdk/client-s3', () => ({
   GetObjectCommand: class {},
 }))
 
-import { S3_PRESIGN_UPLOAD, S3_HEAD_OBJECT, S3_DELETE_OBJECT, S3_GET_SIGNED_URL } from './s3'
+import {
+  S3_PRESIGN_UPLOAD,
+  S3_HEAD_OBJECT,
+  S3_DELETE_OBJECT,
+  S3_GET_SIGNED_URL,
+  S3_PUBLIC_URL,
+} from './s3'
 
 const S3_KEYS = [
   'AWS_S3_BUCKET',
@@ -34,6 +40,7 @@ const S3_KEYS = [
   'S3_ACCESS_KEY_ID',
   'AWS_SECRET_ACCESS_KEY',
   'S3_SECRET_ACCESS_KEY',
+  'S3_PUBLIC_BASE_URL',
 ] as const
 
 // Snapshot env once at load; every afterEach restores it so tests are order-independent.
@@ -104,5 +111,29 @@ describe('S3_HEAD_OBJECT / S3_GET_SIGNED_URL', () => {
     getSignedUrlMock.mockResolvedValue('https://signed/url')
     const url = await S3_GET_SIGNED_URL({ key: 'k', expiresIn: 3600 })
     expect(url).toBe('https://signed/url')
+  })
+})
+
+describe('S3_PUBLIC_URL — stable public read URL (temporary public-read bucket)', () => {
+  it('derives the URL from AWS_BUCKET_NAME + AWS_REGION', () => {
+    for (const k of S3_KEYS) delete process.env[k]
+    process.env.AWS_BUCKET_NAME = 'prayer-bucket'
+    process.env.AWS_REGION = 'eu-north-1'
+    expect(S3_PUBLIC_URL({ key: 'media/c1/image/abc' })).toBe(
+      'https://prayer-bucket.s3.eu-north-1.amazonaws.com/media/c1/image/abc',
+    )
+  })
+
+  it('prefers S3_PUBLIC_BASE_URL and strips a trailing slash', () => {
+    for (const k of S3_KEYS) delete process.env[k]
+    process.env.S3_PUBLIC_BASE_URL = 'https://cdn.example.com/'
+    expect(S3_PUBLIC_URL({ key: 'media/c1/image/abc' })).toBe(
+      'https://cdn.example.com/media/c1/image/abc',
+    )
+  })
+
+  it('returns null when no bucket is configured', () => {
+    for (const k of S3_KEYS) delete process.env[k]
+    expect(S3_PUBLIC_URL({ key: 'k' })).toBeNull()
   })
 })

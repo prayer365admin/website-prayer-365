@@ -29,6 +29,7 @@ import {
   SET_FOLLOW,
   UPDATE_ME_PROFILE,
 } from '@/providers/mobile'
+import { MobileMePatchSchema } from '@/models/mobile'
 import { withIdempotency } from '@/utils/idempotency'
 import {
   checkIn,
@@ -147,6 +148,60 @@ describe('Task 40 / me — subject only, single main church', () => {
     expect(res.mainChurchId).toBe('c2')
   })
 
+  it('patchMe persists a profilePicture URL and returns it', async () => {
+    vi.mocked(GET_ME_PROFILE).mockResolvedValue({
+      id: 'u1',
+      email: 'a@b.c',
+      name: 'A',
+      locale: null,
+      profilePicture: null,
+      mainChurchId: null,
+      mainChurchName: null,
+    } as never)
+    const res = await patchMe({
+      userId: 'u1',
+      data: { profilePicture: 'https://cdn.example.com/a.png' },
+    })
+    expect(UPDATE_ME_PROFILE).toHaveBeenCalledWith(
+      expect.objectContaining({ userId: 'u1', profilePicture: 'https://cdn.example.com/a.png' }),
+    )
+    expect(res.profilePicture).toBe('https://cdn.example.com/a.png')
+  })
+
+  it('patchMe clears the avatar when profilePicture is explicitly null', async () => {
+    vi.mocked(GET_ME_PROFILE).mockResolvedValue({
+      id: 'u1',
+      email: 'a@b.c',
+      name: 'A',
+      locale: null,
+      profilePicture: 'https://cdn.example.com/old.png',
+      mainChurchId: null,
+      mainChurchName: null,
+    } as never)
+    const res = await patchMe({ userId: 'u1', data: { profilePicture: null } })
+    expect(UPDATE_ME_PROFILE).toHaveBeenCalledWith(
+      expect.objectContaining({ profilePicture: null }),
+    )
+    expect(res.profilePicture).toBeNull()
+  })
+
+  it('patchMe leaves the existing avatar untouched when profilePicture is absent', async () => {
+    vi.mocked(GET_ME_PROFILE).mockResolvedValue({
+      id: 'u1',
+      email: 'a@b.c',
+      name: 'A',
+      locale: null,
+      profilePicture: 'https://cdn.example.com/keep.png',
+      mainChurchId: null,
+      mainChurchName: null,
+    } as never)
+    const res = await patchMe({ userId: 'u1', data: { name: 'New' } })
+    expect(UPDATE_ME_PROFILE).toHaveBeenCalledWith(
+      expect.objectContaining({ profilePicture: 'https://cdn.example.com/keep.png' }),
+    )
+    expect(res.profilePicture).toBe('https://cdn.example.com/keep.png')
+  })
+
   it('setFollow rejects a non-approved church as 404', async () => {
     vi.mocked(SET_FOLLOW).mockResolvedValue(null as never)
     await expect(
@@ -236,6 +291,29 @@ describe('Task 43 / check-in — idempotent ack', () => {
       expect.objectContaining({ operation: 'checkin.create', key: 'k1' }),
     )
     expect(res.localDate).toBe('2026-01-01')
+  })
+})
+
+describe('MobileMePatchSchema — profilePicture is additive + URL-validated', () => {
+  it('accepts a valid https URL and null (clear)', () => {
+    expect(
+      MobileMePatchSchema.safeParse({ profilePicture: 'https://cdn.example.com/a.png' }).success,
+    ).toBe(true)
+    expect(MobileMePatchSchema.safeParse({ profilePicture: null }).success).toBe(true)
+  })
+
+  it('keeps the existing fields working (additive, still strict)', () => {
+    expect(MobileMePatchSchema.safeParse({ name: 'A' }).success).toBe(true)
+    expect(MobileMePatchSchema.safeParse({ name: 'A', locale: null }).success).toBe(true)
+  })
+
+  it('rejects an invalid URL, an empty string, and unknown keys', () => {
+    expect(MobileMePatchSchema.safeParse({ profilePicture: 'not-a-url' }).success).toBe(false)
+    expect(MobileMePatchSchema.safeParse({ profilePicture: '' }).success).toBe(false)
+    expect(
+      MobileMePatchSchema.safeParse({ profilePicture: 'https://x/y.png', userId: 'attacker' })
+        .success,
+    ).toBe(false)
   })
 })
 
