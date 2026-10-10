@@ -5,9 +5,18 @@ import {
   RECORD_STRIPE_WEBHOOK_RECEIPT,
 } from './stripe-webhook'
 import { GeneralError } from '@/utils/general-error'
-import { db } from '@/utils/db-connection'
 import { Prisma } from '@prisma/client'
 import crypto from 'crypto'
+
+/*
+ * db is fully mocked (CI-safe, no PostgreSQL). mockTx is the transaction
+ * client the provider receives from db.$transaction.
+ */
+const { mockDb } = vi.hoisted(() => ({
+  mockDb: { $transaction: vi.fn() },
+}))
+
+vi.mock('@/utils/db-connection', () => ({ db: mockDb }))
 
 describe('verifyStripeWebhookSignature', () => {
   const secret = 'whsec_test_secret'
@@ -172,7 +181,7 @@ describe('RECORD_STRIPE_WEBHOOK_RECEIPT', () => {
         update: vi.fn(),
       },
     }
-    vi.spyOn(db, '$transaction').mockImplementation(
+    mockDb.$transaction.mockImplementation(
       async (cb: (arg: Prisma.TransactionClient) => Promise<unknown>) =>
         cb(mockTx as unknown as Prisma.TransactionClient) as Promise<never>,
     )

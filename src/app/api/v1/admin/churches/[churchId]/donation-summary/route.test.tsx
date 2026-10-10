@@ -39,6 +39,7 @@ describe('GET /api/v1/admin/churches/[churchId]/donation-summary', () => {
     ))!
     const body = await res.json()
     expect(res.status).toBe(200)
+    expect(res.headers.get('cache-control')).toBe('private, no-store')
     expect(body.result.currencies[0]).toEqual({
       currency: 'USD',
       grossMinor: '5000',

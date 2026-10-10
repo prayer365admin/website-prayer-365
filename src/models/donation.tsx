@@ -67,6 +67,7 @@ export const DonationRowSchema = z.object({
   currency: z.string(),
   status: z.string(), // PAID | FAILED | REFUNDED | provider-reported state
   paidAt: z.date().nullable(),
+  createdAt: z.date().optional(),
   ref: z.string(), // provider payment reference (no donor PII)
 })
 
@@ -76,6 +77,7 @@ export type DonationRow = {
   currency: string
   status: string
   paidAt: Date | null
+  createdAt?: Date
   ref: string
 }
 

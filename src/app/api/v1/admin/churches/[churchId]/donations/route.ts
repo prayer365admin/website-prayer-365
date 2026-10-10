@@ -62,7 +62,9 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ chur
         currency: currency ?? undefined,
       },
     })
-    return list(result, total, q.page, q.limit, 'Donations retrieved.')
+    const res = list(result, total, q.page, q.limit, 'Donations retrieved.')
+    res.headers.set('Cache-Control', 'private, no-store')
+    return res
   } catch (e) {
     return httpError(e)
   }

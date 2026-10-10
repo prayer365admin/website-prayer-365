@@ -107,7 +107,7 @@ export default function ContentsChurchDonations({ churchId }: { churchId: string
           description="Review provider-confirmed transactions, recurring donations, and monthly totals."
         />
         <Alert
-          message="Access restricted"
+          title="Access restricted"
           description="You do not have permission to view donations."
           type="warning"
           showIcon
@@ -204,7 +204,7 @@ export default function ContentsChurchDonations({ churchId }: { churchId: string
               <div>
                 {txError && (
                   <Alert
-                    message="Failed to load transactions"
+                    title="Failed to load transactions"
                     type="error"
                     showIcon
                     className="mb-4"
@@ -235,7 +235,7 @@ export default function ContentsChurchDonations({ churchId }: { churchId: string
               <div>
                 {recError && (
                   <Alert
-                    message="Failed to load recurring donations"
+                    title="Failed to load recurring donations"
                     type="error"
                     showIcon
                     className="mb-4"
@@ -265,7 +265,7 @@ export default function ContentsChurchDonations({ churchId }: { churchId: string
             children: (
               <div>
                 {summaryError && (
-                  <Alert message="Failed to load summary" type="error" showIcon className="mb-4" />
+                  <Alert title="Failed to load summary" type="error" showIcon className="mb-4" />
                 )}
                 <Table
                   dataSource={filteredSummaryData}

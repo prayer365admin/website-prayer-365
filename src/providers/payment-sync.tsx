@@ -41,8 +41,14 @@ export async function UPSERT_DONATION_SUBSCRIPTION({
         : existing.created_at.getTime()
       const isStale = eventCreated * 1000 < existingTime
 
+      /*
+       * State machine stale-event guard:
+       * Terminal 'canceled' status is preserved against older non-terminal events
+       * (e.g. an out-of-order 'active' or 'past_due' created before the cancellation).
+       * Note on asymmetry: non-terminal transitions (such as 'past_due' vs 'active')
+       * overwrite in incoming event order pending final D6 subscription lifecycle resolution.
+       */
       if (isCanceled && isIncomingNonTerminal && isStale) {
-        // Enforce stale-event guard: if existing status is canceled and incoming is non-terminal with an older timestamp, preserve canceled.
         return existing
       }
 
@@ -130,10 +136,11 @@ export async function UPSERT_DONATION_PAYMENT({
         return existing
       }
       if (existing.status === 'FAILED' && status === 'PAID') {
-        // Update status to PAID
+        // Update status to PAID and reconcile church_id if drifted
         return tx.donation.update({
           where: { id: existing.id },
           data: {
+            church_id: churchId,
             status: 'PAID',
             paid_at: paidAt,
             amount_minor: amountMinor,
@@ -144,12 +151,19 @@ export async function UPSERT_DONATION_PAYMENT({
         })
       }
       if (existing.status === 'PAID' && status === 'PAID') {
-        // Idempotent no-op
+        // Reconcile church_id if drifted, otherwise idempotent no-op
+        if (existing.church_id !== churchId) {
+          return tx.donation.update({
+            where: { id: existing.id },
+            data: { church_id: churchId },
+          })
+        }
         return existing
       }
       return tx.donation.update({
         where: { id: existing.id },
         data: {
+          church_id: churchId,
           status,
           paid_at: paidAt,
           amount_minor: amountMinor,

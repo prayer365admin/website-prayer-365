@@ -41,6 +41,7 @@ describe('GET /api/v1/admin/churches/[churchId]/donation-subscriptions', () => {
     ))!
     const body = await res.json()
     expect(res.status).toBe(200)
+    expect(res.headers.get('cache-control')).toBe('private, no-store')
     expect(body.result[0]).toEqual(sub)
     expect(requiredScope).toHaveBeenCalledWith(
       expect.objectContaining({ churchId: 'c1', subject: 'prayer_donation', action: 'read' }),

@@ -43,6 +43,7 @@ describe('GET /api/v1/admin/churches/[churchId]/donations', () => {
       params as never,
     ))!
     expect(res.status).toBe(200)
+    expect(res.headers.get('cache-control')).toBe('private, no-store')
     const body = await res.json()
     expect(body.success).toBe(true)
     expect(body.total).toBe(1)

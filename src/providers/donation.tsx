@@ -24,9 +24,9 @@ const donationOrderBy = (q: DonationListQuery): Prisma.DonationOrderByWithRelati
     ? [{ amount_minor: q.order_direction }, { id: 'asc' }]
     : q.order_by === 'created_at'
       ? [{ created_at: q.order_direction }, { id: 'asc' }]
-      : [{ paid_at: q.order_direction }, { id: 'asc' }]
+      : [{ paid_at: q.order_direction }, { created_at: q.order_direction }, { id: 'asc' }]
 
-/** Paginated donation rows for a church, bounded by paid_at, no donor PII. */
+/** Paginated donation rows for a church, bounded by paid_at / created_at (failed fallback), no donor PII. */
 export const GET_DONATIONS = async ({
   churchIds,
   query,
@@ -38,8 +38,26 @@ export const GET_DONATIONS = async ({
   if (ids.length === 0) return { result: [], total: 0 }
   const where: Prisma.DonationWhereInput = {
     church_id: { in: ids },
-    paid_at: { gte: query.from ?? undefined, lte: query.to ?? undefined },
     currency: query.currency ? query.currency.toLowerCase() : undefined,
+    ...(query.from !== undefined || query.to !== undefined
+      ? {
+          OR: [
+            {
+              paid_at: {
+                gte: query.from ?? undefined,
+                lte: query.to ?? undefined,
+              },
+            },
+            {
+              paid_at: null,
+              created_at: {
+                gte: query.from ?? undefined,
+                lte: query.to ?? undefined,
+              },
+            },
+          ],
+        }
+      : {}),
   }
   const orderBy = donationOrderBy(query)
   const [total, rows] = await db.$transaction([
@@ -55,6 +73,7 @@ export const GET_DONATIONS = async ({
         currency: true,
         status: true,
         paid_at: true,
+        created_at: true,
         provider_payment_id: true,
       },
     }),
@@ -67,6 +86,7 @@ export const GET_DONATIONS = async ({
       currency: r.currency,
       status: r.status,
       paidAt: r.paid_at,
+      createdAt: r.created_at,
       ref: r.provider_payment_id,
     })),
   }
@@ -124,6 +144,10 @@ export const GET_DONATION_SUBSCRIPTIONS = async ({
   }
 }
 
+/**
+ * Calendar month boundary calculation using UTC [start, end) bounds
+ * (Decision D6: default to UTC month bounds pending church-local timezone decision).
+ */
 const monthBounds = (month: string): { start: Date; end: Date } => {
   const [y, m] = month.split('-').map(Number)
   if (!y || !m || m < 1 || m > 12) {

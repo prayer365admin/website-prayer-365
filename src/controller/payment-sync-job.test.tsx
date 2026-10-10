@@ -1,106 +1,334 @@
 // @vitest-environment node
 import { describe, it, expect, beforeEach, vi } from 'vitest'
-import { db } from '@/utils/db-connection'
 import { processPaymentSyncJob, runPaymentSyncTick } from './payment-sync-job'
 import crypto from 'node:crypto'
-import { RECORD_STRIPE_WEBHOOK_RECEIPT } from '@/providers/stripe-webhook'
-import { PLATFORM_ACCOUNT_ID } from '@/providers/stripe'
+
+/*
+ * Controller unit tests — every provider dependency is mocked (CI-safe, no
+ * PostgreSQL). Mock state lives in plain Maps keyed by row id, simulating the
+ * small slice of outbox/receipt/donation behavior the controller relies on.
+ */
+const mocks = vi.hoisted(() => {
+  const fn = () => vi.fn()
+  return {
+    outbox: {
+      GET_JOB: fn(),
+      MARK_JOB_STATE: fn(),
+      CLAIM_PENDING_JOBS: fn(),
+    },
+    paymentSync: {
+      GET_PAYMENT_SYNC_CONTEXT: fn(),
+      UPSERT_DONATION_SUBSCRIPTION: fn(),
+      UPSERT_DONATION_PAYMENT: fn(),
+      APPLY_DONATION_REFUND: fn(),
+      FINALIZE_PAYMENT_SYNC_JOB: fn(),
+    },
+    stripe: {
+      isStripeEnabled: vi.fn(() => false),
+      STRIPE: {
+        retrievePaymentIntent: fn(),
+        retrieveCharge: fn(),
+        retrieveSubscription: fn(),
+        retrieveCheckoutSession: fn(),
+        retrieveInvoice: fn(),
+      },
+    },
+  }
+})
+
+vi.mock('@/providers/outbox-job', () => ({
+  GET_JOB: mocks.outbox.GET_JOB,
+  MARK_JOB_STATE: mocks.outbox.MARK_JOB_STATE,
+  CLAIM_PENDING_JOBS: mocks.outbox.CLAIM_PENDING_JOBS,
+}))
+vi.mock('@/providers/payment-sync', () => ({
+  GET_PAYMENT_SYNC_CONTEXT: mocks.paymentSync.GET_PAYMENT_SYNC_CONTEXT,
+  UPSERT_DONATION_SUBSCRIPTION: mocks.paymentSync.UPSERT_DONATION_SUBSCRIPTION,
+  UPSERT_DONATION_PAYMENT: mocks.paymentSync.UPSERT_DONATION_PAYMENT,
+  APPLY_DONATION_REFUND: mocks.paymentSync.APPLY_DONATION_REFUND,
+  FINALIZE_PAYMENT_SYNC_JOB: mocks.paymentSync.FINALIZE_PAYMENT_SYNC_JOB,
+}))
+vi.mock('@/providers/stripe', () => ({
+  isStripeEnabled: mocks.stripe.isStripeEnabled,
+  STRIPE: mocks.stripe.STRIPE,
+}))
+
+import { GeneralError } from '@/utils/general-error'
+
+type MockJob = {
+  id: string
+  state: string
+  attempts: number
+  resource_id: string | null
+  payload: unknown
+  available_at: Date
+  last_error_code: string | null
+}
+type MockReceipt = { id: string; state: string }
+
+let jobs: Map<string, MockJob>
+let receipts: Map<string, MockReceipt>
+let donations: Array<Record<string, unknown>>
+let subscriptions: Array<Record<string, unknown>>
+
+beforeEach(() => {
+  vi.clearAllMocks()
+  jobs = new Map()
+  receipts = new Map()
+  donations = []
+  subscriptions = []
+
+  // GET_JOB reads the in-memory job map
+  mocks.outbox.GET_JOB.mockImplementation(async ({ jobId }: { jobId: string }) => jobs.get(jobId))
+
+  // MARK_JOB_STATE mutates the in-memory job map like the provider would
+  mocks.outbox.MARK_JOB_STATE.mockImplementation(
+    async ({
+      jobId,
+      state,
+      errorCode,
+      availableAt,
+    }: {
+      jobId: string
+      state: string
+      errorCode?: string
+      availableAt?: Date
+    }) => {
+      const job = jobs.get(jobId)
+      if (!job) return null
+      job.state = state
+      if (errorCode) job.last_error_code = errorCode
+      if (state === 'PENDING' && availableAt) job.available_at = availableAt
+      if (state === 'SUCCEEDED' && !errorCode) job.last_error_code = null
+      return job
+    },
+  )
+
+  mocks.paymentSync.GET_PAYMENT_SYNC_CONTEXT.mockImplementation(
+    async ({ receiptId }: { receiptId?: string }) => ({
+      receipt: receiptId ? (receipts.get(receiptId) ?? null) : null,
+    }),
+  )
+
+  // FINALIZE mutates job + receipt like the provider transaction would
+  mocks.paymentSync.FINALIZE_PAYMENT_SYNC_JOB.mockImplementation(
+    async ({
+      jobId,
+      receiptId,
+      state,
+      errorCode,
+    }: {
+      jobId: string
+      receiptId?: string
+      state: string
+      errorCode?: string
+    }) => {
+      const job = jobs.get(jobId)!
+      job.state = state
+      job.last_error_code = errorCode ?? null
+      if (receiptId) {
+        const receipt = receipts.get(receiptId)
+        // Provider maps job SUCCEEDED to receipt PROCESSED (spec §8.5)
+        if (receipt) receipt.state = state === 'SUCCEEDED' ? 'PROCESSED' : state
+      }
+      return job
+    },
+  )
+
+  // UPSERT_DONATION_PAYMENT mirrors the provider's state machine closely
+  // enough for the controller tests: find by provider id, apply transitions.
+  mocks.paymentSync.UPSERT_DONATION_PAYMENT.mockImplementation(
+    async ({
+      churchId,
+      providerPaymentId,
+      amountMinor,
+      currency,
+      status,
+      paidAt,
+    }: {
+      churchId: string
+      providerPaymentId: string
+      amountMinor: number
+      currency: string
+      status: string
+      paidAt: Date | null
+      providerSubscriptionId?: string
+      userId?: string | null
+    }) => {
+      const existing = donations.find((d) => d.provider_payment_id === providerPaymentId)
+      if (existing) {
+        if (existing.status === 'PAID' && status === 'FAILED') return existing
+        existing.church_id = churchId
+        existing.status = status
+        existing.paid_at = paidAt
+        existing.amount_minor = BigInt(amountMinor)
+        existing.currency = currency.toLowerCase()
+        return existing
+      }
+      const created = {
+        id: crypto.randomUUID(),
+        church_id: churchId,
+        provider_payment_id: providerPaymentId,
+        amount_minor: BigInt(amountMinor),
+        currency: currency.toLowerCase(),
+        status,
+        paid_at: paidAt,
+        refunded_minor: BigInt(0),
+        subscription_id: null as string | null,
+      }
+      donations.push(created)
+      return created
+    },
+  )
+
+  mocks.paymentSync.UPSERT_DONATION_SUBSCRIPTION.mockImplementation(
+    async ({
+      churchId,
+      providerSubscriptionId,
+      amountMinor,
+      currency,
+      providerStatus,
+      eventCreated,
+    }: {
+      churchId: string
+      providerSubscriptionId: string
+      amountMinor: number
+      currency: string
+      providerStatus: string
+      eventCreated: number
+    }) => {
+      const existing = subscriptions.find(
+        (s) => s.provider_subscription_id === providerSubscriptionId,
+      )
+      if (existing) {
+        const isCanceled = existing.provider_status === 'canceled'
+        const isIncomingNonTerminal = providerStatus !== 'canceled'
+        const existingTime = (existing.updated_at ?? existing.created_at) as number
+        const isStale = eventCreated * 1000 < existingTime
+        if (isCanceled && isIncomingNonTerminal && isStale) return existing
+        existing.church_id = churchId
+        existing.amount_minor = BigInt(amountMinor)
+        existing.currency = currency.toLowerCase()
+        existing.provider_status = providerStatus
+        existing.updated_at = eventCreated * 1000
+        return existing
+      }
+      const created = {
+        id: crypto.randomUUID(),
+        church_id: churchId,
+        provider_subscription_id: providerSubscriptionId,
+        amount_minor: BigInt(amountMinor),
+        currency: currency.toLowerCase(),
+        provider_status: providerStatus,
+        created_at: eventCreated * 1000,
+        updated_at: null as number | null,
+      }
+      subscriptions.push(created)
+      return created
+    },
+  )
+
+  mocks.paymentSync.APPLY_DONATION_REFUND.mockImplementation(
+    async ({
+      providerPaymentId,
+      fallbackPaymentId,
+      refundedMinor,
+    }: {
+      providerPaymentId: string
+      fallbackPaymentId?: string
+      refundedMinor: number
+    }) => {
+      let existing = donations.find((d) => d.provider_payment_id === providerPaymentId)
+      if (!existing && fallbackPaymentId) {
+        existing = donations.find((d) => d.provider_payment_id === fallbackPaymentId)
+      }
+      if (!existing) {
+        throw new GeneralError({
+          code: 404,
+          error: 'NOT_FOUND',
+          error_code: 'DONATION_NOT_FOUND',
+          details: `Donation not found for payment ${providerPaymentId}`,
+        })
+      }
+      const next =
+        refundedMinor > Number(existing.refunded_minor)
+          ? refundedMinor
+          : Number(existing.refunded_minor)
+      existing.refunded_minor = BigInt(next)
+      if (next >= Number(existing.amount_minor)) existing.status = 'REFUNDED'
+      return existing
+    },
+  )
+})
+
+const createJob = (
+  payload: {
+    eventId?: string
+    eventType: string
+    objectId?: string
+    eventCreated?: number
+    dataObject?: Record<string, unknown>
+  },
+  state: 'RUNNING' | 'PENDING' = 'RUNNING',
+  availableAt: Date = new Date(Date.now() - 5000),
+): { job: MockJob; receipt: MockReceipt } => {
+  const receiptId = crypto.randomUUID()
+  const receipt: MockReceipt = { id: receiptId, state: 'PENDING' }
+  receipts.set(receiptId, receipt)
+  const job: MockJob = {
+    id: crypto.randomUUID(),
+    state,
+    attempts: 0,
+    resource_id: receiptId,
+    payload,
+    available_at: availableAt,
+    last_error_code: null,
+  }
+  jobs.set(job.id, job)
+  return { job, receipt }
+}
+
+const churchId = 'c1'
 
 describe('payment-sync-job controller', () => {
-  let churchId: string
-
-  beforeEach(async () => {
-    // No global deleteMany to prevent concurrent test collision
-    vi.useRealTimers()
-
-    const org = await db.orgNode.create({
-      data: {
-        id: crypto.randomUUID(),
-        kind: 'CHURCH',
-        name: 'Test Org Node',
-      },
-    })
-
-    const church = await db.church.create({
-      data: {
-        id: crypto.randomUUID(),
-        org_node_id: org.id,
-        name: 'Test Church',
-        status: 'APPROVED',
-        timezone: 'UTC',
-        address: {},
-        contacts: [],
-        social_links: {},
-      },
-    })
-    churchId = church.id
-
-    await db.donation.deleteMany({
-      where: {
-        provider_payment_id: { in: ['pi_test', 'pi_test_fail', 'ch_test'] },
-      },
-    })
-    await db.donationSubscription.deleteMany({
-      where: {
-        provider_subscription_id: { in: ['sub_test'] },
-      },
-    })
-  })
-
-  const createJob = async (
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    payload: any,
-    state: 'RUNNING' | 'PENDING' = 'RUNNING',
-    availableAt: Date = new Date(Date.now() - 5000),
-  ) => {
-    const receipt = await db.webhookReceipt.create({
-      data: {
-        id: crypto.randomUUID(),
-        provider: 'stripe',
-        account_id: `acct_test_${crypto.randomUUID()}`,
-        event_id: crypto.randomUUID(),
-        event_type: payload.eventType,
-        object_id: payload.objectId || 'obj_test',
-        received_at: new Date(),
-        state: 'PENDING',
-      },
-    })
-    const job = await db.outboxJob.create({
-      data: {
-        id: crypto.randomUUID(),
-        kind: 'payment.sync',
-        dedupe_key: crypto.randomUUID(),
-        resource_id: receipt.id,
-        payload: {
-          ...payload,
-        },
-        available_at: availableAt,
-        state,
-      },
-    })
-    return { receipt, job }
-  }
-
   it('skips non-running or missing jobs', async () => {
-    const { job, receipt } = await createJob({ eventType: 'test' }, 'PENDING')
+    const { job } = createJob({ eventType: 'test' }, 'PENDING')
     const outcome = await processPaymentSyncJob(job.id, 'req1')
     expect(outcome).toBe('skipped')
 
-    await db.outboxJob.delete({ where: { id: job.id } })
-    await db.webhookReceipt.delete({ where: { id: receipt.id } })
+    const outcomeMissing = await processPaymentSyncJob('no-such-job', 'req1b')
+    expect(outcomeMissing).toBe('skipped')
+  })
+
+  it('skips jobs without payload after requeue path marks PENDING', async () => {
+    const job: MockJob = {
+      id: crypto.randomUUID(),
+      state: 'RUNNING',
+      attempts: 1,
+      resource_id: null,
+      payload: null,
+      available_at: new Date(),
+      last_error_code: null,
+    }
+    jobs.set(job.id, job)
+    const outcome = await processPaymentSyncJob(job.id, 'req_missing_payload')
+    expect(outcome).toBe('requeued')
+    expect(job.state).toBe('PENDING')
+    expect(job.last_error_code).toBe('MISSING_PAYLOAD')
   })
 
   it('idempotently succeeds when WebhookReceipt is already PROCESSED', async () => {
-    const { job, receipt } = await createJob({ eventType: 'test' })
-    await db.webhookReceipt.update({ where: { id: receipt.id }, data: { state: 'PROCESSED' } })
+    const { job, receipt } = createJob({ eventType: 'test' })
+    receipt.state = 'PROCESSED'
 
     const outcome = await processPaymentSyncJob(job.id, 'req2')
     expect(outcome).toBe('succeeded')
+    expect(job.state).toBe('SUCCEEDED')
   })
 
   it('successfully processes payment_intent.succeeded and marks job/receipt SUCCEEDED', async () => {
     const piId = `pi_test_${crypto.randomUUID()}`
-    const { job, receipt } = await createJob({
+    const { job, receipt } = createJob({
       eventType: 'payment_intent.succeeded',
       eventCreated: 1750000000,
       dataObject: {
@@ -110,61 +338,44 @@ describe('payment-sync-job controller', () => {
         metadata: { churchId },
       },
     })
-    try {
-      const outcome = await processPaymentSyncJob(job.id, 'req3')
-      expect(outcome).toBe('succeeded')
 
-      const p = await db.donation.findFirst({
-        where: { church_id: churchId, provider_payment_id: piId },
-      })
-      expect(p?.status).toBe('PAID')
-      expect(p?.amount_minor).toBe(BigInt(5000))
-      // paid_at derives from the provider event time, not processing time.
-      expect(p?.paid_at?.toISOString()).toBe(new Date(1750000000 * 1000).toISOString())
+    const outcome = await processPaymentSyncJob(job.id, 'req3')
+    expect(outcome).toBe('succeeded')
 
-      const j = await db.outboxJob.findUnique({ where: { id: job.id } })
-      expect(j?.state).toBe('SUCCEEDED')
+    const donation = donations.find((d) => d.provider_payment_id === piId)
+    expect(donation?.status).toBe('PAID')
+    expect(donation?.amount_minor).toBe(BigInt(5000))
+    // paid_at derives from the provider event time, not processing time.
+    expect((donation?.paid_at as Date).toISOString()).toBe(
+      new Date(1750000000 * 1000).toISOString(),
+    )
+    expect(donation?.church_id).toBe(churchId)
 
-      const r = await db.webhookReceipt.findUnique({ where: { id: receipt.id } })
-      expect(r?.state).toBe('PROCESSED')
-    } finally {
-      await db.donation.deleteMany({ where: { provider_payment_id: piId } })
-      await db.outboxJob.deleteMany({ where: { id: job.id } })
-      await db.webhookReceipt.deleteMany({ where: { id: receipt.id } })
-    }
+    expect(job.state).toBe('SUCCEEDED')
+    expect(receipt.state).toBe('PROCESSED')
   })
 
   it('successfully processes payment_intent.payment_failed without overwriting PAID', async () => {
     const piId = `pi_test_fail_${crypto.randomUUID()}`
-    // 1. Paid
-    const { job: job1, receipt: receipt1 } = await createJob({
+    const { job: job1 } = createJob({
       eventType: 'payment_intent.succeeded',
       dataObject: { id: piId, amount: 5000, currency: 'usd', metadata: { churchId } },
     })
-    // 2. Failed (stale)
-    const { job: job2, receipt: receipt2 } = await createJob({
+    const { job: job2 } = createJob({
       eventType: 'payment_intent.payment_failed',
       dataObject: { id: piId, amount: 5000, currency: 'usd', metadata: { churchId } },
     })
-    try {
-      await processPaymentSyncJob(job1.id, 'req_fail_1')
-      await processPaymentSyncJob(job2.id, 'req_fail_2')
 
-      // Must remain PAID
-      const p = await db.donation.findFirst({
-        where: { church_id: churchId, provider_payment_id: piId },
-      })
-      expect(p?.status).toBe('PAID')
-    } finally {
-      await db.donation.deleteMany({ where: { provider_payment_id: piId } })
-      await db.outboxJob.deleteMany({ where: { id: { in: [job1.id, job2.id] } } })
-      await db.webhookReceipt.deleteMany({ where: { id: { in: [receipt1.id, receipt2.id] } } })
-    }
+    await processPaymentSyncJob(job1.id, 'req_fail_1')
+    await processPaymentSyncJob(job2.id, 'req_fail_2')
+
+    const donation = donations.find((d) => d.provider_payment_id === piId)
+    expect(donation?.status).toBe('PAID')
   })
 
   it('successfully processes customer.subscription.created and customer.subscription.deleted', async () => {
     const subId = `sub_test_${crypto.randomUUID()}`
-    const { job: job1, receipt: receipt1 } = await createJob({
+    const { job: job1 } = createJob({
       eventType: 'customer.subscription.created',
       dataObject: {
         id: subId,
@@ -173,7 +384,7 @@ describe('payment-sync-job controller', () => {
         metadata: { churchId },
       },
     })
-    const { job: job2, receipt: receipt2 } = await createJob({
+    const { job: job2 } = createJob({
       eventType: 'customer.subscription.deleted',
       dataObject: {
         id: subId,
@@ -182,139 +393,87 @@ describe('payment-sync-job controller', () => {
         metadata: { churchId },
       },
     })
-    try {
-      await processPaymentSyncJob(job1.id, 'req_sub_1')
 
-      let sub = await db.donationSubscription.findFirst({
-        where: { church_id: churchId, provider_subscription_id: subId },
-      })
-      expect(sub?.provider_status).toBe('active')
+    await processPaymentSyncJob(job1.id, 'req_sub_1')
+    let sub = subscriptions.find((s) => s.provider_subscription_id === subId)
+    expect(sub?.provider_status).toBe('active')
+    expect(donations).toHaveLength(0) // subscription event is not a payment
 
-      await processPaymentSyncJob(job2.id, 'req_sub_2')
-
-      sub = await db.donationSubscription.findFirst({
-        where: { church_id: churchId, provider_subscription_id: subId },
-      })
-      expect(sub?.provider_status).toBe('canceled')
-    } finally {
-      await db.donationSubscription.deleteMany({ where: { provider_subscription_id: subId } })
-      await db.outboxJob.deleteMany({ where: { id: { in: [job1.id, job2.id] } } })
-      await db.webhookReceipt.deleteMany({ where: { id: { in: [receipt1.id, receipt2.id] } } })
-    }
+    await processPaymentSyncJob(job2.id, 'req_sub_2')
+    sub = subscriptions.find((s) => s.provider_subscription_id === subId)
+    expect(sub?.provider_status).toBe('canceled')
   })
 
   it('successfully processes charge.refunded', async () => {
     const chId = `ch_test_${crypto.randomUUID()}`
-    const { job: job1, receipt: receipt1 } = await createJob({
+    const piId = `pi_ref_${crypto.randomUUID()}`
+    const { job: job1 } = createJob({
       eventType: 'charge.succeeded',
-      dataObject: { id: chId, amount: 2000, currency: 'usd', metadata: { churchId } },
+      dataObject: {
+        id: chId,
+        payment_intent: piId,
+        amount: 2000,
+        currency: 'usd',
+        metadata: { churchId },
+      },
     })
-    const { job: job2, receipt: receipt2 } = await createJob({
+    const { job: job2 } = createJob({
       eventType: 'charge.refunded',
-      dataObject: { id: chId, amount_refunded: 2000, currency: 'usd', metadata: { churchId } },
+      dataObject: {
+        id: chId,
+        payment_intent: piId,
+        amount_refunded: 2000,
+        currency: 'usd',
+        metadata: { churchId },
+      },
     })
-    try {
-      await processPaymentSyncJob(job1.id, 'req_ref_1')
-      await processPaymentSyncJob(job2.id, 'req_ref_2')
 
-      const p = await db.donation.findFirst({
-        where: { church_id: churchId, provider_payment_id: chId },
-      })
-      expect(p?.status).toBe('REFUNDED')
-      expect(p?.refunded_minor).toBe(BigInt(2000))
-    } finally {
-      await db.donation.deleteMany({ where: { provider_payment_id: chId } })
-      await db.outboxJob.deleteMany({ where: { id: { in: [job1.id, job2.id] } } })
-      await db.webhookReceipt.deleteMany({ where: { id: { in: [receipt1.id, receipt2.id] } } })
-    }
+    await processPaymentSyncJob(job1.id, 'req_ref_1')
+    await processPaymentSyncJob(job2.id, 'req_ref_2')
+
+    const donation = donations.find((d) => d.provider_payment_id === piId)
+    expect(donation?.status).toBe('REFUNDED')
+    expect(donation?.refunded_minor).toBe(BigInt(2000))
   })
+
   it('marks job as FAILED when attempts reaches MAX_ATTEMPTS (dead-letter)', async () => {
-    const { job, receipt } = await createJob(
-      { eventType: 'unknown.event_type' }, // Will fail to process event
-      'RUNNING',
-    )
-    // Set attempts to 3 (MAX_ATTEMPTS)
-    await db.outboxJob.update({
-      where: { id: job.id },
-      data: { attempts: 3 },
-    })
+    const { job, receipt } = createJob({ eventType: 'unknown.event_type' }, 'RUNNING')
+    job.attempts = 3
 
     const outcome = await processPaymentSyncJob(job.id, 'req_dlq')
     expect(outcome).toBe('failed')
-    const updatedJob = await db.outboxJob.findUnique({ where: { id: job.id } })
-    expect(updatedJob?.state).toBe('FAILED')
-    expect(updatedJob?.last_error_code).toBe('MISSING_EVENT_OBJECT')
-
-    const updatedReceipt = await db.webhookReceipt.findUnique({ where: { id: receipt.id } })
-    expect(updatedReceipt?.state).toBe('FAILED')
+    expect(job.state).toBe('FAILED')
+    expect(job.last_error_code).toBe('MISSING_EVENT_OBJECT')
+    expect(receipt.state).toBe('FAILED')
   })
 
-  it('re-arms job and receipt when redelivering an event whose receipt is FAILED', async () => {
-    const eventId = `evt_${crypto.randomUUID()}`
-    const accountId = PLATFORM_ACCOUNT_ID()
+  it('pins attempts execution lifecycle: requeues on attempts 1 and 2, dead-letters on attempt 3', async () => {
+    const { job } = createJob({ eventType: 'unknown.event_type' }, 'RUNNING')
 
-    const receipt = await db.webhookReceipt.create({
-      data: {
-        id: crypto.randomUUID(),
-        provider: 'stripe',
-        account_id: accountId,
-        event_id: eventId,
-        event_type: 'payment_intent.succeeded',
-        object_id: 'pi_test_recovery',
-        received_at: new Date(),
-        state: 'FAILED',
-      },
-    })
-    const job = await db.outboxJob.create({
-      data: {
-        id: crypto.randomUUID(),
-        kind: 'payment.sync',
-        dedupe_key: `payment.sync:stripe:${accountId}:${eventId}`,
-        resource_id: receipt.id,
-        payload: {
-          eventType: 'payment_intent.succeeded',
-          dataObject: { id: 'pi_test_recovery', metadata: { churchId } },
-        },
-        available_at: new Date(),
-        state: 'FAILED',
-        attempts: 3,
-        last_error_code: 'SOME_ERROR',
-      },
-    })
+    // Attempt 1: fails and requeues
+    job.attempts = 1
+    const outcome1 = await processPaymentSyncJob(job.id, 'req_attempt_1')
+    expect(outcome1).toBe('requeued')
+    expect(job.state).toBe('PENDING')
 
-    try {
-      const redelivery = await RECORD_STRIPE_WEBHOOK_RECEIPT({
-        event: {
-          id: eventId,
-          type: 'payment_intent.succeeded',
-          account: accountId,
-          objectId: 'pi_test_recovery',
-          data: {
-            object: { id: 'pi_test_recovery' },
-          },
-        },
-      })
+    // Attempt 2: fails and requeues
+    job.attempts = 2
+    job.state = 'RUNNING'
+    const outcome2 = await processPaymentSyncJob(job.id, 'req_attempt_2')
+    expect(outcome2).toBe('requeued')
+    expect(job.state).toBe('PENDING')
 
-      expect(redelivery.duplicate).toBe(true)
-      expect(redelivery.ignored).toBe(false)
-      expect(redelivery.jobId).toBe(job.id)
-
-      const updatedJob = await db.outboxJob.findUnique({ where: { id: job.id } })
-      expect(updatedJob?.state).toBe('PENDING')
-      expect(updatedJob?.attempts).toBe(0)
-      expect(updatedJob?.last_error_code).toBeNull()
-
-      const updatedReceipt = await db.webhookReceipt.findUnique({ where: { id: receipt.id } })
-      expect(updatedReceipt?.state).toBe('PENDING')
-    } finally {
-      await db.outboxJob.deleteMany({ where: { id: job.id } })
-      await db.webhookReceipt.deleteMany({ where: { id: receipt.id } })
-    }
+    // Attempt 3: reaches MAX_ATTEMPTS = 3, marks FAILED
+    job.attempts = 3
+    job.state = 'RUNNING'
+    const outcome3 = await processPaymentSyncJob(job.id, 'req_attempt_3')
+    expect(outcome3).toBe('failed')
+    expect(job.state).toBe('FAILED')
   })
 
   it('requeues charge.refunded when donation is not found (refund before payment)', async () => {
     const before = new Date()
-    const { job, receipt } = await createJob({
+    const { job } = createJob({
       eventType: 'charge.refunded',
       dataObject: {
         id: 'ch_r',
@@ -325,22 +484,15 @@ describe('payment-sync-job controller', () => {
       },
     })
 
-    try {
-      const outcome = await processPaymentSyncJob(job.id, 'req_ref_missing')
-      expect(outcome).toBe('requeued')
-
-      const updatedJob = await db.outboxJob.findUnique({ where: { id: job.id } })
-      expect(updatedJob?.state).toBe('PENDING')
-      expect(updatedJob?.last_error_code).toBe('DONATION_NOT_FOUND')
-      expect(updatedJob?.available_at && updatedJob.available_at > before).toBe(true)
-    } finally {
-      await db.outboxJob.deleteMany({ where: { id: job.id } })
-      await db.webhookReceipt.deleteMany({ where: { id: receipt.id } })
-    }
+    const outcome = await processPaymentSyncJob(job.id, 'req_ref_missing')
+    expect(outcome).toBe('requeued')
+    expect(job.state).toBe('PENDING')
+    expect(job.last_error_code).toBe('DONATION_NOT_FOUND')
+    expect(job.available_at.getTime()).toBeGreaterThan(before.getTime())
   })
 
   it('marks job and receipt FAILED when refund-before-payment reaches REFUND_MAX_ATTEMPTS', async () => {
-    const { job, receipt } = await createJob({
+    const { job, receipt } = createJob({
       eventType: 'charge.refunded',
       dataObject: {
         id: 'ch_r',
@@ -350,62 +502,16 @@ describe('payment-sync-job controller', () => {
         metadata: { churchId },
       },
     })
-    await db.outboxJob.update({
-      where: { id: job.id },
-      data: { attempts: 10 },
-    })
+    job.attempts = 10
 
-    try {
-      const outcome = await processPaymentSyncJob(job.id, 'req_ref_exhausted')
-      expect(outcome).toBe('failed')
-
-      const updatedJob = await db.outboxJob.findUnique({ where: { id: job.id } })
-      expect(updatedJob?.state).toBe('FAILED')
-
-      const updatedReceipt = await db.webhookReceipt.findUnique({ where: { id: receipt.id } })
-      expect(updatedReceipt?.state).toBe('FAILED')
-    } finally {
-      await db.outboxJob.deleteMany({ where: { id: job.id } })
-      await db.webhookReceipt.deleteMany({ where: { id: receipt.id } })
-    }
-  })
-
-  it('records receipt without outbox job for checkout.session.completed', async () => {
-    const eventId = `evt_${crypto.randomUUID()}`
-    const accountId = PLATFORM_ACCOUNT_ID()
-
-    const res = await RECORD_STRIPE_WEBHOOK_RECEIPT({
-      event: {
-        id: eventId,
-        type: 'checkout.session.completed',
-        account: accountId,
-        objectId: 'cs_test_123',
-        data: {
-          object: { id: 'cs_test_123' },
-        },
-      },
-    })
-
-    expect(res.ignored).toBe(true)
-    expect(res.jobId).toBeUndefined()
-    expect(res.receiptId).toBeDefined()
-
-    try {
-      const receipt = await db.webhookReceipt.findUnique({ where: { id: res.receiptId } })
-      expect(receipt?.state).toBe('PROCESSED')
-      expect(receipt?.processed_at).not.toBeNull()
-
-      const jobCount = await db.outboxJob.count({ where: { resource_id: res.receiptId } })
-      expect(jobCount).toBe(0)
-    } finally {
-      if (res.receiptId) {
-        await db.webhookReceipt.deleteMany({ where: { id: res.receiptId } })
-      }
-    }
+    const outcome = await processPaymentSyncJob(job.id, 'req_ref_exhausted')
+    expect(outcome).toBe('failed')
+    expect(job.state).toBe('FAILED')
+    expect(receipt.state).toBe('FAILED')
   })
 
   it('skips orphan donation row for charge.failed without payment_intent', async () => {
-    const { job, receipt } = await createJob({
+    const { job } = createJob({
       eventType: 'charge.failed',
       dataObject: {
         id: 'ch_x',
@@ -416,67 +522,14 @@ describe('payment-sync-job controller', () => {
       },
     })
 
-    try {
-      const outcome = await processPaymentSyncJob(job.id, 'req_ch_failed_orphan')
-      expect(outcome).toBe('succeeded')
-
-      const count = await db.donation.count({
-        where: { church_id: churchId },
-      })
-      expect(count).toBe(0)
-    } finally {
-      await db.outboxJob.deleteMany({ where: { id: job.id } })
-      await db.webhookReceipt.deleteMany({ where: { id: receipt.id } })
-    }
+    const outcome = await processPaymentSyncJob(job.id, 'req_ch_failed_orphan')
+    expect(outcome).toBe('succeeded')
+    expect(donations).toHaveLength(0)
   })
 
-  describe('runPaymentSyncTick', () => {
-    it('claims and runs batch of jobs', async () => {
-      await db.outboxJob.deleteMany({
-        where: { kind: 'payment.sync', state: 'PENDING' },
-      })
-      const { job: job1, receipt: r1 } = await createJob(
-        { eventType: 'test1', dataObject: { id: 'a', metadata: { churchId } } },
-        'PENDING',
-        new Date(Date.now() - 5000),
-      )
-      const { job: job2, receipt: r2 } = await createJob(
-        { eventType: 'test2', dataObject: { id: 'b', metadata: { churchId } } },
-        'PENDING',
-        new Date(Date.now() - 5000),
-      )
-      try {
-        const summary = await runPaymentSyncTick({ limit: 5 })
-        expect(summary.claimed).toBeGreaterThanOrEqual(2)
-        expect(summary.succeeded).toBeGreaterThanOrEqual(2)
-      } finally {
-        await db.outboxJob.deleteMany({ where: { id: { in: [job1.id, job2.id] } } })
-        await db.webhookReceipt.deleteMany({ where: { id: { in: [r1.id, r2.id] } } })
-      }
-    })
-
-    it('claims and counts requeued jobs when encountering retryable error', async () => {
-      await db.outboxJob.deleteMany({
-        where: { kind: 'payment.sync', state: 'PENDING' },
-      })
-      const { job, receipt } = await createJob(
-        { eventType: 'unknown.tick.event' },
-        'PENDING',
-        new Date(Date.now() - 5000),
-      )
-      try {
-        const summary = await runPaymentSyncTick({ limit: 5 })
-        expect(summary.claimed).toBeGreaterThanOrEqual(1)
-        expect(summary.requeued).toBeGreaterThanOrEqual(1)
-      } finally {
-        await db.outboxJob.deleteMany({ where: { id: job.id } })
-        await db.webhookReceipt.deleteMany({ where: { id: receipt.id } })
-      }
-    })
-  })
   it('creates donation row with church_id when metadata.churchId is present', async () => {
     const paymentId = `pi_meta_${crypto.randomUUID()}`
-    const { job, receipt } = await createJob({
+    const { job, receipt } = createJob({
       eventType: 'payment_intent.succeeded',
       eventCreated: 1750000000,
       dataObject: {
@@ -486,23 +539,20 @@ describe('payment-sync-job controller', () => {
         metadata: { churchId },
       },
     })
+
     const outcome = await processPaymentSyncJob(job.id, 'req_meta_1')
     expect(outcome).toBe('succeeded')
 
-    const donation = await db.donation.findUnique({
-      where: { provider_payment_id: paymentId },
-    })
+    const donation = donations.find((d) => d.provider_payment_id === paymentId)
     expect(donation).toBeDefined()
     expect(donation?.church_id).toBe(churchId)
     expect(donation?.amount_minor).toBe(BigInt(7500))
-
-    const r = await db.webhookReceipt.findUnique({ where: { id: receipt.id } })
-    expect(r?.state).toBe('PROCESSED')
+    expect(receipt.state).toBe('PROCESSED')
   })
 
   it('skips event and creates no donation row when metadata.churchId is missing', async () => {
     const paymentId = `pi_nometa_${crypto.randomUUID()}`
-    const { job, receipt } = await createJob({
+    const { job, receipt } = createJob({
       eventType: 'payment_intent.succeeded',
       dataObject: {
         id: paymentId,
@@ -510,43 +560,27 @@ describe('payment-sync-job controller', () => {
         currency: 'usd',
       },
     })
+
     const outcome = await processPaymentSyncJob(job.id, 'req_nometa_1')
     expect(outcome).toBe('skipped')
-
-    const donation = await db.donation.findUnique({
-      where: { provider_payment_id: paymentId },
-    })
-    expect(donation).toBeNull()
-
-    const r = await db.webhookReceipt.findUnique({ where: { id: receipt.id } })
-    expect(r?.state).toBe('PROCESSED')
-
-    const j = await db.outboxJob.findUnique({ where: { id: job.id } })
-    expect(j?.state).toBe('SUCCEEDED')
+    expect(donations).toHaveLength(0)
+    expect(receipt.state).toBe('PROCESSED')
+    expect(job.state).toBe('SUCCEEDED')
   })
 
   it('requeues job with future available_at and MISSING_EVENT_OBJECT when event object is missing and attempts < MAX_ATTEMPTS', async () => {
-    const { job, receipt } = await createJob({
-      eventType: 'custom.unknown.event',
-    })
-    try {
-      const outcome = await processPaymentSyncJob(job.id, 'req_requeue_unknown')
-      expect(outcome).toBe('requeued')
-
-      const updatedJob = await db.outboxJob.findUnique({ where: { id: job.id } })
-      expect(updatedJob?.state).toBe('PENDING')
-      expect(updatedJob?.last_error_code).toBe('MISSING_EVENT_OBJECT')
-      expect(updatedJob?.available_at.getTime()).toBeGreaterThan(Date.now())
-    } finally {
-      await db.outboxJob.deleteMany({ where: { id: job.id } })
-      await db.webhookReceipt.deleteMany({ where: { id: receipt.id } })
-    }
+    const { job } = createJob({ eventType: 'custom.unknown.event' })
+    const outcome = await processPaymentSyncJob(job.id, 'req_requeue_unknown')
+    expect(outcome).toBe('requeued')
+    expect(job.state).toBe('PENDING')
+    expect(job.last_error_code).toBe('MISSING_EVENT_OBJECT')
+    expect(job.available_at.getTime()).toBeGreaterThan(Date.now())
   })
 
   it('stores donation under payment_intent id when payment_intent is an object on charge.succeeded', async () => {
     const paymentId = `pi_obj_${crypto.randomUUID()}`
     const chargeId = `ch_obj_${crypto.randomUUID()}`
-    const { job, receipt } = await createJob({
+    const { job } = createJob({
       eventType: 'charge.succeeded',
       eventCreated: 1750000000,
       dataObject: {
@@ -557,21 +591,98 @@ describe('payment-sync-job controller', () => {
         metadata: { churchId },
       },
     })
-    try {
-      const outcome = await processPaymentSyncJob(job.id, 'req_ch_obj_pi')
-      expect(outcome).toBe('succeeded')
 
-      const donation = await db.donation.findUnique({
-        where: { provider_payment_id: paymentId },
+    const outcome = await processPaymentSyncJob(job.id, 'req_ch_obj_pi')
+    expect(outcome).toBe('succeeded')
+
+    const donation = donations.find((d) => d.provider_payment_id === paymentId)
+    expect(donation).toBeDefined()
+    expect(donation?.church_id).toBe(churchId)
+    expect(donation?.amount_minor).toBe(BigInt(3500))
+    expect(donation?.status).toBe('PAID')
+  })
+
+  it('re-fetches authoritative state from Stripe when enabled and dataObject is missing', async () => {
+    mocks.stripe.isStripeEnabled.mockReturnValue(true)
+    const piId = `pi_fetch_${crypto.randomUUID()}`
+    mocks.stripe.STRIPE.retrievePaymentIntent.mockResolvedValueOnce({
+      id: piId,
+      amount: 1500,
+      currency: 'usd',
+      metadata: { churchId },
+    })
+    const { job } = createJob({
+      eventId: crypto.randomUUID(),
+      eventType: 'payment_intent.succeeded',
+      objectId: piId,
+    })
+
+    const outcome = await processPaymentSyncJob(job.id, 'req_fetch')
+    expect(outcome).toBe('succeeded')
+    expect(mocks.stripe.STRIPE.retrievePaymentIntent).toHaveBeenCalledWith(piId)
+    const donation = donations.find((d) => d.provider_payment_id === piId)
+    expect(donation?.amount_minor).toBe(BigInt(1500))
+  })
+
+  describe('runPaymentSyncTick', () => {
+    it('claims and runs batch of jobs', async () => {
+      const { job: job1 } = createJob(
+        { eventType: 'test1', dataObject: { id: 'a', metadata: { churchId } } },
+        'PENDING',
+        new Date(Date.now() - 5000),
+      )
+      const { job: job2 } = createJob(
+        { eventType: 'test2', dataObject: { id: 'b', metadata: { churchId } } },
+        'PENDING',
+        new Date(Date.now() - 5000),
+      )
+
+      // CLAIM flips rows to RUNNING + increments attempts, as the provider does
+      mocks.outbox.CLAIM_PENDING_JOBS.mockImplementation(async ({ limit }: { limit?: number }) => {
+        const claimable = Array.from(jobs.values())
+          .filter((j) => j.state === 'PENDING' && j.available_at <= new Date())
+          .slice(0, limit ?? 5)
+        for (const j of claimable) {
+          j.state = 'RUNNING'
+          j.attempts += 1
+        }
+        return claimable.map((j) => ({
+          id: j.id,
+          attempts: j.attempts,
+          resource_id: j.resource_id,
+          payload: j.payload,
+        }))
       })
-      expect(donation).toBeDefined()
-      expect(donation?.church_id).toBe(churchId)
-      expect(donation?.amount_minor).toBe(BigInt(3500))
-      expect(donation?.status).toBe('PAID')
-    } finally {
-      await db.donation.deleteMany({ where: { provider_payment_id: paymentId } })
-      await db.outboxJob.deleteMany({ where: { id: job.id } })
-      await db.webhookReceipt.deleteMany({ where: { id: receipt.id } })
-    }
+
+      const summary = await runPaymentSyncTick({ limit: 5 })
+      expect(summary.claimed).toBe(2)
+      expect(summary.succeeded).toBe(2)
+      expect(jobs.get(job1.id)?.state).toBe('SUCCEEDED')
+      expect(jobs.get(job2.id)?.state).toBe('SUCCEEDED')
+    })
+
+    it('claims and counts requeued jobs when encountering retryable error', async () => {
+      createJob({ eventType: 'unknown.tick.event' }, 'PENDING', new Date(Date.now() - 5000))
+
+      mocks.outbox.CLAIM_PENDING_JOBS.mockImplementation(async ({ limit }: { limit?: number }) => {
+        const claimable = Array.from(jobs.values())
+          .filter((j) => j.state === 'PENDING' && j.available_at <= new Date())
+          .slice(0, limit ?? 5)
+        for (const j of claimable) {
+          j.state = 'RUNNING'
+          j.attempts += 1
+        }
+        return claimable.map((j) => ({
+          id: j.id,
+          attempts: j.attempts,
+          resource_id: j.resource_id,
+          payload: j.payload,
+        }))
+      })
+
+      const summary = await runPaymentSyncTick({ limit: 5 })
+      expect(summary.claimed).toBe(1)
+      expect(summary.requeued).toBe(1)
+    })
   })
 })

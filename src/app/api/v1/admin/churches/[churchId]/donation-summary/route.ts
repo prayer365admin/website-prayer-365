@@ -53,7 +53,9 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ chur
       })
     }
     const summary = await getDonationSummary({ churchId, churchIds, month })
-    return ok(summary, 'Donation summary retrieved.')
+    const res = ok(summary, 'Donation summary retrieved.')
+    res.headers.set('Cache-Control', 'private, no-store')
+    return res
   } catch (e) {
     return httpError(e)
   }

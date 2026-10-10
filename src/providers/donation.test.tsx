@@ -107,14 +107,55 @@ describe('GET_DONATIONS', () => {
     })
 
     const call = vi.mocked(db.donation.findMany).mock.calls[0]![0]!
-    const where = call.where as {
+    const where = call.where as unknown as {
       church_id: { in: string[] }
-      paid_at?: { gte?: Date; lte?: Date }
+      OR: [
+        { paid_at: { gte: Date; lte: Date } },
+        { paid_at: null; created_at: { gte: Date; lte: Date } },
+      ]
     }
     expect(where.church_id.in).toEqual(['c1'])
-    expect(where.paid_at?.gte?.toISOString()).toBe('2026-09-01T00:00:00.000Z')
-    expect(where.paid_at?.lte?.toISOString()).toBe('2026-09-30T00:00:00.000Z')
+    expect(where.OR[0].paid_at.gte.toISOString()).toBe('2026-09-01T00:00:00.000Z')
+    expect(where.OR[0].paid_at.lte.toISOString()).toBe('2026-09-30T00:00:00.000Z')
+    expect(where.OR[1].paid_at).toBeNull()
+    expect(where.OR[1].created_at.gte.toISOString()).toBe('2026-09-01T00:00:00.000Z')
+    expect(where.OR[1].created_at.lte.toISOString()).toBe('2026-09-30T00:00:00.000Z')
   })
+
+  it('includes failed donations with null paid_at by falling back to created_at in date bounds', async () => {
+    vi.mocked(db.donation.count).mockResolvedValue(1)
+    vi.mocked(db.donation.findMany).mockResolvedValue([
+      {
+        id: 'd-failed',
+        amount_minor: BigInt(2500),
+        currency: 'USD',
+        status: 'FAILED',
+        paid_at: null,
+        created_at: new Date('2026-09-10T12:00:00Z'),
+        provider_payment_id: 'pi_fail_1',
+      },
+    ] as never)
+
+    const res = await GET_DONATIONS({
+      churchIds: scope,
+      query: {
+        ...query,
+        from: new Date('2026-09-01T00:00:00Z'),
+        to: new Date('2026-09-30T00:00:00Z'),
+      },
+    })
+    expect(res.total).toBe(1)
+    expect(res.result[0]).toEqual({
+      id: 'd-failed',
+      amountMinor: '2500',
+      currency: 'USD',
+      status: 'FAILED',
+      paidAt: null,
+      createdAt: new Date('2026-09-10T12:00:00Z'),
+      ref: 'pi_fail_1',
+    })
+  })
+
   it('filters by normalized currency when requested', async () => {
     vi.mocked(db.donation.count).mockResolvedValue(1)
     vi.mocked(db.donation.findMany).mockResolvedValue([

@@ -9,7 +9,7 @@ import {
 /*
  * Analytics adapter (Tasks 31-32). All metrics derive from SOURCE records:
  * CheckIn (voluntary attendance), Event (church events), Prayer (content),
- * Donation (payments through the church's PaymentAccount). Client
+ * Donation (payments attributed to the church). Client
  * analytics-events are NOT an attendance source. Every read is filtered by
  * the resolved `churchIds` for both count and rows, attendance is aggregated
  * by local date (no named records), and the regional summary is aggregate

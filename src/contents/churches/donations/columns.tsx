@@ -53,7 +53,10 @@ export const TransactionsColumns = (): TableProps<DonationRow>['columns'] => [
     title: 'Date',
     dataIndex: 'paidAt',
     key: 'paidAt',
-    render: (paidAt: Date | null) => (paidAt ? dayjs(paidAt).format('YYYY-MM-DD HH:mm') : '-'),
+    render: (paidAt: Date | null, record: DonationRow) => {
+      const d = paidAt ?? record.createdAt
+      return d ? dayjs(d).format('YYYY-MM-DD HH:mm') : '-'
+    },
   },
   {
     title: 'Reference',

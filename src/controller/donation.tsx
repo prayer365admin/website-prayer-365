@@ -1,5 +1,5 @@
 import { STRIPE } from '@/providers/stripe'
-import { withIdempotency } from '@/utils/idempotency'
+import { withExternalIdempotency } from '@/utils/idempotency'
 import { validate } from '@/utils/validate'
 import { GeneralError } from '@/utils/general-error'
 import {
@@ -101,9 +101,9 @@ export const initiateDonation = async ({
     })
   }
 
-  let session
+  let session: { sessionId: string; url: string }
   if (idempotencyKey && userId) {
-    const idem = await withIdempotency({
+    const idem = await withExternalIdempotency({
       actorKey: userId,
       key: idempotencyKey,
       operation: 'initiate_donation',
@@ -113,11 +113,38 @@ export const initiateDonation = async ({
         return JSON.stringify(res)
       },
     })
-    session = JSON.parse(idem.resource_id!)
+    const raw = idem.resource_id
+    if (!raw) {
+      throw new GeneralError({
+        code: 500,
+        error: 'INTERNAL_ERROR',
+        error_code: 'IDEMPOTENCY_REPLAY_FAILED',
+        details: 'Idempotency record has no session data.',
+      })
+    }
+    try {
+      const parsed = JSON.parse(raw)
+      if (
+        typeof parsed === 'object' &&
+        parsed !== null &&
+        typeof parsed.sessionId === 'string' &&
+        typeof parsed.url === 'string'
+      ) {
+        session = parsed
+      } else {
+        throw new Error('Invalid session format')
+      }
+    } catch {
+      throw new GeneralError({
+        code: 500,
+        error: 'INTERNAL_ERROR',
+        error_code: 'IDEMPOTENCY_REPLAY_FAILED',
+        details: 'Stored idempotency session payload is corrupt.',
+      })
+    }
   } else {
     session = await createSession()
   }
-
   return {
     sessionId: session.sessionId,
     url: session.url,
