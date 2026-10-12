@@ -133,3 +133,12 @@ export const S3_GET_SIGNED_URL = async ({
   if (!b) throw notConfigured()
   return getSignedUrl(client(), new GetObjectCommand({ Bucket: b, Key: key }), { expiresIn })
 }
+
+/** Worker-side direct read (F4VO voice.register downloads approved samples). */
+export const S3_GET_OBJECT_BYTES = async ({ key }: { key: string }): Promise<Uint8Array> => {
+  const b = bucket()
+  if (!b) throw notConfigured()
+  const res = await client().send(new GetObjectCommand({ Bucket: b, Key: key }))
+  if (!res.Body) throw new Error(`S3 object ${key} has no body.`)
+  return res.Body.transformToByteArray()
+}

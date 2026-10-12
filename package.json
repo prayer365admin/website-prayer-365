@@ -16,6 +16,7 @@
     "style-init": "tsx src/script/generate-sass-variable.ts",
     "worker:audio-generate": "bun workers/audio-generate.ts",
     "worker:prayer-publish": "bun workers/prayer-publish.ts",
+    "worker:voice-register": "bun workers/voice-register.ts",
     "update-dbdocs": "bun prisma generate && dbdocs build prisma/dbml/schema.dbml --project catatia_dashboard"
   },
   "prisma": {
