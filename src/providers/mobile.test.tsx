@@ -10,6 +10,7 @@ const db = vi.hoisted(() => ({
   event: { count: vi.fn(), findMany: vi.fn() },
   announcement: { count: vi.fn(), findMany: vi.fn() },
   checkIn: { createMany: vi.fn(), findFirst: vi.fn() },
+  mediaAsset: { findFirst: vi.fn() },
   analyticsEvent: { createMany: vi.fn() },
   request: { count: vi.fn(), findFirst: vi.fn() },
   auditLog: { create: vi.fn() },
@@ -17,12 +18,18 @@ const db = vi.hoisted(() => ({
 
 vi.mock('@/utils/db-connection', () => ({ db }))
 
+// Bucket is public-read for now (SPEC §10.4.1 / D13): covers come from S3_PUBLIC_URL.
+const s3 = vi.hoisted(() => ({ S3_PUBLIC_URL: vi.fn() }))
+vi.mock('@/providers/s3', () => ({ S3_PUBLIC_URL: s3.S3_PUBLIC_URL }))
+
 import {
   churchLocalDate,
   CREATE_CHECKIN,
   UPDATE_ME_PROFILE,
+  GET_HOME,
   GET_PUBLIC_CHURCH,
   GET_PUBLISHED_PRAYER,
+  LIST_MY_CHURCHES,
   LIST_PUBLIC_ANNOUNCEMENTS,
   LIST_PUBLIC_EVENTS,
   LIST_PUBLISHED_PRAYERS,
@@ -31,7 +38,11 @@ import {
   GET_USER_REQUEST_ACK,
 } from './mobile'
 
-beforeEach(() => vi.clearAllMocks())
+beforeEach(() => {
+  vi.clearAllMocks()
+  s3.S3_PUBLIC_URL.mockImplementation(({ key }: { key: string }) => `https://cdn.test/${key}`)
+  db.mediaAsset.findFirst.mockResolvedValue(null)
+})
 
 describe('churchLocalDate (D7 local-day foundation)', () => {
   it('returns a UTC calendar date for a UTC church', () => {
@@ -209,8 +220,12 @@ describe('GET_PUBLIC_CHURCH — admin profile reflected in mobile contract', () 
     expect(result?.coverAssetId).toBe('m1')
     expect(result?.languageCodes).toEqual(['et', 'en'])
     expect(result?.serviceTimes[0].weekday).toBe(1)
-    expect(result?.serviceTimes[0].localTime).toBe('1970-01-01T09:00:00.000Z')
+    // MB-10: HH:MM church wall clock, not an ISO instant
+    expect(result?.serviceTimes[0].localTime).toBe('09:00')
+    expect(result?.serviceTimes[0].localTime).toMatch(/^\d{2}:\d{2}$/)
     expect(result?.serviceTimes[0].languageCode).toBe('et')
+    // cover_asset_id present but the asset is not READY -> no URL
+    expect(result?.coverUrl).toBeNull()
   })
 
   it('never exposes private/server-owned fields', async () => {
@@ -499,5 +514,153 @@ describe('CREATE_USER_REQUEST — no sensitive payload outside the row', () => {
     for (const leaked of ['secret message', 'me@example.com', '+3725550000', 'PRIVATE']) {
       expect(audit).not.toContain(leaked)
     }
+  })
+})
+
+describe('church cover URLs (MB-17)', () => {
+  const myChurchRow = (over: Record<string, unknown> = {}) => ({
+    is_main: true,
+    is_followed: true,
+    church: {
+      id: 'c1',
+      name: 'Grace',
+      address: { city: 'Tallinn' },
+      cover_asset_id: 'm1',
+      status: 'APPROVED',
+    },
+    ...over,
+  })
+
+  it('LIST_MY_CHURCHES adds coverUrl for a READY IMAGE asset', async () => {
+    db.userChurch.findMany.mockResolvedValueOnce([myChurchRow()])
+    db.mediaAsset.findFirst.mockResolvedValueOnce({ object_key: 'media/c1/image/abc' })
+
+    const res = await LIST_MY_CHURCHES({ userId: 'u1' })
+
+    expect(res[0].coverAssetId).toBe('m1')
+    expect(res[0].coverUrl).toBe('https://cdn.test/media/c1/image/abc')
+    expect(db.mediaAsset.findFirst).toHaveBeenCalledWith({
+      where: { id: 'm1', status: 'READY', purpose: 'IMAGE' },
+      select: { object_key: true },
+    })
+  })
+
+  it('coverUrl is null when the church has no cover_asset_id', async () => {
+    db.userChurch.findMany.mockResolvedValueOnce([
+      myChurchRow({
+        church: {
+          id: 'c1',
+          name: 'Grace',
+          address: null,
+          cover_asset_id: null,
+          status: 'APPROVED',
+        },
+      }),
+    ])
+
+    const res = await LIST_MY_CHURCHES({ userId: 'u1' })
+
+    expect(res[0].coverUrl).toBeNull()
+    expect(db.mediaAsset.findFirst).not.toHaveBeenCalled()
+  })
+
+  it('coverUrl is null when the asset is not READY (findFirst -> null)', async () => {
+    db.userChurch.findMany.mockResolvedValueOnce([myChurchRow()])
+    db.mediaAsset.findFirst.mockResolvedValueOnce(null)
+
+    const res = await LIST_MY_CHURCHES({ userId: 'u1' })
+    expect(res[0].coverUrl).toBeNull()
+  })
+
+  it('coverUrl is null (no throw, no 500) when storage is not configured', async () => {
+    db.userChurch.findMany.mockResolvedValueOnce([myChurchRow()])
+    db.mediaAsset.findFirst.mockResolvedValueOnce({ object_key: 'media/c1/image/abc' })
+    s3.S3_PUBLIC_URL.mockReturnValueOnce(null)
+
+    const res = await LIST_MY_CHURCHES({ userId: 'u1' })
+    expect(res[0].coverUrl).toBeNull()
+  })
+
+  it('GET_PUBLIC_CHURCH exposes coverAssetId + coverUrl on the public profile', async () => {
+    db.church.findFirst.mockResolvedValueOnce({
+      id: 'c1',
+      name: 'Grace',
+      timezone: 'UTC',
+      cover_asset_id: 'm1',
+      churchLanguages: [],
+      serviceTimes: [],
+    })
+    db.mediaAsset.findFirst.mockResolvedValueOnce({ object_key: 'media/c1/image/abc' })
+
+    const res = await GET_PUBLIC_CHURCH({ churchId: 'c1' })
+
+    expect(res?.coverAssetId).toBe('m1')
+    expect(res?.coverUrl).toBe('https://cdn.test/media/c1/image/abc')
+  })
+})
+
+describe('GET_HOME — MB-10 typed projection', () => {
+  it('returns mainChurch/followedChurches and typed latest* arrays (no main/followed)', async () => {
+    db.userChurch.findMany.mockResolvedValueOnce([
+      { is_main: true, is_followed: false, church_id: 'c1' },
+      { is_main: false, is_followed: true, church_id: 'c2' },
+    ])
+    db.church.findFirst.mockResolvedValueOnce({
+      id: 'c1',
+      name: 'Main',
+      timezone: 'UTC',
+      churchLanguages: [],
+      serviceTimes: [],
+      cover_asset_id: null,
+    })
+    db.$transaction.mockImplementation(async (arg: unknown) =>
+      Array.isArray(arg) ? Promise.all(arg) : arg,
+    )
+    db.prayer.count.mockResolvedValueOnce(1)
+    db.prayer.findMany.mockResolvedValueOnce([
+      { id: 'p1', church_id: 'c1', published_at: new Date(), published_version_id: 'v1' },
+    ])
+    db.prayerVersion.findMany.mockResolvedValueOnce([
+      {
+        id: 'v1',
+        title: 'Prayer',
+        body: 'Amen',
+        language_code: 'en',
+        selected_audio: null,
+        pastor: { id: 'pa1', display_name: 'Pastor' },
+      },
+    ])
+    db.event.count.mockResolvedValueOnce(0)
+    db.event.findMany.mockResolvedValueOnce([])
+    db.announcement.count.mockResolvedValueOnce(0)
+    db.announcement.findMany.mockResolvedValueOnce([])
+    db.church.findMany.mockResolvedValueOnce([
+      {
+        id: 'c2',
+        name: 'Two',
+        denomination: null,
+        address: null,
+        cover_asset_id: null,
+        latitude: null,
+        longitude: null,
+      },
+    ])
+
+    const res = await GET_HOME({ userId: 'u1' })
+
+    expect(Object.keys(res).sort()).toEqual([
+      'followedChurches',
+      'latestAnnouncements',
+      'latestEvents',
+      'latestPrayers',
+      'mainChurch',
+    ])
+    expect(res).not.toHaveProperty('main')
+    expect(res).not.toHaveProperty('followed')
+    expect(res.mainChurch?.id).toBe('c1')
+    expect(res.followedChurches[0].id).toBe('c2')
+    expect(res.latestPrayers[0].version.title).toBe('Prayer')
+    expect(res.latestEvents).toEqual([])
+    expect(res.latestAnnouncements).toEqual([])
   })
 })
