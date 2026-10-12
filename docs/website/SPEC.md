@@ -127,6 +127,12 @@ Routing guard: any website page except the four public account pages requires
 a session; unauthenticated visitors go to `/login`. Content is never rendered
 to unauthenticated visitors (see FEATURE WF1).
 
+Login separation: the customer website and the staff dashboard have **separate
+sign-in pages**. `/login` is the customer page (this spec). The staff dashboard
+uses its own `/admin/login` and redirects unsigned-in staff there; website
+pages redirect unsigned-in customers to `/login`. The two share the same
+NextAuth credentials flow (`src/auth.ts`) and one sign-in form component.
+
 ## 5. Data and DTOs
 
 No new tables are required for the website features. The website reuses the

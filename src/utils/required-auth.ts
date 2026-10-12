@@ -37,6 +37,7 @@ export default async function requiredAuth(req?: NextRequest) {
           user_id: payload.user_id,
           email: payload.email,
           name: payload.name ?? null,
+          auth_version: payload.auth_version ?? 0,
           role: payload.role,
         },
       }
@@ -53,7 +54,9 @@ export default async function requiredAuth(req?: NextRequest) {
   }
 
   const accessPermission = await getAccessPermission()
-  const permission = accessPermission.can(session.user.role.name)
+  // Role-less sessions (website customers, role-less mobile bearers) get an
+  // empty role name: every permission check is denied, nothing is granted.
+  const permission = accessPermission.can(session.user.role?.name ?? '')
 
   return {
     session,

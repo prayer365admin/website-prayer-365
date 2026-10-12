@@ -61,7 +61,7 @@ describe('ChurchLayout scope check', () => {
   it('sends a missing session to login', async () => {
     m.auth.mockResolvedValue(null)
 
-    await expect(render('c1')).rejects.toThrow('REDIRECT /login')
+    await expect(render('c1')).rejects.toThrow('REDIRECT /admin/login')
     expect(m.resolveListScope).not.toHaveBeenCalled()
   })
 })

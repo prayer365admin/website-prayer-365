@@ -6,7 +6,7 @@ import { useRole } from './role'
 
 export const useAccessPermission = () => {
   const { data: session } = useSession()
-  const { data: role } = useRole(session?.user.role.id)
+  const { data: role } = useRole(session?.user.role?.id)
 
   const grantObject = TransformRoleToAccessControl({
     role: role

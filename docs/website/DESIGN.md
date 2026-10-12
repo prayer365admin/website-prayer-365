@@ -53,7 +53,8 @@ sign-in).
 
 ### W01 — Sign In
 
-**Route:** `/login` (shared page, extended for customers).
+**Route:** `/login` — the customer login page. The staff dashboard has its own
+separate login at `/admin/login` (not shared; see SPEC §4 note).
 
 - Block: brand + simple card form.
 - Fields: email, password.

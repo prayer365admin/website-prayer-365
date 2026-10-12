@@ -18,7 +18,7 @@ export default async function ChurchLayout({
 }) {
   const { churchId } = await params
   const session = await auth()
-  if (!session) redirect('/login')
+  if (!session) redirect('/admin/login')
 
   const churchIds = await resolveListScope({
     userId: session.user.user_id,

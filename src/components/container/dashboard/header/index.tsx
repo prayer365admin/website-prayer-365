@@ -43,7 +43,7 @@ export default function MainHeader() {
       label: 'Logout',
       icon: <LogoutOutlined />,
       onClick: () => {
-        signOut()
+        signOut({ callbackUrl: '/admin/login' })
       },
     },
   ]

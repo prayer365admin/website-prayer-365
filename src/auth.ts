@@ -3,7 +3,7 @@ import Credentials from 'next-auth/providers/credentials'
 
 declare module 'next-auth' {
   /**
-   * Returned by `auth`, `useSession`, `getSession` and received as a prop on the `SessionProvider` React Context
+   * Returned by `auth`, `useSession`, `getSession` and received as a prop on the SessionProvider React Context
    */
   interface Session {
     user: User
@@ -13,19 +13,25 @@ declare module 'next-auth' {
     name?: string | null | undefined
     email?: string | null | undefined
     user_id: string
+    /** Current user auth version; revalidated by requiredAuth / requiredWebAuth. */
+    auth_version: number
+    /**
+     * Staff role. `null` = website customer (role_id null, SPEC §3 / decision W1):
+     * a customer session carries NO permission object.
+     */
     role: {
       id: string
       name: string
-    }
+    } | null
   }
 }
 
 // The `JWT` interface can be found in the `next-auth/jwt` submodule
 import { User } from 'next-auth'
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
 import { JWT } from 'next-auth/jwt'
 import { loginUser } from './controller/authentication'
 import { getUserByEmail } from './controller/user'
+
 declare module 'next-auth/jwt' {
   /** Returned by the `jwt` callback and `auth`, when using JWT sessions */
   interface JWT {
@@ -33,6 +39,57 @@ declare module 'next-auth/jwt' {
     idToken?: string
     user: User
   }
+}
+
+/**
+ * Credentials check (SPEC §3, website decision W1).
+ * Staff sign in with their role; role-less accounts (customers created by
+ * registerUser with role_id = null) sign in as a customer with `role: null` —
+ * never with a fabricated staff role.
+ */
+export const customerAuthorize = async (credentials: Record<string, unknown>) => {
+  const email = credentials.name as string
+  const password = credentials.password as string
+  const userSession = await loginUser({ email, password })
+
+  if (!userSession) {
+    return null
+  }
+
+  return {
+    user_id: userSession.id,
+    role: userSession.role ? { id: userSession.role.id, name: userSession.role.name } : null,
+    auth_version: userSession.auth_version,
+    email: userSession.email,
+    name: userSession.name,
+  }
+}
+
+export const authCallbacks = {
+  jwt: async ({ token }: { token: JWT }) => {
+    const email = token.email as string
+    const result = await getUserByEmail({ email })
+
+    // Unknown/deleted user ends the session. A role-less customer keeps theirs.
+    if (!result) {
+      return null
+    }
+
+    return {
+      ...token,
+      user: {
+        role: result.role ? { id: result.role.id, name: result.role.name } : null,
+        user_id: result.id,
+        auth_version: result.auth_version,
+        email: result.email,
+        name: result.name,
+      },
+    }
+  },
+  session: ({ session, token }: { session: { user: User; expires: string }; token: JWT }) => {
+    session.user = { ...token.user, ...session.user }
+    return session
+  },
 }
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
@@ -52,51 +109,10 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         name: {},
         password: {},
       },
-      authorize: async (credentials) => {
-        const email = credentials.name as string
-        const password = credentials.password as string
-        const userSession = await loginUser({ email: email, password: password })
-        if (!userSession?.role) {
-          return null
-        }
-        return {
-          user_id: userSession?.id,
-          role: {
-            id: userSession.role.id,
-            name: userSession.role.name,
-          },
-          email: userSession.email,
-          name: userSession.name,
-        }
-      },
+      authorize: customerAuthorize,
     }),
   ],
-  callbacks: {
-    jwt: async ({ token }) => {
-      const email = token.email as string
-      const result = await getUserByEmail({ email: email })
-      if (!result?.role) {
-        return null
-      }
-      token = {
-        ...token,
-        user: {
-          role: {
-            id: result.role.id,
-            name: result.role.name,
-          },
-          user_id: result.id,
-          email: result.email,
-          name: result.name,
-        },
-      }
-      return token
-    },
-    session: ({ session, token }) => {
-      session.user = { ...token.user, ...session.user }
-      return session
-    },
-  },
+  callbacks: authCallbacks,
   pages: {
     signIn: '/login',
   },

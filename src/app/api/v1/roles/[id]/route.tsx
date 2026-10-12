@@ -15,7 +15,7 @@ export async function GET(req: NextRequest, segmentData: { params: Params }) {
     const { permission, session } = await requiredAuth(req)
 
     // Every account may read its own role: the dashboard derives its controls from it.
-    if (id !== session.user.role.id && !permission.readAny('prayer_role').granted) {
+    if (id !== session.user.role?.id && !permission.readAny('prayer_role').granted) {
       return httpError(
         new GeneralError({
           code: 403,

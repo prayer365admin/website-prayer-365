@@ -1,12 +1,13 @@
+import { renderWithProviders } from '@/test/frontend/render'
 import { screen } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
-import { renderWithProviders } from '@/test/frontend/render'
 import Page from './page'
 
-describe('Login route page', () => {
-  it('renders the login form through the route', () => {
+describe('Customer login route', () => {
+  it('renders the customer sign-in page', () => {
     renderWithProviders(<Page />)
-    expect(screen.getByRole('heading', { name: 'Login' })).toBeTruthy()
-    expect(screen.getByPlaceholderText('Username')).toBeTruthy()
+
+    expect(screen.getByRole('heading', { name: 'PRAYER' })).toBeTruthy()
+    expect(screen.getByPlaceholderText('Email')).toBeTruthy()
   })
 })
