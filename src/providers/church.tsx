@@ -3,6 +3,7 @@ import { db } from '@/utils/db-connection'
 import { GeneralError } from '@/utils/general-error'
 import { AuditInput, auditPayload } from '@/utils/audit'
 import { ChurchListQuery, ChurchOverview, ChurchProfileOutput } from '@/models/church'
+import { fromClassification, fromKind, requestVisibilityWhere } from '@/providers/request'
 
 /*
  * Church data adapter (Tasks 12/13). UPPER_SNAKE_CASE, single-responsibility.
@@ -291,17 +292,24 @@ export const GET_CHURCH_OVERVIEW = async ({
   }
 }
 
-/** Request aggregates; only invoked when the caller has request access. */
+/**
+ * Request aggregates; only invoked when the caller has request access. Uses the
+ * request list's visibility rule so hidden private/restricted rows are neither
+ * counted nor listed (SPEC §9.2).
+ */
 export const GET_REQUEST_OVERVIEW = async ({
-  churchIds,
+  churchId,
+  canReadPrivate,
   take = 5,
 }: {
-  churchIds: Set<string>
+  churchId: string
+  canReadPrivate: boolean
   take?: number
 }): Promise<ChurchOverview['requests']> => {
-  const ids = toIds(churchIds)
-  if (ids.length === 0) return { total: 0, recent: [] }
-  const where: Prisma.RequestWhereInput = { church_id: { in: ids } }
+  const where: Prisma.RequestWhereInput = {
+    church_id: churchId,
+    ...requestVisibilityWhere(canReadPrivate),
+  }
   const [total, recent] = await db.$transaction([
     db.request.count({ where }),
     db.request.findMany({
@@ -315,8 +323,8 @@ export const GET_REQUEST_OVERVIEW = async ({
     total,
     recent: recent.map((r) => ({
       id: r.id,
-      kind: r.kind,
-      classification: r.classification,
+      kind: fromKind(r.kind),
+      classification: fromClassification(r.classification),
       createdAt: r.created_at,
     })),
   }

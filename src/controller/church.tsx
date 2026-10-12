@@ -5,6 +5,7 @@ import { GeneralError } from '@/utils/general-error'
 import { requiredScope } from '@/utils/required-scope'
 import { TransformRolesToAccessControl } from '@/utils/role-to-access-control'
 import { GET_USER_SCOPE_DATA } from '@/providers/scope'
+import { hasPrivateGrant } from '@/controller/request'
 import {
   GET_AVAILABLE_LANGUAGE_CODES,
   GET_CHURCHES,
@@ -138,7 +139,8 @@ export const getChurchOverview = async ({
     hasRequestAccess = false
   }
   if (hasRequestAccess) {
-    const requests = await GET_REQUEST_OVERVIEW({ churchIds, take: 5 })
+    const canReadPrivate = await hasPrivateGrant({ userId, churchId })
+    const requests = await GET_REQUEST_OVERVIEW({ churchId, canReadPrivate, take: 5 })
     overview.requests = requests
   }
   return overview

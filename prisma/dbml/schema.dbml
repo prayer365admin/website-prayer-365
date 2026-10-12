@@ -303,19 +303,17 @@ Table voice_profiles {
   provider_voice_id String
   consent_id String [not null]
   consent consents [not null]
-  sample_asset_id String [not null]
-  sample_asset media_assets [not null]
   submitted_at DateTime
   review_state ReviewState [not null, default: 'DRAFT']
   reviewed_by String
   reviewer user
   reviewed_at DateTime
   review_reason String
-  approved_sample_checksum String
   registration_state RegistrationState [not null, default: 'UNREGISTERED']
   requires_verification Boolean
   registration_attempt_id String
   last_error_code String
+  samples voice_profile_samples [not null]
   audio prayer_audio [not null]
   activeVoice church_pastors [not null]
   created_at DateTime [default: `now()`, not null]
@@ -358,6 +356,21 @@ Table prayer_audio {
   updated_at DateTime
 }
 
+Table voice_profile_samples {
+  voice_profile_id String [not null]
+  voice_profile voice_profiles [not null]
+  asset_id String [not null]
+  asset media_assets [not null]
+  position Int [not null]
+  checksum String
+  created_at DateTime [default: `now()`, not null]
+
+  indexes {
+    (voice_profile_id, position) [pk]
+    (voice_profile_id, asset_id) [unique]
+  }
+}
+
 Table media_assets {
   id String [pk]
   church_id String [not null]
@@ -373,7 +386,7 @@ Table media_assets {
   coverOf churches [not null]
   pastorProfiles pastors [not null]
   pastorImages church_pastors [not null]
-  voiceSamples voice_profiles [not null]
+  voiceSamples voice_profile_samples [not null]
   consentEvidence consents [not null]
   audioAssets prayer_audio [not null]
   created_at DateTime [default: `now()`, not null]
@@ -804,8 +817,6 @@ Ref: voice_profiles.replaces_profile_id - voice_profiles.id
 
 Ref: voice_profiles.consent_id > consents.id
 
-Ref: voice_profiles.sample_asset_id > media_assets.id
-
 Ref: voice_profiles.reviewed_by > user.id
 
 Ref: consents.user_id > user.id
@@ -823,6 +834,10 @@ Ref: prayer_audio.voice_profile_id > voice_profiles.id
 Ref: prayer_audio.asset_id > media_assets.id
 
 Ref: prayer_audio.approved_by > user.id
+
+Ref: voice_profile_samples.voice_profile_id > voice_profiles.id
+
+Ref: voice_profile_samples.asset_id > media_assets.id
 
 Ref: media_assets.church_id - churches.id
 

@@ -5,6 +5,13 @@ import { auditPayload } from '@/utils/audit'
 import { hashContent } from '@/utils/hash'
 import { mapVersion, PrayerListQuery, PrayerOutput, PrayerVersionOutput } from '@/models/prayer'
 
+/** Newest audio of a version (any status): the editor resumes an in-flight generation from it. */
+const LATEST_AUDIO = {
+  orderBy: { created_at: 'desc' },
+  take: 1,
+  select: { id: true, status: true },
+} as const
+
 /*
  * Prayer content adapter (Tasks 21/22/25).
  *
@@ -45,6 +52,7 @@ type VersionRow = {
   approved_at: Date | null
   selected_audio_id: string | null
   created_at: Date
+  audio?: { id: string; status: string }[]
 }
 
 const mapPrayer = (
@@ -173,6 +181,7 @@ export const GET_PRAYER = async ({
         approved_at: true,
         selected_audio_id: true,
         created_at: true,
+        audio: LATEST_AUDIO,
       },
     })
   }
@@ -518,6 +527,7 @@ export const SCHEDULE_PRAYER = async ({
 }
 
 const versionFields = {
+  audio: LATEST_AUDIO,
   id: true,
   version_number: true,
   pastor_id: true,

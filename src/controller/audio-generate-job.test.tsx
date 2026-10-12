@@ -18,6 +18,7 @@ const mocks = vi.hoisted(() => {
       'RESET_AUDIO_QUEUED',
       'FINALIZE_AUDIO_READY',
       'FINALIZE_AUDIO_FAILED',
+      'FINALIZE_AUDIO_VOICE_MISSING',
     ]),
     s3: fns(['S3_PUT_OBJECT', 'S3_DELETE_OBJECT']),
     media: fns(['CREATE_PENDING_ASSET', 'MARK_READY', 'DELETE_ASSET']),
@@ -255,6 +256,7 @@ describe('processAudioGenerateJob — generation happy path', () => {
     expect(mocks.elevenlabs.generateSpeech).toHaveBeenCalledWith({
       providerVoiceId: 'pv_1',
       text: 'Praise the Lord',
+      languageCode: 'et',
     })
     const s3Call = mocks.s3.S3_PUT_OBJECT.mock.calls[0][0] as {
       key: string
@@ -315,6 +317,29 @@ describe('processAudioGenerateJob — retry decisions', () => {
     await expect(processAudioGenerateJob('job1', 'rq')).resolves.toBe('failed')
     expect(mocks.prayerAudio.RESET_AUDIO_QUEUED).not.toHaveBeenCalled()
     expectJobDone('FAILED', 'TTS_EMPTY_AUDIO')
+  })
+
+  it('voice missing at ElevenLabs → audio + voice flagged, no auto re-create (F4VO V8)', async () => {
+    mocks.prayerAudio.FINALIZE_AUDIO_VOICE_MISSING.mockResolvedValue({ count: 1 })
+    mocks.elevenlabs.generateSpeech.mockRejectedValueOnce(
+      new TtsError(false, 'TTS_VOICE_NOT_FOUND', 'gone', 404),
+    )
+    await expect(processAudioGenerateJob('job1', 'rq')).resolves.toBe('failed')
+    expect(mocks.prayerAudio.FINALIZE_AUDIO_VOICE_MISSING).toHaveBeenCalledWith({
+      audioId: 'a1',
+      voiceProfileId: 'vp1',
+      churchId: 'c1',
+      requestId: 'rq',
+    })
+    expect(mocks.prayerAudio.FINALIZE_AUDIO_FAILED).not.toHaveBeenCalled()
+    expect(mocks.prayerAudio.RESET_AUDIO_QUEUED).not.toHaveBeenCalled()
+    expectJobDone('FAILED', 'VOICE_MISSING_AT_PROVIDER')
+  })
+
+  it('a retryable TtsError never marks the voice missing', async () => {
+    mocks.elevenlabs.generateSpeech.mockRejectedValueOnce(new TtsError(true, 'TTS_NETWORK', 'boom'))
+    await processAudioGenerateJob('job1', 'rq')
+    expect(mocks.prayerAudio.FINALIZE_AUDIO_VOICE_MISSING).not.toHaveBeenCalled()
   })
 
   it('requeues with backoff on a retryable TtsError before MAX_ATTEMPTS', async () => {

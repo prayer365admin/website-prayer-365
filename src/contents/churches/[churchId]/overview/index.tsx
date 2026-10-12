@@ -4,7 +4,13 @@ import { useChurchOverview } from '@/hooks/data/church'
 import { ChurchOverviewAggregates } from '@/models/church'
 import { Button, Card, Statistic, Typography } from 'antd'
 import { useParams, useRouter } from 'next/navigation'
+import Link from 'next/link'
 import { Fragment } from 'react'
+import {
+  requestClassificationLabel,
+  requestDetailHref,
+  requestKindLabel,
+} from '@/contents/churches/requests/columns'
 import { ANNOUNCEMENT_STATUS, announcementStatusLabels } from '@/utils/constant'
 
 /* Only aggregates the overview endpoint actually returns are bound to a
@@ -101,8 +107,9 @@ export default function ContentsChurchOverview() {
             <ul className="mt-3 mb-3 list-disc pl-5">
               {requests.recent.map((r) => (
                 <li key={r.id}>
-                  {r.kind}
-                  {r.classification ? ` • ${r.classification}` : ''}
+                  <Link href={requestDetailHref(churchId, r.id)}>
+                    {requestKindLabel(r.kind)} • {requestClassificationLabel(r)}
+                  </Link>
                 </li>
               ))}
             </ul>

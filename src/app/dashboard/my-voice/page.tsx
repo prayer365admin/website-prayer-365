@@ -1,3 +1,5 @@
+import ContentsMyVoice from '@/contents/voice/my-voice'
+
 export default function Page() {
-  return <>My Voice</>
+  return <ContentsMyVoice />
 }

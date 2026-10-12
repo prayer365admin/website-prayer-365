@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { GeneralError } from './general-error'
-import { httpError, list, ok, requestId } from './response'
+import { httpError, list, noStore, ok, requestId } from './response'
 
 const toBody = async (res: Response) => res.json()
 
@@ -90,5 +90,13 @@ describe('httpError', () => {
       details: 'stale',
     })
     expect(httpError(err).status).toBe(409)
+  })
+})
+
+describe('noStore', () => {
+  it('sets Cache-Control: private, no-store and keeps the body', async () => {
+    const res = noStore(ok({ id: 'x' }, 'ok'))
+    expect(res.headers.get('Cache-Control')).toBe('private, no-store')
+    expect((await toBody(res)).result).toEqual({ id: 'x' })
   })
 })

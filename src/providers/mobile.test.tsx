@@ -12,6 +12,7 @@ const db = vi.hoisted(() => ({
   checkIn: { createMany: vi.fn(), findFirst: vi.fn() },
   mediaAsset: { findFirst: vi.fn() },
   analyticsEvent: { createMany: vi.fn() },
+  request: { count: vi.fn(), findFirst: vi.fn() },
   auditLog: { create: vi.fn() },
 }))
 
@@ -32,6 +33,9 @@ import {
   LIST_PUBLIC_ANNOUNCEMENTS,
   LIST_PUBLIC_EVENTS,
   LIST_PUBLISHED_PRAYERS,
+  COUNT_RECENT_USER_REQUESTS,
+  CREATE_USER_REQUEST,
+  GET_USER_REQUEST_ACK,
 } from './mobile'
 
 beforeEach(() => {
@@ -441,6 +445,75 @@ describe('LIST_PUBLIC_ANNOUNCEMENTS — only live published rows', () => {
     }
     expect(db.announcement.count).toHaveBeenCalledWith({ where })
     expect(db.announcement.findMany.mock.calls[0][0].where).toEqual(where)
+  })
+})
+
+describe('COUNT_RECENT_USER_REQUESTS — submission rate limit window', () => {
+  it("counts only this user's requests at this church since the window start", async () => {
+    db.request.count.mockResolvedValue(3)
+    const since = new Date('2026-01-01T00:00:00Z')
+    await expect(
+      COUNT_RECENT_USER_REQUESTS({ churchId: 'c1', userId: 'u1', since, tx: null }),
+    ).resolves.toBe(3)
+    expect(db.request.count).toHaveBeenCalledWith({
+      where: { church_id: 'c1', user_id: 'u1', created_at: { gte: since } },
+    })
+  })
+})
+
+describe('GET_USER_REQUEST_ACK — idempotent replay', () => {
+  it("returns the caller's own request as a minimal lowercase ack", async () => {
+    const created_at = new Date('2026-01-01T00:00:00Z')
+    db.request.findFirst.mockResolvedValue({ id: 'r1', kind: 'MEETING', created_at })
+    await expect(GET_USER_REQUEST_ACK({ id: 'r1', userId: 'u1' })).resolves.toEqual({
+      id: 'r1',
+      kind: 'meeting',
+      createdAt: created_at.toISOString(),
+    })
+    expect(db.request.findFirst).toHaveBeenCalledWith({
+      where: { id: 'r1', user_id: 'u1' },
+      select: { id: true, kind: true, created_at: true },
+    })
+  })
+
+  it('returns null for a request the caller does not own', async () => {
+    db.request.findFirst.mockResolvedValue(null)
+    await expect(GET_USER_REQUEST_ACK({ id: 'r1', userId: 'u2' })).resolves.toBeNull()
+  })
+})
+
+describe('CREATE_USER_REQUEST — no sensitive payload outside the row', () => {
+  it('stores the request and writes an audit row without message/contact/classification', async () => {
+    const created_at = new Date('2026-01-01T00:00:00Z')
+    const tx = {
+      request: { create: vi.fn().mockResolvedValue({ id: 'r1', created_at }) },
+      auditLog: { create: vi.fn() },
+    }
+    const ack = await CREATE_USER_REQUEST({
+      churchId: 'c1',
+      userId: 'u1',
+      data: {
+        kind: 'prayer',
+        subject: 'S',
+        message: 'secret message',
+        classification: 'PRIVATE',
+        contactMethod: 'email',
+        email: 'me@example.com',
+        phone: '+3725550000',
+      },
+      requestId: 't1',
+      tx: tx as never,
+    })
+    expect(ack).toEqual({ id: 'r1', kind: 'prayer', createdAt: created_at.toISOString() })
+    expect(tx.request.create.mock.calls[0][0].data).toMatchObject({
+      church_id: 'c1',
+      user_id: 'u1',
+      kind: 'PRAYER',
+    })
+    const audit = JSON.stringify(tx.auditLog.create.mock.calls[0][0])
+    for (const leaked of ['secret message', 'me@example.com', '+3725550000', 'PRIVATE']) {
+      expect(audit).not.toContain(leaked)
+    }
   })
 })
 

@@ -34,3 +34,104 @@ export const categoryColors: Record<EventCategory, string> = {
   COMMUNITY: 'green',
   OTHER: 'default',
 }
+
+// F4VO voice profiles: admin review and provider registration are separate states.
+export const VOICE_REVIEW_STATES = ['DRAFT', 'SUBMITTED', 'APPROVED', 'REJECTED'] as const
+export type VoiceReviewState = (typeof VOICE_REVIEW_STATES)[number]
+
+export const VOICE_REGISTRATION_STATES = [
+  'UNREGISTERED',
+  'QUEUED',
+  'REGISTERING',
+  'VERIFICATION_REQUIRED',
+  'READY',
+  'FAILED',
+  'REGISTRATION_UNKNOWN',
+  'DISABLED',
+] as const
+export type VoiceRegistrationState = (typeof VOICE_REGISTRATION_STATES)[number]
+
+export const voiceReviewStateLabels: Record<VoiceReviewState, string> = {
+  DRAFT: 'Draft',
+  SUBMITTED: 'Submitted',
+  APPROVED: 'Approved',
+  REJECTED: 'Rejected',
+}
+
+export const voiceReviewStateColors: Record<VoiceReviewState, string> = {
+  DRAFT: 'default',
+  SUBMITTED: 'processing',
+  APPROVED: 'success',
+  REJECTED: 'error',
+}
+
+export const voiceRegistrationStateLabels: Record<VoiceRegistrationState, string> = {
+  UNREGISTERED: 'Not registered',
+  QUEUED: 'Queued',
+  REGISTERING: 'Registering',
+  VERIFICATION_REQUIRED: 'Verification required',
+  READY: 'Ready',
+  FAILED: 'Failed',
+  REGISTRATION_UNKNOWN: 'Check registration result',
+  DISABLED: 'Disabled',
+}
+
+export const voiceRegistrationStateColors: Record<VoiceRegistrationState, string> = {
+  UNREGISTERED: 'default',
+  QUEUED: 'processing',
+  REGISTERING: 'processing',
+  VERIFICATION_REQUIRED: 'warning',
+  READY: 'success',
+  FAILED: 'error',
+  REGISTRATION_UNKNOWN: 'warning',
+  DISABLED: 'default',
+}
+
+/** One line of read-only guidance per registration state. */
+export const voiceRegistrationStateHelp: Record<VoiceRegistrationState, string> = {
+  UNREGISTERED: 'Registration starts automatically after an admin approves the submission.',
+  QUEUED: 'Approved. Waiting for voice registration to start.',
+  REGISTERING: 'The voice is being registered with the provider.',
+  VERIFICATION_REQUIRED:
+    'Provider verification is required before this voice can be used. Generation stays blocked; PRAYER support will contact you.',
+  READY: 'This voice can be used for prayer audio.',
+  FAILED: 'Registration failed. An admin can review the error.',
+  REGISTRATION_UNKNOWN:
+    'The provider did not confirm the registration in time. PRAYER is checking the result; no action is needed.',
+  DISABLED: 'This voice is disabled and cannot be used for new prayer audio.',
+}
+
+// ponytail: fixed offline-authorization terms label until legal text/versioning lands (D10).
+export const VOICE_CONSENT_TERMS_VERSION = 'offline-authorization-v1'
+
+/** ElevenLabs Instant Voice Cloning recording guidance, shortened (F4VO). */
+export const VOICE_RECORDING_TIPS = [
+  'Record 1–2 minutes in total. More than 3 minutes adds little and can make the clone worse.',
+  'Total length across all files counts, not the number of files.',
+  'Recording quality beats length: no reverb, background noise, clicks or artifacts.',
+  'MP3 at 128 kbps or higher is enough; a higher bitrate does not help much.',
+  'Keep tone, pace and quality consistent across all samples. The AI copies everything, including breathing and noise.',
+  'Speak the way the prayers should sound: slow and flat in means slow and flat out.',
+  'Aim for volume around −23 to −18 dB RMS, with peaks no higher than −3 dB.',
+]
+
+/** Voice timeline: audit action → step on the admin-review track. */
+export const VOICE_TIMELINE_REVIEW_STEPS: Record<string, { title: string; color: string }> = {
+  'voice.submission.create': { title: 'Draft created', color: 'gray' },
+  'voice.consent.create': { title: 'Authorization evidence recorded', color: 'gray' },
+  'voice.submission.submit': { title: 'Submitted for review', color: 'blue' },
+  'voice.profile.approve': { title: 'Approved', color: 'green' },
+  'voice.profile.reject': { title: 'Rejected', color: 'red' },
+}
+
+/** Voice timeline: audit action (or action:outcome) → step on the registration track. */
+export const VOICE_TIMELINE_REGISTRATION_STEPS: Record<string, { title: string; color: string }> = {
+  'voice.profile.approve': { title: 'Queued for registration', color: 'blue' },
+  'voice.profile.reclone': { title: 'Registration requested again', color: 'blue' },
+  'voice.register:success': { title: 'Registered with ElevenLabs', color: 'green' },
+  'voice.register:failure': { title: 'Registration failed', color: 'red' },
+  'voice.register.discarded': { title: 'Discarded (disabled during registration)', color: 'gray' },
+  'voice.provider.missing': { title: 'Voice missing at ElevenLabs', color: 'red' },
+  'voice.profile.disable': { title: 'Disabled', color: 'gray' },
+  'voice.consent.revoke': { title: 'Consent revoked', color: 'red' },
+}

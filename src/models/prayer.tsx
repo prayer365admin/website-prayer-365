@@ -87,6 +87,8 @@ export const PrayerVersionOutputSchema = z.object({
   approvedBy: z.string().nullable(),
   approvedAt: z.string().nullable(),
   selectedAudioId: z.string().nullable(),
+  latestAudioId: z.string().nullable(),
+  latestAudioStatus: z.string().nullable(),
   createdAt: z.string(),
 })
 
@@ -102,6 +104,12 @@ export type PrayerVersionOutput = {
   approvedBy: string | null
   approvedAt: string | null
   selectedAudioId: string | null
+  /**
+   * Newest audio generated for this exact version (any status). Lets the editor
+   * pick up a generation still running in the worker after a page reload.
+   */
+  latestAudioId: string | null
+  latestAudioStatus: string | null
   createdAt: string
 }
 
@@ -168,6 +176,8 @@ export const mapVersion = (v: {
   approved_at: Date | null
   selected_audio_id: string | null
   created_at: Date
+  /** Newest-first, at most one row (versionFields). Absent on write responses. */
+  audio?: { id: string; status: string }[]
 }): PrayerVersionOutput => ({
   id: v.id,
   versionNumber: v.version_number,
@@ -180,5 +190,7 @@ export const mapVersion = (v: {
   approvedBy: v.approved_by,
   approvedAt: v.approved_at ? v.approved_at.toISOString() : null,
   selectedAudioId: v.selected_audio_id,
+  latestAudioId: v.audio?.[0]?.id ?? null,
+  latestAudioStatus: v.audio?.[0]?.status ?? null,
   createdAt: v.created_at.toISOString(),
 })

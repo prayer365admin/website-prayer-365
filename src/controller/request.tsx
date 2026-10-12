@@ -1,7 +1,7 @@
 import { GeneralError } from '@/utils/general-error'
 import { requiredScope } from '@/utils/required-scope'
 import { GET_REQUEST, GET_REQUESTS } from '@/providers/request'
-import { RequestOutput, RequestListSummary } from '@/models/request'
+import { RequestListFilter, RequestListSummary, RequestOutput } from '@/models/request'
 import { ParsedListQuery } from '@/utils/pagination'
 
 /*
@@ -50,8 +50,8 @@ export const resolveRequestReadScope = async ({
   }
 }
 
-/** Caller also holds the church-local private-request grant. */
-const hasPrivateGrant = async ({
+/** Caller also holds the church-local private-request grant. Shared with the overview. */
+export const hasPrivateGrant = async ({
   userId,
   churchId,
 }: {
@@ -82,18 +82,20 @@ export const listRequests = async ({
   userId,
   churchId,
   churchIds,
-  kind,
+  kinds,
+  filter,
   query,
 }: {
   userId: string
   churchId: string
   churchIds: Set<string>
-  kind?: string
+  kinds?: string[]
+  filter?: RequestListFilter
   query: ParsedListQuery
 }): Promise<{ result: RequestListSummary[]; total: number }> => {
   assertChurchInScope(churchId, churchIds)
   const canReadPrivate = await hasPrivateGrant({ userId, churchId })
-  return GET_REQUESTS({ churchIds, kind, canReadPrivate, query })
+  return GET_REQUESTS({ churchId, kinds, filter, canReadPrivate, query })
 }
 
 /** GET C/requests/:requestId — authorized detail; 404 for out-of-scope/private. */
@@ -112,7 +114,7 @@ export const getRequestDetail = async ({
 }): Promise<RequestOutput> => {
   assertChurchInScope(churchId, churchIds)
   const canReadPrivate = await hasPrivateGrant({ userId, churchId })
-  const row = await GET_REQUEST({ churchIds, requestId, canReadPrivate, actorId: userId, traceId })
+  const row = await GET_REQUEST({ churchId, requestId, canReadPrivate, actorId: userId, traceId })
   if (!row) throw NOT_FOUND()
   return row
 }

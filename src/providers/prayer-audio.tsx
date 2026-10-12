@@ -330,3 +330,55 @@ export const FINALIZE_AUDIO_FAILED = async ({
     })
     return done
   })
+
+/**
+ * F4VO V8: ElevenLabs no longer has the voice. In one transaction the audio
+ * fails with VOICE_MISSING_AT_PROVIDER and the voice profile goes FAILED +
+ * PROVIDER_VOICE_MISSING, so S24/S06 offer "Re-create voice". Nothing is
+ * re-created automatically. Caller checks `.count` on the audio update.
+ */
+export const FINALIZE_AUDIO_VOICE_MISSING = async ({
+  audioId,
+  voiceProfileId,
+  churchId,
+  requestId,
+}: {
+  audioId: string
+  voiceProfileId: string
+  churchId: string
+  requestId: string
+}) =>
+  db.$transaction(async (tx) => {
+    const done = await tx.prayerAudio.updateMany({
+      where: { id: audioId, status: { in: AUDIO_IN_FLIGHT } },
+      data: { status: 'FAILED', error_code: 'VOICE_MISSING_AT_PROVIDER' },
+    })
+    const voice = await tx.voiceProfile.updateMany({
+      where: { id: voiceProfileId, registration_state: 'READY' },
+      data: { registration_state: 'FAILED', last_error_code: 'PROVIDER_VOICE_MISSING' },
+    })
+    await tx.auditLog.create({
+      data: auditPayload({
+        actorId: null,
+        churchId,
+        action: 'prayer.audio.generate',
+        resourceType: 'prayer_audio',
+        resourceId: audioId,
+        outcome: 'failure',
+        requestId,
+      }),
+    })
+    if (voice.count > 0)
+      await tx.auditLog.create({
+        data: auditPayload({
+          actorId: null,
+          churchId,
+          action: 'voice.provider.missing',
+          resourceType: 'voice_profile',
+          resourceId: voiceProfileId,
+          outcome: 'failure',
+          requestId,
+        }),
+      })
+    return done
+  })

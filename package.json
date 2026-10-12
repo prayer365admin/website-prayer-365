@@ -14,8 +14,10 @@
     "test:coverage": "vitest run --coverage",
     "typecheck": "tsc --noEmit",
     "style-init": "tsx src/script/generate-sass-variable.ts",
+    "request:submit": "bun src/script/submit-request.ts",
     "worker:audio-generate": "bun workers/audio-generate.ts",
     "worker:prayer-publish": "bun workers/prayer-publish.ts",
+    "worker:voice-register": "bun workers/voice-register.ts",
     "update-dbdocs": "bun prisma generate && dbdocs build prisma/dbml/schema.dbml --project catatia_dashboard"
   },
   "prisma": {

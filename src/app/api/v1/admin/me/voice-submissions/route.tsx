@@ -16,7 +16,7 @@ import { createSubmission, listOwnSubmissions } from '@/controller/voice'
 /*
  * GET / POST /api/v1/admin/me/voice-submissions (Task 36).
  * prayer_voice_submission OWN. GET lists the caller's own revisions; POST
- * creates a DRAFT (sampleAssetId, consentId, assigned churchId, optional
+ * creates a DRAFT (1–5 sampleAssetIds, consentId, assigned churchId, optional
  * replacesProfileId). No provider call at any point here.
  */
 

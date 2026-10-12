@@ -20,7 +20,15 @@ const restoreEnv = () => {
 const fetchMock = vi.fn()
 vi.stubGlobal('fetch', fetchMock)
 
-import { generateSpeech, TtsError, isElevenLabsEnabled } from './elevenlabs'
+import {
+  findVoiceByName,
+  generateSpeech,
+  getVoiceReadiness,
+  isElevenLabsEnabled,
+  registerInstantVoice,
+  TtsError,
+  VoiceProviderError,
+} from './elevenlabs'
 
 const okResponse = (bytes: Uint8Array, headers: Record<string, string> = {}) =>
   new Response(bytes as unknown as BodyInit, {
@@ -60,9 +68,14 @@ describe('generateSpeech', () => {
     const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit]
     expect(url).toBe('https://api.elevenlabs.io/v1/text-to-speech/pv_1?output_format=mp3_44100_128')
     expect((init.headers as Record<string, string>)['xi-api-key']).toBe('k_test')
-    const body = JSON.parse(String(init.body)) as { text: string; model_id: string }
+    const body = JSON.parse(String(init.body)) as {
+      text: string
+      model_id: string
+      language_code?: string
+    }
     expect(body.text).toBe('Praise the Lord')
-    expect(body.model_id).toBe('eleven_v3')
+    expect(body.model_id).toBe('eleven_v4')
+    expect(body.language_code).toBeUndefined()
   })
 
   it('honors env overrides for base url, model and headers variants', async () => {
@@ -151,5 +164,146 @@ describe('generateSpeech', () => {
 
     const res = await generateSpeech(req)
     expect(res.providerRequestId).toBeNull()
+  })
+})
+
+describe('voice registration (F4VO)', () => {
+  const json = (body: unknown, status = 200) =>
+    new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json' } })
+  const req = {
+    name: 'prayer-test-vp1-v3',
+    description: 'PRAYER pastor voice vp1',
+    files: [
+      { bytes: new Uint8Array([1]), mimeType: 'audio/mpeg', filename: 'sample-1' },
+      { bytes: new Uint8Array([2]), mimeType: 'audio/mpeg', filename: 'sample-2' },
+    ],
+  }
+  const setKey = () => {
+    process.env.ELEVENLABS_API_KEY = 'k_test'
+  }
+  const errorOf = (p: Promise<unknown>) =>
+    p.then(
+      () => null,
+      (e: unknown) => e as VoiceProviderError,
+    )
+
+  it('posts every sample as a multipart `files` part and returns the voice id', async () => {
+    setKey()
+    fetchMock.mockResolvedValue(json({ voice_id: 'el_1', requires_verification: false }))
+    await expect(registerInstantVoice(req)).resolves.toEqual({
+      providerVoiceId: 'el_1',
+      requiresVerification: false,
+    })
+    const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit]
+    expect(url).toBe('https://api.elevenlabs.io/v1/voices/add')
+    expect((init.headers as Record<string, string>)['xi-api-key']).toBe('k_test')
+    const form = init.body as FormData
+    expect(form.get('name')).toBe('prayer-test-vp1-v3')
+    expect(form.getAll('files')).toHaveLength(2)
+    expect(form.get('labels')).toBeNull()
+  })
+
+  it('classifies failures: 429 retryable, 5xx/timeout ambiguous, 4xx permanent', async () => {
+    setKey()
+    fetchMock.mockResolvedValueOnce(new Response('slow down', { status: 429 }))
+    expect((await errorOf(registerInstantVoice(req)))?.kind).toBe('retryable')
+
+    fetchMock.mockResolvedValueOnce(new Response('oops', { status: 502 }))
+    expect((await errorOf(registerInstantVoice(req)))?.kind).toBe('ambiguous')
+
+    fetchMock.mockRejectedValueOnce(new DOMException('timed out', 'TimeoutError'))
+    expect((await errorOf(registerInstantVoice(req)))?.kind).toBe('ambiguous')
+
+    fetchMock.mockRejectedValueOnce(
+      Object.assign(new TypeError('fetch failed'), { cause: { code: 'ECONNREFUSED' } }),
+    )
+    expect((await errorOf(registerInstantVoice(req)))?.kind).toBe('retryable')
+
+    fetchMock.mockResolvedValueOnce(
+      new Response('{"detail":{"status":"voice_limit_reached"}}', { status: 400 }),
+    )
+    const limit = await errorOf(registerInstantVoice(req))
+    expect(limit?.kind).toBe('permanent')
+    expect(limit?.errorCode).toBe('VOICE_LIMIT_REACHED')
+  })
+
+  it('fails permanently without an API key', async () => {
+    delete process.env.ELEVENLABS_API_KEY
+    expect((await errorOf(registerInstantVoice(req)))?.errorCode).toBe('VOICE_NOT_CONFIGURED')
+    expect(fetchMock).not.toHaveBeenCalled()
+  })
+
+  it('readiness: 404 not found, verification pending, ready', async () => {
+    setKey()
+    fetchMock.mockResolvedValueOnce(new Response('', { status: 404 }))
+    await expect(getVoiceReadiness('el_1')).resolves.toMatchObject({ found: false })
+
+    fetchMock.mockResolvedValueOnce(
+      json({ voice_verification: { requires_verification: true, is_verified: false } }),
+    )
+    await expect(getVoiceReadiness('el_1')).resolves.toEqual({
+      found: true,
+      ready: false,
+      requiresVerification: true,
+    })
+
+    fetchMock.mockResolvedValueOnce(json({ voice_id: 'el_1' }))
+    await expect(getVoiceReadiness('el_1')).resolves.toEqual({
+      found: true,
+      ready: true,
+      requiresVerification: false,
+    })
+    expect(fetchMock.mock.calls[0][0]).toBe('https://api.elevenlabs.io/v1/voices/el_1')
+  })
+
+  it('findVoiceByName matches the exact name only', async () => {
+    setKey()
+    fetchMock.mockImplementation(async () =>
+      json({
+        voices: [
+          { voice_id: 'el_x', name: 'prayer-test-vp1-v31' },
+          { voice_id: 'el_1', name: 'prayer-test-vp1-v3' },
+        ],
+      }),
+    )
+    await expect(findVoiceByName('prayer-test-vp1-v3')).resolves.toBe('el_1')
+    await expect(findVoiceByName('prayer-test-vp9-v1')).resolves.toBeNull()
+    expect(String(fetchMock.mock.calls[0][0])).toContain('/v2/voices?search=prayer-test-vp1-v3')
+  })
+})
+
+describe('generateSpeech — prayer language', () => {
+  it.each([
+    ['et', 'et'],
+    ['fi', 'fi'],
+    ['sv', 'sv'],
+    ['en-GB', 'en'],
+    ['et        ', 'et'], // padded char column value
+  ])('%s is sent as language_code %s', async (code, expected) => {
+    process.env.ELEVENLABS_API_KEY = 'k_test'
+    fetchMock.mockResolvedValue(okResponse(new Uint8Array([1])))
+    await generateSpeech({ providerVoiceId: 'pv_1', text: 'Aamen', languageCode: code })
+    const body = JSON.parse(String((fetchMock.mock.calls[0][1] as RequestInit).body)) as {
+      language_code: string
+    }
+    expect(body.language_code).toBe(expected)
+  })
+})
+
+describe('generateSpeech — voice missing at ElevenLabs (F4VO V8)', () => {
+  it.each([
+    ['404', new Response('not found', { status: 404 })],
+    [
+      '400 voice_not_found',
+      new Response('{"detail":{"status":"voice_not_found"}}', { status: 400 }),
+    ],
+  ])('%s → permanent TTS_VOICE_NOT_FOUND', async (_name, response) => {
+    process.env.ELEVENLABS_API_KEY = 'k_test'
+    fetchMock.mockResolvedValue(response)
+    const err = (await generateSpeech({ providerVoiceId: 'gone', text: 'x' }).catch(
+      (e: unknown) => e,
+    )) as TtsError
+    expect(err.errorCode).toBe('TTS_VOICE_NOT_FOUND')
+    expect(err.retryable).toBe(false)
   })
 })
