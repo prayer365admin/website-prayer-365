@@ -1,7 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { requiredScope } from './required-scope'
 import { ResolvedUserScope, ScopeRequest } from '@/models/scope'
-import { PRAYER_ROLES } from '../../prisma/seeds/prayer-roles'
+import { expandPrayerCatalogue, PRAYER_ROLES } from '../../prisma/seeds/prayer-roles'
+import { GET_USER_SCOPE_DATA } from '@/providers/scope'
 
 const church = { org_node_id: 'node-church-a' }
 void church
@@ -281,5 +282,93 @@ describe('requiredScope', () => {
     await expect(
       call({ churchId: 'church-a', subject: 'prayer_pastor', action: 'update' }),
     ).rejects.toMatchObject({ code: 403, error_code: 'NOT_ALLOWED' })
+  })
+})
+
+describe('F11ORG acceptance (OR-08)', () => {
+  it.each([
+    ['prayer_hierarchy', 'create'],
+    ['prayer_hierarchy', 'update'],
+    ['prayer_country', 'update'],
+    ['prayer_language', 'update'],
+    ['prayer_role_assignment', 'create'],
+    ['prayer_role_assignment', 'delete'],
+  ] as const)('bounds the seeded country admin: no central %s %s', async (subject, action) => {
+    mockScopeData = scopeData({ assignments: [seededGrant('prayer_country_admin', COUNTRY.id)] })
+    await expect(call({ central: true, subject, action })).rejects.toMatchObject({
+      code: 403,
+      error_code: 'NOT_ALLOWED',
+    })
+  })
+
+  it('keeps the seeded country admin to descendant aggregate reads', async () => {
+    mockScopeData = scopeData({ assignments: [seededGrant('prayer_country_admin', COUNTRY.id)] })
+    await expect(
+      call({ regionId: COUNTRY.id, subject: 'prayer_analytics', action: 'read' }),
+    ).resolves.toMatchObject({ churchIds: new Set(['church-a', 'church-b']) })
+    await expect(
+      call({ churchId: 'church-a', subject: 'prayer_request', action: 'read' }),
+    ).rejects.toMatchObject({ code: 403 })
+  })
+
+  it('reports by the current hierarchy after a church moves dioceses (D8)', async () => {
+    const DIOCESE_2 = { id: 'node-diocese-2', parent_id: COUNTRY.id, kind: 'DIOCESE' }
+    const movedB = { ...CHURCH_B, parent_id: DIOCESE_2.id }
+    const moved = (assignments: ResolvedUserScope['assignments']) =>
+      scopeData({
+        assignments,
+        _orgNodes: [GLOBAL, COUNTRY, DIOCESE, DIOCESE_2, CHURCH_A, movedB],
+        ancestors: new Map([
+          [CHURCH_A.id, [CHURCH_A.id, DIOCESE.id, COUNTRY.id, GLOBAL.id]],
+          [movedB.id, [movedB.id, DIOCESE_2.id, COUNTRY.id, GLOBAL.id]],
+          [DIOCESE.id, [DIOCESE.id, COUNTRY.id, GLOBAL.id]],
+          [DIOCESE_2.id, [DIOCESE_2.id, COUNTRY.id, GLOBAL.id]],
+          [COUNTRY.id, [COUNTRY.id, GLOBAL.id]],
+          [GLOBAL.id, [GLOBAL.id]],
+        ]),
+      })
+
+    mockScopeData = moved([seededGrant('prayer_diocese_admin', DIOCESE.id)])
+    await expect(
+      call({ regionId: DIOCESE.id, subject: 'prayer_analytics', action: 'read' }),
+    ).resolves.toMatchObject({ churchIds: new Set(['church-a']) })
+
+    mockScopeData = moved([seededGrant('prayer_diocese_admin', DIOCESE_2.id)])
+    await expect(
+      call({ regionId: DIOCESE_2.id, subject: 'prayer_analytics', action: 'read' }),
+    ).resolves.toMatchObject({ churchIds: new Set(['church-b']) })
+  })
+
+  it('loses access on the next request after a revoke (no cached scope)', async () => {
+    mockScopeData = scopeData({ assignments: [seededGrant('prayer_church_admin', CHURCH_A.id)] })
+    await expect(
+      call({ churchId: 'church-a', subject: 'prayer_church', action: 'update' }),
+    ).resolves.toBeDefined()
+
+    // GET_USER_SCOPE_DATA only returns revoked_at = null rows, so a revoke empties it.
+    mockScopeData = scopeData({ assignments: [] })
+    await expect(
+      call({ churchId: 'church-a', subject: 'prayer_church', action: 'update' }),
+    ).rejects.toMatchObject({ code: 403 })
+    expect(GET_USER_SCOPE_DATA).toHaveBeenCalledTimes(2)
+  })
+})
+
+describe('super admin registry access', () => {
+  // Mirrors seeds: `administrator` holds the whole catalogue + a GLOBAL assignment.
+  it.each([
+    ['prayer_country', 'read'],
+    ['prayer_country', 'create'],
+    ['prayer_country', 'update'],
+    ['prayer_language', 'read'],
+    ['prayer_language', 'create'],
+    ['prayer_language', 'update'],
+  ] as const)('allows the administrator to %s %s centrally', async (subject, action) => {
+    mockScopeData = scopeData({
+      assignments: [grant('administrator', GLOBAL.id, expandPrayerCatalogue())],
+    })
+    await expect(call({ central: true, subject, action })).resolves.toMatchObject({
+      scope: { kind: 'global' },
+    })
   })
 })

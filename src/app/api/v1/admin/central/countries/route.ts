@@ -41,7 +41,10 @@ export async function GET(req: NextRequest) {
       subject: 'prayer_country',
       action: 'read',
     })
-    const q = parseListQuery(req.nextUrl.searchParams, { allowOrderBy: ['name', 'code'] })
+    const q = parseListQuery(req.nextUrl.searchParams, {
+      allowOrderBy: ['name', 'code'],
+      defaults: ['name'],
+    })
     const data = await listCountries({
       page: q.page,
       limit: q.limit,

@@ -227,6 +227,7 @@ model Country {
   code    String  @id @db.Char(2)
   name    String
   enabled Boolean @default(true)
+  version Int     @default(1)
 
   orgNode OrgNode?
 
@@ -237,6 +238,7 @@ model Language {
   code    String  @id @db.Char(10) // BCP-47; seed en, et, fi
   name    String
   enabled Boolean @default(true)
+  version Int     @default(1)
 
   users       User[]
   churchLangs ChurchLanguage[]
@@ -253,6 +255,7 @@ model OrgNode {
   name         String
   country_code String?     @unique @db.Char(2)
   country      Country?    @relation(fields: [country_code], references: [code])
+  version      Int         @default(1)
 
   church          Church?
   roleAssignments RoleAssignment[]
