@@ -1,6 +1,5 @@
 // @vitest-environment node
 import { describe, expect, it, beforeEach, afterEach } from 'vitest'
-import { ELEVENLABS } from './elevenlabs'
 import { STRIPE } from './stripe'
 import { NotImplementedError } from '@/utils/not-implemented-error'
 
@@ -17,8 +16,6 @@ describe('external provider adapters are idle pending stubs', () => {
     process.env.STRIPE_ENABLED = originalStripeEnabled
   })
   it.each([
-    ['ELEVENLABS.registerInstantVoice', () => ELEVENLABS.registerInstantVoice({} as never)],
-    ['ELEVENLABS.getVoiceReadiness', () => ELEVENLABS.getVoiceReadiness('voice_1')],
     ['STRIPE.createCheckoutSession', () => STRIPE.createCheckoutSession({} as never)],
     ['STRIPE.constructWebhookEvent', () => STRIPE.constructWebhookEvent('{raw}', 'sig')],
     ['STRIPE.retrievePaymentIntent', () => STRIPE.retrievePaymentIntent('pi_123')],

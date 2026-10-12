@@ -22,15 +22,27 @@ vi.mock('@/providers/registry', () => ({
   UPDATE_LANGUAGE: vi.fn(),
 }))
 
-import { createCountry, deleteCountry, deleteLanguage } from './registry'
+import {
+  createCountry,
+  createLanguage,
+  deleteCountry,
+  deleteLanguage,
+  listLanguages,
+  updateCountry,
+  updateLanguage,
+} from './registry'
 import {
   COUNT_COUNTRY_REFERENCES,
   COUNT_LANGUAGE_REFERENCES,
   CREATE_COUNTRY,
   DELETE_COUNTRY,
   DELETE_LANGUAGE,
+  CREATE_LANGUAGE,
   GET_COUNTRY_BY_CODE,
+  GET_LANGUAGES,
   GET_LANGUAGE_BY_CODE,
+  UPDATE_COUNTRY,
+  UPDATE_LANGUAGE,
 } from '@/providers/registry'
 
 describe('country registry', () => {
@@ -83,6 +95,34 @@ describe('country registry', () => {
     expect(DELETE_COUNTRY).toHaveBeenCalled()
   })
 
+  it('returns 409 STALE_VERSION on a stale country update', async () => {
+    vi.mocked(GET_COUNTRY_BY_CODE).mockResolvedValue({ code: 'EE' } as never)
+    vi.mocked(UPDATE_COUNTRY).mockResolvedValue(null as never)
+    await expect(
+      updateCountry({
+        code: 'EE',
+        payload: { version: 1, enabled: false },
+        actorId: 'a',
+        requestId: 'r',
+      }),
+    ).rejects.toMatchObject({ code: 409, error_code: 'STALE_VERSION' })
+  })
+
+  it('disables a referenced country without touching references', async () => {
+    vi.mocked(GET_COUNTRY_BY_CODE).mockResolvedValue({ code: 'EE' } as never)
+    vi.mocked(UPDATE_COUNTRY).mockResolvedValue({ code: 'EE', enabled: false, version: 2 } as never)
+    await expect(
+      updateCountry({
+        code: 'EE',
+        payload: { version: 1, enabled: false },
+        actorId: 'a',
+        requestId: 'r',
+      }),
+    ).resolves.toMatchObject({ enabled: false })
+    expect(COUNT_COUNTRY_REFERENCES).not.toHaveBeenCalled()
+    expect(DELETE_COUNTRY).not.toHaveBeenCalled()
+  })
+
   it('returns 404 when deleting a missing country', async () => {
     vi.mocked(GET_COUNTRY_BY_CODE).mockResolvedValue(null as never)
     await expect(
@@ -101,6 +141,73 @@ describe('language registry', () => {
       deleteLanguage({ code: 'en', actorId: 'actor', requestId: 'r' }),
     ).rejects.toMatchObject({ code: 409, error_code: 'REFERENCED_ROWS' })
     expect(DELETE_LANGUAGE).not.toHaveBeenCalled()
+  })
+
+  it('blocks enabling a language whose translations are not ready', async () => {
+    vi.mocked(GET_LANGUAGE_BY_CODE).mockResolvedValue({ code: 'sv' } as never)
+    await expect(
+      updateLanguage({
+        code: 'sv',
+        payload: { version: 1, enabled: true },
+        actorId: 'a',
+        requestId: 'r',
+      }),
+    ).rejects.toMatchObject({ code: 422, error_code: 'LANGUAGE_NOT_READY' })
+    expect(UPDATE_LANGUAGE).not.toHaveBeenCalled()
+  })
+
+  it('blocks creating a non-ready language as enabled', async () => {
+    await expect(
+      createLanguage({
+        payload: { code: 'sv', name: 'Swedish', enabled: true },
+        actorId: 'a',
+        requestId: 'r',
+      }),
+    ).rejects.toMatchObject({ code: 422, error_code: 'LANGUAGE_NOT_READY' })
+    expect(CREATE_LANGUAGE).not.toHaveBeenCalled()
+  })
+
+  it('enables a ready language (char-padded code) and returns version', async () => {
+    vi.mocked(GET_LANGUAGE_BY_CODE).mockResolvedValue({ code: 'et        ' } as never)
+    vi.mocked(UPDATE_LANGUAGE).mockResolvedValue({
+      code: 'et        ',
+      name: 'Estonian',
+      enabled: true,
+      version: 2,
+    } as never)
+    await expect(
+      updateLanguage({
+        code: 'et',
+        payload: { version: 1, enabled: true },
+        actorId: 'a',
+        requestId: 'r',
+      }),
+    ).resolves.toEqual({ code: 'et', name: 'Estonian', enabled: true, version: 2, ready: true })
+  })
+
+  it('always allows disabling, and stale updates return 409', async () => {
+    vi.mocked(GET_LANGUAGE_BY_CODE).mockResolvedValue({ code: 'sv' } as never)
+    vi.mocked(UPDATE_LANGUAGE).mockResolvedValue(null as never)
+    await expect(
+      updateLanguage({
+        code: 'sv',
+        payload: { version: 3, enabled: false },
+        actorId: 'a',
+        requestId: 'r',
+      }),
+    ).rejects.toMatchObject({ code: 409, error_code: 'STALE_VERSION' })
+  })
+
+  it('lists languages with a readiness flag', async () => {
+    vi.mocked(GET_LANGUAGES).mockResolvedValue({
+      total: 2,
+      result: [
+        { code: 'en', name: 'English', enabled: true, version: 1 },
+        { code: 'sv', name: 'Swedish', enabled: false, version: 1 },
+      ],
+    } as never)
+    const out = await listLanguages({ page: 1, limit: 25, order_direction: 'asc' })
+    expect(out.result.map((l) => l.ready)).toEqual([true, false])
   })
 
   it('deletes an unreferenced language', async () => {

@@ -5,8 +5,44 @@ import { z } from 'zod'
  *
  * Own-submission endpoints derive the pastor subject from the linked user
  * (pastors.user_id === session.user.user_id) and are confined to DRAFT edition.
- * Admin review never exposes provider_voice_id / provider secrets.
+ * provider_voice_id is a read-only support reference on the central detail only
+ * (F4VO V2); own-submission endpoints never return it.
  */
+
+/**
+ * Registration failures an admin retry cannot fix: they need a new submission.
+ * REGISTRATION_UNRESOLVED is here too: a voice may already exist at ElevenLabs,
+ * so a retry could create a duplicate (SPEC 9.3.1 "no blind duplicate create").
+ */
+export const VOICE_RETRY_BLOCKED_ERRORS = [
+  'CHECKSUM_MISMATCH',
+  'SAMPLE_INVALID',
+  'NO_SAMPLES',
+  'NOT_APPROVED',
+  'VOICE_CONSENT_REVOKED',
+  'REGISTRATION_UNRESOLVED',
+]
+
+/** Approved + FAILED for a reason a retry can fix (incl. PROVIDER_VOICE_MISSING). */
+export const canRetryRegistration = (p: {
+  reviewState: string
+  registrationState: string
+  lastErrorCode: string | null
+  consentRevokedAt: string | null
+}) =>
+  p.reviewState === 'APPROVED' &&
+  p.registrationState === 'FAILED' &&
+  !p.consentRevokedAt &&
+  !VOICE_RETRY_BLOCKED_ERRORS.includes(p.lastErrorCode ?? '')
+
+/** Max sample files per submission (F4VO V7). ElevenLabs IVC documents no hard cap. */
+export const VOICE_SAMPLE_MAX_FILES = Number(process.env.VOICE_SAMPLE_MAX_FILES ?? 5)
+
+const SampleAssetIdsSchema = z
+  .array(z.string().uuid())
+  .min(1)
+  .max(VOICE_SAMPLE_MAX_FILES)
+  .refine((ids) => new Set(ids).size === ids.length, { message: 'Duplicate sample asset.' })
 
 // --- Task 35 — consent ------------------------------------------------------
 
@@ -65,7 +101,7 @@ export const mapConsent = (c: {
 
 export const VoiceSubmissionInputSchema = z
   .object({
-    sampleAssetId: z.string().uuid(),
+    sampleAssetIds: SampleAssetIdsSchema,
     consentId: z.string().uuid(),
     churchId: z.string().uuid(),
     replacesProfileId: z.string().uuid().optional(),
@@ -79,7 +115,7 @@ export type VoiceSubmissionInput = z.infer<typeof VoiceSubmissionInputSchema>
 export const VoiceSubmissionPatchSchema = z
   .object({
     version: z.number().int().positive(),
-    sampleAssetId: z.string().uuid().optional(),
+    sampleAssetIds: SampleAssetIdsSchema.optional(),
     consentId: z.string().uuid().optional(),
     replacesProfileId: z.string().uuid().nullish(),
   })
@@ -95,20 +131,62 @@ export const VoiceSubmitInputSchema = z
 
 export type VoiceSubmitInput = z.infer<typeof VoiceSubmitInputSchema>
 
+export const VoiceProfileSampleSchema = z.object({
+  assetId: z.string(),
+  position: z.number(),
+  mimeType: z.string(),
+  byteSize: z.number(),
+  checksum: z.string().nullable(),
+})
+
+export type VoiceProfileSample = {
+  assetId: string
+  position: number
+  mimeType: string
+  byteSize: number
+  /** Frozen at submit; null while DRAFT. */
+  checksum: string | null
+}
+
+/** One step of a voice profile's history, from audit_logs (no extra schema). */
+export type VoiceTimelineEvent = {
+  /** Audit action, e.g. voice.submission.submit, voice.profile.approve, voice.register. */
+  action: string
+  outcome: string
+  at: string
+  /** Who did it; null for the worker (system). */
+  actorName: string | null
+}
+
 export const VoiceProfileListItemSchema = z.object({
   id: z.string(),
   pastorId: z.string(),
   pastorName: z.string(),
   churchId: z.string(),
+  churchName: z.string(),
   version: z.number(),
   provider: z.string(),
   reviewState: z.string(),
   registrationState: z.string(),
   submittedAt: z.string().nullable(),
   reviewedAt: z.string().nullable(),
+  reviewedByName: z.string().nullable(),
   reviewReason: z.string().nullable(),
   consentRevokedAt: z.string().nullable(),
   replacesProfileId: z.string().nullable(),
+  requiresVerification: z.boolean().nullable(),
+  lastErrorCode: z.string().nullable(),
+  samples: z.array(VoiceProfileSampleSchema),
+  timeline: z
+    .array(
+      z.object({
+        action: z.string(),
+        outcome: z.string(),
+        at: z.string(),
+        actorName: z.string().nullable(),
+      }),
+    )
+    .optional(),
   createdAt: z.string(),
 })
 
@@ -117,47 +195,65 @@ export type VoiceProfileListItem = {
   pastorId: string
   pastorName: string
   churchId: string
+  churchName: string
   version: number
   provider: string
   reviewState: string
   registrationState: string
   submittedAt: string | null
   reviewedAt: string | null
+  /** Reviewer's display name (approve/reject), null until reviewed. */
+  reviewedByName: string | null
   reviewReason: string | null
   consentRevokedAt: string | null
   replacesProfileId: string | null
+  requiresVerification: boolean | null
+  lastErrorCode: string | null
+  samples: VoiceProfileSample[]
+  /** Audit-log history, oldest first (lists + central detail; omitted on write responses). */
+  timeline?: VoiceTimelineEvent[]
   createdAt: string
 }
 
-/** Detail — protected preview ref to the sample; NEVER provider_voice_id/secrets. */
+/** Central detail — preview refs (assets via /uploads/:assetId/access) + read-only Voice ID. */
 export const VoiceProfileDetailSchema = VoiceProfileListItemSchema.extend({
-  sampleAssetId: z.string(),
-  sampleObjectKey: z.string(),
-  sampleMimeType: z.string().nullable(),
-  sampleChecksum: z.string().nullable(),
   consentId: z.string(),
+  termsVersion: z.string(),
+  consentRecordedAt: z.string(),
+  evidenceAssetId: z.string().nullable(),
   cloningMethod: z.string(),
-  approvedSampleChecksum: z.string().nullable(),
-  requiresVerification: z.boolean().nullable(),
-  lastErrorCode: z.string().nullable(),
+  providerVoiceId: z.string().nullable(),
+  submittedBy: z.string(),
+  pastorUserId: z.string().nullable(),
 })
 
 export type VoiceProfileDetail = VoiceProfileListItem & {
-  sampleAssetId: string
-  sampleObjectKey: string
-  sampleMimeType: string | null
-  sampleChecksum: string | null
   consentId: string
+  termsVersion: string
+  consentRecordedAt: string
+  evidenceAssetId: string | null
   cloningMethod: string
-  approvedSampleChecksum: string | null
-  requiresVerification: boolean | null
-  lastErrorCode: string | null
+  providerVoiceId: string | null
+  /** Lets S24 hide review actions from the submitter / linked pastor (server still enforces). */
+  submittedBy: string
+  pastorUserId: string | null
 }
 
 export const VoiceProfileListQuerySchema = z.object({
   page: z.coerce.number().int().positive().default(1),
   limit: z.coerce.number().int().positive().max(100).default(25),
-  order_by: z.enum(['created_at', 'review_state', 'registration_state']).default('created_at'),
+  order_by: z
+    .enum([
+      'created_at',
+      'submitted_at',
+      'pastor_name',
+      'church_name',
+      'samples',
+      'review_state',
+      'reviewed_by',
+      'registration_state',
+    ])
+    .default('created_at'),
   order_direction: z.enum(['asc', 'desc']).default('desc'),
   review_state: z.enum(['DRAFT', 'SUBMITTED', 'APPROVED', 'REJECTED']).optional(),
   registration_state: z
@@ -173,6 +269,10 @@ export const VoiceProfileListQuerySchema = z.object({
     ])
     .optional(),
   churchId: z.string().uuid().optional(),
+  /** Pastor, church or reviewer name (case-insensitive contains). */
+  search: z.string().trim().max(200).optional(),
+  submitted_from: z.iso.datetime({ offset: true }).optional(),
+  submitted_to: z.iso.datetime({ offset: true }).optional(),
 })
 
 export type VoiceProfileListQuery = z.infer<typeof VoiceProfileListQuerySchema>
@@ -192,6 +292,12 @@ export const VoiceRejectInputSchema = z
 
 export type VoiceRejectInput = z.infer<typeof VoiceRejectInputSchema>
 
-export const VoiceDisableInputSchema = z.object({ version: z.number().int().positive() }).strict()
+/** PATCH central profile: disable it, or revoke its consent (disables every profile on it). */
+export const VoiceDisableInputSchema = z
+  .object({
+    version: z.number().int().positive(),
+    action: z.enum(['disable', 'revoke_consent']).default('disable'),
+  })
+  .strict()
 
 export type VoiceDisableInput = z.infer<typeof VoiceDisableInputSchema>

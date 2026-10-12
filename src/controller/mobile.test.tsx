@@ -3,11 +3,13 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 vi.mock('@/providers/mobile', () => ({
   CREATE_ANALYTICS_EVENTS: vi.fn(),
   CREATE_CHECKIN: vi.fn(),
+  COUNT_RECENT_USER_REQUESTS: vi.fn(),
   CREATE_USER_REQUEST: vi.fn(),
   GET_HOME: vi.fn(),
   GET_ME_PROFILE: vi.fn(),
   GET_PUBLIC_CHURCH: vi.fn(),
   GET_PUBLISHED_PRAYER: vi.fn(),
+  GET_USER_REQUEST_ACK: vi.fn(),
   LIST_MY_CHURCHES: vi.fn(),
   LIST_PUBLIC_ANNOUNCEMENTS: vi.fn(),
   LIST_PUBLIC_CHURCHES: vi.fn(),
@@ -21,10 +23,12 @@ vi.mock('@/utils/idempotency', () => ({ withIdempotency: vi.fn() }))
 import {
   CREATE_ANALYTICS_EVENTS,
   CREATE_CHECKIN,
+  COUNT_RECENT_USER_REQUESTS,
   CREATE_USER_REQUEST,
   GET_ME_PROFILE,
   GET_PUBLIC_CHURCH,
   GET_PUBLISHED_PRAYER,
+  GET_USER_REQUEST_ACK,
   LIST_PUBLISHED_PRAYERS,
   SET_FOLLOW,
   UPDATE_ME_PROFILE,
@@ -225,8 +229,9 @@ describe('Task 43 / requests — idempotent ack', () => {
     expect(withIdempotency).not.toHaveBeenCalled()
   })
 
-  it('acknowledges once and replays the same id on idempotent re-submit', async () => {
+  it('acknowledges a fresh submission and scopes the idempotency body to the church', async () => {
     vi.mocked(GET_PUBLIC_CHURCH).mockResolvedValue(CHURCH as never)
+    vi.mocked(COUNT_RECENT_USER_REQUESTS).mockResolvedValue(0)
     vi.mocked(CREATE_USER_REQUEST).mockResolvedValue({
       id: 'req-1',
       kind: 'pastoral',
@@ -236,25 +241,31 @@ describe('Task 43 / requests — idempotent ack', () => {
       await run({} as never)
       return { fresh: true, resource_id: 'req-1' }
     })
+    const input = { kind: 'pastoral' as const, message: 'hi', contactMethod: 'in_app' }
     const first = await submitRequest({
       userId: 'u1',
       churchId: 'c1',
-      input: { kind: 'pastoral', message: 'hi', contactMethod: 'in_app' },
+      input,
       idempotencyKey: 'k1',
       requestId: 'r',
     })
-    expect(first.id).toBe('req-1')
+    expect(first).toEqual({ id: 'req-1', kind: 'pastoral', createdAt: '2026-01-01T00:00:00Z' })
     expect(withIdempotency).toHaveBeenCalledWith(
-      expect.objectContaining({ operation: 'request.submit', key: 'k1' }),
+      expect.objectContaining({
+        operation: 'request.submit',
+        key: 'k1',
+        requestBody: { churchId: 'c1', ...input },
+      }),
     )
+    expect(GET_USER_REQUEST_ACK).not.toHaveBeenCalled()
   })
 
-  it('is idempotent across replays with the same key', async () => {
+  it('returns the original ack on a replay (lost-response recovery)', async () => {
     vi.mocked(GET_PUBLIC_CHURCH).mockResolvedValue(CHURCH as never)
-    vi.mocked(withIdempotency).mockImplementation(async ({ run }) => {
-      await run({} as never)
-      return { fresh: false, resource_id: 'req-1' }
-    })
+    // Replay: withIdempotency does not call run, it returns the stored resource id.
+    vi.mocked(withIdempotency).mockResolvedValue({ fresh: false, resource_id: 'req-1' } as never)
+    const original = { id: 'req-1', kind: 'meeting', createdAt: '2026-01-01T00:00:00.000Z' }
+    vi.mocked(GET_USER_REQUEST_ACK).mockResolvedValue(original)
     const res = await submitRequest({
       userId: 'u1',
       churchId: 'c1',
@@ -262,7 +273,56 @@ describe('Task 43 / requests — idempotent ack', () => {
       idempotencyKey: 'k1',
       requestId: 'r',
     })
-    expect(res.id).toBe('req-1')
+    expect(res).toEqual(original)
+    expect(GET_USER_REQUEST_ACK).toHaveBeenCalledWith({ id: 'req-1', userId: 'u1' })
+    expect(CREATE_USER_REQUEST).not.toHaveBeenCalled()
+    expect(COUNT_RECENT_USER_REQUESTS).not.toHaveBeenCalled()
+  })
+
+  it('rate-limits fresh submissions with 429 and writes nothing', async () => {
+    vi.mocked(GET_PUBLIC_CHURCH).mockResolvedValue(CHURCH as never)
+    vi.mocked(COUNT_RECENT_USER_REQUESTS).mockResolvedValue(5)
+    vi.mocked(withIdempotency).mockImplementation(async ({ run }) => {
+      const id = await run({} as never)
+      return { fresh: true, resource_id: id }
+    })
+    await expect(
+      submitRequest({
+        userId: 'u1',
+        churchId: 'c1',
+        input: { kind: 'prayer', subject: 's', message: 'hi', contactMethod: 'in_app' },
+        idempotencyKey: 'k6',
+        requestId: 'r',
+      }),
+    ).rejects.toMatchObject({ code: 429, error_code: 'RATE_LIMITED' })
+    expect(CREATE_USER_REQUEST).not.toHaveBeenCalled()
+    expect(COUNT_RECENT_USER_REQUESTS).toHaveBeenCalledWith(
+      expect.objectContaining({ churchId: 'c1', userId: 'u1' }),
+    )
+  })
+
+  it('honours REQUEST_SUBMIT_LIMIT from the environment', async () => {
+    vi.stubEnv('REQUEST_SUBMIT_LIMIT', '10')
+    vi.mocked(GET_PUBLIC_CHURCH).mockResolvedValue(CHURCH as never)
+    vi.mocked(COUNT_RECENT_USER_REQUESTS).mockResolvedValue(5)
+    vi.mocked(CREATE_USER_REQUEST).mockResolvedValue({
+      id: 'req-6',
+      kind: 'prayer',
+      createdAt: '2026-01-01T00:00:00Z',
+    } as never)
+    vi.mocked(withIdempotency).mockImplementation(async ({ run }) => {
+      const id = await run({} as never)
+      return { fresh: true, resource_id: id }
+    })
+    const res = await submitRequest({
+      userId: 'u1',
+      churchId: 'c1',
+      input: { kind: 'prayer', subject: 's', message: 'hi', contactMethod: 'in_app' },
+      idempotencyKey: 'k6',
+      requestId: 'r',
+    })
+    expect(res.id).toBe('req-6')
+    vi.unstubAllEnvs()
   })
 })
 

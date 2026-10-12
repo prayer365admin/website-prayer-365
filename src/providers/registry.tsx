@@ -35,10 +35,22 @@ export const CREATE_COUNTRY = async (
   tx: Prisma.TransactionClient = db,
 ) => tx.country.create({ data: payload })
 
+/** Version-guarded update; returns null when `expectedVersion` is stale. */
 export const UPDATE_COUNTRY = async (
-  { code, payload }: { code: string; payload: Prisma.CountryUpdateInput },
+  {
+    code,
+    expectedVersion,
+    payload,
+  }: { code: string; expectedVersion: number; payload: Prisma.CountryUpdateManyMutationInput },
   tx: Prisma.TransactionClient = db,
-) => tx.country.update({ where: { code }, data: payload })
+) => {
+  const updated = await tx.country.updateMany({
+    where: { code, version: expectedVersion },
+    data: { ...payload, version: { increment: 1 } },
+  })
+  if (updated.count === 0) return null
+  return tx.country.findUnique({ where: { code } })
+}
 
 export const COUNT_COUNTRY_REFERENCES = async ({ code }: { code: string }) =>
   db.orgNode.count({ where: { country_code: code } })
@@ -76,10 +88,22 @@ export const CREATE_LANGUAGE = async (
   tx: Prisma.TransactionClient = db,
 ) => tx.language.create({ data: payload })
 
+/** Version-guarded update; returns null when `expectedVersion` is stale. */
 export const UPDATE_LANGUAGE = async (
-  { code, payload }: { code: string; payload: Prisma.LanguageUpdateInput },
+  {
+    code,
+    expectedVersion,
+    payload,
+  }: { code: string; expectedVersion: number; payload: Prisma.LanguageUpdateManyMutationInput },
   tx: Prisma.TransactionClient = db,
-) => tx.language.update({ where: { code }, data: payload })
+) => {
+  const updated = await tx.language.updateMany({
+    where: { code, version: expectedVersion },
+    data: { ...payload, version: { increment: 1 } },
+  })
+  if (updated.count === 0) return null
+  return tx.language.findUnique({ where: { code } })
+}
 
 export const COUNT_LANGUAGE_REFERENCES = async ({ code }: { code: string }) => {
   const [churchLangs, users] = await db.$transaction([

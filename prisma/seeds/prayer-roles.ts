@@ -176,11 +176,22 @@ export const PRAYER_ROLES: PrayerRole[] = [
   },
   {
     name: 'prayer_request_reader',
-    grants: [{ subject: 'prayer_request', actions: 'read', scope: 'ANY' }],
+    // Church read is the entry point: the church route guard, My Churches and
+    // the overview all need it to reach the Requests page.
+    grants: [
+      { subject: 'prayer_church', actions: 'read', scope: 'ANY' },
+      { subject: 'prayer_request', actions: 'read', scope: 'ANY' },
+    ],
   },
   {
     name: 'prayer_private_request_reader',
-    grants: [{ subject: 'prayer_private_request', actions: 'read', scope: 'ANY' }],
+    // Includes church read (entry point) and base request read so one church
+    // assignment is enough (F7RQ R3).
+    grants: [
+      { subject: 'prayer_church', actions: 'read', scope: 'ANY' },
+      { subject: 'prayer_request', actions: 'read', scope: 'ANY' },
+      { subject: 'prayer_private_request', actions: 'read', scope: 'ANY' },
+    ],
   },
   {
     // END-USER (mobile customer) — no admin grants by default.

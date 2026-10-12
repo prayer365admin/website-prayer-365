@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { withIdempotency, withExternalIdempotency } from './idempotency'
+import { hashContent } from './hash'
+import { requestHash, withIdempotency, withExternalIdempotency } from './idempotency'
 
 const find = vi.fn()
 const create = vi.fn()
@@ -19,10 +20,6 @@ vi.mock('@/utils/db-connection', () => ({
 
 vi.mock('@/utils/db-transaction', () => ({
   dbTransaction: vi.fn(async (fn: (tx: unknown) => unknown) => fn(fakeTx)),
-}))
-
-vi.mock('@/utils/hash', () => ({
-  hashContent: vi.fn((content: string) => `hash:${content}`),
 }))
 
 const run = vi.fn(async () => 'res-1')
@@ -65,7 +62,7 @@ describe('withIdempotency', () => {
 
   it('returns stored result on replay with same key+hash, without rerunning', async () => {
     find.mockResolvedValue({
-      request_hash: 'hash:{"sampleAssetId":"s1"}',
+      request_hash: hashContent('{"sampleAssetId":"s1"}'),
       resource_id: 'res-1',
       expires_at: new Date(Date.now() + 60000),
     })
@@ -76,7 +73,7 @@ describe('withIdempotency', () => {
 
   it('conflicts 409 when same key used with a different request hash', async () => {
     find.mockResolvedValue({
-      request_hash: 'hash:{"different":"body"}',
+      request_hash: 'a-different-hash',
       resource_id: 'res-1',
       expires_at: new Date(Date.now() + 60000),
     })
@@ -86,7 +83,7 @@ describe('withIdempotency', () => {
 
   it('treats an expired key as available for a new request', async () => {
     find.mockResolvedValue({
-      request_hash: 'hash:{"different":"body"}',
+      request_hash: 'a-different-hash',
       resource_id: 'res-1',
       expires_at: new Date(Date.now() - 1000),
     })
@@ -94,6 +91,19 @@ describe('withIdempotency', () => {
     const result = await call()
     expect(result.fresh).toBe(true)
     expect(run).toHaveBeenCalledTimes(1)
+  })
+  it('writes no record and rethrows when the business action fails (e.g. rate limit)', async () => {
+    find.mockResolvedValue(null)
+    const failing = vi.fn(async () => {
+      throw Object.assign(new Error('limited'), { code: 429 })
+    })
+    await expect(call({ run: failing })).rejects.toMatchObject({ code: 429 })
+    expect(create).not.toHaveBeenCalled()
+  })
+  it('hashes the same body to the same value every time (replays must match)', async () => {
+    const body = { churchId: 'c1', kind: 'prayer', message: 'hi' }
+    expect(await requestHash(body)).toBe(await requestHash({ ...body }))
+    expect(await requestHash(body)).not.toBe(await requestHash({ ...body, message: 'bye' }))
   })
 })
 
@@ -147,7 +157,7 @@ describe('withExternalIdempotency', () => {
 
   it('replays COMPLETED record without executing external action', async () => {
     find.mockResolvedValue({
-      request_hash: 'hash:{"amountMinor":1000}',
+      request_hash: hashContent('{"amountMinor":1000}'),
       resource_id: 'cached-session-1',
       state: 'COMPLETED',
       expires_at: new Date(Date.now() + 60000),
@@ -160,7 +170,7 @@ describe('withExternalIdempotency', () => {
 
   it('conflicts 409 IDEMPOTENCY_CONFLICT when hash differs', async () => {
     find.mockResolvedValue({
-      request_hash: 'hash:{"different":123}',
+      request_hash: 'a-different-hash',
       resource_id: 'cached-session-1',
       state: 'COMPLETED',
       expires_at: new Date(Date.now() + 60000),
@@ -175,7 +185,7 @@ describe('withExternalIdempotency', () => {
 
   it('conflicts 409 IDEMPOTENCY_IN_FLIGHT when state is PENDING', async () => {
     find.mockResolvedValue({
-      request_hash: 'hash:{"amountMinor":1000}',
+      request_hash: hashContent('{"amountMinor":1000}'),
       state: 'PENDING',
       expires_at: new Date(Date.now() + 60000),
     })

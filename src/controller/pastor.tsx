@@ -32,6 +32,7 @@ import { GET_CHURCH_VERSION } from '@/providers/church'
 import { auditPayload } from '@/utils/audit'
 import { dbTransaction } from '@/utils/db-transaction'
 import { GeneralError } from '@/utils/general-error'
+import { CONSENT_PURPOSE } from '@/providers/voice'
 
 /*
  * Central pastor business logic (SPEC §8.3 / Task 20). Central authority owns
@@ -257,7 +258,7 @@ const validateCentralAssignment = async ({
       voice.review_state !== 'APPROVED' ||
       voice.registration_state !== 'READY' ||
       consent.pastor_id !== entry.pastorId ||
-      consent.purpose !== 'voice_cloning' ||
+      consent.purpose !== CONSENT_PURPOSE ||
       consent.revoked_at !== null
     ) {
       throw new GeneralError({

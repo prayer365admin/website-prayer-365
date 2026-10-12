@@ -15,6 +15,7 @@ registerPath({
   request: {
     params: [{ name: 'nodeId', in: 'path', schema: z.string() }],
     body: z.object({
+      version: z.number().int().positive(),
       name: z.string().optional(),
       parentId: z.string().nullable().optional(),
     }),

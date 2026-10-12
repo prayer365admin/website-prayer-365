@@ -1,3 +1,5 @@
+import ContentsCentralRegistry from '@/contents/central/registry'
+
 export default function Page() {
-  return <>Countries</>
+  return <ContentsCentralRegistry kind="country" />
 }

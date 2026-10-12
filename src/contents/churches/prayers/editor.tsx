@@ -16,8 +16,11 @@ import {
   useSchedulePrayer,
 } from '@/hooks/data/prayer'
 import { useMediaAccess } from '@/hooks/data/media-access'
+import { useAccessPermission } from '@/hooks/data/access-permission'
+import { useRecloneVoiceProfile } from '@/hooks/data/voice'
 import { PrayerInput, PrayerOutput } from '@/models/prayer'
 import {
+  Alert,
   Button,
   Card,
   Col,
@@ -72,7 +75,10 @@ export default function ContentsChurchesPrayersEditor({
   const { onApproveText, loading: approveLoading } = useApproveText(churchId, prayerId ?? '')
 
   const [pendingAudioId, setPendingAudioId] = useState<string | null>(null)
-  const audioId = pendingAudioId ?? saved?.current?.selectedAudioId
+  // Audio to show: the one generated in this session, else the newest for this text
+  // version (picks up a generation still running in the worker after a reload),
+  // else the approved one.
+  const audioId = pendingAudioId ?? saved?.current?.latestAudioId ?? saved?.current?.selectedAudioId
   const { data: audio } = usePrayerAudio(churchId, prayerId ?? '', audioId ?? undefined)
   const { data: access } = useMediaAccess(churchId, audio?.assetId ?? null)
   const { onEnqueueAudio, loading: enqueueLoading } = useEnqueueAudio(churchId, prayerId ?? '')
@@ -81,13 +87,18 @@ export default function ContentsChurchesPrayersEditor({
     prayerId ?? '',
     audioId ?? '',
   )
+  const { onReclone, loading: recloneLoading } = useRecloneVoiceProfile()
+  const [recloneStarted, setRecloneStarted] = useState(false)
+  // Server enforces church scope; this only hides the button from roles without the grant.
+  const canReclone = useAccessPermission().createAny('prayer_voice_generation').granted
   const { onSchedule, loading: scheduleLoading } = useSchedulePrayer(churchId, prayerId ?? '')
   const { onPublish, loading: publishLoading } = usePublishPrayer(churchId, prayerId ?? '')
 
   const currentPastor = pastors?.find((p) => p.id === saved?.current?.pastorId)
   const voiceProfileId = currentPastor?.activeVoiceProfileId ?? null
   const voiceReady = currentPastor?.voiceReady ?? false
-  const canGenerate = !!saved?.current && saved.textApproved && voiceReady
+  const audioInFlight = audio?.status === 'QUEUED' || audio?.status === 'GENERATING'
+  const canGenerate = !!saved?.current && saved.textApproved && voiceReady && !audioInFlight
   // The due-scan never re-publishes a version that is already live, so scheduling it
   // again would lie about the state. Publishing a new text version is the way forward.
   const currentAlreadyPublished =
@@ -98,7 +109,9 @@ export default function ContentsChurchesPrayersEditor({
       ? 'Approve the reviewed text first.'
       : !voiceReady
         ? 'The pastor has no verified voice for this church.'
-        : ''
+        : audioInFlight
+          ? 'Audio is already being generated for this text.'
+          : ''
   const canApproveAudio =
     !!saved?.current &&
     saved.textApproved &&
@@ -322,35 +335,61 @@ export default function ContentsChurchesPrayersEditor({
     </Modal>
   )
 
+  // One inner card per step (generate → review → publish) so each flow reads on its own.
   const audioJSX = (
-    <div className="space-y-6">
-      <Row gutter={16}>
-        <Col span={12}>
-          <div>Reviewed text: {saved?.textApproved ? 'Ready' : 'Not approved'}</div>
-          <Button onClick={() => setReviewOpen(true)}>View reviewed text</Button>
-        </Col>
-        <Col span={12}>
-          <div>Pastor voice: {voiceReady ? 'Verified' : 'Not ready'}</div>
-          <Button
-            type="primary"
-            loading={enqueueLoading}
-            disabled={!canGenerate}
-            onClick={handleGenerate}
-          >
-            Generate audio
-          </Button>
-          {!canGenerate && <div className="text-gray-500">{generateDisabledReason}</div>}
-        </Col>
-      </Row>
+    <div className="space-y-4">
+      <Card type="inner" title="Audio generation">
+        <Row gutter={16}>
+          <Col span={12}>
+            <div>Reviewed text: {saved?.textApproved ? 'Ready' : 'Not approved'}</div>
+            <Button onClick={() => setReviewOpen(true)}>View reviewed text</Button>
+          </Col>
+          <Col span={12}>
+            <div>Pastor voice: {voiceReady ? 'Verified' : 'Not ready'}</div>
+            <Button
+              type="primary"
+              loading={enqueueLoading}
+              disabled={!canGenerate}
+              onClick={handleGenerate}
+            >
+              Generate audio
+            </Button>
+            {!canGenerate && <div className="text-gray-500">{generateDisabledReason}</div>}
+          </Col>
+        </Row>
+      </Card>
 
-      <div className="border p-4 rounded">
-        <h3 className="font-semibold mb-2">Audio preview</h3>
+      <Card type="inner" title="Audio review">
         {!audioId ? (
           <div>No audio generated yet.</div>
         ) : audio?.status === 'QUEUED' || audio?.status === 'GENERATING' ? (
           <div>
             <Spin /> Generating audio…
           </div>
+        ) : audio?.status === 'FAILED' && audio.errorCode === 'VOICE_MISSING_AT_PROVIDER' ? (
+          <Alert
+            type="warning"
+            showIcon
+            title="The pastor's voice no longer exists at the provider."
+            description={
+              recloneStarted ? (
+                'The voice is being re-created. Generate audio again once the pastor voice is ready.'
+              ) : canReclone ? (
+                <Button
+                  className="mt-2"
+                  loading={recloneLoading}
+                  onClick={async () => {
+                    await onReclone({ churchId, id: audio.voiceProfileId })
+                    setRecloneStarted(true)
+                  }}
+                >
+                  Re-create voice
+                </Button>
+              ) : (
+                'Ask an admin to re-create the voice.'
+              )
+            }
+          />
         ) : audio?.status === 'FAILED' ? (
           <div>
             Audio generation failed{audio.errorCode ? ` (${audio.errorCode})` : ''}.
@@ -359,10 +398,8 @@ export default function ContentsChurchesPrayersEditor({
         ) : (
           <div>{!access?.url ? <Spin /> : <audio controls src={access.url} />}</div>
         )}
-      </div>
 
-      <div>
-        <div>State: {stateLabel}</div>
+        <div className="mt-4">State: {stateLabel}</div>
         {audio?.approvedAt ? (
           <div className="text-gray-500">Audio approved.</div>
         ) : (
@@ -375,9 +412,9 @@ export default function ContentsChurchesPrayersEditor({
             Approve audio
           </Button>
         )}
-      </div>
+      </Card>
 
-      <div>
+      <Card type="inner" title="Publication">
         <Row gutter={16}>
           <Col span={8}>
             <div>Publication date</div>
@@ -422,33 +459,33 @@ export default function ContentsChurchesPrayersEditor({
             )}
           </div>
         ) : null}
-      </div>
 
-      <div className="flex justify-end gap-2">
-        <Button
-          type="primary"
-          loading={scheduleLoading}
-          disabled={
-            !scheduledIso || !saved?.current || !saved?.textApproved || currentAlreadyPublished
-          }
-          onClick={handleSchedule}
-        >
-          Schedule publication
-        </Button>
-        <Button
-          type="primary"
-          loading={publishLoading}
-          disabled={!saved?.current || !saved?.textApproved}
-          onClick={handlePublish}
-        >
-          Publish now
-        </Button>
-      </div>
-      {currentAlreadyPublished && (
-        <div className="text-gray-500">
-          This version is already published. Edit the text to publish a new version.
+        <div className="flex justify-end gap-2 mt-4">
+          <Button
+            type="primary"
+            loading={scheduleLoading}
+            disabled={
+              !scheduledIso || !saved?.current || !saved?.textApproved || currentAlreadyPublished
+            }
+            onClick={handleSchedule}
+          >
+            Schedule publication
+          </Button>
+          <Button
+            type="primary"
+            loading={publishLoading}
+            disabled={!saved?.current || !saved?.textApproved}
+            onClick={handlePublish}
+          >
+            Publish now
+          </Button>
         </div>
-      )}
+        {currentAlreadyPublished && (
+          <div className="text-gray-500">
+            This version is already published. Edit the text to publish a new version.
+          </div>
+        )}
+      </Card>
     </div>
   )
 

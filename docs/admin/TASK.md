@@ -112,12 +112,25 @@ DESIGN S10–S11 | SPEC §9.5 | FEATURE F6
 | ----- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---- |
 | RQ-01 | DB: `requests` model + seeds                                                                                                                                              | ✔   |
 | RQ-02 | API: request provider/controller/models + `GET C/requests` (filtered before pagination), `GET C/requests/:requestId`, mobile `POST M/churches/:churchId/requests` + tests | ✔   |
-| RQ-03 | Hooks: `hooks/data/request.tsx` — list (allowed kinds), detail                                                                                                            | ☐    |
-| RQ-04 | Screen: S10 request list (`.../requests`) — authorized kinds only, no content to unauthorized staff                                                                       | ☐    |
-| RQ-05 | Screen: S11 request detail (`.../requests/:requestId`) — message + preferred contact method, external phone/email action, sensitive-data guard                            | ☐    |
-| RQ-06 | Security: private rows filtered before count/pagination, logs/notifications never carry message/contact/classification, submission rate-limited + idempotent              | ☐    |
-| RQ-07 | Tests: unauthorized detail returns nothing, duplicate submission same result, scope bypass attempts fail                                                                  | ☐    |
-| RQ-08 | Note: D3 blocks anything beyond view/contact — do not invent status/assignment UI                                                                                         | ☐    |
+| RQ-03 | Hooks: `hooks/data/request.tsx` — list (allowed kinds), detail                                                                                                            | ✔   |
+| RQ-04 | Screen: S10 request list (`.../requests`) — authorized kinds only, no content to unauthorized staff                                                                       | ✔   |
+| RQ-05 | Screen: S11 request detail (`.../requests/:requestId`) — message + preferred contact method, external phone/email action, sensitive-data guard                            | ✔   |
+| RQ-06 | Security: private rows filtered before count/pagination, logs/notifications never carry message/contact/classification, submission rate-limited + idempotent              | ✔   |
+| RQ-07 | Tests: unauthorized detail returns nothing, duplicate submission same result, scope bypass attempts fail                                                                  | ✔   |
+| RQ-08 | Note: D3 blocks anything beyond view/contact — do not invent status/assignment UI                                                                                         | ✔   |
+
+F7RQ notes (2026-10-08, plan `.codex/tasks/F7RQ-requests.md`):
+
+- RQ-02 hardened: pastoral/meeting requests are always restricted (need the church-local
+  private grant), queries use the exact route church, `?kind=` takes a comma list, request
+  and overview responses are `Cache-Control: private, no-store`, duplicate submission
+  returns the original ack, idempotency keys are church-scoped, submissions are limited to
+  5 per user per church per 10 minutes (`REQUEST_SUBMIT_LIMIT`,
+  `REQUEST_SUBMIT_WINDOW_MINUTES`). `prayer_private_request_reader` now includes
+  `prayer_request:read`.
+- RQ-08: only view and external contact are built. F6 "manage" is **not** complete; it stays
+  blocked on D3.
+- Manual acceptance signed off by the owner on 2026-10-08.
 
 ## F8DO — Donations (reporting + central Stripe)
 
@@ -174,12 +187,12 @@ DESIGN S21–S23 | SPEC §8.3 | FEATURE F8
 | ----- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- | ---- |
 | OR-01 | DB: `org_nodes`, `countries`, `languages`, `role_assignments` + seeds                                                                                      | ✔   |
 | OR-02 | API: hierarchy/country/language/role-assignment providers + controllers + routes + tests                                                                   | ✔   |
-| OR-03 | Hooks: extend `hooks/data/central.tsx` — hierarchy tree/node, countries, languages, role-assignments                                                       | ☐    |
-| OR-04 | Screen: S21 hierarchy (`/dashboard/central/hierarchy`) — tree view, new-node panel (kind/name/parent), invalid-parent + cycle rejection, move confirmation | ☐    |
-| OR-05 | Screen: S22 countries (`/dashboard/central/countries`) — list + create/edit/enable; no destructive removal of referenced countries                         | ☐    |
-| OR-06 | Screen: S23 languages (`/dashboard/central/languages`) — list + edit/enable; block enable until translations ready                                         | ☐    |
-| OR-07 | Screen: role-assignment management — grant/revoke staff church/region scope (tenancy layer), escalation guard                                              | ☐    |
-| OR-08 | Tests: hierarchy cycles rejected, reassignment reporting (D8), country-role powers bounded, revoke loses access                                            | ☐    |
+| OR-03 | Hooks: extend `hooks/data/central.tsx` — hierarchy tree/node, countries, languages, role-assignments                                                       | ✔   |
+| OR-04 | Screen: S21 hierarchy (`/dashboard/central/hierarchy`) — tree view, new-node panel (kind/name/parent), invalid-parent + cycle rejection, move confirmation | ✔   |
+| OR-05 | Screen: S22 countries (`/dashboard/central/countries`) — list + create/edit/enable; no destructive removal of referenced countries                         | ✔   |
+| OR-06 | Screen: S23 languages (`/dashboard/central/languages`) — list + edit/enable; block enable until translations ready                                         | ✔   |
+| OR-07 | Screen: role-assignment management — grant/revoke staff church/region scope (tenancy layer), escalation guard                                              | ✔   |
+| OR-08 | Tests: hierarchy cycles rejected, reassignment reporting (D8), country-role powers bounded, revoke loses access                                            | ✔   |
 
 ## F12ST — Staff, Roles, Permissions
 
@@ -277,7 +290,7 @@ without a joint announce, because the mobile `api.ts` layer maps to the built sh
 | D5  | ElevenLabs verification completion path, voice-slot limits                                                                                                                                                                                                                                                                 | VO-07                |
 | D6  | Direction RESOLVED — one centralized PRAYER Stripe account, no Connect, no per-church accounts, manual external payouts (out of dashboard scope). Still to confirm: launch countries, currencies, preset amounts, provider event list, fees treatment, month boundaries, recurring cancellation/support, reporting totals. | DO-09                |
 | D7  | Check-in dedupe rule                                                                                                                                                                                                                                                                                                       | check-in API         |
-| D8  | Hierarchy reassignment reporting, country powers                                                                                                                                                                                                                                                                           | OR-08                |
+| D8  | Hierarchy reassignment reporting, country powers — ADOPTED SPEC defaults (current-hierarchy attribution, labeled; country admin = aggregate reads only)                                                                                                                                                                    | OR-08 (done)         |
 | D9  | Notification recipients/timing defaults                                                                                                                                                                                                                                                                                    | NO-09                |
 | D10 | Retention/deletion policy + legal text                                                                                                                                                                                                                                                                                     | privacy jobs         |
 | D11 | Hosting + tooling confirmation                                                                                                                                                                                                                                                                                             | X-09                 |

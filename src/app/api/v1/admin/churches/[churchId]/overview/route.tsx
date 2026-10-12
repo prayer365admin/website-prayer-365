@@ -2,7 +2,7 @@ import { NextRequest } from 'next/server'
 import { z } from 'zod'
 import requiredAuth from '@/utils/required-auth'
 import { requiredScope } from '@/utils/required-scope'
-import { ok, httpError } from '@/utils/response'
+import { ok, httpError, noStore } from '@/utils/response'
 import { registerPath } from '@/utils/openapi'
 import { ChurchOverviewSchema } from '@/models/church'
 import { getChurchOverview } from '@/controller/church'
@@ -37,7 +37,8 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ chur
       action: 'read',
     })
     const result = await getChurchOverview({ userId: session.user.user_id, churchId, churchIds })
-    return ok(result, 'Church overview retrieved.')
+    // May carry request summaries, so never cache it.
+    return noStore(ok(result, 'Church overview retrieved.'))
   } catch (e) {
     return httpError(e)
   }

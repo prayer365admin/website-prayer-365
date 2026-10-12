@@ -308,6 +308,68 @@ describe('ContentsChurchesPrayersEditor', () => {
     )
   })
 
+  it('Audio failed because the voice is missing: warning, no Generate-again (F4VO V8)', async () => {
+    detailFixture = {
+      ...detail,
+      textApproved: true,
+      current: { ...detail.current, selectedAudioId: 'a1' },
+    }
+    audioFixture = { ...audioQueued, status: 'FAILED', errorCode: 'VOICE_MISSING_AT_PROVIDER' }
+    const user = userEvent.setup()
+    renderWithProviders(<ContentsChurchesPrayersEditor churchId="c1" prayerId="p1" />)
+    await screen.findByLabelText('Title')
+    await user.click(screen.getByRole('tab', { name: 'Audio & Publication' }))
+    expect(
+      await screen.findByText("The pastor's voice no longer exists at the provider."),
+    ).toBeTruthy()
+    // No role in this suite → no voice-generation grant → told to ask an admin.
+    expect(screen.getByText('Ask an admin to re-create the voice.')).toBeTruthy()
+    expect(screen.queryByRole('button', { name: 'Generate again' })).toBeNull()
+  })
+
+  it('After a reload, resumes a generation still running in the worker (no double generate)', async () => {
+    // Fresh page load: no in-memory pending id, only the server's latest audio for this version.
+    detailFixture = {
+      ...detail,
+      textApproved: true,
+      current: { ...detail.current, latestAudioId: 'a1', latestAudioStatus: 'GENERATING' },
+    }
+    audioFixture = { ...audioQueued, status: 'GENERATING' }
+    const user = userEvent.setup()
+    renderWithProviders(<ContentsChurchesPrayersEditor churchId="c1" prayerId="p1" />)
+    await screen.findByLabelText('Title')
+    await user.click(screen.getByRole('tab', { name: 'Audio & Publication' }))
+
+    expect((await screen.findAllByText(/Generating audio/)).length).toBeGreaterThan(0)
+    expect(axiosMock.get).toHaveBeenCalledWith(expect.stringContaining('/audio/a1'))
+    const generate = screen.getByRole('button', { name: 'Generate audio' }) as HTMLButtonElement
+    expect(generate.disabled).toBe(true)
+    expect(screen.getByText('Audio is already being generated for this text.')).toBeTruthy()
+  })
+
+  it('After a reload, shows a finished but unapproved audio ready to preview and approve', async () => {
+    detailFixture = {
+      ...detail,
+      textApproved: true,
+      current: { ...detail.current, latestAudioId: 'a1', latestAudioStatus: 'READY' },
+    }
+    audioFixture = audioReady
+    const user = userEvent.setup()
+    const { container } = renderWithProviders(
+      <ContentsChurchesPrayersEditor churchId="c1" prayerId="p1" />,
+    )
+    await screen.findByLabelText('Title')
+    await user.click(screen.getByRole('tab', { name: 'Audio & Publication' }))
+    await waitFor(() =>
+      expect(container.querySelector('audio')?.getAttribute('src')).toBe(
+        'https://s3.example/signed',
+      ),
+    )
+    expect(
+      (screen.getByRole('button', { name: 'Approve audio' }) as HTMLButtonElement).disabled,
+    ).toBe(false)
+  })
+
   it('Schedule publication sends tz-aware ISO', async () => {
     detailFixture = {
       ...detail,

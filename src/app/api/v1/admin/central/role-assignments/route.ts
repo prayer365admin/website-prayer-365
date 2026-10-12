@@ -21,6 +21,8 @@ registerPath({
         in: 'query',
         schema: z.coerce.number().int().positive().max(100).optional(),
       },
+      { name: 'userId', in: 'query', schema: z.string().optional() },
+      { name: 'orgNodeId', in: 'query', schema: z.string().optional() },
     ],
   },
   responses: [
@@ -52,10 +54,13 @@ export async function GET(req: NextRequest) {
       action: 'read',
     })
     const q = parseListQuery(req.nextUrl.searchParams, { allowOrderBy: ['created_at'] })
+    const params = req.nextUrl.searchParams
     const data = await listRoleAssignments({
       page: q.page,
       limit: q.limit,
       order_direction: q.order_direction,
+      userId: params.get('userId') || undefined,
+      orgNodeId: params.get('orgNodeId') || undefined,
     })
     return list(data.result, data.total, q.page, q.limit, 'Successfully fetched role assignments')
   } catch (e) {

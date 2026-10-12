@@ -8,3 +8,115 @@ body {
   margin: 0px;
   min-height: 100vh;
 }
+
+/**
+ * Rich text style for long-form/HTML content (`<div className="richtext">`).
+ * Put the class on a plain wrapper, not on an antd Card/Modal root: the
+ * vertical rhythm targets direct children, which would space the card header.
+ * Direct children reset antd's default margins; rhythm comes from space-y.
+ */
+.richtext {
+  @apply space-y-4 text-base leading-relaxed text-black_color;
+
+  > * {
+    @apply mb-0 mt-0;
+  }
+
+  p:empty {
+    @apply min-h-1;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    @apply font-font_heading font-semibold leading-tight text-black_color;
+  }
+
+  h1 {
+    @apply text-3xl;
+  }
+
+  h2 {
+    @apply text-2xl;
+  }
+
+  h3 {
+    @apply text-xl;
+  }
+
+  h4 {
+    @apply text-lg;
+  }
+
+  h5,
+  h6 {
+    @apply text-base;
+  }
+
+  strong,
+  b {
+    @apply font-semibold;
+  }
+
+  em,
+  i {
+    @apply italic;
+  }
+
+  a {
+    @apply text-primary_color underline underline-offset-2 hover:opacity-80;
+  }
+
+  ol {
+    @apply list-decimal space-y-1 pl-7;
+  }
+
+  ul {
+    @apply list-disc space-y-1 pl-7;
+  }
+
+  li > ul,
+  li > ol {
+    @apply mt-1;
+  }
+
+  blockquote {
+    @apply border-l-4 border-gray-300 pl-4 font-font_quote italic text-gray-600;
+  }
+
+  code {
+    @apply rounded bg-gray-100 px-1 py-0.5 font-mono text-sm;
+  }
+
+  pre {
+    @apply overflow-x-auto rounded bg-gray-100 p-4 text-sm;
+
+    code {
+      @apply bg-transparent p-0;
+    }
+  }
+
+  hr {
+    @apply border-0 border-t border-gray-200;
+  }
+
+  img {
+    @apply h-auto max-w-full rounded;
+  }
+
+  table {
+    @apply w-full border-collapse text-left text-sm;
+  }
+
+  th,
+  td {
+    @apply border border-gray-200 px-3 py-2;
+  }
+
+  th {
+    @apply bg-gray-50 font-semibold;
+  }
+}

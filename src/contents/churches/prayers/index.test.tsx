@@ -22,6 +22,8 @@ const mockPrayers: PrayerOutput[] = [
       approvedBy: null,
       approvedAt: null,
       selectedAudioId: null,
+      latestAudioId: null,
+      latestAudioStatus: null,
       createdAt: '2024-12-01T08:00:00Z',
     },
     scheduled: {
@@ -48,6 +50,8 @@ const mockPrayers: PrayerOutput[] = [
       approvedBy: 'admin',
       approvedAt: '2024-11-01T09:00:00Z',
       selectedAudioId: null,
+      latestAudioId: null,
+      latestAudioStatus: null,
       createdAt: '2024-11-01T08:00:00Z',
     },
     scheduled: null,

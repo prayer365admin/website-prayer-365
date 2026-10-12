@@ -14,7 +14,11 @@ registerPath({
   summary: 'Update a country',
   request: {
     params: [{ name: 'code', in: 'path', schema: z.string() }],
-    body: z.object({ name: z.string().optional(), enabled: z.boolean().optional() }),
+    body: z.object({
+      version: z.number().int().positive(),
+      name: z.string().optional(),
+      enabled: z.boolean().optional(),
+    }),
   },
   responses: [
     { status: 200, description: 'Updated country', schema: z.object({ code: z.string() }) },

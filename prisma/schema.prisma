@@ -206,18 +206,18 @@ model Permission {
 }
 
 model AuthToken {
-  id             String        @id @default(uuid(7))
-  user_id        String
-  user           User          @relation(fields: [user_id], references: [id], name: "user_auth_token", onDelete: Cascade)
-  token          String        @unique
-  type           AuthTokenType
-  expires_at     DateTime
-  used_at        DateTime?
-  created_at     DateTime      @default(now())
+  id              String        @id @default(uuid(7))
+  user_id         String
+  user            User          @relation(fields: [user_id], references: [id], name: "user_auth_token", onDelete: Cascade)
+  token           String        @unique
+  type            AuthTokenType
+  expires_at      DateTime
+  used_at         DateTime?
+  created_at      DateTime      @default(now())
   installation_id String?
-  family_id      String?
-  revoked_at     DateTime?
-  auth_version   Int?
+  family_id       String?
+  revoked_at      DateTime?
+  auth_version    Int?
 
   @@index([type, token])
   @@map("auth_token")
@@ -227,6 +227,7 @@ model Country {
   code    String  @id @db.Char(2)
   name    String
   enabled Boolean @default(true)
+  version Int     @default(1)
 
   orgNode OrgNode?
 
@@ -237,6 +238,7 @@ model Language {
   code    String  @id @db.Char(10) // BCP-47; seed en, et, fi
   name    String
   enabled Boolean @default(true)
+  version Int     @default(1)
 
   users       User[]
   churchLangs ChurchLanguage[]
@@ -253,6 +255,7 @@ model OrgNode {
   name         String
   country_code String?     @unique @db.Char(2)
   country      Country?    @relation(fields: [country_code], references: [code])
+  version      Int         @default(1)
 
   church          Church?
   roleAssignments RoleAssignment[]
@@ -451,38 +454,36 @@ model PrayerVersion {
 }
 
 model VoiceProfile {
-  id                       String            @id @default(uuid(7))
-  pastor_id                String
-  pastor                   Pastor            @relation(fields: [pastor_id], references: [id])
-  church_id                String
-  church                   Church            @relation(fields: [church_id], references: [id])
-  submitted_by             String
-  submitter                User              @relation("VoiceSubmittedBy", fields: [submitted_by], references: [id])
-  version                  Int               @default(1)
-  replaces_profile_id      String?
-  replaces_profile         VoiceProfile?     @relation("Replaces", fields: [replaces_profile_id], references: [id])
-  replaced_by              VoiceProfile[]    @relation("Replaces")
-  provider                 String
-  cloning_method           String            @default("instant")
-  provider_voice_id        String?
-  consent_id               String
-  consent                  Consent           @relation(fields: [consent_id], references: [id])
-  sample_asset_id          String
-  sample_asset             MediaAsset        @relation("VoiceSample", fields: [sample_asset_id], references: [id])
-  submitted_at             DateTime?
-  review_state             ReviewState       @default(DRAFT)
-  reviewed_by              String?
-  reviewer                 User?             @relation("VoiceReviewedBy", fields: [reviewed_by], references: [id])
-  reviewed_at              DateTime?
-  review_reason            String?
-  approved_sample_checksum String?
-  registration_state       RegistrationState @default(UNREGISTERED)
-  requires_verification    Boolean?
-  registration_attempt_id  String?
-  last_error_code          String?
+  id                      String            @id @default(uuid(7))
+  pastor_id               String
+  pastor                  Pastor            @relation(fields: [pastor_id], references: [id])
+  church_id               String
+  church                  Church            @relation(fields: [church_id], references: [id])
+  submitted_by            String
+  submitter               User              @relation("VoiceSubmittedBy", fields: [submitted_by], references: [id])
+  version                 Int               @default(1)
+  replaces_profile_id     String?
+  replaces_profile        VoiceProfile?     @relation("Replaces", fields: [replaces_profile_id], references: [id])
+  replaced_by             VoiceProfile[]    @relation("Replaces")
+  provider                String
+  cloning_method          String            @default("instant")
+  provider_voice_id       String?
+  consent_id              String
+  consent                 Consent           @relation(fields: [consent_id], references: [id])
+  submitted_at            DateTime?
+  review_state            ReviewState       @default(DRAFT)
+  reviewed_by             String?
+  reviewer                User?             @relation("VoiceReviewedBy", fields: [reviewed_by], references: [id])
+  reviewed_at             DateTime?
+  review_reason           String?
+  registration_state      RegistrationState @default(UNREGISTERED)
+  requires_verification   Boolean?
+  registration_attempt_id String?
+  last_error_code         String?
 
+  samples     VoiceProfileSample[]
   audio       PrayerAudio[]
-  activeVoice ChurchPastor[] @relation("ActiveVoice")
+  activeVoice ChurchPastor[]       @relation("ActiveVoice")
 
   created_at DateTime  @default(now())
   updated_at DateTime? @updatedAt
@@ -535,6 +536,24 @@ model PrayerAudio {
   @@map("prayer_audio")
 }
 
+// One audio file of a voice submission (1..VOICE_SAMPLE_MAX_FILES per profile).
+// checksum is frozen at submit; the register worker verifies bytes against it.
+model VoiceProfileSample {
+  voice_profile_id String
+  voice_profile    VoiceProfile @relation(fields: [voice_profile_id], references: [id])
+  asset_id         String
+  asset            MediaAsset   @relation(fields: [asset_id], references: [id])
+  position         Int          @db.SmallInt
+  checksum         String?
+
+  created_at DateTime @default(now())
+
+  @@id([voice_profile_id, position])
+  @@unique([voice_profile_id, asset_id])
+  @@index([asset_id])
+  @@map("voice_profile_samples")
+}
+
 model MediaAsset {
   id          String       @id @default(uuid(7))
   church_id   String
@@ -548,12 +567,12 @@ model MediaAsset {
   uploaded_by String?
   uploader    User?        @relation("MediaUploadedBy", fields: [uploaded_by], references: [id])
 
-  coverOf         Church[]       @relation("ChurchCover")
-  pastorProfiles  Pastor[]       @relation("PastorProfileImage")
-  pastorImages    ChurchPastor[] @relation("PastorImage")
-  voiceSamples    VoiceProfile[] @relation("VoiceSample")
-  consentEvidence Consent[]      @relation("ConsentEvidence")
-  audioAssets     PrayerAudio[]  @relation("AudioAsset")
+  coverOf         Church[]             @relation("ChurchCover")
+  pastorProfiles  Pastor[]             @relation("PastorProfileImage")
+  pastorImages    ChurchPastor[]       @relation("PastorImage")
+  voiceSamples    VoiceProfileSample[]
+  consentEvidence Consent[]            @relation("ConsentEvidence")
+  audioAssets     PrayerAudio[]        @relation("AudioAsset")
 
   created_at DateTime  @default(now())
   updated_at DateTime? @updatedAt

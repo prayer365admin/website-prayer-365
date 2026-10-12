@@ -14,9 +14,11 @@
     "test:coverage": "vitest run --coverage",
     "typecheck": "tsc --noEmit",
     "style-init": "tsx src/script/generate-sass-variable.ts",
+    "request:submit": "bun src/script/submit-request.ts",
     "worker:audio-generate": "bun workers/audio-generate.ts",
     "worker:prayer-publish": "bun workers/prayer-publish.ts",
     "worker:payment-sync": "bun workers/payment-sync.ts",
+    "worker:voice-register": "bun workers/voice-register.ts",
     "update-dbdocs": "bun prisma generate && dbdocs build prisma/dbml/schema.dbml --project catatia_dashboard",
     "stripe:listen": "stripe listen --forward-to localhost:3000/api/v1/webhooks/stripe --events payment_intent.succeeded,payment_intent.payment_failed,checkout.session.completed,customer.subscription.created,customer.subscription.updated,customer.subscription.deleted,charge.succeeded,charge.failed,charge.refunded,invoice.payment_succeeded,invoice.payment_failed"
   },

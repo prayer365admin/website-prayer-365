@@ -41,7 +41,10 @@ export async function GET(req: NextRequest) {
       subject: 'prayer_language',
       action: 'read',
     })
-    const q = parseListQuery(req.nextUrl.searchParams, { allowOrderBy: ['code', 'name'] })
+    const q = parseListQuery(req.nextUrl.searchParams, {
+      allowOrderBy: ['code', 'name'],
+      defaults: ['code'],
+    })
     const data = await listLanguages({
       page: q.page,
       limit: q.limit,

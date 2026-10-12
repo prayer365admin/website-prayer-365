@@ -24,6 +24,8 @@ interface IdempotentSpec {
   ttlMinutes?: number
 }
 
+// Must be deterministic: a replay compares this against the stored hash.
+// (bcrypt `hashSecret` salts randomly, so every replay looked like a conflict.)
 export const requestHash = (body: unknown) => hashContent(JSON.stringify(body ?? {}))
 
 export const withIdempotency = async ({

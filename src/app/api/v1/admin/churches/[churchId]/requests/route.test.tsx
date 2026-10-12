@@ -48,6 +48,7 @@ describe('GET /api/v1/admin/churches/[churchId]/requests', () => {
     const body = await res.json()
     expect(body.result).toHaveLength(2)
     expect(body.total).toBe(2)
+    expect(res.headers.get('Cache-Control')).toBe('private, no-store')
   })
 
   it('standard reader sees standard rows only; count does not reveal private', async () => {
@@ -107,6 +108,63 @@ describe('GET /api/v1/admin/churches/[churchId]/requests', () => {
     vi.mocked(requiredAuth).mockResolvedValue(auth() as never)
     const res = (await GET(req('?kind=weekend'), churchParams as never))!
     expect(res.status).toBe(422)
+    expect(listRequests).not.toHaveBeenCalled()
+  })
+
+  it('accepts a comma list of kinds (S10 pastoral/meeting tab)', async () => {
+    vi.mocked(requiredAuth).mockResolvedValue(auth() as never)
+    vi.mocked(resolveRequestReadScope).mockResolvedValue(scope as never)
+    vi.mocked(listRequests).mockResolvedValue({ result: [], total: 0 } as never)
+    const res = (await GET(req('?kind=pastoral,meeting'), churchParams as never))!
+    expect(res.status).toBe(200)
+    expect(listRequests).toHaveBeenCalledWith(
+      expect.objectContaining({ kinds: ['pastoral', 'meeting'] }),
+    )
+  })
+
+  it('rejects a list with any non-allowlisted kind with 422', async () => {
+    vi.mocked(requiredAuth).mockResolvedValue(auth() as never)
+    for (const kind of ['prayer,foo', 'PRIVATE', '']) {
+      const res = (await GET(req(`?kind=${kind}`), churchParams as never))!
+      expect(res.status).toBe(422)
+    }
+    expect(listRequests).not.toHaveBeenCalled()
+  })
+
+  it('passes search, classification and received range to the controller', async () => {
+    vi.mocked(requiredAuth).mockResolvedValue(auth() as never)
+    vi.mocked(resolveRequestReadScope).mockResolvedValue(scope as never)
+    vi.mocked(listRequests).mockResolvedValue({ result: [], total: 0 } as never)
+    const res = (await GET(
+      req(
+        '?search=%20family%20&classification=private&received_from=2026-10-01T00:00:00.000Z&received_to=2026-10-31T23:59:59.999Z',
+      ),
+      churchParams as never,
+    ))!
+    expect(res.status).toBe(200)
+    expect(listRequests).toHaveBeenCalledWith(
+      expect.objectContaining({
+        filter: {
+          search: 'family',
+          classification: 'private',
+          received_from: '2026-10-01T00:00:00.000Z',
+          received_to: '2026-10-31T23:59:59.999Z',
+        },
+      }),
+    )
+  })
+
+  it('rejects a bad classification, a non-ISO date or an inverted range with 422', async () => {
+    vi.mocked(requiredAuth).mockResolvedValue(auth() as never)
+    for (const q of [
+      '?classification=restricted',
+      '?received_from=yesterday',
+      '?received_from=2026-10-31T00:00:00.000Z&received_to=2026-10-01T00:00:00.000Z',
+      `?search=${'x'.repeat(201)}`,
+    ]) {
+      const res = (await GET(req(q), churchParams as never))!
+      expect(res.status).toBe(422)
+    }
     expect(listRequests).not.toHaveBeenCalled()
   })
 })

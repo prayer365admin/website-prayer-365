@@ -1,7 +1,7 @@
 import { NextRequest } from 'next/server'
 import { z } from 'zod'
 import requiredAuth from '@/utils/required-auth'
-import { ok, httpError, requestId as newRequestId } from '@/utils/response'
+import { ok, httpError, noStore, requestId as newRequestId } from '@/utils/response'
 import { registerPath } from '@/utils/openapi'
 import { RequestOutputSchema } from '@/models/request'
 import { resolveRequestReadScope, getRequestDetail } from '@/controller/request'
@@ -55,7 +55,7 @@ export async function GET(
       requestId,
       traceId: newRequestId(),
     })
-    return ok(result, 'Request retrieved.')
+    return noStore(ok(result, 'Request retrieved.'))
   } catch (e) {
     return httpError(e)
   }
