@@ -11,11 +11,12 @@ import {
 } from '@/models/donation'
 
 /*
- * Donation adapter (Tasks 29-30). Donations are scoped to a church through
- * their PaymentAccount (one payment account per church). Every query filters
- * BOTH count and rows by the resolved `churchIds` and NEVER selects donor PII
- * (user_id, subscription owner). Money stays in minor units and every summary
- * is grouped per-currency — there is no cross-currency total.
+ * Donation adapter (Tasks 29-30). Donations are scoped to a church directly
+ * via church_id (one platform Stripe account; church attribution mirrored from
+ * provider metadata). Every query filters BOTH count and rows by the resolved
+ * `churchIds` and NEVER selects donor PII (user_id, subscription owner). Money
+ * stays in minor units and every summary is grouped per-currency — there is no
+ * cross-currency total.
  */
 
 const donationOrderBy = (q: DonationListQuery): Prisma.DonationOrderByWithRelationInput[] =>
@@ -23,9 +24,9 @@ const donationOrderBy = (q: DonationListQuery): Prisma.DonationOrderByWithRelati
     ? [{ amount_minor: q.order_direction }, { id: 'asc' }]
     : q.order_by === 'created_at'
       ? [{ created_at: q.order_direction }, { id: 'asc' }]
-      : [{ paid_at: q.order_direction }, { id: 'asc' }]
+      : [{ paid_at: q.order_direction }, { created_at: q.order_direction }, { id: 'asc' }]
 
-/** Paginated donation rows for a church, bounded by paid_at, no donor PII. */
+/** Paginated donation rows for a church, bounded by paid_at / created_at (failed fallback), no donor PII. */
 export const GET_DONATIONS = async ({
   churchIds,
   query,
@@ -36,8 +37,27 @@ export const GET_DONATIONS = async ({
   const ids = Array.from(churchIds)
   if (ids.length === 0) return { result: [], total: 0 }
   const where: Prisma.DonationWhereInput = {
-    payment_account: { church_id: { in: ids } },
-    paid_at: { gte: query.from ?? undefined, lte: query.to ?? undefined },
+    church_id: { in: ids },
+    currency: query.currency ? query.currency.toLowerCase() : undefined,
+    ...(query.from !== undefined || query.to !== undefined
+      ? {
+          OR: [
+            {
+              paid_at: {
+                gte: query.from ?? undefined,
+                lte: query.to ?? undefined,
+              },
+            },
+            {
+              paid_at: null,
+              created_at: {
+                gte: query.from ?? undefined,
+                lte: query.to ?? undefined,
+              },
+            },
+          ],
+        }
+      : {}),
   }
   const orderBy = donationOrderBy(query)
   const [total, rows] = await db.$transaction([
@@ -51,7 +71,9 @@ export const GET_DONATIONS = async ({
         id: true,
         amount_minor: true,
         currency: true,
+        status: true,
         paid_at: true,
+        created_at: true,
         provider_payment_id: true,
       },
     }),
@@ -62,7 +84,9 @@ export const GET_DONATIONS = async ({
       id: r.id,
       amountMinor: r.amount_minor.toString(),
       currency: r.currency,
+      status: r.status,
       paidAt: r.paid_at,
+      createdAt: r.created_at,
       ref: r.provider_payment_id,
     })),
   }
@@ -88,7 +112,8 @@ export const GET_DONATION_SUBSCRIPTIONS = async ({
   const ids = Array.from(churchIds)
   if (ids.length === 0) return { result: [], total: 0 }
   const where: Prisma.DonationSubscriptionWhereInput = {
-    payment_account: { church_id: { in: ids } },
+    church_id: { in: ids },
+    currency: query.currency ? query.currency.toLowerCase() : undefined,
   }
   const orderBy = subscriptionOrderBy(query)
   const [total, rows] = await db.$transaction([
@@ -119,6 +144,10 @@ export const GET_DONATION_SUBSCRIPTIONS = async ({
   }
 }
 
+/**
+ * Calendar month boundary calculation using UTC [start, end) bounds
+ * (Decision D6: default to UTC month bounds pending church-local timezone decision).
+ */
 const monthBounds = (month: string): { start: Date; end: Date } => {
   const [y, m] = month.split('-').map(Number)
   if (!y || !m || m < 1 || m > 12) {
@@ -149,7 +178,7 @@ export const GET_DONATION_SUMMARY = async ({
   const grouped = await db.donation.groupBy({
     by: ['currency'],
     where: {
-      payment_account: { church_id: { in: ids } },
+      church_id: { in: ids },
       paid_at: { gte: start, lt: end },
     },
     _sum: { amount_minor: true, refunded_minor: true },
@@ -167,4 +196,38 @@ export const GET_DONATION_SUMMARY = async ({
     })
     .sort((a, b) => a.currency.localeCompare(b.currency))
   return { month, currencies }
+}
+
+export const ENSURE_CHURCH_DONATION_ELIGIBLE = async ({
+  churchId,
+}: {
+  churchId: string
+}): Promise<{ churchId: string; churchName: string }> => {
+  const church = await db.church.findUnique({
+    where: { id: churchId },
+    select: { id: true, name: true, status: true },
+  })
+
+  if (!church) {
+    throw new GeneralError({
+      code: 404,
+      error: 'NOT_FOUND',
+      error_code: 'CHURCH_NOT_FOUND',
+      details: 'Church not found.',
+    })
+  }
+
+  if (church.status !== 'APPROVED') {
+    throw new GeneralError({
+      code: 400,
+      error: 'PAYMENT_ERROR',
+      error_code: 'CHURCH_NOT_ELIGIBLE',
+      details: `Church is not eligible to receive donations (status: ${church.status}).`,
+    })
+  }
+
+  return {
+    churchId: church.id,
+    churchName: church.name,
+  }
 }

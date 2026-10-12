@@ -41,9 +41,29 @@ describe('GET /api/v1/admin/churches/[churchId]/donation-subscriptions', () => {
     ))!
     const body = await res.json()
     expect(res.status).toBe(200)
+    expect(res.headers.get('cache-control')).toBe('private, no-store')
     expect(body.result[0]).toEqual(sub)
     expect(requiredScope).toHaveBeenCalledWith(
       expect.objectContaining({ churchId: 'c1', subject: 'prayer_donation', action: 'read' }),
+    )
+  })
+  it('forwards currency filter to listDonationSubscriptions', async () => {
+    vi.mocked(requiredAuth).mockResolvedValue(auth() as never)
+    vi.mocked(requiredScope).mockResolvedValue(scope() as never)
+    vi.mocked(listDonationSubscriptions).mockResolvedValue({ result: [sub], total: 1 } as never)
+
+    const res = (await GET(
+      new NextRequest(
+        'http://localhost/api/v1/admin/churches/c1/donation-subscriptions?currency=eur',
+      ),
+      params as never,
+    ))!
+    expect(res.status).toBe(200)
+    expect(listDonationSubscriptions).toHaveBeenCalledWith(
+      expect.objectContaining({
+        churchId: 'c1',
+        query: expect.objectContaining({ currency: 'eur' }),
+      }),
     )
   })
 

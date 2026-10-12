@@ -86,6 +86,8 @@ describe('POST /api/v1/mobile/churches/[churchId]/requests', () => {
     expect(res.status).toBe(429)
     const out = await res.json()
     expect(out.error_code).toBe('RATE_LIMITED')
+    // request_id is random and can contain the probe string by chance — drop it from the echo check.
+    delete out.request_id
     expect(JSON.stringify(out)).not.toContain('hi')
   })
 })

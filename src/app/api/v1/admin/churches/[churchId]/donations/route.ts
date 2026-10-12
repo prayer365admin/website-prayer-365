@@ -48,6 +48,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ chur
       allowOrderBy: ['paid_at', 'created_at', 'amount'],
     })
     const range = validate(DateRangeSchema, Object.fromEntries(req.nextUrl.searchParams))
+    const currency = req.nextUrl.searchParams.get('currency')
     const { result, total } = await listDonations({
       churchId,
       churchIds,
@@ -58,9 +59,12 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ chur
         order_direction: q.order_direction,
         from: range.from,
         to: range.to,
+        currency: currency ?? undefined,
       },
     })
-    return list(result, total, q.page, q.limit, 'Donations retrieved.')
+    const res = list(result, total, q.page, q.limit, 'Donations retrieved.')
+    res.headers.set('Cache-Control', 'private, no-store')
+    return res
   } catch (e) {
     return httpError(e)
   }

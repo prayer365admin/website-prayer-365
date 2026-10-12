@@ -114,3 +114,6 @@ import '@/app/api/v1/mobile/auth/reset-password/route'
 
 // --- Central: notification rules (Phase 10 / Task 44) ---
 import '@/app/api/v1/admin/central/notification-rules/route'
+
+// --- Webhooks (Phase 10 / Task 45) ---
+import '@/app/api/v1/webhooks/stripe/route'

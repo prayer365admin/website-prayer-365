@@ -3,6 +3,7 @@ import { db } from '../src/utils/db-connection'
 import { seedAnnouncements } from './seeds/announcement'
 import { seedChurches, seedSecondChurch } from './seeds/church'
 import { seedConsents } from './seeds/consent'
+import { seedDonations } from './seeds/donation'
 import { seedCountries } from './seeds/country'
 import { seedEvents } from './seeds/event'
 import { seedLanguages } from './seeds/language'
@@ -44,6 +45,7 @@ async function main() {
   await seedEvents()
   await seedAnnouncements()
   await seedRequests()
+  await seedDonations()
 
   // Notifications
   await seedNotificationRules()

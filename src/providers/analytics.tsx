@@ -9,7 +9,7 @@ import {
 /*
  * Analytics adapter (Tasks 31-32). All metrics derive from SOURCE records:
  * CheckIn (voluntary attendance), Event (church events), Prayer (content),
- * Donation (payments through the church's PaymentAccount). Client
+ * Donation (payments attributed to the church). Client
  * analytics-events are NOT an attendance source. Every read is filtered by
  * the resolved `churchIds` for both count and rows, attendance is aggregated
  * by local date (no named records), and the regional summary is aggregate
@@ -53,7 +53,7 @@ const grossByCurrency = async ({
   const grouped = await db.donation.groupBy({
     by: ['currency'],
     where: {
-      payment_account: { church_id: { in: ids } },
+      church_id: { in: ids },
       paid_at: { gte: from ?? undefined, lte: to ?? undefined },
     },
     _sum: { amount_minor: true },
@@ -61,7 +61,7 @@ const grossByCurrency = async ({
   return grouped
     .map((g) => ({
       currency: g.currency,
-      grossMinor: (g._sum.amount_minor ?? BigInt(0)).toString(),
+      grossMinor: (g._sum?.amount_minor ?? BigInt(0)).toString(),
     }))
     .sort((a, b) => a.currency.localeCompare(b.currency))
 }
@@ -92,7 +92,7 @@ export const GET_ANALYTICS = async ({
     db.checkIn.count({ where: { church_id: { in: ids }, occurred_at: range } }),
     db.event.count({ where: { church_id: { in: ids }, starts_at: range } }),
     db.prayer.count({ where: { church_id: { in: ids }, created_at: range } }),
-    db.donation.count({ where: { payment_account: { church_id: { in: ids } }, paid_at: range } }),
+    db.donation.count({ where: { church_id: { in: ids }, paid_at: range } }),
   ])
   const activeMembers = await countDistinctUsers({ churchIds, from, to })
   return { from, to, checkInCount, eventCount, prayerCount, donationCount, activeMembers }
@@ -163,7 +163,7 @@ export const GET_REGION_SUMMARY = async ({
       db.checkIn.count({ where: { church_id: { in: ids }, occurred_at: range } }),
       db.event.count({ where: { church_id: { in: ids }, starts_at: range } }),
       db.prayer.count({ where: { church_id: { in: ids }, created_at: range } }),
-      db.donation.count({ where: { payment_account: { church_id: { in: ids } }, paid_at: range } }),
+      db.donation.count({ where: { church_id: { in: ids }, paid_at: range } }),
     ],
   )
   const [activeMembers, totalGrossByCurrency] = await Promise.all([

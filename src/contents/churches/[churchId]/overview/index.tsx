@@ -118,6 +118,16 @@ export default function ContentsChurchOverview() {
             </Button>
           </Card>
         ) : null}
+        <Card title="Donations" loading={loading}>
+          <Typography.Text type="secondary">
+            Review transactions, recurring donations, and monthly totals.
+          </Typography.Text>
+          <div className="mt-3">
+            <Button onClick={() => router.push(`/dashboard/churches/${churchId}/donations`)}>
+              Open donations
+            </Button>
+          </div>
+        </Card>
       </div>
     </Fragment>
   )

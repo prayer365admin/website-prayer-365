@@ -1,5 +1,5 @@
 // @vitest-environment node
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { Prisma } from '@prisma/client'
 
 const { db, auditPayloadMock } = vi.hoisted(() => {
@@ -127,6 +127,9 @@ describe('GET_VERSION_APPROVAL', () => {
 describe('PUBLISH_PRAYER_BY_JOB', () => {
   beforeEach(() => {
     vi.useFakeTimers({ now: new Date('2026-10-02T10:00:00.000Z') })
+  })
+  afterEach(() => {
+    vi.useRealTimers()
   })
 
   it('updates prayer state, creates audit log, returns count 1', async () => {
