@@ -152,6 +152,22 @@ must be replaced with real data or removed before launch.
   (live audio is not in website scope).
 - Caching for any public counts shown before sign-in.
 
+**False security claim (fix before launch).** The sign-in "Pastoral Privilege
+Seal" card says "256-bit zero-knowledge encryption ensures your private prayer
+intentions, confessions, and journal entries remain strictly confidential".
+PRAYER has no zero-knowledge or end-to-end encryption, and the website has no
+confessions or journal feature. The same goes for "canonical privacy
+protections" in the sign-up privacy note. Shown as designed in WB1, but this
+copy must be replaced with an accurate statement (link to W5 privacy text)
+before the site goes public.
+
+**Missing assets (placeholders used in WB1).**
+
+- White line-art praying hands on the dark live-stream card: not in
+  `public/`, the app icon (`public/images/icon.jpg`) is used instead.
+- Three pastor photos next to "Joined by pastors across 14 Baltic dioceses":
+  generic user avatars are used instead.
+
 ---
 
 ## R-06 — Mobile signup breaks: locale + main church now required

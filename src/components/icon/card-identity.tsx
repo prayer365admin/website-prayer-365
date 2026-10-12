@@ -1,0 +1,32 @@
+'use client'
+
+import React from 'react'
+import Icon from '@ant-design/icons'
+import type { GetProps } from 'antd'
+
+type CustomIconComponentProps = GetProps<typeof Icon>
+
+// Source: public/icons/Icon-card-identity.svg. Fill is currentColor, size 1em: set color /
+// fontSize on the icon (style or className) to theme it.
+const IconSvg = () => (
+  <>
+    <svg
+      width="1em"
+      height="1em"
+      viewBox="0 0 25 25"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+    >
+      <path
+        d="M19.3125 9.625H6.1875V17.0625H7.63672L8.375 14.875H12.75L13.4883 17.0625H19.3125V9.625ZM6.1875 6.125H20.625V18.375H4.875V6.125H6.1875ZM12.0938 12.25C12.0938 13.0977 11.4102 13.7812 10.5625 13.7812C9.71484 13.7812 9.03125 13.0977 9.03125 12.25C9.03125 11.4023 9.71484 10.7188 10.5625 10.7188C11.4102 10.7188 12.0938 11.4023 12.0938 12.25ZM15.1562 10.9375H18V12.25H14.5V10.9375H15.1562ZM15.1562 13.5625H18V14.875H14.5V13.5625H15.1562Z"
+        fill="currentColor"
+      />
+    </svg>
+  </>
+)
+
+const CustomIcon = (props: Partial<CustomIconComponentProps>) => (
+  <Icon component={IconSvg} {...props} />
+)
+
+export { CustomIcon as CardIdentityIcon }

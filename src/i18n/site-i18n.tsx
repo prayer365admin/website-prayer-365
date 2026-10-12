@@ -12,13 +12,27 @@ import { createContext, ReactNode, useCallback, useContext, useMemo, useState } 
 type SiteI18n = {
   locale: SiteLocale
   setLocale: (locale: SiteLocale) => void
-  t: (key: SiteMessageKey) => string
+  t: (key: SiteMessageKey, vars?: Record<string, string | number>) => string
+}
+
+/**
+ * Locale string, falling back to English (et/sv/fi ship English until the
+ * translations land), then to the key. `{name}` placeholders take `vars`.
+ */
+const translate = (
+  locale: SiteLocale,
+  key: SiteMessageKey,
+  vars?: Record<string, string | number>,
+) => {
+  const text =
+    (SITE_MESSAGES[locale] as Record<string, string>)[key] ?? SITE_MESSAGES.en[key] ?? key
+  return vars ? text.replace(/\{(\w+)\}/g, (m, name) => String(vars[name] ?? m)) : text
 }
 
 const SiteI18nContext = createContext<SiteI18n>({
   locale: DEFAULT_SITE_LOCALE,
   setLocale: () => {},
-  t: (key) => SITE_MESSAGES[DEFAULT_SITE_LOCALE][key] ?? key,
+  t: (key, vars) => translate(DEFAULT_SITE_LOCALE, key, vars),
 })
 
 export function SiteI18nProvider({
@@ -40,7 +54,7 @@ export function SiteI18nProvider({
     () => ({
       locale,
       setLocale,
-      t: (key) => SITE_MESSAGES[locale][key] ?? key,
+      t: (key, vars) => translate(locale, key, vars),
     }),
     [locale, setLocale],
   )
