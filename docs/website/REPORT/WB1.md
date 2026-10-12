@@ -4,13 +4,15 @@ Prepared: 12 October 2026. Source: WB1 User Onboarding planning and Phase 0
 verification. Each item below is out of WB1 scope or needs a separate decision.
 Raise each one as its own ticket.
 
-| #    | Issue                                                      | Area    | Severity | WB1 handling                |
-| ---- | ---------------------------------------------------------- | ------- | -------- | --------------------------- |
-| R-01 | `prayer_user` customers can enter the admin dashboard      | BE + FE | High     | Not fixed; reported only    |
-| R-02 | Staff with only a role assignment are treated as customers | BE      | Medium   | Not fixed; reported only    |
-| R-03 | Notification preferences have no backend                   | BE      | Medium   | UI only, values discarded   |
-| R-04 | Alternative sign-in methods have no backend                | BE      | Medium   | UI only, buttons do nothing |
-| R-05 | Hardcoded stats and live stream in auth side panels        | FE + BE | Low      | Hardcoded as designed       |
+| #    | Issue                                                      | Area    | Severity | WB1 handling                       |
+| ---- | ---------------------------------------------------------- | ------- | -------- | ---------------------------------- |
+| R-01 | `prayer_user` customers can enter the admin dashboard      | BE + FE | High     | Not fixed; reported only           |
+| R-02 | Staff with only a role assignment are treated as customers | BE      | Medium   | Not fixed; reported only           |
+| R-03 | Notification preferences have no backend                   | BE      | Medium   | UI only, values discarded          |
+| R-04 | Alternative sign-in methods have no backend                | BE      | Medium   | UI only, buttons do nothing        |
+| R-05 | Hardcoded stats and live stream in auth side panels        | FE + BE | Low      | Hardcoded as designed              |
+| R-06 | Mobile signup breaks: locale + main church now required    | Mobile  | High     | Backend strict; mobile not updated |
+| R-07 | Mobile `PATCH me` can still clear main church and locale   | BE      | Medium   | Website route strict only          |
 
 ---
 
@@ -149,3 +151,42 @@ must be replaced with real data or removed before launch.
 - Whether the live stream and the evening player exist as a feature at all
   (live audio is not in website scope).
 - Caching for any public counts shown before sign-in.
+
+---
+
+## R-06 — Mobile signup breaks: locale + main church now required
+
+**Change in WB1.** The shared `POST /api/v1/auth/signup` now requires `locale`
+(en/et/sv/fi) and `main_church_id` (an APPROVED church) and creates the user
+with the `prayer_user` role (decision: shared endpoint, strict). Missing or
+invalid values return 400 `INVALID_LOCALE` / `INVALID_MAIN_CHURCH`.
+
+**Impact.** The mobile app (`prayer-365-mobile-app`,
+`src/features/auth/screens/SignupScreen.tsx`) sends only `full_name`, `email`,
+`password` and `confirm_password`, so mobile signup fails until the app is
+updated. Its current error handling shows "Signup is coming soon".
+
+**Ticket needs (mobile).**
+
+- Add a language choice and a main church picker to the mobile signup flow.
+- Use the public pickers: `GET /api/v1/public/churches?search=` and
+  `GET /api/v1/public/churches/frequent` (no session, `{id, name, city}`).
+- Send `locale` and `main_church_id` in the signup body and map the two new
+  error codes.
+
+---
+
+## R-07 — Mobile `PATCH me` can still clear main church and locale
+
+**Problem.** WB1 makes main church and locale mandatory for customers. The
+website route `PATCH /api/v1/site/me` enforces this (`SiteMePatchSchema`: no
+null, site locale only). The mobile route `PATCH /api/v1/mobile/me` still uses
+`MobileMePatchSchema`, which accepts `mainChurchId: null` and `locale: null`
+and any locale string up to 10 characters, so a mobile user can clear both.
+
+**To decide.**
+
+- Whether the mobile route switches to the same strict rules (check the mobile
+  app first: it may rely on clearing the main church).
+- What to do with existing users who have no main church or locale (created
+  before WB1, or by seeds).

@@ -10,8 +10,19 @@ import {
   GET_VALID_AUTH_TOKEN,
   USE_AUTH_TOKEN,
 } from '@/providers/auth-token'
-import { CREATE_USER, GET_USER_BY_EMAIL, UPDATE_USER } from '@/providers/user'
+import { CREATE_CUSTOMER, GET_USER_BY_EMAIL, UPDATE_USER } from '@/providers/user'
+import { isSiteLocale, SITE_LOCALES } from '@/config/site-locale'
 import { updateUser } from '@/controller/user'
+
+const CUSTOMER_ROLE = 'prayer_user'
+
+const invalidMainChurch = () =>
+  new GeneralError({
+    code: 400,
+    error: 'BAD_REQUEST',
+    error_code: 'INVALID_MAIN_CHURCH',
+    details: 'Please choose an available main church!',
+  })
 
 const EMAIL_REGEX = /^\S+@\S+\.\S+$/
 const MIN_PASSWORD_LENGTH = 8
@@ -55,11 +66,15 @@ export const registerUser = async ({
   full_name,
   email,
   password,
+  locale,
+  main_church_id,
   baseUrl,
 }: {
   full_name: string
   email: string
   password: string
+  locale: string
+  main_church_id: string
   baseUrl: string
 }) => {
   const name = full_name?.trim()
@@ -92,6 +107,20 @@ export const registerUser = async ({
     })
   }
 
+  // Customers must pick an interface language and a main church (WB1).
+  if (!isSiteLocale(locale)) {
+    throw new GeneralError({
+      code: 400,
+      error: 'BAD_REQUEST',
+      error_code: 'INVALID_LOCALE',
+      details: `Language must be one of: ${SITE_LOCALES.join(', ')}!`,
+    })
+  }
+
+  if (!main_church_id) {
+    throw invalidMainChurch()
+  }
+
   const existingUser = await GET_USER_BY_EMAIL({ email: emailNormalized })
 
   if (existingUser) {
@@ -106,13 +135,33 @@ export const registerUser = async ({
 
   const passwordHash = await hashSecret({ secret: password })
 
-  // Assignment-based auth supersedes the legacy single role; signup creates a
-  // verified staff user with no role_id (assignments are central-managed).
-  const result = await CREATE_USER({
+  // Signup creates a customer: the `prayer_user` role (no admin grants), the
+  // chosen locale and the main church row, all in one transaction.
+  const {
+    role,
+    church,
+    user: result,
+  } = await CREATE_CUSTOMER({
     email: emailNormalized,
     name: name,
     password: passwordHash,
+    locale,
+    main_church_id,
+    role_name: CUSTOMER_ROLE,
   })
+
+  if (!role) {
+    throw new GeneralError({
+      code: 500,
+      error: 'INTERNAL_ERROR',
+      error_code: 'CUSTOMER_ROLE_MISSING',
+      details: `Role '${CUSTOMER_ROLE}' is not seeded!`,
+    })
+  }
+
+  if (!church || !result) {
+    throw invalidMainChurch()
+  }
 
   await sendVerificationEmail({
     user_id: result.id,

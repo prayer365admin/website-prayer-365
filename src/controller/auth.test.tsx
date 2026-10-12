@@ -12,48 +12,95 @@ vi.mock('@/providers/auth-token', () => ({
   USE_AUTH_TOKEN: vi.fn(),
 }))
 vi.mock('@/providers/user', () => ({
-  CREATE_USER: vi.fn(),
+  CREATE_CUSTOMER: vi.fn(),
   GET_USER_BY_EMAIL: vi.fn(),
   UPDATE_USER: vi.fn(),
 }))
 
+import sendMail from '@/controller/mail'
 import { registerUser } from '@/controller/auth'
-import { CREATE_USER, GET_USER_BY_EMAIL } from '@/providers/user'
+import { CREATE_CUSTOMER, GET_USER_BY_EMAIL } from '@/providers/user'
 
 const input = {
   full_name: ' Maria ',
   email: 'Maria@Example.com ',
   password: 'password1',
+  locale: 'sv',
+  main_church_id: 'c1',
   baseUrl: 'http://localhost',
 }
 
-describe('registerUser (WB-18)', () => {
+const created = {
+  role: { id: 'r-user' },
+  church: { id: 'c1' },
+  user: { id: 'u1', email: 'maria@example.com', name: 'Maria' },
+}
+
+describe('registerUser (WB1 / WB-18)', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     vi.mocked(GET_USER_BY_EMAIL).mockResolvedValue(null)
-    vi.mocked(CREATE_USER).mockResolvedValue({
-      id: 'u1',
-      email: 'maria@example.com',
-      name: 'Maria',
-    } as never)
+    vi.mocked(CREATE_CUSTOMER).mockResolvedValue(created as never)
   })
 
-  it('creates a role-less customer (role_id stays null) with a normalized email', async () => {
+  it('creates a prayer_user customer with locale + main church and sends the verification email', async () => {
     const result = await registerUser(input)
 
-    expect(CREATE_USER).toHaveBeenCalledWith({
+    expect(CREATE_CUSTOMER).toHaveBeenCalledWith({
       email: 'maria@example.com',
       name: 'Maria',
       password: 'hashed',
+      locale: 'sv',
+      main_church_id: 'c1',
+      role_name: 'prayer_user',
     })
-    expect(vi.mocked(CREATE_USER).mock.calls[0][0]).not.toHaveProperty('role_id')
+    expect(sendMail).toHaveBeenCalledTimes(1)
     expect(result).toEqual({ id: 'u1', email: 'maria@example.com', name: 'Maria' })
+  })
+
+  it.each([
+    ['missing', undefined],
+    ['unsupported', 'de'],
+  ])('rejects a %s locale with INVALID_LOCALE', async (_label, locale) => {
+    await expect(registerUser({ ...input, locale: locale as never })).rejects.toMatchObject({
+      code: 400,
+      error_code: 'INVALID_LOCALE',
+    })
+    expect(CREATE_CUSTOMER).not.toHaveBeenCalled()
+  })
+
+  it('rejects a missing main church with INVALID_MAIN_CHURCH', async () => {
+    await expect(registerUser({ ...input, main_church_id: '' })).rejects.toMatchObject({
+      code: 400,
+      error_code: 'INVALID_MAIN_CHURCH',
+    })
+    expect(CREATE_CUSTOMER).not.toHaveBeenCalled()
+  })
+
+  it('rejects a non-approved main church with INVALID_MAIN_CHURCH and sends no email', async () => {
+    vi.mocked(CREATE_CUSTOMER).mockResolvedValue({ ...created, church: null, user: null } as never)
+
+    await expect(registerUser(input)).rejects.toMatchObject({
+      code: 400,
+      error_code: 'INVALID_MAIN_CHURCH',
+    })
+    expect(sendMail).not.toHaveBeenCalled()
+  })
+
+  it('fails loudly when the prayer_user role is not seeded', async () => {
+    vi.mocked(CREATE_CUSTOMER).mockResolvedValue({ role: null, church: null, user: null })
+
+    await expect(registerUser(input)).rejects.toMatchObject({
+      code: 500,
+      error_code: 'CUSTOMER_ROLE_MISSING',
+    })
+    expect(sendMail).not.toHaveBeenCalled()
   })
 
   it('rejects a duplicate email with USER_EXISTS', async () => {
     vi.mocked(GET_USER_BY_EMAIL).mockResolvedValue({ id: 'u0' } as never)
 
     await expect(registerUser(input)).rejects.toMatchObject({ error_code: 'USER_EXISTS' })
-    expect(CREATE_USER).not.toHaveBeenCalled()
+    expect(CREATE_CUSTOMER).not.toHaveBeenCalled()
   })
 })

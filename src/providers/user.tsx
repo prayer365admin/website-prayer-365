@@ -118,6 +118,48 @@ export const CREATE_USER = async (payload: {
   return result
 }
 
+/**
+ * Website/mobile customer signup (WB1): user with the `prayer_user` role, locale
+ * and main church in one transaction. Returns null for the role when the seed is
+ * missing, `church` null when the main church is not APPROVED.
+ */
+export const CREATE_CUSTOMER = async (payload: {
+  email: string
+  name: string
+  password: string
+  locale: string
+  main_church_id: string
+  role_name: string
+}) =>
+  db.$transaction(async (tx) => {
+    const role = await tx.role.findUnique({
+      where: { name: payload.role_name },
+      select: { id: true },
+    })
+    if (!role) return { role: null, church: null, user: null }
+
+    const church = await tx.church.findFirst({
+      where: { id: payload.main_church_id, status: 'APPROVED' },
+      select: { id: true },
+    })
+    if (!church) return { role, church: null, user: null }
+
+    const user = await tx.user.create({
+      data: {
+        email: payload.email,
+        name: payload.name,
+        password: payload.password,
+        locale: payload.locale,
+        role_id: role.id,
+      },
+      omit: SAFE,
+    })
+    await tx.userChurch.create({
+      data: { user_id: user.id, church_id: church.id, is_main: true, is_followed: true },
+    })
+    return { role, church, user }
+  })
+
 export const UPDATE_USER = async ({
   user_id,
   payload,
