@@ -1,6 +1,6 @@
 import { db } from '../../src/utils/db-connection'
 import { PRAYER_ROLES } from './prayer-roles'
-import { getDemoChurch } from './test-context'
+import { getDemoChurch, getDemoChurchNode } from './test-context'
 
 const verifiedSeedUser = {
   email_verified_at: new Date(),
@@ -95,7 +95,12 @@ export const seedUsers = async () => {
             : role.name === 'prayer_deanery_admin'
               ? 'DEANERY'
               : 'CHURCH'
-    const node = await db.orgNode.findFirst({ where: { kind } })
+    // Church-level test accounts are pinned to the demo church, not whichever
+    // CHURCH node happens to come first.
+    const node =
+      kind === 'CHURCH'
+        ? await getDemoChurchNode()
+        : await db.orgNode.findFirst({ where: { kind } })
     const roleRow = await db.role.findUnique({ where: { name: role.name } })
     if (!node || !roleRow) continue
 

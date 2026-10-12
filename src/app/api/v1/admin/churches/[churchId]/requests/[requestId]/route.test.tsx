@@ -40,6 +40,7 @@ describe('GET /api/v1/admin/churches/[churchId]/requests/:requestId', () => {
     const res = (await GET(new NextRequest('http://x/requests/r1'), churchParams as never))!
     expect(res.status).toBe(200)
     expect((await res.json()).result.id).toBe('r1')
+    expect(res.headers.get('Cache-Control')).toBe('private, no-store')
   })
 
   it('returns 404 for an out-of-scope or private-to-caller row', async () => {
@@ -55,6 +56,11 @@ describe('GET /api/v1/admin/churches/[churchId]/requests/:requestId', () => {
     )
     const res = (await GET(new NextRequest('http://x/requests/r1'), churchParams as never))!
     expect(res.status).toBe(404)
+    const body = await res.json()
+    expect(body).not.toHaveProperty('result')
+    for (const k of ['message', 'phone', 'email', 'classification', 'subject']) {
+      expect(JSON.stringify(body)).not.toContain(`"${k}"`)
+    }
   })
 
   it('returns 404 for a cross-church scope (existence hidden)', async () => {

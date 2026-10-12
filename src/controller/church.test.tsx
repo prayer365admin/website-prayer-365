@@ -152,7 +152,33 @@ describe('getChurchOverview', () => {
       churchIds: new Set(['c1']),
     })
     expect(res.requests).toEqual({ total: 5, recent: [] })
-    expect(GET_REQUEST_OVERVIEW).toHaveBeenCalled()
+    expect(GET_REQUEST_OVERVIEW).toHaveBeenCalledWith({
+      churchId: 'c1',
+      canReadPrivate: true,
+      take: 5,
+    })
+  })
+
+  it('counts only visible requests when the caller lacks the private grant', async () => {
+    vi.mocked(GET_CHURCH_OVERVIEW).mockResolvedValue(makeOverview() as never)
+    vi.mocked(requiredScope).mockImplementation((async ({ subject }: { subject: string }) => {
+      if (subject === 'prayer_private_request')
+        throw new GeneralError({
+          code: 403,
+          error: 'UNAUTHORIZED',
+          error_code: 'NOT_ALLOWED',
+          details: 'No.',
+        })
+      return { userId: 'u1', churchIds: new Set(['c1']), scope: {} }
+    }) as never)
+    vi.mocked(GET_REQUEST_OVERVIEW).mockResolvedValue({ total: 1, recent: [] } as never)
+
+    await getChurchOverview({ userId: 'u1', churchId: 'c1', churchIds: new Set(['c1']) })
+    expect(GET_REQUEST_OVERVIEW).toHaveBeenCalledWith({
+      churchId: 'c1',
+      canReadPrivate: false,
+      take: 5,
+    })
   })
 
   it('OMITS request counts entirely when the caller lacks request access', async () => {

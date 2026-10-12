@@ -19,11 +19,13 @@ import {
 import {
   CREATE_ANALYTICS_EVENTS,
   CREATE_CHECKIN,
+  COUNT_RECENT_USER_REQUESTS,
   CREATE_USER_REQUEST,
   GET_HOME,
   GET_ME_PROFILE,
   GET_PUBLIC_CHURCH,
   GET_PUBLISHED_PRAYER,
+  GET_USER_REQUEST_ACK,
   LIST_MY_CHURCHES,
   LIST_PUBLIC_ANNOUNCEMENTS,
   LIST_PUBLIC_CHURCHES,
@@ -220,6 +222,18 @@ export const listPublicAnnouncements = async ({
 // Task 43 — requests / check-ins / analytics intake
 // ---------------------------------------------------------------------------
 
+// Submission rate limit (F7RQ R6): per user per church in a rolling window.
+const getRequestLimit = () => Number(process.env.REQUEST_SUBMIT_LIMIT) || 5
+const getRequestWindowMinutes = () => Number(process.env.REQUEST_SUBMIT_WINDOW_MINUTES) || 10
+
+const rateLimited = () =>
+  new GeneralError({
+    code: 429,
+    error: 'TOO_MANY_REQUESTS',
+    error_code: 'RATE_LIMITED',
+    details: 'Too many requests sent. Please try again later.',
+  })
+
 export const submitRequest = async ({
   userId,
   churchId,
@@ -239,12 +253,21 @@ export const submitRequest = async ({
 
   let ack: MobileRequestAck | null = null
   // Idempotent submission: same key + same payload replays the same resource.
-  await withIdempotency({
+  // churchId is part of the hashed body so a key reused at another church is a
+  // conflict, never a replay of the first church's request.
+  const { resource_id } = await withIdempotency({
     actorKey: `user:${userId}`,
     operation: 'request.submit',
     key: idempotencyKey ?? '',
-    requestBody: input,
+    requestBody: { churchId, ...input },
     run: async (tx) => {
+      // Only fresh submissions reach here, so replays never count against the
+      // limit. Throwing rolls back the transaction: no row, no idempotency record.
+      // ponytail: count-then-insert can let a parallel burst slip one past the
+      // limit; move to a shared limiter if that ever matters.
+      const since = new Date(Date.now() - getRequestWindowMinutes() * 60 * 1000)
+      const recent = await COUNT_RECENT_USER_REQUESTS({ churchId, userId, since, tx })
+      if (recent >= getRequestLimit()) throw rateLimited()
       const created = await CREATE_USER_REQUEST({
         churchId,
         userId,
@@ -256,7 +279,11 @@ export const submitRequest = async ({
       return created.id
     },
   })
-  return ack ?? { id: '', kind: input.kind, createdAt: new Date().toISOString() }
+  if (ack) return ack
+  // Replay (e.g. the client lost the first response): return the original ack.
+  const replay = resource_id ? await GET_USER_REQUEST_ACK({ id: resource_id, userId }) : null
+  if (!replay) throw notFound('Request not found.')
+  return replay
 }
 
 export const checkIn = async ({

@@ -77,7 +77,7 @@ describe('listRequests', () => {
     })
     expect(res.total).toBe(2)
     expect(GET_REQUESTS).toHaveBeenCalledWith(
-      expect.objectContaining({ canReadPrivate: true, kind: undefined }),
+      expect.objectContaining({ churchId: 'c1', canReadPrivate: true, kinds: undefined }),
     )
   })
 
@@ -103,10 +103,12 @@ describe('listRequests', () => {
       userId: 'u1',
       churchId: 'c1',
       churchIds: new Set(['c1']),
-      kind: 'meeting',
+      kinds: ['pastoral', 'meeting'],
       query,
     })
-    expect(GET_REQUESTS).toHaveBeenCalledWith(expect.objectContaining({ kind: 'meeting' }))
+    expect(GET_REQUESTS).toHaveBeenCalledWith(
+      expect.objectContaining({ kinds: ['pastoral', 'meeting'] }),
+    )
   })
 
   it('throws 404 for a cross-church churchId (never reveals existence)', async () => {
@@ -132,7 +134,12 @@ describe('getRequestDetail', () => {
       }),
     ).resolves.toEqual(privateRow)
     expect(GET_REQUEST).toHaveBeenCalledWith(
-      expect.objectContaining({ canReadPrivate: true, requestId: 'r1', actorId: 'u1' }),
+      expect.objectContaining({
+        churchId: 'c1',
+        canReadPrivate: true,
+        requestId: 'r1',
+        actorId: 'u1',
+      }),
     )
   })
 
