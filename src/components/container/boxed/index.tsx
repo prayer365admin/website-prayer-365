@@ -14,9 +14,9 @@ export default function BoxContainer({
   sectionId?: string
 }) {
   return (
-    <div className={`${s.section} ${sectionClassName}`} id={sectionId}>
+    <div className={`${s.section} ${sectionClassName ?? ''}`} id={sectionId}>
       {!isFullWidth ? (
-        <div className={`${s.container} ${containerClassName}`}>{children}</div>
+        <div className={`${s.container} ${containerClassName ?? ''}`}>{children}</div>
       ) : (
         <div>{children}</div>
       )}

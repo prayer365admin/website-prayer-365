@@ -1,0 +1,18 @@
+// Ambient luminous glow behind the auth pages (WB1 design). Decorative only.
+.glow {
+  position: absolute;
+  top: -96px;
+  left: calc(50% - 720px / 2);
+  z-index: 0;
+  width: 720px;
+  height: 520px;
+  border-radius: 9999px;
+  background: linear-gradient(
+    180deg,
+    var(--color-glow-start) 0%,
+    var(--color-glow-mid) 50%,
+    transparent 100%
+  );
+  filter: blur(32px);
+  pointer-events: none;
+}

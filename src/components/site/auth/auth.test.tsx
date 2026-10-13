@@ -1,5 +1,5 @@
 import { SiteI18nProvider } from '@/i18n/site-i18n'
-import { SITE_MESSAGES } from '@/i18n/messages'
+import { SITE_MESSAGES, siteT } from '@/i18n/messages'
 import { renderWithProviders } from '@/test/frontend/render'
 import { screen } from '@testing-library/react'
 import { ReactNode } from 'react'
@@ -47,7 +47,7 @@ describe('StepHeader', () => {
 
 describe('auth asides (hardcoded, F2)', () => {
   it('sign-in aside renders the stream, reminder and seal cards', () => {
-    renderEn(<SignInAside />)
+    renderEn(<SignInAside t={siteT('en')} />)
 
     expect(screen.getByText(en.liveWhisperTitle)).toBeTruthy()
     expect(screen.getByText(en.bellPill)).toBeTruthy()

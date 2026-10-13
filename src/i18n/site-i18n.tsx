@@ -6,27 +6,13 @@ import {
   SiteLocale,
   isSiteLocale,
 } from '@/config/site-locale'
-import { SITE_MESSAGES, SiteMessageKey } from './messages'
+import { SiteMessageKey, translate } from './messages'
 import { createContext, ReactNode, useCallback, useContext, useMemo, useState } from 'react'
 
 type SiteI18n = {
   locale: SiteLocale
   setLocale: (locale: SiteLocale) => void
   t: (key: SiteMessageKey, vars?: Record<string, string | number>) => string
-}
-
-/**
- * Locale string, falling back to English (et/sv/fi ship English until the
- * translations land), then to the key. `{name}` placeholders take `vars`.
- */
-const translate = (
-  locale: SiteLocale,
-  key: SiteMessageKey,
-  vars?: Record<string, string | number>,
-) => {
-  const text =
-    (SITE_MESSAGES[locale] as Record<string, string>)[key] ?? SITE_MESSAGES.en[key] ?? key
-  return vars ? text.replace(/\{(\w+)\}/g, (m, name) => String(vars[name] ?? m)) : text
 }
 
 const SiteI18nContext = createContext<SiteI18n>({

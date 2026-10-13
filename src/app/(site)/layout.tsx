@@ -1,8 +1,7 @@
 import { auth } from '@/auth'
 import SiteShell from '@/components/site'
-import { DEFAULT_SITE_LOCALE, isSiteLocale, SITE_LOCALE_COOKIE } from '@/config/site-locale'
 import { SiteI18nProvider } from '@/i18n/site-i18n'
-import { cookies } from 'next/headers'
+import { getSiteLocale } from '@/utils/site-locale'
 import { redirect } from 'next/navigation'
 
 // Website guard (WB-04): every page in this group needs a customer session.
@@ -14,13 +13,8 @@ export default async function Layout({ children }: { children: React.ReactNode }
     redirect('/login')
   }
 
-  const store = await cookies()
-  const cookieLocale = store.get(SITE_LOCALE_COOKIE)?.value
-
   return (
-    <SiteI18nProvider
-      initialLocale={isSiteLocale(cookieLocale) ? cookieLocale : DEFAULT_SITE_LOCALE}
-    >
+    <SiteI18nProvider initialLocale={await getSiteLocale()}>
       <SiteShell>{children}</SiteShell>
     </SiteI18nProvider>
   )

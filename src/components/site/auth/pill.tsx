@@ -12,7 +12,7 @@ export default function Pill({
 }) {
   return (
     <span
-      className={`inline-flex items-center gap-1.5 rounded-full bg-secondary_color/30 px-3 py-1 text-xs font-medium text-accent_color_2 ${className}`}
+      className={`inline-flex items-center gap-1.5 rounded-full bg-blue-200 px-3 py-1 text-xs font-medium text-blue-800 ${className}`}
     >
       {icon}
       {children}

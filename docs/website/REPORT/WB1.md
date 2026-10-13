@@ -163,8 +163,8 @@ before the site goes public.
 
 **Missing assets (placeholders used in WB1).**
 
-- White line-art praying hands on the dark live-stream card: not in
-  `public/`, the app icon (`public/images/icon.jpg`) is used instead.
+- ~~White line-art praying hands on the dark live-stream card~~: resolved,
+  now `OutlinedLogoIcon` (`src/components/icon/outlined-logo.tsx`).
 - Three pastor photos next to "Joined by pastors across 14 Baltic dioceses":
   generic user avatars are used instead.
 

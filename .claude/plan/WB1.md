@@ -9,13 +9,13 @@ and `next build`.
 
 ## Status
 
-| Phase | Scope                                                           | Status  |
-| ----- | --------------------------------------------------------------- | ------- |
-| 0     | Verify foundation, WB-18 signup test                            | ✔ done |
-| 1     | Backend: signup guards, public picker, site `/me` routes        | ✔ done |
-| 2     | Data hooks + shared auth UI pieces                              | ✔ done |
-| 3     | Screens: sign-in, 3-step sign-up, verify, forgot/reset, profile | ☐ next  |
-| 4     | Flow tests + final verify                                       | ☐       |
+| Phase | Scope                                                           | Status         |
+| ----- | --------------------------------------------------------------- | -------------- |
+| 0     | Verify foundation, WB-18 signup test                            | ✔ done        |
+| 1     | Backend: signup guards, public picker, site `/me` routes        | ✔ done        |
+| 2     | Data hooks + shared auth UI pieces                              | ✔ done        |
+| 3     | Screens: sign-in, 3-step sign-up, verify, forgot/reset, profile | ◐ sign-in done |
+| 4     | Flow tests + final verify                                       | ☐              |
 
 ## Decisions (agreed)
 
@@ -112,7 +112,8 @@ Ant Design + Tailwind, existing tokens (`primary_color` = `#2f7ad2`, fonts
 
 ## Phase 3 — Screens
 
-- **W01 sign-in** (`/login`): `AuthLayout` + `AuthCard` + `SignInAside`.
+- ✔ **W01 sign-in** (`/login`, `src/contents/site/sign-in`, shared
+  `useCredentialsSignIn` hook; checked at 1280px and 390px): `AuthLayout` + `AuthCard` + `SignInAside`.
   Member ID placeholder, "Keep me signed in", ChurchID (EELK) and Magic Link
   are UI only. Unverified email → verify page with resend. `/admin/login`
   keeps the plain look.

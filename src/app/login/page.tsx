@@ -1,11 +1,14 @@
-import SignInForm from '@/components/auth/sign-in-form'
+import ContentsSiteSignIn from '@/contents/site/sign-in'
+import { SiteI18nProvider } from '@/i18n/site-i18n'
+import { getSiteLocale } from '@/utils/site-locale'
 
-export default function Page() {
+// Customer sign-in (W01). Staff use /admin/login.
+export default async function Page() {
+  const locale = await getSiteLocale()
+
   return (
-    <SignInForm
-      brandTitle="PRAYER"
-      welcome="Sign in to read and listen to today's prayers."
-      redirectTo="/"
-    />
+    <SiteI18nProvider initialLocale={locale}>
+      <ContentsSiteSignIn locale={locale} />
+    </SiteI18nProvider>
   )
 }

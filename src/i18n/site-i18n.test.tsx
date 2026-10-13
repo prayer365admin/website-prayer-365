@@ -45,7 +45,6 @@ describe('SiteI18nProvider', () => {
     expect(screen.getByTestId('locale').textContent).toBe('sv')
     expect(screen.getByTestId('label').textContent).toBe('Logga ut')
     expect(document.cookie).toContain('site_locale=sv')
-    // A key without a Swedish string yet falls back to English.
-    expect(screen.getByTestId('fallback').textContent).toBe(SITE_MESSAGES.en.signInTitle)
+    expect(screen.getByTestId('fallback').textContent).toBe(SITE_MESSAGES.sv.signInTitle)
   })
 })
