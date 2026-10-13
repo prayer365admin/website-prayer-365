@@ -1,18 +1,27 @@
 # PRAYER Customer-Facing Website — Issue Report (WB1)
 
-Prepared: 12 October 2026. Source: WB1 User Onboarding planning and Phase 0
-verification. Each item below is out of WB1 scope or needs a separate decision.
-Raise each one as its own ticket.
+Prepared: 12 October 2026, updated 13 October 2026 (sign-in and sign-up pages
+built). Source: WB1 User Onboarding planning, Phase 0 verification and the
+sign-in / sign-up implementation. Each item below is out of WB1 scope or needs
+a separate decision. Raise each one as its own ticket.
 
-| #    | Issue                                                      | Area    | Severity | WB1 handling                       |
-| ---- | ---------------------------------------------------------- | ------- | -------- | ---------------------------------- |
-| R-01 | `prayer_user` customers can enter the admin dashboard      | BE + FE | High     | Not fixed; reported only           |
-| R-02 | Staff with only a role assignment are treated as customers | BE      | Medium   | Not fixed; reported only           |
-| R-03 | Notification preferences have no backend                   | BE      | Medium   | UI only, values discarded          |
-| R-04 | Alternative sign-in methods have no backend                | BE      | Medium   | UI only, buttons do nothing        |
-| R-05 | Hardcoded stats and live stream in auth side panels        | FE + BE | Low      | Hardcoded as designed              |
-| R-06 | Mobile signup breaks: locale now required                  | Mobile  | High     | Backend strict; mobile not updated |
-| R-07 | Mobile `PATCH me` can still clear main church and locale   | BE      | Medium   | Website route strict only          |
+| #    | Issue                                                                   | Area    | Severity | WB1 handling                         |
+| ---- | ----------------------------------------------------------------------- | ------- | -------- | ------------------------------------ |
+| R-01 | `prayer_user` customers can enter the admin dashboard                   | BE + FE | High     | Not fixed; reported only             |
+| R-02 | Staff with only a role assignment are treated as customers              | BE      | Medium   | Not fixed; reported only             |
+| R-03 | Notification preferences have no backend                                | BE      | Medium   | UI only, values discarded            |
+| R-04 | Alternative sign-in methods have no backend                             | BE      | Medium   | UI only, buttons do nothing          |
+| R-05 | Hardcoded stats and live stream in auth side panels                     | FE + BE | Low      | Hardcoded as designed                |
+| R-06 | Mobile signup breaks: locale now required                               | Mobile  | High     | Backend strict; mobile not updated   |
+| R-07 | Main church / locale rules differ between website and mobile `PATCH me` | BE      | Medium   | Website route strict only            |
+| R-08 | False "zero-knowledge encryption" claim in auth copy                    | Content | High     | Shown as designed; fix before launch |
+| R-09 | Deploy prerequisite: `prayer_user` role must be seeded                  | Ops     | High     | Signup returns 500 without it        |
+| R-10 | Website styles changed some admin screens                               | FE      | Medium   | Not fixed; reported only             |
+| R-11 | Sign-up banner photo has a mock form baked into the image               | Content | Medium   | Used as provided                     |
+| R-12 | Customers can have no main church (now optional)                        | FE + BE | Medium   | Signup allows it; Home/Profile TBD   |
+| R-13 | et/sv/fi translations need native-speaker review                        | Content | Medium   | Drafted, not yet reviewed            |
+| R-14 | Design gaps decided during build                                        | Design  | Low      | Built; needs design sign-off         |
+| R-15 | Shared root providers limit website performance                         | FE      | Low      | Login ~90 Lighthouse (mobile)        |
 
 ---
 
@@ -64,9 +73,11 @@ and does not set `User.role_id`. A user who signs up via `/register` and is
 then given only an assignment keeps their signup role, so the dashboard treats
 them as a customer.
 
-**Made worse by WB1.** Public signup now requires a main church and a language
-and assigns `prayer_user`. A staff member registering through `/register` must
-pick a church and is created as a customer.
+**Made worse by WB1.** Public signup now requires a language and assigns
+`prayer_user`. `/register` is now the customer 3-step sign-up; the old plain
+register screen (`src/contents/register`) was removed. A staff member
+registering through `/register` is created as a customer, and there is no
+separate staff self-registration any more.
 
 **To decide.**
 
@@ -152,14 +163,7 @@ must be replaced with real data or removed before launch.
   (live audio is not in website scope).
 - Caching for any public counts shown before sign-in.
 
-**False security claim (fix before launch).** The sign-in "Pastoral Privilege
-Seal" card says "256-bit zero-knowledge encryption ensures your private prayer
-intentions, confessions, and journal entries remain strictly confidential".
-PRAYER has no zero-knowledge or end-to-end encryption, and the website has no
-confessions or journal feature. The same goes for "canonical privacy
-protections" in the sign-up privacy note. Shown as designed in WB1, but this
-copy must be replaced with an accurate statement (link to W5 privacy text)
-before the site goes public.
+**Security claim:** moved to R-08.
 
 **Missing assets (placeholders used in WB1).**
 
@@ -195,17 +199,153 @@ updated. Its current error handling shows "Signup is coming soon".
 
 ---
 
-## R-07 — Mobile `PATCH me` can still clear main church and locale
+## R-07 — Main church / locale rules differ between website and mobile `PATCH me`
 
-**Problem.** WB1 makes main church and locale mandatory for customers. The
-website route `PATCH /api/v1/site/me` enforces this (`SiteMePatchSchema`: no
-null, site locale only). The mobile route `PATCH /api/v1/mobile/me` still uses
-`MobileMePatchSchema`, which accepts `mainChurchId: null` and `locale: null`
-and any locale string up to 10 characters, so a mobile user can clear both.
+**Problem.** Locale is mandatory for customers; the main church became
+optional on 13 Oct 2026 (signup no longer requires it). The two profile routes
+disagree:
+
+- Website `PATCH /api/v1/site/me` (`SiteMePatchSchema`): locale must be a site
+  locale and cannot be cleared, and the main church **cannot be cleared**
+  either (no `null`). That still reflects the old "main church required" rule.
+- Mobile `PATCH /api/v1/mobile/me` (`MobileMePatchSchema`): accepts
+  `locale: null`, any locale string up to 10 characters, and
+  `mainChurchId: null`.
 
 **To decide.**
 
-- Whether the mobile route switches to the same strict rules (check the mobile
-  app first: it may rely on clearing the main church).
-- What to do with existing users who have no main church or locale (created
-  before WB1, or by seeds).
+- Should a customer be able to clear their main church from the website
+  profile now that it is optional? If yes, allow `mainChurchId: null` in
+  `SiteMePatchSchema`.
+- Should the mobile route stop accepting a null or unsupported locale (check
+  the mobile app first)?
+- What to do with existing users without a locale (created before WB1, or by
+  seeds).
+
+---
+
+## R-08 — False "zero-knowledge encryption" claim in auth copy
+
+**Problem.** The sign-in "Pastoral Privilege Seal" card says "256-bit
+zero-knowledge encryption ensures your private prayer intentions, confessions,
+and journal entries remain strictly confidential between you and the Divine".
+PRAYER has no zero-knowledge or end-to-end encryption, and the website has no
+confessions or journal feature. The sign-up privacy note ("strict pastoral
+covenant and canonical privacy protections. We never share baptismal
+details...") also promises things that are not defined anywhere.
+
+The copy is shown as designed and is now translated into all four languages
+(`sealBody`, `privacyNote` in `src/i18n/messages.ts`).
+
+**Ticket needs.**
+
+- Replace with an accurate statement in en/et/sv/fi, ideally linked to the
+  website privacy notice (open decision W5).
+- Legal / privacy review before the site goes public.
+
+---
+
+## R-09 — Deploy prerequisite: `prayer_user` role must be seeded
+
+**Problem.** Signup creates customers with the `prayer_user` role, looked up by
+name. If an environment has not been seeded, signup fails with 500
+`CUSTOMER_ROLE_MISSING` (deliberately loud, instead of creating users without a
+role).
+
+**Ticket needs.**
+
+- Confirm `prisma/seeds/prayer-roles.ts` has run on staging and production
+  before WB1 is deployed.
+- Add it to the deployment runbook / handover checklist.
+
+---
+
+## R-10 — Website styles changed some admin screens
+
+**Problem.** The website design tokens and base styles live in shared global
+files, so they also apply to the admin dashboard:
+
+- `src/styles/global.scss` has a global `p { margin: 0; font-size: 16px }`
+  rule. Every `<p>` in the admin without its own size class is now 16px.
+- The color tokens `gray-100` (#F9FAFB) and `blue-800` (#0B4497) override
+  Tailwind's own shades. Admin screens using them changed slightly:
+  `src/components/common/form/church-profile`, `church-service-times`
+  (`gray-100` was #F3F4F6, `blue-800` was #1E40AF).
+
+**Ticket needs.**
+
+- Scope the `p` rule to website pages (e.g. under a website wrapper class) or
+  confirm the admin should follow it.
+- Rename the two tokens (or confirm the admin colors may change).
+
+---
+
+## R-11 — Sign-up banner photo has a mock form baked into the image
+
+**Problem.** `public/images/sign-up-banner.jpg` (church photo in the sign-up
+"Active Regional Sanctuaries" panel) contains a screenshot of a "Sign Up - Web
+Registration" form on the left of the photo. It looks like part of the UI but
+is not interactive.
+
+**Ticket needs.** A clean photo of St. John's Church (Jaani kirik), Tallinn, at
+least 880 x 256 px (2x the 440 x 128 slot). Also remove the unused
+`public/images/sanctuary-banner.png` (4 MB; the page uses the `.webp`).
+
+---
+
+## R-12 — Customers can have no main church (now optional)
+
+**Problem.** Since the main church became optional at signup (13 Oct 2026),
+new customers may have no main church and follow nothing.
+
+**Ticket needs.**
+
+- Home feed (WB3, `getHome`): an empty state that points to the church
+  directory when there is no main or followed church.
+- Profile (WB-16): a way to choose a main church later (see R-07 for clearing
+  it).
+- Any other feature that assumes a main church exists.
+
+---
+
+## R-13 — et/sv/fi translations need native-speaker review
+
+**Problem.** All website strings (sign-in, sign-up, asides, errors) ship in
+en/et/sv/fi (`src/i18n/messages.ts`). The et/sv/fi texts were drafted without
+a native speaker. Bible verses follow common wording of each country's standard
+Bible, but the faith-specific terms ("osadus", "gemenskap", "yhteys",
+"pühamu") are the most likely to need correcting.
+
+**Ticket needs.** Native-speaker review for Estonian, Swedish and Finnish
+before launch.
+
+---
+
+## R-14 — Design gaps decided during build
+
+These were built without a design or differ from it; confirm or provide a
+design:
+
+- Sign-up "Check your email" success screen: no design, uses the card style.
+- Sign-up step 3: a **Back** button was added (the design has none) so users
+  can change their parish before creating the account.
+- Sign-up on phones: Back centered on top, primary button full width below,
+  `md` button size on phones / `lg` on desktop.
+- Verify email (W03), forgot / reset password (W04) and Profile (W13): no
+  designs; they will reuse the auth card style.
+- Background shapes (sign-up blue dot, privacy-note glow): positions matched
+  by eye; Figma gave size and color only.
+
+---
+
+## R-15 — Shared root providers limit website performance
+
+**Finding.** Lighthouse (mobile, production build) on `/login`: about 90,
+LCP ~3.1 s simulated (real paint ~137 ms), TBT ~200-250 ms, ~370 KB JS. The
+login page itself is server-rendered with only the form hydrating; the
+remaining JS is the root `GlobalProvider` shared with the admin (React, antd
+`ConfigProvider` / `App`, next-auth `SessionProvider`, TanStack Query).
+
+**Ticket needs (optional).** A separate root layout for the public website
+pages that skips the providers they do not need. This touches the admin root
+layout, so it needs its own ticket and regression check.
