@@ -106,22 +106,22 @@ No parallel DB schema: the website reads the same Prisma models.
 
 ## 4. Page Route Map
 
-| Route                         | Screen          | Auth   | Backend called (controller)         |
-| ----------------------------- | --------------- | ------ | ----------------------------------- |
-| `/`                           | Home (W06)      | Yes    | `getHome`                           |
-| `/login`                      | Sign In (W01)   | Public | NextAuth credentials                |
-| `/register`                   | Register (W02)  | Public | `registerUser`                      |
-| `/verify-email`               | Verify (W03)    | Public | `verifyEmail`                       |
-| `/forgot-password`            | Forgot (W04)    | Public | send reset email                    |
-| `/reset-password`             | Reset (W04)     | Public | `resetPassword`                     |
-| `/setup`                      | Setup (W05)     | Yes    | patch locale + main/follow          |
-| `/churches`                   | Directory (W07) | Yes    | `listPublicChurches`                |
-| `/churches/:churchId`         | Profile (W08)   | Yes    | `getPublicChurch`                   |
-| `/churches/:churchId/prayers` | Prayers (W09)   | Yes    | `listPublishedPrayers`              |
-| `/prayers/:prayerId`          | Prayer (W10)    | Yes    | `getPublishedPrayer`                |
-| `/donate/:churchId`           | Donation (W11)  | Yes    | site donation controller → Stripe   |
-| `/donate/result`              | Result (W12)    | Yes    | donor / attempt status              |
-| `/profile`                    | Profile (W13)   | Yes    | `getMe` / `patchMe` / avatar upload |
+| Route                         | Screen          | Auth   | Backend called (controller)                                                  |
+| ----------------------------- | --------------- | ------ | ---------------------------------------------------------------------------- |
+| `/`                           | Home (W06)      | Yes    | `getHome`                                                                    |
+| `/login`                      | Sign In (W01)   | Public | NextAuth credentials                                                         |
+| `/register`                   | Register (W02)  | Public | `registerUser`                                                               |
+| `/verify-email`               | Verify (W03)    | Public | `verifyEmail`                                                                |
+| `/forgot-password`            | Forgot (W04)    | Public | send reset email                                                             |
+| `/reset-password`             | Reset (W04)     | Public | `resetPassword`                                                              |
+| `/setup`                      | Setup (W05)     | Yes    | patch locale + main/follow                                                   |
+| `/churches`                   | Directory (W07) | Yes    | `listPublicChurches` (search, radius, denomination, language, quick filters) |
+| `/churches/:churchId`         | Profile (W08)   | Yes    | `getPublicChurch`                                                            |
+| `/churches/:churchId/prayers` | Prayers (W09)   | Yes    | `listPublishedPrayers`                                                       |
+| `/prayers/:prayerId`          | Prayer (W10)    | Yes    | `getPublishedPrayer`                                                         |
+| `/donate/:churchId`           | Donation (W11)  | Yes    | site donation controller → Stripe                                            |
+| `/donate/result`              | Result (W12)    | Yes    | donor / attempt status                                                       |
+| `/profile`                    | Profile (W13)   | Yes    | `getMe` / `patchMe` / avatar upload                                          |
 
 Routing guard: any website page except the four public account pages requires
 a session; unauthenticated visitors go to `/login`. Content is never rendered
@@ -139,17 +139,18 @@ No new tables are required for the website features. The website reuses the
 models documented in admin SPEC §5 and the mobile DTOs in
 `src/models/mobile.tsx`. Confirmed field sources:
 
-| Data                  | Source / model                                                         | Notes                                            |
-| --------------------- | ---------------------------------------------------------------------- | ------------------------------------------------ |
-| Church (public)       | `MobilePublicChurchSchema` (`src/models/mobile.tsx`)                   | includes `coverUrl`, `serviceTimes` (local time) |
-| Church summary        | `MobileChurchSummarySchema`                                            | includes `coverUrl` (MB-17 done)                 |
-| Published prayer      | `MobilePublishedPrayerSchema`                                          | audio field today returns `assetId`/`assetKey`   |
-| Home projection       | `MobileHomeSchema` (`mainChurch`, `followedChurches`, `latestPrayers`) | MB-10 done                                       |
-| Profile / main church | `MobileMeSchema`, `MobileMePatchSchema`                                |                                                  |
-| Follow relationships  | `listMyChurches` / `setFollow` controller                              |                                                  |
-| Language              | `Language` table; add `sv` seed (below)                                |                                                  |
-| Donation              | `Donation`, `DonationSubscription`, `PaymentAccount`                   | tables exist; flows not                          |
-| Request (blocked)     | (out of website scope)                                                 |                                                  |
+| Data                  | Source / model                                                         | Notes                                                                                             |
+| --------------------- | ---------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------- |
+| Church (public)       | `MobilePublicChurchSchema` (`src/models/mobile.tsx`)                   | includes `coverUrl`, `serviceTimes` (local time)                                                  |
+| Church summary        | `MobileChurchSummarySchema`                                            | includes `coverUrl`, `addressLine1`, `description`, `pastorName`, `serviceTimes`, `accessibility` |
+| Church list query     | `MobileChurchListQuerySchema`                                          | `search`, `radius_km`, `latitude`, `longitude`, `denomination`, `language`, quick-filter flags    |
+| Published prayer      | `MobilePublishedPrayerSchema`                                          | audio field today returns `assetId`/`assetKey`                                                    |
+| Home projection       | `MobileHomeSchema` (`mainChurch`, `followedChurches`, `latestPrayers`) | MB-10 done                                                                                        |
+| Profile / main church | `MobileMeSchema`, `MobileMePatchSchema`                                |                                                                                                   |
+| Follow relationships  | `listMyChurches` / `setFollow` controller                              |                                                                                                   |
+| Language              | `Language` table; add `sv` seed (below)                                |                                                                                                   |
+| Donation              | `Donation`, `DonationSubscription`, `PaymentAccount`                   | tables exist; flows not                                                                           |
+| Request (blocked)     | (out of website scope)                                                 |                                                                                                   |
 
 ### 5.1 Language delta
 
@@ -168,6 +169,37 @@ models documented in admin SPEC §5 and the mobile DTOs in
   `S3_PUBLIC_URL` (or a `url` field added later per MB-09). No auth header is
   attached (public bucket), matching the mobile behaviour.
 
+### 5.3 Church Directory Query and Filter Schema
+
+The church directory hero panel exposes multi-dimensional query and filter controls:
+
+- **Free-text search**: `search` string matching church name or city.
+- **Distance radius**: `radius_km` number (e.g. 5, 10, 25, 50 km) requiring reference coordinates `latitude` and `longitude`.
+- **Denomination**: `denomination` string matching church denomination (e.g. Lutheran / EELK, Baptist, Orthodox, Catholic, etc.).
+- **Language**: `language` string (ISO 639-1 code such as `et`, `en`, `sv`, `fi`) matching supported service languages in `churchLanguages`.
+- **Quick-filter toggles**:
+  - `sunday_live_stream` (boolean): filters congregations broadcasting Sunday services online.
+  - `open_now` (boolean): filters sanctuaries currently open for prayer/contemplation at request time.
+  - `taize_chants` (boolean): filters churches hosting Taizé chant services.
+  - `youth_ministry` (boolean): filters churches offering active youth ministry and gatherings.
+
+```ts
+export const MobileChurchListQuerySchema = z.object({
+  page: z.coerce.number().int().positive().default(1),
+  limit: z.coerce.number().int().positive().max(100).default(25),
+  search: z.string().trim().max(200).optional(),
+  latitude: z.coerce.number().min(-90).max(90).optional(),
+  longitude: z.coerce.number().min(-180).max(180).optional(),
+  radius_km: z.coerce.number().positive().optional(),
+  denomination: z.string().trim().max(100).optional(),
+  language: z.string().trim().min(2).max(10).optional(),
+  sunday_live_stream: z.coerce.boolean().optional(),
+  open_now: z.coerce.boolean().optional(),
+  taize_chants: z.coerce.boolean().optional(),
+  youth_ministry: z.coerce.boolean().optional(),
+})
+```
+
 ## 6. API and Backend Contract
 
 The website reads content through the shared controllers (section 2.2), so no
@@ -175,17 +207,33 @@ new read API is needed. Two write/backend surfaces are involved:
 
 ### 6.1 Existing (ready to reuse)
 
-| Area         | Endpoint / controller                                          | Status   |
-| ------------ | -------------------------------------------------------------- | -------- |
-| Register     | `POST /api/v1/auth/signup`                                     | ✔ built |
-| Verify email | `POST /api/v1/auth/verify-email` + resend                      | ✔ built |
-| Password     | `POST /api/v1/auth/reset-password`, forgot                     | ✔ built |
-| Discover     | `GET /api/v1/mobile/churches` (controller reuse)               | ✔ built |
-| Home         | `GET /api/v1/mobile/home` (controller reuse)                   | ✔ built |
-| Prayers      | `GET .../prayers`, `GET /prayers/:prayerId` (controller reuse) | ✔ built |
-| Profile      | `GET/PATCH /me`, avatar                                        | ✔ built |
+| Area         | Endpoint / controller                                                           | Status   |
+| ------------ | ------------------------------------------------------------------------------- | -------- |
+| Register     | `POST /api/v1/auth/signup`                                                      | ✔ built |
+| Verify email | `POST /api/v1/auth/verify-email` + resend                                       | ✔ built |
+| Password     | `POST /api/v1/auth/reset-password`, forgot                                      | ✔ built |
+| Discover     | `GET /api/v1/site/churches` (controller `listPublicChurches` with multi-filter) | ✔ built |
+| Home         | `GET /api/v1/mobile/home` (controller reuse)                                    | ✔ built |
+| Prayers      | `GET .../prayers`, `GET /prayers/:prayerId` (controller reuse)                  | ✔ built |
+| Profile      | `GET/PATCH /me`, avatar                                                         | ✔ built |
 
-### 6.2 Donations — shared backend reuse (no duplicate work)
+### 6.2 Directory Search and Filter API Contract (W07)
+
+`GET /api/v1/site/churches` executes through `listPublicChurches` and `LIST_PUBLIC_CHURCHES` with the following filter evaluation rules:
+
+1. **Status invariant**: Only churches with `status = APPROVED` are queried (unapproved, suspended, and archived churches are never returned).
+2. **Text search (`search`)**: Case-insensitive substring match against `name` and `address->>'city'`.
+3. **Distance radius (`radius_km`)**: When `latitude` and `longitude` are supplied, spherical distance is calculated using the haversine formula against `church.latitude` and `church.longitude`. Rows exceeding `radius_km` are excluded. When coordinates are provided without an explicit radius, results sort by distance ascending.
+4. **Denomination (`denomination`)**: Exact or case-insensitive match against `church.denomination`.
+5. **Language (`language`)**: Matches against associated `churchLanguages` records (`language_code = language`).
+6. **Quick filters**:
+   - `sunday_live_stream`: Matches churches with streaming services or live stream metadata.
+   - `open_now`: Evaluates current wall-clock time against meditation/sanctuary opening hours (e.g. 10:00–18:30 daily or service time windows).
+   - `taize_chants`: Matches services or tags containing Taizé prayer/chants.
+   - `youth_ministry`: Matches services or tags indicating youth ministry programs.
+7. **Pagination**: `page` and `limit` adhere to standard list response envelopes (`result`, `total`, `page`, `limit`).
+
+### 6.3 Donations — shared backend reuse (no duplicate work)
 
 The Stripe backend is **already planned in the admin docs** (`docs/SPEC.md`
 §8.5, §9.6 and `docs/TASK.md` F8DO + X-MOB). It is a shared backend capability;
@@ -215,7 +263,7 @@ DO-02/05/06), the donate button stays disabled with a "Donations not ready yet"
 message. Do not claim success for an unconfirmed payment (no webhook = no
 confirmed `Donation` row).
 
-### 6.3 Response conventions
+### 6.4 Response conventions
 
 Website pages follow the shared envelope wherever data crosses a route handler:
 `{ success, message, result, ..., request_id }` and `GeneralError` fields
@@ -233,8 +281,16 @@ Website pages follow the shared envelope wherever data crosses a route handler:
 
 ### WF2 — Directory
 
-Search/list approved churches and open a public church profile. Server-side
-only approved churches are returned; no private fields.
+Search and filter approved churches across the Baltic region:
+
+1. Enter search term for church name or city (`search`).
+2. Select distance radius (`radius_km`) with client geolocation (`latitude`, `longitude`).
+3. Filter by denomination dropdown (`denomination`) or service language (`language`).
+4. Toggle quick filters: Sunday Live Stream, Open for Prayer Now, Taizé Chants, Youth Ministry.
+5. Directory displays responsive split view:
+   - Left: Featured & nearby congregation cards (rich card with pastor, service times, quote, accessibility, directions/details actions).
+   - Right: Interactive cartographic sanctuary map synchronized with filtered pins and selection preview.
+6. Open public church profile (`/churches/:churchId`). Server-side only approved churches are returned; no private fields.
 
 ### WF3 — Prayer
 
@@ -282,17 +338,18 @@ from the public S3 URL. Draft/unapproved content is never returned.
 
 ## 10. Verification Matrix
 
-| Check                          | Expected                                               |
-| ------------------------------ | ------------------------------------------------------ |
-| Customer sign-in (role-less)   | Role-less `User` can sign in (after W1).               |
-| Register → verify → sign in    | End to end works; unverified cannot sign in.           |
-| Approved-church-only directory | Suspended/archived churches never returned.            |
-| Home + prayer feed             | `getHome` projection renders; draft content absent.    |
-| Audio playback                 | Approved audio plays via public URL.                   |
-| Donation webhook               | Signature verified, deduped, `Donation` row created.   |
-| Language                       | en/et/sv/fi selectable; independent of church country. |
-| Session expiry                 | Returns to `/login`; no stale content.                 |
-| Permissions                    | Website users cannot reach admin routes/screens.       |
+| Check                          | Expected                                                                                                                                                              |
+| ------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Customer sign-in (role-less)   | Role-less `User` can sign in (after W1).                                                                                                                              |
+| Register → verify → sign in    | End to end works; unverified cannot sign in.                                                                                                                          |
+| Approved-church-only directory | Suspended/archived churches never returned.                                                                                                                           |
+| Directory search & filters     | `search`, `radius_km`, `denomination`, `language`, and quick-filter flags filter approved churches accurately; non-matching and suspended/archived churches excluded. |
+| Home + prayer feed             | `getHome` projection renders; draft content absent.                                                                                                                   |
+| Audio playback                 | Approved audio plays via public URL.                                                                                                                                  |
+| Donation webhook               | Signature verified, deduped, `Donation` row created.                                                                                                                  |
+| Language                       | en/et/sv/fi selectable; independent of church country.                                                                                                                |
+| Session expiry                 | Returns to `/login`; no stale content.                                                                                                                                |
+| Permissions                    | Website users cannot reach admin routes/screens.                                                                                                                      |
 
 ## 11. Not in this spec (explicitly deferred)
 

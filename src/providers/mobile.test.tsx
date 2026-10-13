@@ -28,6 +28,7 @@ import {
   UPDATE_ME_PROFILE,
   GET_HOME,
   GET_PUBLIC_CHURCH,
+  LIST_PUBLIC_CHURCHES,
   GET_PUBLISHED_PRAYER,
   LIST_MY_CHURCHES,
   LIST_PUBLIC_ANNOUNCEMENTS,
@@ -253,6 +254,73 @@ describe('GET_PUBLIC_CHURCH — admin profile reflected in mobile contract', () 
     db.church.findFirst.mockResolvedValueOnce(null)
     const result = await GET_PUBLIC_CHURCH({ churchId: 'c1' })
     expect(result).toBeNull()
+  })
+})
+describe('LIST_PUBLIC_CHURCHES — discovery search by name or city', () => {
+  it('searches by name or city (address.path) when search query is provided', async () => {
+    const summaryRow = {
+      id: 'c1',
+      name: 'Grace',
+      denomination: 'Lutheran',
+      address: { line1: 'Main St', city: 'Tallinn' },
+      cover_asset_id: null,
+      latitude: null,
+      longitude: null,
+    }
+    db.$transaction.mockResolvedValueOnce([1, [summaryRow]])
+
+    const res = await LIST_PUBLIC_CHURCHES({
+      query: { search: 'tal', page: 1, limit: 10 },
+    })
+
+    const expectedWhere = {
+      status: 'APPROVED',
+      OR: [
+        { name: { contains: 'tal', mode: 'insensitive' } },
+        { address: { path: ['city'], string_contains: 'tal' } },
+      ],
+    }
+
+    expect(db.church.count).toHaveBeenCalledWith({ where: expectedWhere })
+    expect(db.church.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expectedWhere,
+        take: 10,
+        skip: 0,
+      }),
+    )
+
+    expect(res).toEqual({
+      result: [
+        {
+          id: 'c1',
+          name: 'Grace',
+          denomination: 'Lutheran',
+          city: 'Tallinn',
+          coverAssetId: null,
+          coverUrl: null,
+          distanceKm: null,
+          addressLine1: 'Main St',
+        },
+      ],
+      total: 1,
+    })
+  })
+
+  it('omits OR search clause when search query is not provided', async () => {
+    db.$transaction.mockResolvedValueOnce([0, []])
+
+    await LIST_PUBLIC_CHURCHES({
+      query: { page: 1, limit: 10 },
+    })
+
+    const expectedWhere = { status: 'APPROVED' }
+    expect(db.church.count).toHaveBeenCalledWith({ where: expectedWhere })
+    expect(db.church.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expectedWhere,
+      }),
+    )
   })
 })
 

@@ -81,16 +81,21 @@ const toSummary = (
     cover_asset_id: string | null
     latitude: unknown
     longitude: unknown
+    description?: string | null
+    accessibility?: string | null
+    pastors?: Array<{ pastor: { name: string } }>
+    serviceTimes?: Array<{ weekday: number; local_time: Date; label: string | null }>
   },
   lat?: number,
   lng?: number,
 ): Omit<MobileChurchSummary, 'coverUrl'> => {
-  const city = (c.address as { city?: string } | null)?.city ?? null
+  const addr = c.address as { city?: string; line1?: string } | null
+  const city = addr?.city ?? null
   let distanceKm: number | null = null
   if (lat !== undefined && lng !== undefined && c.latitude !== null && c.longitude !== null) {
     distanceKm = haversineKm(Number(c.latitude), Number(c.longitude), lat, lng)
   }
-  return {
+  const summary: Omit<MobileChurchSummary, 'coverUrl'> = {
     id: c.id,
     name: c.name,
     denomination: c.denomination,
@@ -98,6 +103,20 @@ const toSummary = (
     coverAssetId: c.cover_asset_id,
     distanceKm,
   }
+  if (addr?.line1) summary.addressLine1 = addr.line1
+  if (c.description) summary.description = c.description
+  if (c.accessibility) summary.accessibility = c.accessibility
+  if (c.pastors?.[0]?.pastor?.name) summary.pastorName = c.pastors[0].pastor.name
+  if (c.serviceTimes?.length) {
+    summary.serviceTimes = c.serviceTimes
+      .map((st) => {
+        const time = st.local_time instanceof Date ? st.local_time.toISOString().slice(11, 16) : ''
+        return st.label ? `${st.label} ${time}`.trim() : time
+      })
+      .filter(Boolean)
+      .join(' • ')
+  }
+  return summary
 }
 
 export function haversineKm(lat1: number, lng1: number, lat2: number, lng2: number): number {
@@ -191,7 +210,14 @@ export const LIST_PUBLIC_CHURCHES = async ({
 }): Promise<{ result: MobileChurchSummary[]; total: number }> => {
   const where: Prisma.ChurchWhereInput = {
     status: APPROVED,
-    ...(query.search ? { name: { contains: query.search, mode: 'insensitive' } } : {}),
+    ...(query.search
+      ? {
+          OR: [
+            { name: { contains: query.search, mode: 'insensitive' } },
+            { address: { path: ['city'], string_contains: query.search } },
+          ],
+        }
+      : {}),
   }
   const [total, rows] = await db.$transaction([
     db.church.count({ where }),
@@ -208,6 +234,16 @@ export const LIST_PUBLIC_CHURCHES = async ({
         cover_asset_id: true,
         latitude: true,
         longitude: true,
+        description: true,
+        accessibility: true,
+        pastors: {
+          include: { pastor: { select: { name: true } } },
+          take: 1,
+        },
+        serviceTimes: {
+          select: { weekday: true, local_time: true, label: true },
+          take: 2,
+        },
       },
     }),
   ])

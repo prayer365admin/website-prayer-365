@@ -54,14 +54,17 @@ DESIGN W01–W05, W13 | SPEC §7.1 | FEATURE WF1
 
 ## WB2 — Church Directory
 
-DESIGN W07–W08 | SPEC §7.2 | FEATURE WF2
+DESIGN W07–W08 | SPEC §7.2, §5.3, §6.2 | FEATURE WF2
 
-| ID    | Task                                                                                                                                                               | Status |
-| ----- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------ |
-| WB-21 | Directory (W07): search approved churches (name/city) via `listPublicChurches`; approved only; card with cover + name + city + denomination.                       | ☐      |
-| WB-22 | Church profile (W08): `getPublicChurch` → cover (`coverUrl`), description, address, contacts, website, languages, accessibility, service times (local wall clock). | ☐      |
-| WB-23 | Entry points: church profile → "View prayers" (WB3) and "Donate" (WB4).                                                                                            | ☐      |
-| WB-24 | Tests: suspended/archived church never returned; no private field exposure; service time localized as church wall clock.                                           | ☐      |
+| ID     | Task                                                                                                                                                                                                                                                 | Status |
+| ------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------ |
+| WB-21  | Directory screen (W07): church discovery with responsive split layout, rich congregation cards, cartographic SVG sanctuary map, and search/filter hero bar.                                                                                          | ✔     |
+| WB-21a | Directory API query contract: extend `MobileChurchListQuerySchema` and `LIST_PUBLIC_CHURCHES` with `radius_km` (+ lat/lng), `denomination`, `language`, and quick-filter flags (`sunday_live_stream`, `open_now`, `taize_chants`, `youth_ministry`). | ☐      |
+| WB-21b | Directory UI filter controls: wire hero filter controls in `ContentsSiteChurchDirectory` (distance dropdown, denomination dropdown, language dropdown, quick-filter chips) to live query state and trigger API fetches on change.                    | ☐      |
+| WB-22  | Church profile (W08): `getPublicChurch` → cover (`coverUrl`), description, address, contacts, website, languages, accessibility, service times (local wall clock).                                                                                   | ☐      |
+| WB-23  | Entry points: church profile → "View prayers" (WB3) and "Donate" (WB4).                                                                                                                                                                              | ☐      |
+| WB-24  | Tests: suspended/archived church never returned; no private field exposure; service time localized as church wall clock.                                                                                                                             | ☐      |
+| WB-25  | Filter tests: query by search, radius, denomination, language, and quick-filter flags individually and combined; verify multi-filter intersections and empty filter states.                                                                          | ☐      |
 
 ## WB3 — Prayer
 
