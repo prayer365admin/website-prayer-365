@@ -119,16 +119,17 @@ export const CREATE_USER = async (payload: {
 }
 
 /**
- * Website/mobile customer signup (WB1): user with the `prayer_user` role, locale
- * and main church in one transaction. Returns null for the role when the seed is
- * missing, `church` null when the main church is not APPROVED.
+ * Website/mobile customer signup (WB1): user with the `prayer_user` role and
+ * locale, plus the main church row when one is chosen (optional), in one
+ * transaction. `role` is null when the seed is missing; `churchNotFound` when a
+ * main church was given but is not APPROVED (nothing is created then).
  */
 export const CREATE_CUSTOMER = async (payload: {
   email: string
   name: string
   password: string
   locale: string
-  main_church_id: string
+  main_church_id?: string | null
   role_name: string
 }) =>
   db.$transaction(async (tx) => {
@@ -136,13 +137,15 @@ export const CREATE_CUSTOMER = async (payload: {
       where: { name: payload.role_name },
       select: { id: true },
     })
-    if (!role) return { role: null, church: null, user: null }
+    if (!role) return { role: null, user: null, churchNotFound: false }
 
-    const church = await tx.church.findFirst({
-      where: { id: payload.main_church_id, status: 'APPROVED' },
-      select: { id: true },
-    })
-    if (!church) return { role, church: null, user: null }
+    const church = payload.main_church_id
+      ? await tx.church.findFirst({
+          where: { id: payload.main_church_id, status: 'APPROVED' },
+          select: { id: true },
+        })
+      : null
+    if (payload.main_church_id && !church) return { role, user: null, churchNotFound: true }
 
     const user = await tx.user.create({
       data: {
@@ -154,10 +157,12 @@ export const CREATE_CUSTOMER = async (payload: {
       },
       omit: SAFE,
     })
-    await tx.userChurch.create({
-      data: { user_id: user.id, church_id: church.id, is_main: true, is_followed: true },
-    })
-    return { role, church, user }
+    if (church) {
+      await tx.userChurch.create({
+        data: { user_id: user.id, church_id: church.id, is_main: true, is_followed: true },
+      })
+    }
+    return { role, user, churchNotFound: false }
   })
 
 export const UPDATE_USER = async ({

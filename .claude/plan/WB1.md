@@ -9,32 +9,32 @@ and `next build`.
 
 ## Status
 
-| Phase | Scope                                                           | Status         |
-| ----- | --------------------------------------------------------------- | -------------- |
-| 0     | Verify foundation, WB-18 signup test                            | ✔ done        |
-| 1     | Backend: signup guards, public picker, site `/me` routes        | ✔ done        |
-| 2     | Data hooks + shared auth UI pieces                              | ✔ done        |
-| 3     | Screens: sign-in, 3-step sign-up, verify, forgot/reset, profile | ◐ sign-in done |
-| 4     | Flow tests + final verify                                       | ☐              |
+| Phase | Scope                                                           | Status                  |
+| ----- | --------------------------------------------------------------- | ----------------------- |
+| 0     | Verify foundation, WB-18 signup test                            | ✔ done                 |
+| 1     | Backend: signup guards, public picker, site `/me` routes        | ✔ done                 |
+| 2     | Data hooks + shared auth UI pieces                              | ✔ done                 |
+| 3     | Screens: sign-in, 3-step sign-up, verify, forgot/reset, profile | ◐ sign-in, sign-up done |
+| 4     | Flow tests + final verify                                       | ☐                       |
 
 ## Decisions (agreed)
 
-| Ref | Decision                                                                               |
-| --- | -------------------------------------------------------------------------------------- |
-| B1  | `locale` + `main_church_id` mandatory at signup; guard clauses in `registerUser`.      |
-| B1a | Shared `/api/v1/auth/signup` is strict for everyone (mobile must follow, REPORT R-06). |
-| B1b | Signup assigns the `prayer_user` role. Dashboard follow-up is REPORT R-01.             |
-| B2  | Public picker API, no auth, `{id, name, city}` only. Frequent = top 4 by followers.    |
-| B3  | Notification checkboxes: UI only, no action (REPORT R-03).                             |
-| B4  | Alternative sign-in buttons: UI only, no action (REPORT R-04).                         |
-| F1  | Sign-in follows the design as drawn.                                                   |
-| F2  | Side-panel stats hardcoded for now (REPORT R-05).                                      |
-| F3  | Step 3 checkboxes shown, no action.                                                    |
-| F4  | `/setup` (W05) out of scope; not touched.                                              |
-| —   | Header and footer in the screenshots are ignored.                                      |
-| —   | Verify, forgot/reset and profile have no design: reuse the auth card style.            |
-| —   | `/admin/login` keeps its current plain look.                                           |
-| —   | Copy ships in English first; et/sv/fi copy English until translations arrive.          |
+| Ref | Decision                                                                                                                                                      |
+| --- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| B1  | `locale` mandatory at signup (guard in `registerUser`); `main_church_id` optional (changed 13 Oct 2026, design shows "Optional"), must be APPROVED when sent. |
+| B1a | Shared `/api/v1/auth/signup` is strict for everyone (mobile must follow, REPORT R-06).                                                                        |
+| B1b | Signup assigns the `prayer_user` role. Dashboard follow-up is REPORT R-01.                                                                                    |
+| B2  | Public picker API, no auth, `{id, name, city}` only. Frequent = top 4 by followers.                                                                           |
+| B3  | Notification checkboxes: UI only, no action (REPORT R-03).                                                                                                    |
+| B4  | Alternative sign-in buttons: UI only, no action (REPORT R-04).                                                                                                |
+| F1  | Sign-in follows the design as drawn.                                                                                                                          |
+| F2  | Side-panel stats hardcoded for now (REPORT R-05).                                                                                                             |
+| F3  | Step 3 checkboxes shown, no action.                                                                                                                           |
+| F4  | `/setup` (W05) out of scope; not touched.                                                                                                                     |
+| —   | Header and footer in the screenshots are ignored.                                                                                                             |
+| —   | Verify, forgot/reset and profile have no design: reuse the auth card style.                                                                                   |
+| —   | `/admin/login` keeps its current plain look.                                                                                                                  |
+| —   | Copy ships in English first; et/sv/fi copy English until translations arrive.                                                                                 |
 
 ## Phase 0 — Verify foundation ✔
 
@@ -117,10 +117,10 @@ Ant Design + Tailwind, existing tokens (`primary_color` = `#2f7ad2`, fonts
   Member ID placeholder, "Keep me signed in", ChurchID (EELK) and Magic Link
   are UI only. Unverified email → verify page with resend. `/admin/login`
   keeps the plain look.
-- **W02 sign-up** (`/register`), 3 steps in one `Form`:
+- ✔ **W02 sign-up** (`/register`, `src/contents/site/sign-up`; checked at 1440px and 390px), 3 steps in one `Form`:
   1. Name, email, password + strength meter.
-  2. Main church picker + 4 frequent chips (required; "Optional" pill and
-     "Browse as Pilgrim" default removed).
+  2. Main church picker + 4 frequent chips, optional ("Optional" pill,
+     "Browse as Pilgrim" placeholder, clearable).
   3. Language (required) + 2 checkboxes (UI only) → "Create Sacred Account".
   - Next validates only the current step; Back keeps values; one submit;
     success → "check your email" state.

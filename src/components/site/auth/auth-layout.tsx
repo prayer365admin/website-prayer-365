@@ -10,28 +10,31 @@ import s from './auth-layout.module.scss'
  * Sign-in / sign-up page frame (WB1 design): soft blue page, form + aside
  * columns on desktop, stacked on phones (form first). `asideFirst` puts the
  * aside on the left on desktop (sign-up); sign-in keeps the form on the left.
- * Design widths: form 657px, aside 459px, gap 36px = 1152px container.
+ * Each page passes its desktop columns + gap as `containerClassName`.
  */
 export default function AuthLayout({
   form,
   aside,
   asideFirst = false,
+  containerClassName = '',
+  decoration,
 }: {
   form: ReactNode
   aside: ReactNode
   asideFirst?: boolean
+  /** Desktop grid columns and gap, e.g. `lg:grid-cols-[...] lg:gap-9`. */
+  containerClassName?: string
+  /** Page-specific background shapes, drawn behind the content (aria-hidden). */
+  decoration?: ReactNode
 }) {
   return (
     // overflow-hidden: the 720px glow must not cause sideways scroll on phones.
     <main className="relative min-h-screen overflow-hidden bg-gradient-to-b from-blue-50 to-neutral-50 py-10 lg:py-16">
       <div aria-hidden className={s.glow} />
+      {decoration}
       <BoxContainer
         sectionClassName="relative"
-        containerClassName={`grid grid-cols-[minmax(0,1fr)] items-start gap-6 lg:gap-9 ${
-          asideFirst
-            ? 'lg:grid-cols-[minmax(0,459fr)_minmax(0,657fr)]'
-            : 'lg:grid-cols-[minmax(0,657fr)_minmax(0,459fr)]'
-        }`}
+        containerClassName={`grid grid-cols-[minmax(0,1fr)] items-start gap-6 ${containerClassName}`}
       >
         <div className={asideFirst ? 'lg:order-2' : undefined}>
           <ConfigProvider theme={siteFormTheme}>{form}</ConfigProvider>

@@ -20,7 +20,15 @@ export default antdTheme
  */
 export const siteFormTheme: ThemeConfig = {
   components: {
-    Form: { labelHeight: 'auto', verticalLabelPadding: '0 0 4px', itemMarginBottom: 16 },
+    Form: {
+      labelHeight: 'auto',
+      verticalLabelPadding: '0 0 4px',
+      itemMarginBottom: 16,
+      // antd sets label size/color itself (beats CSS); weight is left to .site-form.
+      labelFontSize: 14,
+      labelColor: '#393e46', // --color-neutral-700
+    },
     Input: { controlHeight: 48, paddingXXS: 12, borderRadius: 8 },
+    Select: { controlHeight: 48, borderRadius: 8 },
   },
 }

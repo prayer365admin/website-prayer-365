@@ -27,6 +27,8 @@ export default function ContentsSiteSignIn({ locale }: { locale: SiteLocale }) {
   return (
     <AuthLayout
       aside={<SignInAside t={t} />}
+      // Design: form 657px + 36px gap + aside 459px = 1152px container.
+      containerClassName="lg:grid-cols-[minmax(0,657fr)_minmax(0,459fr)] lg:gap-9"
       form={
         <AuthCard>
           <AuthCardSection>
@@ -76,7 +78,7 @@ export default function ContentsSiteSignIn({ locale }: { locale: SiteLocale }) {
             </SiteButton>
           </AuthCardSection>
 
-          <AuthCardSection className="border-t text-sm border-neutral-100 text-center text-neutral-600">
+          <AuthCardSection className="border-t text-sm border-neutral-200 text-center text-neutral-600">
             {t('signInNewHere')}{' '}
             <Link
               className="inline-flex items-center gap-1 text-primary-500 underline"

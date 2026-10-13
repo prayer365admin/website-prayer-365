@@ -1,7 +1,7 @@
 import { SITE_MESSAGES } from '@/i18n/messages'
 import { SiteI18nProvider } from '@/i18n/site-i18n'
 import { pushMock, renderWithProviders, signInMock } from '@/test/frontend/render'
-import { screen } from '@testing-library/react'
+import { screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import ContentsSiteSignIn from '.'
@@ -70,6 +70,21 @@ describe('Customer sign-in (W01)', () => {
     await userEvent.clear(email)
 
     expect(screen.queryByText(en.signInIdentifierRequired)).toBeNull()
+  })
+
+  it('locks the fields while signing in', async () => {
+    let resolve!: (v: unknown) => void
+    signInMock.mockReturnValue(new Promise((r) => (resolve = r)))
+    renderPage()
+    await fillAndSubmit()
+
+    await waitFor(() =>
+      expect(screen.getByLabelText(en.signInIdentifierLabel)).toHaveProperty('disabled', true),
+    )
+    expect(screen.getByLabelText(en.signInPasswordLabel)).toHaveProperty('disabled', true)
+
+    resolve({ error: undefined })
+    await waitFor(() => expect(pushMock).toHaveBeenCalledWith('/'))
   })
 
   it('sends an unverified customer to the verify page', async () => {

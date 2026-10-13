@@ -18,11 +18,11 @@ export default function ScriptureQuote({
           className="mt-1 shrink-0 self-start !text-primary-500"
           style={{ fontSize: 20 }}
         />
-        <blockquote className="font-font_quote text-2xl italic leading-tight text-blue-800 md:text-3xl">
+        <blockquote className="font-font_quote text-2xl italic leading-tight text-blue-800 md:text-[32px]">
           {quote}
         </blockquote>
       </div>
-      <figcaption className="mt-3 pl-8 text-xs uppercase tracking-[0.2em] text-neutral-600">
+      <figcaption className="mt-1 pl-8 text-[10px] uppercase tracking-[0.2em] text-neutral-600">
         {reference}
       </figcaption>
     </figure>

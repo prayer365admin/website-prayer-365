@@ -39,9 +39,20 @@ const sizes: Record<SiteButtonSize, string> = {
   xs: 'h-8 px-3 text-xs',
 }
 
+// Same sizes from the md breakpoint (768px) up, for `desktopSize`. Static class
+// strings (Tailwind must see them) and each sets height + all padding, so it
+// fully replaces the phone size.
+const desktopSizes: Record<SiteButtonSize, string> = {
+  lg: 'md:h-14 md:px-6 md:pb-[13px] md:pt-[11px] md:text-base',
+  md: 'md:h-12 md:px-6 md:py-0 md:text-base',
+  sm: 'md:h-10 md:px-4 md:py-0 md:text-sm',
+  xs: 'md:h-8 md:px-3 md:py-0 md:text-xs',
+}
+
 export default function SiteButton({
   variant = 'solid',
   size = 'lg',
+  desktopSize,
   icon,
   iconPlacement = 'start',
   loading = false,
@@ -53,6 +64,8 @@ export default function SiteButton({
 }: Omit<ButtonHTMLAttributes<HTMLButtonElement>, 'type'> & {
   variant?: SiteButtonVariant
   size?: SiteButtonSize
+  /** Size from 768px up; `size` then applies to phones only. */
+  desktopSize?: SiteButtonSize
   icon?: ReactNode
   iconPlacement?: 'start' | 'end'
   loading?: boolean
@@ -64,7 +77,7 @@ export default function SiteButton({
   return (
     <button
       aria-busy={loading || undefined}
-      className={`${base} ${variants[variant]} ${sizes[size]} ${className}`}
+      className={`${base} ${variants[variant]} ${sizes[size]} ${desktopSize ? desktopSizes[desktopSize] : ''} ${className}`}
       disabled={disabled || loading}
       type={type}
       {...rest}

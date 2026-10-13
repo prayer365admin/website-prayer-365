@@ -11,7 +11,8 @@ export type SignupPayload = {
   email: string
   password: string
   locale: string
-  main_church_id: string
+  /** Optional: a customer may sign up without a main church. */
+  main_church_id?: string
 }
 
 export type SignupResult = { id: string; email: string; name: string }
@@ -29,6 +30,15 @@ export const SIGNUP_ERRORS: Record<
   INVALID_LOCALE: { field: 'locale', message: 'signUpErrorLocale' },
 }
 
+/**
+ * Field + message for a failed signup, or null when the failure has no field
+ * (network / server error: show a general message).
+ */
+export const signupErrorOf = (error: unknown) => {
+  const code = (axios.isAxiosError(error) && error.response?.data?.error_code) || 'UNKNOWN'
+  return SIGNUP_ERRORS[code] ?? null
+}
+
 export const useSignup = () => {
   const { mutateAsync, isPending, error } = useMutation({
     mutationFn: async (payload: SignupPayload) => {
@@ -38,15 +48,11 @@ export const useSignup = () => {
     },
   })
 
-  const errorCode: string | null = error
-    ? (axios.isAxiosError(error) && error.response?.data?.error_code) || 'UNKNOWN'
-    : null
-
   return {
     onSignup: mutateAsync,
     loading: isPending,
     /** Field-level error for the form, or null when the failure has no field (show a general error). */
-    fieldError: errorCode ? (SIGNUP_ERRORS[errorCode] ?? null) : null,
-    failed: !!errorCode,
+    fieldError: error ? signupErrorOf(error) : null,
+    failed: !!error,
   }
 }

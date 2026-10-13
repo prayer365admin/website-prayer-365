@@ -32,7 +32,7 @@ const input = {
 
 const created = {
   role: { id: 'r-user' },
-  church: { id: 'c1' },
+  churchNotFound: false,
   user: { id: 'u1', email: 'maria@example.com', name: 'Maria' },
 }
 
@@ -69,16 +69,21 @@ describe('registerUser (WB1 / WB-18)', () => {
     expect(CREATE_CUSTOMER).not.toHaveBeenCalled()
   })
 
-  it('rejects a missing main church with INVALID_MAIN_CHURCH', async () => {
-    await expect(registerUser({ ...input, main_church_id: '' })).rejects.toMatchObject({
-      code: 400,
-      error_code: 'INVALID_MAIN_CHURCH',
-    })
-    expect(CREATE_CUSTOMER).not.toHaveBeenCalled()
+  it('main church is optional: signs up without one', async () => {
+    await registerUser({ ...input, main_church_id: undefined })
+
+    expect(CREATE_CUSTOMER).toHaveBeenCalledWith(
+      expect.objectContaining({ main_church_id: undefined, locale: 'sv' }),
+    )
+    expect(sendMail).toHaveBeenCalledTimes(1)
   })
 
   it('rejects a non-approved main church with INVALID_MAIN_CHURCH and sends no email', async () => {
-    vi.mocked(CREATE_CUSTOMER).mockResolvedValue({ ...created, church: null, user: null } as never)
+    vi.mocked(CREATE_CUSTOMER).mockResolvedValue({
+      ...created,
+      churchNotFound: true,
+      user: null,
+    } as never)
 
     await expect(registerUser(input)).rejects.toMatchObject({
       code: 400,
@@ -88,7 +93,7 @@ describe('registerUser (WB1 / WB-18)', () => {
   })
 
   it('fails loudly when the prayer_user role is not seeded', async () => {
-    vi.mocked(CREATE_CUSTOMER).mockResolvedValue({ role: null, church: null, user: null })
+    vi.mocked(CREATE_CUSTOMER).mockResolvedValue({ role: null, user: null, churchNotFound: false })
 
     await expect(registerUser(input)).rejects.toMatchObject({
       code: 500,

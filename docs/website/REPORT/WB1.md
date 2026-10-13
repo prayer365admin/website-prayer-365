@@ -11,7 +11,7 @@ Raise each one as its own ticket.
 | R-03 | Notification preferences have no backend                   | BE      | Medium   | UI only, values discarded          |
 | R-04 | Alternative sign-in methods have no backend                | BE      | Medium   | UI only, buttons do nothing        |
 | R-05 | Hardcoded stats and live stream in auth side panels        | FE + BE | Low      | Hardcoded as designed              |
-| R-06 | Mobile signup breaks: locale + main church now required    | Mobile  | High     | Backend strict; mobile not updated |
+| R-06 | Mobile signup breaks: locale now required                  | Mobile  | High     | Backend strict; mobile not updated |
 | R-07 | Mobile `PATCH me` can still clear main church and locale   | BE      | Medium   | Website route strict only          |
 
 ---
@@ -170,12 +170,14 @@ before the site goes public.
 
 ---
 
-## R-06 — Mobile signup breaks: locale + main church now required
+## R-06 — Mobile signup breaks: locale now required
 
 **Change in WB1.** The shared `POST /api/v1/auth/signup` now requires `locale`
-(en/et/sv/fi) and `main_church_id` (an APPROVED church) and creates the user
-with the `prayer_user` role (decision: shared endpoint, strict). Missing or
-invalid values return 400 `INVALID_LOCALE` / `INVALID_MAIN_CHURCH`.
+(en/et/sv/fi) and creates the user with the `prayer_user` role (decision:
+shared endpoint, strict). `main_church_id` is optional (changed 13 Oct 2026),
+but when sent it must be an APPROVED church. A missing/invalid locale returns
+400 `INVALID_LOCALE`; an unknown or unapproved church returns 400
+`INVALID_MAIN_CHURCH`.
 
 **Impact.** The mobile app (`prayer-365-mobile-app`,
 `src/features/auth/screens/SignupScreen.tsx`) sends only `full_name`, `email`,
@@ -184,11 +186,12 @@ updated. Its current error handling shows "Signup is coming soon".
 
 **Ticket needs (mobile).**
 
-- Add a language choice and a main church picker to the mobile signup flow.
+- Add a language choice (required) and, optionally, a main church picker to
+  the mobile signup flow.
 - Use the public pickers: `GET /api/v1/public/churches?search=` and
   `GET /api/v1/public/churches/frequent` (no session, `{id, name, city}`).
-- Send `locale` and `main_church_id` in the signup body and map the two new
-  error codes.
+- Send `locale` (and `main_church_id` when chosen) in the signup body and map
+  the two new error codes.
 
 ---
 

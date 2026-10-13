@@ -37,6 +37,23 @@ describe('PasswordStrength', () => {
   })
 })
 
+describe('PasswordStrength colors', () => {
+  it.each([
+    ['ab', 'bg-danger-500', 1],
+    ['Password', 'bg-warning-500', 2],
+    ['Password1', 'bg-success-500', 3],
+    ['Password1!', 'bg-primary-500', 4],
+  ])('%j fills bars with %s', (password, color, filled) => {
+    renderEn(<PasswordStrength password={password} />)
+
+    const fills = Array.from(screen.getByRole('meter').children).map(
+      (t) => t.firstElementChild!.className,
+    )
+    expect(fills.filter((c) => c.includes('w-full') && c.includes(color))).toHaveLength(filled)
+    expect(fills.filter((c) => c.includes('w-0'))).toHaveLength(4 - filled)
+  })
+})
+
 describe('StepHeader', () => {
   it('shows the step number and title as a heading', () => {
     renderEn(<StepHeader step={2} title="Parish Connection" />)
@@ -57,7 +74,7 @@ describe('auth asides (hardcoded, F2)', () => {
   })
 
   it('sign-up aside renders the journey, stats and church photo', () => {
-    renderEn(<SignUpAside />)
+    renderEn(<SignUpAside t={siteT('en')} />)
 
     expect(screen.getByText(en.journeyTitle)).toBeTruthy()
     expect(screen.getByText(en.signUpQuote)).toBeTruthy()

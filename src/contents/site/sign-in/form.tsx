@@ -3,6 +3,7 @@
 import SiteButton from '@/components/common/button'
 import { ArrowRightIcon } from '@/components/icon/arrow-right'
 import { LockIcon } from '@/components/icon/lock'
+import FormError from '@/components/site/form-error'
 import { useCredentialsSignIn } from '@/hooks/ui/credentials-sign-in'
 import { useSiteI18n } from '@/i18n/site-i18n'
 import { UserOutlined } from '@ant-design/icons'
@@ -33,6 +34,8 @@ export default function SignInForm() {
   return (
     <Form
       className="site-form"
+      // Lock the fields while signing in.
+      disabled={loading}
       form={form}
       initialValues={{ remember: true }}
       layout="vertical"
@@ -75,12 +78,9 @@ export default function SignInForm() {
       </div>
 
       {errorCode && (
-        <p
-          className="mb-6 rounded-lg border border-danger-200 bg-danger-50 px-4 py-3 text-sm text-danger-700"
-          role="alert"
-        >
+        <FormError className="mb-6">
           {CREDENTIAL_CODES.includes(errorCode) ? t('signInErrorCredentials') : t('error')}
-        </p>
+        </FormError>
       )}
 
       <SiteButton

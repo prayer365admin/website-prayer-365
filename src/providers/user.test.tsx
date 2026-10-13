@@ -57,7 +57,11 @@ describe('CREATE_CUSTOMER (WB1 signup)', () => {
   it('creates nothing when the role is not seeded', async () => {
     tx.role.findUnique.mockResolvedValue(null)
 
-    expect(await CREATE_CUSTOMER(payload)).toEqual({ role: null, church: null, user: null })
+    expect(await CREATE_CUSTOMER(payload)).toEqual({
+      role: null,
+      user: null,
+      churchNotFound: false,
+    })
     expect(tx.user.create).not.toHaveBeenCalled()
   })
 
@@ -66,8 +70,16 @@ describe('CREATE_CUSTOMER (WB1 signup)', () => {
 
     const result = await CREATE_CUSTOMER(payload)
 
-    expect(result.church).toBeNull()
+    expect(result.churchNotFound).toBe(true)
     expect(tx.user.create).not.toHaveBeenCalled()
+    expect(tx.userChurch.create).not.toHaveBeenCalled()
+  })
+
+  it('without a main church: creates the user only, no church lookup or row', async () => {
+    const result = await CREATE_CUSTOMER({ ...payload, main_church_id: null })
+
+    expect(result.user?.id).toBe('u1')
+    expect(tx.church.findFirst).not.toHaveBeenCalled()
     expect(tx.userChurch.create).not.toHaveBeenCalled()
   })
 })

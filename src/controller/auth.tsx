@@ -74,7 +74,7 @@ export const registerUser = async ({
   email: string
   password: string
   locale: string
-  main_church_id: string
+  main_church_id?: string | null
   baseUrl: string
 }) => {
   const name = full_name?.trim()
@@ -107,7 +107,7 @@ export const registerUser = async ({
     })
   }
 
-  // Customers must pick an interface language and a main church (WB1).
+  // Customers must pick an interface language (WB1). The main church is optional.
   if (!isSiteLocale(locale)) {
     throw new GeneralError({
       code: 400,
@@ -115,10 +115,6 @@ export const registerUser = async ({
       error_code: 'INVALID_LOCALE',
       details: `Language must be one of: ${SITE_LOCALES.join(', ')}!`,
     })
-  }
-
-  if (!main_church_id) {
-    throw invalidMainChurch()
   }
 
   const existingUser = await GET_USER_BY_EMAIL({ email: emailNormalized })
@@ -136,10 +132,10 @@ export const registerUser = async ({
   const passwordHash = await hashSecret({ secret: password })
 
   // Signup creates a customer: the `prayer_user` role (no admin grants), the
-  // chosen locale and the main church row, all in one transaction.
+  // chosen locale and, when chosen, the main church row, in one transaction.
   const {
     role,
-    church,
+    churchNotFound,
     user: result,
   } = await CREATE_CUSTOMER({
     email: emailNormalized,
@@ -159,7 +155,7 @@ export const registerUser = async ({
     })
   }
 
-  if (!church || !result) {
+  if (churchNotFound || !result) {
     throw invalidMainChurch()
   }
 

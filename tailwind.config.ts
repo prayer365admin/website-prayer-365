@@ -48,8 +48,11 @@ const config: Config = {
         danger: {
           50: 'var(--color-danger-50)',
           200: 'var(--color-danger-200)',
+          500: 'var(--color-danger-500)',
           700: 'var(--color-danger-700)',
         },
+        warning: { 500: 'var(--color-warning-500)' },
+        success: { 500: 'var(--color-success-500)' },
       },
       fontFamily: {
         font_heading: ['var(--font-heading)'],

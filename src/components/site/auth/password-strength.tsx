@@ -20,6 +20,15 @@ export const scorePassword = (password: string): PasswordScore => {
   return checks.filter(Boolean).length as PasswordScore
 }
 
+// Weak → strong: red, yellow, green, blue.
+const SCORE_COLOR: Record<PasswordScore, string> = {
+  0: '',
+  1: 'bg-danger-500',
+  2: 'bg-warning-500',
+  3: 'bg-success-500',
+  4: 'bg-primary-500',
+}
+
 /** 4-bar meter + "Key strength" label + length hint (WB1 sign-up step 1). */
 export default function PasswordStrength({ password }: { password: string }) {
   const { t } = useSiteI18n()
@@ -37,13 +46,18 @@ export default function PasswordStrength({ password }: { password: string }) {
         role="meter"
       >
         {[1, 2, 3, 4].map((bar) => (
-          <span
-            key={bar}
-            className={`h-1.5 rounded-full ${bar <= score ? 'bg-primary_color' : 'bg-[#e6ebf2]'}`}
-          />
+          <span key={bar} className="h-1.5 overflow-hidden rounded-full bg-neutral-100">
+            {/* Fill grows/shrinks bar by bar (staggered), colored by the current score. */}
+            <span
+              className={`block h-full rounded-full transition-[width,background-color] duration-300 ease-out motion-reduce:transition-none ${
+                bar <= score ? `w-full ${SCORE_COLOR[score]}` : 'w-0'
+              }`}
+              style={{ transitionDelay: `${(bar - 1) * 75}ms` }}
+            />
+          </span>
         ))}
       </div>
-      <div className="mt-2 flex justify-between text-sm text-gray-500">
+      <div className="mt-2 flex justify-between max-md:flex-col text-xs md:text-sm text-neutral-400">
         <span>{t('passwordStrength', { level })}</span>
         <span>{t('passwordHint')}</span>
       </div>

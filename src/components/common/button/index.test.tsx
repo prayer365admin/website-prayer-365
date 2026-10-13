@@ -21,6 +21,18 @@ describe('SiteButton', () => {
     expect(screen.getByRole('button').className).toContain(height)
   })
 
+  it('desktopSize switches size from the md breakpoint up', () => {
+    render(
+      <SiteButton desktopSize="lg" size="md">
+        Go
+      </SiteButton>,
+    )
+    const cls = screen.getByRole('button').className
+
+    expect(cls).toContain('h-12')
+    expect(cls).toContain('md:h-14')
+  })
+
   it('places the icon at the end when asked', () => {
     render(
       <SiteButton icon={<span data-testid="icon" />} iconPlacement="end">
