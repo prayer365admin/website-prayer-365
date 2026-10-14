@@ -38,6 +38,52 @@ describe('useSiteChurches', () => {
     })
   })
 
+  it('forwards directory filter parameters to the API request', async () => {
+    sessionMock.mockReturnValue({
+      data: { user: { user_id: 'u1' } },
+      status: 'authenticated',
+    })
+    axiosMock.get.mockResolvedValueOnce({ data: resolveGet([summary], 1) })
+
+    const { result } = renderHook(
+      () =>
+        useSiteChurches({
+          search: 'grace',
+          radius_km: 10,
+          latitude: 59.437,
+          longitude: 24.754,
+          denomination: 'Lutheran',
+          language: 'et',
+          sunday_live_stream: true,
+          open_now: true,
+          taize_chants: true,
+          youth_ministry: true,
+          page: 1,
+          limit: 24,
+        }),
+      { wrapper: Providers },
+    )
+
+    await waitFor(() => expect(result.current.loading).toBe(false))
+
+    expect(axiosMock.get).toHaveBeenCalledWith('/api/v1/site/churches', {
+      params: {
+        search: 'grace',
+        radius_km: 10,
+        latitude: 59.437,
+        longitude: 24.754,
+        denomination: 'Lutheran',
+        language: 'et',
+        sunday_live_stream: true,
+        open_now: true,
+        taize_chants: true,
+        youth_ministry: true,
+        page: 1,
+        limit: 24,
+      },
+    })
+  })
+
   it('does not fetch churches when user session is absent', async () => {
     sessionMock.mockReturnValue({
       data: null,

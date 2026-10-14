@@ -95,12 +95,29 @@ export const MobilePublicChurchSchema = z.object({
 
 export type MobilePublicChurch = z.infer<typeof MobilePublicChurchSchema>
 
+const booleanish = z.preprocess(
+  (v) =>
+    v === true || v === 'true' || v === '1'
+      ? true
+      : v === false || v === 'false' || v === '0'
+        ? false
+        : undefined,
+  z.boolean().optional(),
+)
+
 export const MobileChurchListQuerySchema = z.object({
   page: z.coerce.number().int().positive().default(1),
   limit: z.coerce.number().int().positive().max(100).default(25),
   search: z.string().trim().max(200).optional(),
   latitude: z.coerce.number().min(-90).max(90).optional(),
   longitude: z.coerce.number().min(-180).max(180).optional(),
+  radius_km: z.coerce.number().positive().max(2000).optional(),
+  denomination: z.string().trim().max(100).optional(),
+  language: z.string().trim().min(2).max(10).optional(),
+  sunday_live_stream: booleanish.optional(),
+  open_now: booleanish.optional(),
+  taize_chants: booleanish.optional(),
+  youth_ministry: booleanish.optional(),
 })
 
 export type MobileChurchListQuery = z.infer<typeof MobileChurchListQuerySchema>

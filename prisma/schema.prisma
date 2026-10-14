@@ -283,6 +283,9 @@ model Church {
   website          String?
   social_links     Json
   accessibility    String?
+  sunday_live_stream Boolean?
+  taize_chants       Boolean?
+  youth_ministry     Boolean?
   approved_by      String?
   approved_by_user User?        @relation("ChurchApprovedBy", fields: [approved_by], references: [id])
   approved_at      DateTime?

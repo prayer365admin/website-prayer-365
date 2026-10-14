@@ -90,4 +90,35 @@ describe('GET /api/v1/site/churches', () => {
 
     expect(res.status).toBe(404)
   })
+
+  it('passes all directory filter query parameters to listPublicChurches and correctly parses booleans', async () => {
+    m.listPublicChurches.mockResolvedValue({ result: [], total: 0 })
+
+    const res = await GET(
+      new NextRequest(
+        'http://localhost/api/v1/site/churches?denomination=Lutheran&language=et&radius_km=10&sunday_live_stream=true&latitude=59.4&longitude=24.7',
+      ),
+    )
+
+    expect(res.status).toBe(200)
+    expect(m.listPublicChurches).toHaveBeenCalledWith({
+      query: expect.objectContaining({
+        denomination: 'Lutheran',
+        language: 'et',
+        radius_km: 10,
+        sunday_live_stream: true,
+        latitude: 59.4,
+        longitude: 24.7,
+      }),
+    })
+
+    // Also assert ?sunday_live_stream=false does NOT appear as true
+    m.listPublicChurches.mockClear()
+    await GET(new NextRequest('http://localhost/api/v1/site/churches?sunday_live_stream=false'))
+    expect(m.listPublicChurches).toHaveBeenCalledWith({
+      query: expect.objectContaining({
+        sunday_live_stream: false,
+      }),
+    })
+  })
 })

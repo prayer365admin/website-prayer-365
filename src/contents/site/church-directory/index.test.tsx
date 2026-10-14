@@ -48,9 +48,8 @@ describe('ContentsSiteChurchDirectory', () => {
     })
 
     renderDirectory()
-
-    expect(await screen.findAllByText('Grace')).toBeTruthy()
-    expect(screen.getByText('Primary Parish')).toBeTruthy()
+    expect(await screen.findByText('Primary Lutheran')).toBeTruthy()
+    expect(screen.getAllByText('Grace').length).toBeGreaterThanOrEqual(1)
     expect(screen.getAllByText('Tallinn').length).toBeGreaterThanOrEqual(1)
 
     const viewDetailsLinks = screen.getAllByRole('link', { name: 'View details' })
@@ -120,6 +119,40 @@ describe('ContentsSiteChurchDirectory', () => {
     })
   })
 
+  it('auto-searches with 500ms debounce when user types without pressing Enter and shows loading skeleton', async () => {
+    const user = userEvent.setup()
+    axiosMock.get.mockResolvedValueOnce({
+      data: resolveGet([summaryA], 1),
+    })
+
+    const { container } = renderDirectory()
+    await screen.findAllByText('Grace')
+
+    axiosMock.get.mockResolvedValueOnce({
+      data: resolveGet([summaryB], 1),
+    })
+
+    const searchInput = screen.getByPlaceholderText('Search churches by name or city')
+    await user.type(searchInput, 'hope')
+
+    // While debouncing, loading skeletons should be displayed
+    expect(container.querySelectorAll('.animate-pulse').length).toBeGreaterThan(0)
+
+    // After 500ms debounce, API request triggers
+    await waitFor(
+      () => {
+        expect(axiosMock.get).toHaveBeenCalledWith('/api/v1/site/churches', {
+          params: expect.objectContaining({ search: 'hope', page: 1 }),
+        })
+      },
+      { timeout: 2000 },
+    )
+
+    // Once data arrives, result is shown
+    const hopeElements = await screen.findAllByText('Hope')
+    expect(hopeElements.length).toBeGreaterThan(0)
+  })
+
   it('paginates when total exceeds pageSize', async () => {
     const user = userEvent.setup()
     const rows24 = Array.from({ length: 24 }, (_, i) => ({
@@ -161,5 +194,99 @@ describe('ContentsSiteChurchDirectory', () => {
 
     const pinButtons = container.querySelectorAll('button[aria-label^="Select"]')
     expect(pinButtons.length).toBe(2)
+  })
+
+  it('toggles quick-filter chips and triggers API fetch with filter flags', async () => {
+    const user = userEvent.setup()
+    axiosMock.get.mockResolvedValueOnce({
+      data: resolveGet([summaryA], 1),
+    })
+
+    renderDirectory()
+    await screen.findAllByText('Grace')
+
+    // Click "Sunday Live Stream" chip
+    axiosMock.get.mockResolvedValueOnce({
+      data: resolveGet([summaryA], 1),
+    })
+    const sundayChip = screen.getByRole('button', { name: /Sunday Live Stream/i })
+    await user.click(sundayChip)
+
+    await waitFor(() => {
+      expect(axiosMock.get).toHaveBeenCalledWith('/api/v1/site/churches', {
+        params: expect.objectContaining({ sunday_live_stream: true, page: 1 }),
+      })
+    })
+
+    // Click it again to toggle off
+    axiosMock.get.mockResolvedValueOnce({
+      data: resolveGet([summaryA], 1),
+    })
+    await user.click(sundayChip)
+
+    await waitFor(() => {
+      expect(axiosMock.get).toHaveBeenLastCalledWith('/api/v1/site/churches', {
+        params: expect.not.objectContaining({ sunday_live_stream: true }),
+      })
+    })
+  })
+
+  it('selects denomination filter from dropdown and triggers API fetch', async () => {
+    const user = userEvent.setup()
+    axiosMock.get.mockResolvedValueOnce({
+      data: resolveGet([summaryA], 1),
+    })
+
+    renderDirectory()
+    await screen.findAllByText('Grace')
+
+    // Open denomination dropdown
+    const denomCombo = screen.getByRole('combobox', { name: 'All Denominations' })
+    await user.click(denomCombo)
+
+    // Click "Lutheran" option
+    axiosMock.get.mockResolvedValueOnce({
+      data: resolveGet([summaryA], 1),
+    })
+    const lutheranOption = await screen.findByTitle('Lutheran')
+    await user.click(lutheranOption)
+
+    await waitFor(() => {
+      expect(axiosMock.get).toHaveBeenCalledWith('/api/v1/site/churches', {
+        params: expect.objectContaining({ denomination: 'Lutheran', page: 1 }),
+      })
+    })
+  })
+
+  it('selects radius filter from dropdown and triggers API fetch with coordinates', async () => {
+    const user = userEvent.setup()
+    axiosMock.get.mockResolvedValueOnce({
+      data: resolveGet([summaryA], 1),
+    })
+
+    renderDirectory()
+    await screen.findAllByText('Grace')
+
+    // Open distance dropdown
+    const radiusCombo = screen.getByRole('combobox', { name: 'Within 10 km' })
+    await user.click(radiusCombo)
+
+    // Click "Within 25 km" option
+    axiosMock.get.mockResolvedValueOnce({
+      data: resolveGet([summaryA], 1),
+    })
+    const radius25Option = await screen.findByTitle('Within 25 km')
+    await user.click(radius25Option)
+
+    await waitFor(() => {
+      expect(axiosMock.get).toHaveBeenCalledWith('/api/v1/site/churches', {
+        params: expect.objectContaining({
+          radius_km: 25,
+          latitude: 59.437,
+          longitude: 24.754,
+          page: 1,
+        }),
+      })
+    })
   })
 })

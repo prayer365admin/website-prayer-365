@@ -27,6 +27,9 @@ export const ChurchCreateSchema = z
     contacts: z.record(z.string(), z.unknown()).optional(),
     latitude: z.number().min(-90).max(90).nullable().optional(),
     longitude: z.number().min(-180).max(180).nullable().optional(),
+    sunday_live_stream: z.boolean().nullable().optional(),
+    taize_chants: z.boolean().nullable().optional(),
+    youth_ministry: z.boolean().nullable().optional(),
   })
   .and(coords)
 export type ChurchCreate = z.infer<typeof ChurchCreateSchema>
@@ -40,6 +43,9 @@ export const ChurchUpdateSchema = z
     denomination: z.string().nullable().optional(),
     latitude: z.number().min(-90).max(90).nullable().optional(),
     longitude: z.number().min(-180).max(180).nullable().optional(),
+    sunday_live_stream: z.boolean().nullable().optional(),
+    taize_chants: z.boolean().nullable().optional(),
+    youth_ministry: z.boolean().nullable().optional(),
   })
   .and(coords)
 export type ChurchUpdate = z.infer<typeof ChurchUpdateSchema>

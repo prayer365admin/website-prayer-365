@@ -10,7 +10,13 @@ const SECOND_CHURCH_NODE_NAME = 'Tartu Demo Church Node'
 // Placeholder church + its languages + service times.
 export const seedChurches = async () => {
   const existing = await db.church.findFirst({ where: { name: DEMO_CHURCH_NAME } })
-  if (existing) return
+  if (existing) {
+    await db.church.update({
+      where: { id: existing.id },
+      data: { sunday_live_stream: true },
+    })
+    return
+  }
 
   const node = await db.orgNode.findFirst({ where: { name: DEMO_CHURCH_NODE_NAME } })
   const admin = await getAdminUser()
@@ -28,6 +34,7 @@ export const seedChurches = async () => {
       social_links: [],
       approved_by: admin.id,
       approved_at: new Date(),
+      sunday_live_stream: true,
     },
   })
 
@@ -47,7 +54,13 @@ export const seedChurches = async () => {
 /** Second church (sibling CHURCH node) so global/diocese accounts get a selector. */
 export const seedSecondChurch = async () => {
   const existing = await db.church.findFirst({ where: { name: SECOND_CHURCH_NAME } })
-  if (existing) return
+  if (existing) {
+    await db.church.update({
+      where: { id: existing.id },
+      data: { taize_chants: true, youth_ministry: true },
+    })
+    return
+  }
 
   const deanery = await db.orgNode.findFirst({
     where: { kind: 'DEANERY', name: 'Estonia Deanery' },
@@ -74,6 +87,8 @@ export const seedSecondChurch = async () => {
       social_links: [],
       approved_by: admin.id,
       approved_at: new Date(),
+      taize_chants: true,
+      youth_ministry: true,
     },
   })
 

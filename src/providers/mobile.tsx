@@ -128,6 +128,87 @@ export function haversineKm(lat1: number, lng1: number, lat2: number, lng2: numb
     Math.sin(dLat / 2) ** 2 + Math.cos(rad(lat1)) * Math.cos(rad(lat2)) * Math.sin(dLng / 2) ** 2
   return Math.round(R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a)) * 10) / 10
 }
+const WEEKDAY_MAP: Record<string, number> = {
+  Mon: 1,
+  Tue: 2,
+  Wed: 3,
+  Thu: 4,
+  Fri: 5,
+  Sat: 6,
+  Sun: 7,
+}
+
+export function isOpenNow(
+  timezone: string,
+  serviceTimes: Array<{ weekday: number; local_time: Date }>,
+  now: Date,
+): boolean {
+  if (!serviceTimes || serviceTimes.length === 0) return false
+
+  let parts: Intl.DateTimeFormatPart[]
+  try {
+    const fmt = new Intl.DateTimeFormat('en-CA', {
+      timeZone: timezone,
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false,
+      weekday: 'short',
+    })
+    parts = fmt.formatToParts(now)
+  } catch {
+    const fmt = new Intl.DateTimeFormat('en-CA', {
+      timeZone: 'UTC',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false,
+      weekday: 'short',
+    })
+    parts = fmt.formatToParts(now)
+  }
+
+  const weekdayStr = parts.find((p) => p.type === 'weekday')?.value?.replace('.', '')
+  const currentWeekday = weekdayStr ? WEEKDAY_MAP[weekdayStr] : undefined
+  if (!currentWeekday) return false
+
+  const rawHour = Number(parts.find((p) => p.type === 'hour')?.value ?? 0)
+  const hour = rawHour === 24 ? 0 : rawHour
+  const minute = Number(parts.find((p) => p.type === 'minute')?.value ?? 0)
+  const nowMinutes = hour * 60 + minute
+
+  for (const st of serviceTimes) {
+    if (st.weekday !== currentWeekday) continue
+    const dObj = st.local_time instanceof Date ? st.local_time : new Date(st.local_time)
+    if (isNaN(dObj.getTime())) continue
+    const timeStr = dObj.toISOString().slice(11, 16)
+    const [stH, stM] = timeStr.split(':').map(Number)
+    if (isNaN(stH) || isNaN(stM)) continue
+    const stMinutes = (stH === 24 ? 0 : stH) * 60 + stM
+    const diff = Math.abs(nowMinutes - stMinutes)
+    const circularDiff = Math.min(diff, 1440 - diff)
+    if (circularDiff <= 120) return true
+  }
+
+  return false
+}
+
+const churchListWhere = (query: MobileChurchListQuery): Prisma.ChurchWhereInput => ({
+  status: APPROVED,
+  ...(query.search
+    ? {
+        OR: [
+          { name: { contains: query.search, mode: 'insensitive' } },
+          { address: { path: ['city'], string_contains: query.search } },
+        ],
+      }
+    : {}),
+  ...(query.denomination
+    ? { denomination: { equals: query.denomination, mode: 'insensitive' } }
+    : {}),
+  ...(query.language ? { churchLanguages: { some: { language_code: query.language } } } : {}),
+  ...(query.sunday_live_stream === true ? { sunday_live_stream: true } : {}),
+  ...(query.taize_chants === true ? { taize_chants: true } : {}),
+  ...(query.youth_ministry === true ? { youth_ministry: true } : {}),
+})
 
 const mapPublicChurch = (
   c: {
@@ -208,51 +289,108 @@ export const LIST_PUBLIC_CHURCHES = async ({
 }: {
   query: MobileChurchListQuery
 }): Promise<{ result: MobileChurchSummary[]; total: number }> => {
-  const where: Prisma.ChurchWhereInput = {
-    status: APPROVED,
-    ...(query.search
-      ? {
-          OR: [
-            { name: { contains: query.search, mode: 'insensitive' } },
-            { address: { path: ['city'], string_contains: query.search } },
-          ],
-        }
-      : {}),
+  const where = churchListWhere(query)
+  const inMemory =
+    query.radius_km !== undefined ||
+    query.open_now === true ||
+    (query.latitude !== undefined && query.longitude !== undefined)
+
+  if (!inMemory) {
+    const [total, rows] = await db.$transaction([
+      db.church.count({ where }),
+      db.church.findMany({
+        where,
+        take: query.limit,
+        skip: (query.page - 1) * query.limit,
+        orderBy: [{ name: 'asc' }, { id: 'asc' }],
+        select: {
+          id: true,
+          name: true,
+          denomination: true,
+          address: true,
+          cover_asset_id: true,
+          latitude: true,
+          longitude: true,
+          description: true,
+          accessibility: true,
+          pastors: {
+            include: { pastor: { select: { name: true } } },
+            take: 1,
+          },
+          serviceTimes: {
+            select: { weekday: true, local_time: true, label: true },
+            take: 2,
+          },
+        },
+      }),
+    ])
+    return {
+      result: await Promise.all(
+        rows.map((r) => withCover(toSummary(r, query.latitude, query.longitude))),
+      ),
+      total,
+    }
   }
-  const [total, rows] = await db.$transaction([
-    db.church.count({ where }),
-    db.church.findMany({
-      where,
-      take: query.limit,
-      skip: (query.page - 1) * query.limit,
-      orderBy: [{ name: 'asc' }, { id: 'asc' }],
-      select: {
-        id: true,
-        name: true,
-        denomination: true,
-        address: true,
-        cover_asset_id: true,
-        latitude: true,
-        longitude: true,
-        description: true,
-        accessibility: true,
-        pastors: {
-          include: { pastor: { select: { name: true } } },
-          take: 1,
-        },
-        serviceTimes: {
-          select: { weekday: true, local_time: true, label: true },
-          take: 2,
-        },
+
+  const rows = await db.church.findMany({
+    where,
+    orderBy: [{ name: 'asc' }, { id: 'asc' }],
+    select: {
+      id: true,
+      name: true,
+      denomination: true,
+      address: true,
+      cover_asset_id: true,
+      latitude: true,
+      longitude: true,
+      description: true,
+      accessibility: true,
+      timezone: true,
+      pastors: {
+        include: { pastor: { select: { name: true } } },
+        take: 1,
       },
-    }),
-  ])
-  return {
-    result: await Promise.all(
-      rows.map((r) => withCover(toSummary(r, query.latitude, query.longitude))),
+      serviceTimes: {
+        select: { weekday: true, local_time: true, label: true },
+      },
+    },
+  })
+
+  let pairs = rows.map((r) => ({
+    row: r,
+    summary: toSummary(
+      { ...r, serviceTimes: r.serviceTimes?.slice(0, 2) },
+      query.latitude,
+      query.longitude,
     ),
-    total,
+  }))
+
+  if (query.radius_km !== undefined) {
+    pairs = pairs.filter(
+      (p) => p.summary.distanceKm !== null && p.summary.distanceKm <= query.radius_km!,
+    )
   }
+
+  if (query.open_now === true) {
+    const now = new Date()
+    pairs = pairs.filter((p) =>
+      isOpenNow((p.row as { timezone?: string }).timezone ?? 'UTC', p.row.serviceTimes ?? [], now),
+    )
+  }
+
+  if (query.latitude !== undefined && query.longitude !== undefined) {
+    pairs.sort((a, b) => {
+      const distA = a.summary.distanceKm ?? Number.POSITIVE_INFINITY
+      const distB = b.summary.distanceKm ?? Number.POSITIVE_INFINITY
+      return distA - distB
+    })
+  }
+
+  const total = pairs.length
+  const paged = pairs.slice((query.page - 1) * query.limit, query.page * query.limit)
+  const result = await Promise.all(paged.map((p) => withCover(p.summary)))
+
+  return { result, total }
 }
 
 export const GET_PUBLIC_CHURCH = async ({
