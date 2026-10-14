@@ -326,15 +326,15 @@ export const UPDATE_ME_PROFILE = async ({
     }
     if (mainChurchId === undefined) return
     if (mainChurchId) {
-      await tx.user.updateMany({
-        where: { id: userId, church_setup_completed_at: null },
-        data: { church_setup_completed_at: new Date() },
-      })
       const church = await tx.church.findFirst({
         where: activeChurchWhere(mainChurchId),
         select: { id: true },
       })
       if (!church) throw notFoundChurch()
+      await tx.user.updateMany({
+        where: { id: userId, church_setup_completed_at: null },
+        data: { church_setup_completed_at: new Date() },
+      })
       await tx.userChurch.updateMany({ where: { user_id: userId }, data: { is_main: false } })
       await tx.userChurch.upsert({
         where: { user_id_church_id: { user_id: userId, church_id: mainChurchId } },
