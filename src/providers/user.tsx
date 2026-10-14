@@ -5,13 +5,17 @@ import { RoleType } from '@prisma/client'
 import { db } from '@/utils/db-connection'
 import keywordSearch from '@/utils/keyword-search'
 import { Prisma } from '@prisma/client'
+import { CUSTOMER_ROLE } from '@/utils/customer-role'
 
 const data = 'user'
 
 // Never return the password hash from any read/write that surfaces a DTO.
 const SAFE = { password: true }
 
-/** Staff list (identity: role_id set). Optional `role` filter narrows by role id. */
+/**
+ * Staff list: users with a staff role (not the `prayer_user` customer role, R-02).
+ * Optional `role` filter narrows by role id.
+ */
 export const GET_USERS = async ({
   limit,
   page,
@@ -23,7 +27,7 @@ export const GET_USERS = async ({
   const offset = page && limit && (page - 1) * limit
 
   const filter: Prisma.UserWhereInput = {
-    role_id: { not: null },
+    role: { is: { name: { not: CUSTOMER_ROLE } } },
     ...(role ? { role_id: role } : {}),
     ...(search && {
       OR: [
@@ -50,7 +54,7 @@ export const GET_USERS = async ({
   return { result, total }
 }
 
-/** Customer list (end-users = identity role_id null). */
+/** Customer list: no role (legacy) or the `prayer_user` customer role (R-01/R-02). */
 export const GET_CUSTOMERS = async ({
   limit,
   page,
@@ -61,13 +65,19 @@ export const GET_CUSTOMERS = async ({
   const offset = page && limit && (page - 1) * limit
 
   const filter: Prisma.UserWhereInput = {
-    role_id: null,
-    ...(search && {
-      OR: [
-        ...keywordSearch({ keyword: search, name: 'name' }),
-        ...keywordSearch({ keyword: search, name: 'email' }),
-      ],
-    }),
+    AND: [
+      { OR: [{ role_id: null }, { role: { is: { name: CUSTOMER_ROLE } } }] },
+      ...(search
+        ? [
+            {
+              OR: [
+                ...keywordSearch({ keyword: search, name: 'name' }),
+                ...keywordSearch({ keyword: search, name: 'email' }),
+              ],
+            },
+          ]
+        : []),
+    ],
   }
 
   const [total, result] = await db.$transaction([
@@ -128,7 +138,7 @@ export const CREATE_CUSTOMER = async (payload: {
   email: string
   name: string
   password: string
-  locale: string
+  locale: string | null
   main_church_id?: string | null
   role_name: string
 }) =>

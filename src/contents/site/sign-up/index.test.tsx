@@ -7,7 +7,6 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import ContentsSiteSignUp from '.'
 
 const en = SITE_MESSAGES.en
-const CHURCH = { id: 'c1', name: 'Tallinna Jaani', city: 'Tallinn' }
 
 const renderPage = () =>
   renderWithProviders(
@@ -16,20 +15,13 @@ const renderPage = () =>
     </SiteI18nProvider>,
   )
 
-const next = () => userEvent.click(screen.getByRole('button', { name: new RegExp(en.signUpNext) }))
+const submit = () =>
+  userEvent.click(screen.getByRole('button', { name: new RegExp(en.signUpSubmit) }))
 
-const fillStep1 = async () => {
+const fill = async (password = 'Password1!') => {
   await userEvent.type(screen.getByLabelText(en.signUpNameLabel), ' Maria Lindqvist ')
   await userEvent.type(screen.getByLabelText(en.signUpEmailLabel), 'maria@example.com')
-  await userEvent.type(screen.getByLabelText(en.signUpPasswordLabel), 'Password1!')
-}
-
-const toStep3 = async () => {
-  await fillStep1()
-  await next()
-  await userEvent.click(await screen.findByRole('button', { name: CHURCH.name }))
-  await next()
-  await screen.findByText(en.signUpStep3Title)
+  await userEvent.type(screen.getByLabelText(en.signUpPasswordLabel), password)
 }
 
 const axiosError = (error_code: string) =>
@@ -38,89 +30,47 @@ const axiosError = (error_code: string) =>
     response: { data: { error_code } },
   })
 
-describe('Customer sign-up wizard (W02)', () => {
+const created = { data: { result: { id: 'u1', email: 'maria@example.com', name: 'Maria' } } }
+
+describe('Customer sign-up (W02)', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    axiosMock.get.mockReset()
     axiosMock.post.mockReset()
-    axiosMock.get.mockImplementation(async () => ({ data: { result: [CHURCH] } }))
   })
 
-  it('starts on step 1 of 3 with the aside and footer', () => {
+  it('shows the identity form with the aside and footer', () => {
     renderPage()
 
     expect(screen.getByRole('heading', { level: 1, name: en.signUpTitle })).toBeTruthy()
-    expect(screen.getByText('Form 1 of 3')).toBeTruthy()
     expect(screen.getByText(en.journeyTitle)).toBeTruthy()
     expect(screen.getByRole('link', { name: en.signUpSignIn }).getAttribute('href')).toBe('/login')
+    // Language and parish are onboarding steps (R-06), not part of sign-up.
+    expect(screen.queryByText(en.signUpStep2Title)).toBeNull()
+    expect(screen.queryByText(en.signUpLanguageLabel)).toBeNull()
   })
 
-  it('Next validates only step 1 and blocks on empty fields', async () => {
+  it('blocks on empty fields', async () => {
     renderPage()
-    await next()
+    await submit()
 
     expect(await screen.findByText(en.signUpErrorName)).toBeTruthy()
-    expect(screen.getByText('Form 1 of 3')).toBeTruthy()
+    expect(axiosMock.post).not.toHaveBeenCalled()
   })
 
   it('rejects a password shorter than 8 characters', async () => {
     renderPage()
-    await userEvent.type(screen.getByLabelText(en.signUpNameLabel), 'Maria')
-    await userEvent.type(screen.getByLabelText(en.signUpEmailLabel), 'maria@example.com')
-    await userEvent.type(screen.getByLabelText(en.signUpPasswordLabel), 'short')
-    await next()
+    await fill('short')
+    await submit()
 
     expect(await screen.findByText(en.signUpErrorPassword)).toBeTruthy()
+    expect(axiosMock.post).not.toHaveBeenCalled()
   })
 
-  it('keeps step 1 values after going back from step 2', async () => {
+  it('sends name, email and password only, then shows "check your email"', async () => {
+    axiosMock.post.mockResolvedValue(created)
     renderPage()
-    await fillStep1()
-    await next()
-    expect(await screen.findByText('Form 2 of 3')).toBeTruthy()
-
-    await userEvent.click(screen.getByRole('button', { name: new RegExp(en.signUpBack) }))
-
-    expect((screen.getByLabelText(en.signUpEmailLabel) as HTMLInputElement).value).toBe(
-      'maria@example.com',
-    )
-  })
-
-  it('parish is optional: Next works without one, and a frequent chip selects one', async () => {
-    renderPage()
-    await fillStep1()
-    await next()
-    await next()
-    expect(await screen.findByText('Form 3 of 3')).toBeTruthy()
-
-    await userEvent.click(screen.getByRole('button', { name: new RegExp(en.signUpBack) }))
-    const chip = await screen.findByRole('button', { name: CHURCH.name })
-    await userEvent.click(chip)
-    expect(chip.getAttribute('aria-pressed')).toBe('true')
-  })
-
-  it('signs up without a parish (no main_church_id sent)', async () => {
-    axiosMock.post.mockResolvedValue({
-      data: { result: { id: 'u1', email: 'maria@example.com', name: 'Maria Lindqvist' } },
-    })
-    renderPage()
-    await fillStep1()
-    await next()
-    await next()
-    await screen.findByText(en.signUpStep3Title)
-    await userEvent.click(screen.getByRole('button', { name: new RegExp(en.signUpSubmit) }))
-
-    expect(await screen.findByText(en.signUpSuccessTitle)).toBeTruthy()
-    expect(axiosMock.post.mock.calls[0][1]).not.toHaveProperty('main_church_id', expect.anything())
-  })
-
-  it('creates the account once with all steps and shows "check your email"', async () => {
-    axiosMock.post.mockResolvedValue({
-      data: { result: { id: 'u1', email: 'maria@example.com', name: 'Maria Lindqvist' } },
-    })
-    renderPage()
-    await toStep3()
-    await userEvent.click(screen.getByRole('button', { name: new RegExp(en.signUpSubmit) }))
+    await fill()
+    await submit()
 
     expect(await screen.findByText(en.signUpSuccessTitle)).toBeTruthy()
     expect(axiosMock.post).toHaveBeenCalledTimes(1)
@@ -129,62 +79,42 @@ describe('Customer sign-up wizard (W02)', () => {
       email: 'maria@example.com',
       password: 'Password1!',
       confirm_password: 'Password1!',
-      locale: 'en',
-      main_church_id: 'c1',
     })
-    expect(screen.getByText(/maria@example\.com/)).toBeTruthy()
 
     await userEvent.click(screen.getByRole('button', { name: en.signUpSuccessAction }))
     expect(pushMock).toHaveBeenCalledWith('/login')
   })
 
-  it('locks the form (fields, checkboxes, Back) while the account is being created', async () => {
+  it('locks the fields while the account is being created', async () => {
     let resolve!: (v: unknown) => void
     axiosMock.post.mockReturnValue(new Promise((r) => (resolve = r)))
     renderPage()
-    await toStep3()
-    await userEvent.click(screen.getByRole('button', { name: new RegExp(en.signUpSubmit) }))
+    await fill()
+    await submit()
 
     await waitFor(() =>
-      expect(screen.getByRole('button', { name: new RegExp(en.signUpBack) })).toHaveProperty(
-        'disabled',
-        true,
-      ),
+      expect(screen.getByLabelText(en.signUpEmailLabel)).toHaveProperty('disabled', true),
     )
-    expect(screen.getAllByRole('checkbox').every((c) => (c as HTMLInputElement).disabled)).toBe(
-      true,
-    )
-    expect(screen.getByRole('combobox')).toHaveProperty('disabled', true)
+    expect(screen.getByLabelText(en.signUpNameLabel)).toHaveProperty('disabled', true)
 
-    resolve({ data: { result: { id: 'u1', email: 'maria@example.com', name: 'Maria' } } })
+    resolve(created)
     expect(await screen.findByText(en.signUpSuccessTitle)).toBeTruthy()
   })
 
-  it('a taken email sends the user back to step 1 with the error on the email field', async () => {
+  it('a taken email shows the error on the email field', async () => {
     axiosMock.post.mockRejectedValueOnce(axiosError('USER_EXISTS'))
     renderPage()
-    await toStep3()
-    await userEvent.click(screen.getByRole('button', { name: new RegExp(en.signUpSubmit) }))
+    await fill()
+    await submit()
 
     expect(await screen.findByText(en.signUpErrorExists)).toBeTruthy()
-    expect(screen.getByText('Form 1 of 3')).toBeTruthy()
-  })
-
-  it('an error on a step-3 field shows on step 3', async () => {
-    axiosMock.post.mockRejectedValueOnce(axiosError('INVALID_LOCALE'))
-    renderPage()
-    await toStep3()
-    await userEvent.click(screen.getByRole('button', { name: new RegExp(en.signUpSubmit) }))
-
-    expect(await screen.findByText(en.signUpErrorLocale)).toBeTruthy()
-    expect(screen.getByText('Form 3 of 3')).toBeTruthy()
   })
 
   it('shows a general error when signup fails without a field', async () => {
     axiosMock.post.mockRejectedValueOnce(new Error('network down'))
     renderPage()
-    await toStep3()
-    await userEvent.click(screen.getByRole('button', { name: new RegExp(en.signUpSubmit) }))
+    await fill()
+    await submit()
 
     await waitFor(() => expect(screen.getByRole('alert').textContent).toBe(en.error))
   })

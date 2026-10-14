@@ -2,11 +2,9 @@ import SiteButton from '@/components/common/button'
 import { ArrowRightIcon } from '@/components/icon/arrow-right'
 import { ChurchIcon } from '@/components/icon/church'
 import { MailIcon } from '@/components/icon/mail'
-import { StarsIcon } from '@/components/icon/stars'
 import { AuthCard, AuthCardSection } from '@/components/site/auth/auth-card'
 import AuthLayout from '@/components/site/auth/auth-layout'
-import Pill from '@/components/site/auth/pill'
-import ScriptureQuote from '@/components/site/auth/scripture-quote'
+import SanctuaryHeader from '@/components/site/auth/sanctuary-header'
 import SignInAside from '@/components/site/auth/sign-in-aside'
 import { SiteLocale } from '@/config/site-locale'
 import { siteT } from '@/i18n/messages'
@@ -31,19 +29,7 @@ export default function ContentsSiteSignIn({ locale }: { locale: SiteLocale }) {
       containerClassName="lg:grid-cols-[minmax(0,657fr)_minmax(0,459fr)] lg:gap-9"
       form={
         <AuthCard>
-          <AuthCardSection>
-            <div className="flex items-center justify-between gap-2">
-              <Pill icon={<StarsIcon aria-hidden />}>{t('signInPortal')}</Pill>
-              <span className="text-sm text-blue-800">{t('signInSession')}</span>
-            </div>
-            <h1 className="mt-4 font-font_heading text-2xl font-bold tracking-tight text-primary-900 md:text-[32px]">
-              {t('signInTitle')}
-            </h1>
-            <p className="mt-2 text-neutral-600">{t('signInSubtitle')}</p>
-          </AuthCardSection>
-          <AuthCardSection className="md:pt-0">
-            <ScriptureQuote quote={t('signInQuote')} reference={t('signInQuoteRef')} />
-          </AuthCardSection>
+          <SanctuaryHeader subtitle={t('signInSubtitle')} t={t} title={t('signInTitle')} />
 
           <AuthCardSection className="md:pt-0">
             <SignInForm />
@@ -65,6 +51,7 @@ export default function ContentsSiteSignIn({ locale }: { locale: SiteLocale }) {
               icon={<ChurchIcon aria-hidden />}
               size="sm"
               variant="outlined"
+              disabled
             >
               {t('signInChurchId')}
             </SiteButton>
@@ -73,6 +60,7 @@ export default function ContentsSiteSignIn({ locale }: { locale: SiteLocale }) {
               icon={<MailIcon aria-hidden />}
               size="sm"
               variant="outlined"
+              disabled
             >
               {t('signInMagicLink')}
             </SiteButton>

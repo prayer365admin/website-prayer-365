@@ -20,7 +20,8 @@ export default function AuthLayout({
   decoration,
 }: {
   form: ReactNode
-  aside: ReactNode
+  /** Optional: forgot / reset password show the card alone. */
+  aside?: ReactNode
   asideFirst?: boolean
   /** Desktop grid columns and gap, e.g. `lg:grid-cols-[...] lg:gap-9`. */
   containerClassName?: string
@@ -39,7 +40,7 @@ export default function AuthLayout({
         <div className={asideFirst ? 'lg:order-2' : undefined}>
           <ConfigProvider theme={siteFormTheme}>{form}</ConfigProvider>
         </div>
-        <aside className="flex flex-col gap-6">{aside}</aside>
+        {aside && <aside className="flex flex-col gap-6">{aside}</aside>}
       </BoxContainer>
     </main>
   )

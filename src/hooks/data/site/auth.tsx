@@ -2,17 +2,14 @@ import { SiteMessageKey } from '@/i18n/messages'
 import { useMutation } from '@tanstack/react-query'
 import axios from 'axios'
 
-// Customer signup (WB1 sign-up step 3). Shared endpoint, strict: locale and
-// main church are required by registerUser.
+// Customer signup (W02). Name, email and password only: language and main
+// church and locale are chosen during onboarding (/customer/setup, R-06).
 const baseUrl = '/api/v1/auth/signup'
 
 export type SignupPayload = {
   full_name: string
   email: string
   password: string
-  locale: string
-  /** Optional: a customer may sign up without a main church. */
-  main_church_id?: string
 }
 
 export type SignupResult = { id: string; email: string; name: string }
@@ -26,8 +23,6 @@ export const SIGNUP_ERRORS: Record<
   INVALID_EMAIL: { field: 'email', message: 'signUpErrorEmail' },
   USER_EXISTS: { field: 'email', message: 'signUpErrorExists' },
   INVALID_PASSWORD: { field: 'password', message: 'signUpErrorPassword' },
-  INVALID_MAIN_CHURCH: { field: 'main_church_id', message: 'signUpErrorChurch' },
-  INVALID_LOCALE: { field: 'locale', message: 'signUpErrorLocale' },
 }
 
 /**

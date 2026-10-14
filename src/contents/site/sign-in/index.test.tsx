@@ -1,6 +1,12 @@
 import { SITE_MESSAGES } from '@/i18n/messages'
 import { SiteI18nProvider } from '@/i18n/site-i18n'
-import { pushMock, renderWithProviders, signInMock } from '@/test/frontend/render'
+import {
+  axiosMock,
+  pushMock,
+  renderWithProviders,
+  sessionMock,
+  signInMock,
+} from '@/test/frontend/render'
 import { screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
@@ -24,7 +30,12 @@ const fillAndSubmit = async (email = 'maria@example.com', password = 'Secret@123
 describe('Customer sign-in (W01)', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    localStorage.clear()
     signInMock.mockResolvedValue({ error: undefined, code: undefined })
+    sessionMock.mockReturnValue({ data: { user: { user_id: 'u1' } } })
+    axiosMock.get.mockResolvedValue({
+      data: { result: { churchStepDone: true, localeStepDone: true, completed: true } },
+    })
   })
 
   it('renders the designed sign-in screen', () => {
@@ -42,7 +53,7 @@ describe('Customer sign-in (W01)', () => {
     expect(screen.getByText(en.sealTitle)).toBeTruthy()
   })
 
-  it('signs in with the trimmed email and goes home', async () => {
+  it('signs in with the trimmed email and goes to /customer once setup is complete', async () => {
     renderPage()
     await fillAndSubmit('  maria@example.com ')
 
@@ -51,7 +62,41 @@ describe('Customer sign-in (W01)', () => {
       password: 'Secret@123',
       redirect: false,
     })
-    expect(pushMock).toHaveBeenCalledWith('/')
+    await waitFor(() => expect(pushMock).toHaveBeenCalledWith('/customer'))
+    expect(axiosMock.get).toHaveBeenCalledWith('/api/v1/site/me/setup-progress')
+    expect(JSON.parse(localStorage.getItem('prayer365.setupProgress.u1') ?? '{}')).toMatchObject({
+      completed: true,
+    })
+  })
+
+  it('goes to /customer/setup while setup is incomplete', async () => {
+    axiosMock.get.mockResolvedValue({
+      data: { result: { churchStepDone: true, localeStepDone: false, completed: false } },
+    })
+    renderPage()
+    await fillAndSubmit('maria@example.com')
+
+    await waitFor(() => expect(pushMock).toHaveBeenCalledWith('/customer/setup'))
+  })
+
+  it('goes to /customer without asking again when this browser already asked', async () => {
+    localStorage.setItem(
+      'prayer365.setupProgress.u1',
+      JSON.stringify({ churchStepDone: false, localeStepDone: false, completed: false }),
+    )
+    renderPage()
+    await fillAndSubmit('maria@example.com')
+
+    await waitFor(() => expect(pushMock).toHaveBeenCalledWith('/customer'))
+    expect(axiosMock.get).not.toHaveBeenCalled()
+  })
+
+  it('falls back to /customer when progress cannot be read', async () => {
+    axiosMock.get.mockRejectedValue(new Error('network down'))
+    renderPage()
+    await fillAndSubmit('maria@example.com')
+
+    await waitFor(() => expect(pushMock).toHaveBeenCalledWith('/customer'))
   })
 
   it('requires both fields before calling sign-in', async () => {
@@ -84,7 +129,7 @@ describe('Customer sign-in (W01)', () => {
     expect(screen.getByLabelText(en.signInPasswordLabel)).toHaveProperty('disabled', true)
 
     resolve({ error: undefined })
-    await waitFor(() => expect(pushMock).toHaveBeenCalledWith('/'))
+    await waitFor(() => expect(pushMock).toHaveBeenCalledWith('/customer'))
   })
 
   it('sends an unverified customer to the verify page', async () => {

@@ -1,12 +1,14 @@
-import ContentsVerifyAccount from '@/contents/verify-account'
-import { Fragment, Suspense } from 'react'
+import ContentsSiteVerify from '@/contents/site/verify'
+import { SiteI18nProvider } from '@/i18n/site-i18n'
+import { getSiteLocale } from '@/utils/site-locale'
 
-export default function Page() {
+// Email verification (W03, pending).
+export default async function Page() {
+  const locale = await getSiteLocale()
+
   return (
-    <Fragment>
-      <Suspense fallback={null}>
-        <ContentsVerifyAccount />
-      </Suspense>
-    </Fragment>
+    <SiteI18nProvider initialLocale={locale}>
+      <ContentsSiteVerify locale={locale} mode="pending" />
+    </SiteI18nProvider>
   )
 }

@@ -6,11 +6,14 @@ const tx = vi.hoisted(() => ({
   user: { create: vi.fn() },
   userChurch: { create: vi.fn() },
 }))
-const db = vi.hoisted(() => ({ $transaction: vi.fn() }))
+const db = vi.hoisted(() => ({
+  $transaction: vi.fn(),
+  user: { count: vi.fn(), findMany: vi.fn() },
+}))
 
 vi.mock('@/utils/db-connection', () => ({ db }))
 
-import { CREATE_CUSTOMER } from './user'
+import { CREATE_CUSTOMER, GET_CUSTOMERS, GET_USERS } from './user'
 
 const payload = {
   email: 'maria@example.com',
@@ -81,5 +84,35 @@ describe('CREATE_CUSTOMER (WB1 signup)', () => {
     expect(result.user?.id).toBe('u1')
     expect(tx.church.findFirst).not.toHaveBeenCalled()
     expect(tx.userChurch.create).not.toHaveBeenCalled()
+  })
+})
+
+describe('staff vs customer lists (R-01/R-02)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    // Array form of $transaction: resolve each query.
+    db.$transaction.mockImplementation(async (ops: unknown[]) => Promise.all(ops))
+    db.user.count.mockResolvedValue(0)
+    db.user.findMany.mockResolvedValue([])
+  })
+
+  it('staff list excludes the prayer_user customer role (and role-less users)', async () => {
+    await GET_USERS({ limit: 10, page: 1 })
+
+    expect(db.user.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { role: { is: { name: { not: 'prayer_user' } } } },
+      }),
+    )
+  })
+
+  it('customer list = no role OR prayer_user, combined with the search', async () => {
+    await GET_CUSTOMERS({ limit: 10, page: 1, search: 'maria' })
+
+    const where = db.user.findMany.mock.calls[0][0].where
+    expect(where.AND[0]).toEqual({
+      OR: [{ role_id: null }, { role: { is: { name: 'prayer_user' } } }],
+    })
+    expect(where.AND[1].OR.length).toBeGreaterThan(0)
   })
 })

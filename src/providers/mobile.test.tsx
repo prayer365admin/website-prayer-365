@@ -112,10 +112,59 @@ describe('CREATE_CHECKIN — D7 dedupe (one user/church/local-day)', () => {
 
 describe('UPDATE_ME_PROFILE — main-church is exactly one row', () => {
   const tx = {
-    user: { update: vi.fn() },
+    user: { update: vi.fn(), updateMany: vi.fn() },
     church: { findFirst: vi.fn() },
     userChurch: { updateMany: vi.fn(), upsert: vi.fn() },
   }
+
+  it('records the onboarding parish step once when a church is chosen', async () => {
+    vi.clearAllMocks()
+    db.$transaction.mockImplementation(async (fn) => fn(tx))
+    tx.church.findFirst.mockResolvedValue({ id: 'c2' })
+
+    await UPDATE_ME_PROFILE({ userId: 'u1', mainChurchId: 'c2' })
+
+    expect(tx.user.updateMany).toHaveBeenCalledWith({
+      where: { id: 'u1', church_setup_completed_at: null },
+      data: { church_setup_completed_at: expect.any(Date) },
+    })
+  })
+
+  it('a skipped parish (null) leaves the parish step unfilled', async () => {
+    vi.clearAllMocks()
+    db.$transaction.mockImplementation(async (fn) => fn(tx))
+
+    await UPDATE_ME_PROFILE({ userId: 'u1', mainChurchId: null })
+
+    expect(tx.user.updateMany).not.toHaveBeenCalledWith(
+      expect.objectContaining({ data: { church_setup_completed_at: expect.any(Date) } }),
+    )
+  })
+
+  it('records the language step once when a locale is chosen, not when skipped', async () => {
+    vi.clearAllMocks()
+    db.$transaction.mockImplementation(async (fn) => fn(tx))
+
+    await UPDATE_ME_PROFILE({ userId: 'u1', locale: 'fi' })
+    expect(tx.user.updateMany).toHaveBeenCalledWith({
+      where: { id: 'u1', locale_setup_completed_at: null },
+      data: { locale_setup_completed_at: expect.any(Date) },
+    })
+
+    vi.clearAllMocks()
+    db.$transaction.mockImplementation(async (fn) => fn(tx))
+    await UPDATE_ME_PROFILE({ userId: 'u1', locale: 'en', localeChosen: false })
+    expect(tx.user.updateMany).not.toHaveBeenCalled()
+  })
+
+  it('does not touch the parish step when the main church is not in the patch', async () => {
+    vi.clearAllMocks()
+    db.$transaction.mockImplementation(async (fn) => fn(tx))
+
+    await UPDATE_ME_PROFILE({ userId: 'u1', name: 'Maria' })
+
+    expect(tx.user.updateMany).not.toHaveBeenCalled()
+  })
 
   it('clears prior is_main flags then sets the new main church inside one transaction', async () => {
     db.$transaction.mockImplementation(async (fn) => fn(tx))

@@ -15,6 +15,7 @@ import {
 import { TransformRolesToAccessControl } from '@/utils/role-to-access-control'
 import { auditPayload } from '@/utils/audit'
 import { dbTransaction } from '@/utils/db-transaction'
+import { isCustomerRole } from '@/utils/customer-role'
 import { GeneralError } from '@/utils/general-error'
 
 /*
@@ -64,6 +65,17 @@ export const createRoleAssignment = async ({
 
   const user = await GET_USER_BY_ID({ userId: payload.userId })
   if (!user) throw notFound('USER_NOT_FOUND')
+
+  // One email = one role (R-02): an assignment never turns a customer into staff.
+  // Promote the user (set role_id in user management) first.
+  if (isCustomerRole(user.role)) {
+    throw new GeneralError({
+      code: 422,
+      error: 'VALIDATION_ERROR',
+      error_code: 'USER_IS_CUSTOMER',
+      details: 'This user is a customer. Give them a staff role in user management first.',
+    })
+  }
 
   const node = await GET_ORG_NODE_BY_ID({ orgNodeId: payload.orgNodeId })
   if (!node) throw notFound('ORG_NODE_NOT_FOUND')

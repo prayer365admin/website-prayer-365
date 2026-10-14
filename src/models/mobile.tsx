@@ -128,12 +128,15 @@ export const MobileMePatchSchema = z
 export type MobileMePatch = z.infer<typeof MobileMePatchSchema>
 
 /**
- * Website profile patch (WB1). Customers must keep a main church and a site
- * locale, so neither can be cleared (no null) and the locale is en/et/sv/fi.
+ * Website profile patch (WB1). The locale must be a site locale (en/et/sv/fi)
+ * and cannot be cleared; the main church is optional and can be cleared with
+ * null (R-07, same as mobile).
  */
 export const SiteMePatchSchema = MobileMePatchSchema.extend({
   locale: z.enum(SITE_LOCALES).optional(),
-  mainChurchId: z.string().uuid().optional(),
+  mainChurchId: z.string().uuid().nullable().optional(),
+  // Setup "Skip" saves the default locale without marking the language step filled.
+  localeSkipped: z.boolean().optional(),
 })
 
 export type SiteMePatch = z.infer<typeof SiteMePatchSchema>

@@ -11,20 +11,23 @@ export default function SiteTopBar() {
   const { data: session } = useSession()
 
   return (
-    <Layout.Header className="flex items-center justify-between !bg-white_color px-6">
+    <Layout.Header className="flex items-center justify-between gap-2 !bg-white_color !px-4 md:!px-6">
       <Link href="/" className="text-lg font-bold">
         {t('brand')}
       </Link>
-      <Space size="middle">
+      {/* Phones: tighter gaps, narrower select, shortened name, so the row fits 390px. */}
+      <Space size="small">
         <Select<SiteLocale>
           aria-label={t('language')}
-          className="min-w-[120px]"
+          className="min-w-[96px] md:min-w-[120px]"
           onChange={setLocale}
           options={SITE_LOCALES.map((code) => ({ value: code, label: SITE_LOCALE_NAMES[code] }))}
           value={locale}
         />
-        <Link href="/profile">{session?.user?.name ?? t('account')}</Link>
-        <Button onClick={() => signOut({ callbackUrl: '/login' })} type="link">
+        <Link className="block max-w-[5rem] truncate sm:max-w-none" href="/customer">
+          {session?.user?.name ?? t('account')}
+        </Link>
+        <Button className="!px-1" onClick={() => signOut({ callbackUrl: '/login' })} type="link">
           {t('signOut')}
         </Button>
       </Space>

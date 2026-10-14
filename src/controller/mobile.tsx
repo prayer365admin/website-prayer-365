@@ -114,7 +114,7 @@ export const patchMe = async ({
   data,
 }: {
   userId: string
-  data: MobileMePatch
+  data: MobileMePatch & { localeSkipped?: boolean }
 }): Promise<MobileMe> => {
   const existing = await GET_ME_PROFILE({ userId })
   if (!existing) throw notFound('User not found.')
@@ -125,6 +125,7 @@ export const patchMe = async ({
     userId,
     name: data.name,
     locale: data.locale,
+    localeChosen: !data.localeSkipped,
     mainChurchId,
     profilePicture,
   })

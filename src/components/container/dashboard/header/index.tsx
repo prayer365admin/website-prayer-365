@@ -10,7 +10,11 @@ import { useCurrentChurch, useChurches } from '@/hooks/data/church'
 import { useState } from 'react'
 const { Header } = Layout
 
-export default function MainHeader() {
+export default function MainHeader({
+  logoutCallbackUrl = '/admin/login',
+}: {
+  logoutCallbackUrl?: string
+}) {
   const router = useRouter()
   const params = useParams<{ churchId?: string }>()
   const churchId = params?.churchId
@@ -43,7 +47,7 @@ export default function MainHeader() {
       label: 'Logout',
       icon: <LogoutOutlined />,
       onClick: () => {
-        signOut({ callbackUrl: '/admin/login' })
+        signOut({ callbackUrl: logoutCallbackUrl })
       },
     },
   ]

@@ -32,6 +32,12 @@ describe('dashboard layout guard', () => {
     await expect(render()).rejects.toThrow('REDIRECT /')
   })
 
+  it('redirects a prayer_user (customer) session to / (R-01)', async () => {
+    m.auth.mockResolvedValue({ user: { user_id: 'c2', role: { id: 'r9', name: 'prayer_user' } } })
+
+    await expect(render()).rejects.toThrow('REDIRECT /')
+  })
+
   it('renders the admin shell for a staff session', async () => {
     m.auth.mockResolvedValue({
       user: { user_id: 's1', role: { id: 'r1', name: 'prayer_administrator' } },

@@ -1,3 +1,4 @@
+import { MobileMe } from '@/models/mobile'
 import { AvatarMimeType, MobileAvatarUploadOutput } from '@/models/mobile-avatar'
 import { useMutation } from '@tanstack/react-query'
 import axios from 'axios'
@@ -8,8 +9,8 @@ import { useMe } from './me'
  * save the public URL on the profile. Same three steps as the mobile app
  * (public bucket, D13), so the URL is uploadUrl + objectKey.
  */
-export const useAvatarUpload = () => {
-  const { onPatch } = useMe()
+export const useAvatarUpload = (userId?: string, initialData?: MobileMe) => {
+  const { onPatch } = useMe({ userId, initialData })
 
   const { mutateAsync: onUpload, isPending: uploading } = useMutation({
     mutationFn: async (file: File) => {

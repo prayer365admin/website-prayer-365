@@ -58,16 +58,22 @@ describe('registerUser (WB1 / WB-18)', () => {
     expect(result).toEqual({ id: 'u1', email: 'maria@example.com', name: 'Maria' })
   })
 
-  it.each([
-    ['missing', undefined],
-    ['unsupported', 'de'],
-  ])('rejects a %s locale with INVALID_LOCALE', async (_label, locale) => {
-    await expect(registerUser({ ...input, locale: locale as never })).rejects.toMatchObject({
-      code: 400,
-      error_code: 'INVALID_LOCALE',
-    })
-    expect(CREATE_CUSTOMER).not.toHaveBeenCalled()
+  it('locale is optional: a missing locale remains unfinished for onboarding (R-06)', async () => {
+    await registerUser({ ...input, locale: undefined })
+
+    expect(CREATE_CUSTOMER).toHaveBeenCalledWith(expect.objectContaining({ locale: null }))
   })
+
+  it.each([['unsupported', 'de']])(
+    'rejects a %s locale with INVALID_LOCALE',
+    async (_label, locale) => {
+      await expect(registerUser({ ...input, locale: locale as never })).rejects.toMatchObject({
+        code: 400,
+        error_code: 'INVALID_LOCALE',
+      })
+      expect(CREATE_CUSTOMER).not.toHaveBeenCalled()
+    },
+  )
 
   it('main church is optional: signs up without one', async () => {
     await registerUser({ ...input, main_church_id: undefined })

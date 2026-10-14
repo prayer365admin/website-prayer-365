@@ -9,6 +9,7 @@ const m = vi.hoisted(() => ({
   listMyChurches: vi.fn(),
   setFollow: vi.fn(),
   createMobileAvatar: vi.fn(),
+  getSetupProgress: vi.fn(),
 }))
 
 vi.mock('@/utils/required-webauth', () => ({ default: m.requiredWebAuth }))
@@ -19,11 +20,13 @@ vi.mock('@/controller/mobile', () => ({
   setFollow: m.setFollow,
 }))
 vi.mock('@/controller/mobile-avatar', () => ({ createMobileAvatar: m.createMobileAvatar }))
+vi.mock('@/controller/site', () => ({ getSetupProgress: m.getSetupProgress }))
 
 import { PATCH as patchMeRoute } from './me/route'
 import { GET as myChurches } from './me/churches/route'
 import { PUT as followRoute, DELETE as unfollowRoute } from './me/follows/[churchId]/route'
 import { POST as avatarRoute } from './me/avatar/route'
+import { GET as setupProgressRoute } from './me/setup-progress/route'
 
 const CHURCH = '0199c0de-0000-7000-8000-000000000001'
 const session = { session: { user: { user_id: 'u1' } }, user: {} }
@@ -46,6 +49,7 @@ describe('website /me routes (WB-16, cookie session)', () => {
     ['PUT follow', () => followRoute(json({}), ctx)],
     ['DELETE follow', () => unfollowRoute(json({}), ctx)],
     ['POST avatar', () => avatarRoute(json({ mimeType: 'image/png', byteSize: 10 }))],
+    ['GET setup-progress', () => setupProgressRoute()],
   ])('%s returns 401 without a website session', async (_label, call) => {
     m.requiredWebAuth.mockRejectedValue(
       new GeneralError({
@@ -57,6 +61,18 @@ describe('website /me routes (WB-16, cookie session)', () => {
     )
 
     expect((await call()).status).toBe(401)
+  })
+
+  it("GET setup-progress returns the session user's onboarding progress, uncached", async () => {
+    const progress = { churchStepDone: true, localeStepDone: false, completed: false }
+    m.getSetupProgress.mockResolvedValue(progress)
+
+    const res = await setupProgressRoute()
+
+    expect(res.status).toBe(200)
+    expect(m.getSetupProgress).toHaveBeenCalledWith({ userId: 'u1' })
+    expect((await res.json()).result).toEqual(progress)
+    expect(res.headers.get('cache-control')).toContain('no-store')
   })
 
   it('PATCH me updates the session user with a site locale and main church', async () => {
@@ -72,7 +88,6 @@ describe('website /me routes (WB-16, cookie session)', () => {
   })
 
   it.each([
-    ['clearing the main church', { mainChurchId: null }],
     ['clearing the locale', { locale: null }],
     ['a non-site locale', { locale: 'de' }],
     ['an unknown field', { role_id: 'admin' }],
@@ -81,6 +96,15 @@ describe('website /me routes (WB-16, cookie session)', () => {
 
     expect(res.status).toBe(422)
     expect(m.patchMe).not.toHaveBeenCalled()
+  })
+
+  it('PATCH me may clear the main church (R-07)', async () => {
+    m.patchMe.mockResolvedValue({ id: 'u1' })
+
+    const res = await patchMeRoute(json({ mainChurchId: null }))
+
+    expect(res.status).toBe(200)
+    expect(m.patchMe).toHaveBeenCalledWith({ userId: 'u1', data: { mainChurchId: null } })
   })
 
   it('PUT / DELETE follow toggle the follow for the session user', async () => {

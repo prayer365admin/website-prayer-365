@@ -9,16 +9,27 @@ const baseUrl = '/api/v1/site/me'
 
 const meKey = (userId?: string) => ['site', 'me', userId]
 
-const useUserId = () => useSession().data?.user?.user_id
+type MeQueryOptions = {
+  userId?: string
+  initialData?: MobileMe
+}
 
-export const useMe = () => {
-  const userId = useUserId()
+type ChurchesQueryOptions = {
+  userId?: string
+  initialData?: MobileMyChurch[]
+}
+
+export const useMe = (options: MeQueryOptions = {}) => {
+  const session = useSession()
+  const userId = options.userId ?? session.data?.user?.user_id
   const queryClient = useQueryClient()
 
   const { data, isLoading } = useQuery({
     queryKey: meKey(userId),
     queryFn: async () => (await axios.get(baseUrl)).data.result as MobileMe,
     enabled: !!userId,
+    initialData: options.initialData,
+    staleTime: options.initialData ? 1000 * 60 * 5 : undefined,
   })
 
   const { mutateAsync: onPatch, isPending: patching } = useMutation({
@@ -28,11 +39,13 @@ export const useMe = () => {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: meKey(userId) }),
   })
 
-  return { data, loading: isLoading, onPatch, patching }
+  const waitingForSession = !options.userId && session.status === 'loading'
+  return { data, loading: waitingForSession || isLoading, onPatch, patching }
 }
 
-export const useMyChurches = () => {
-  const userId = useUserId()
+export const useMyChurches = (options: ChurchesQueryOptions = {}) => {
+  const session = useSession()
+  const userId = options.userId ?? session.data?.user?.user_id
   const queryClient = useQueryClient()
   const key = [...meKey(userId), 'churches']
 
@@ -40,6 +53,8 @@ export const useMyChurches = () => {
     queryKey: key,
     queryFn: async () => (await axios.get(`${baseUrl}/churches`)).data.result as MobileMyChurch[],
     enabled: !!userId,
+    initialData: options.initialData,
+    staleTime: options.initialData ? 1000 * 60 * 5 : undefined,
   })
 
   const { mutateAsync: onFollow, isPending: following } = useMutation({
@@ -50,5 +65,6 @@ export const useMyChurches = () => {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: key }),
   })
 
-  return { data: data ?? [], loading: isLoading, onFollow, following }
+  const waitingForSession = !options.userId && session.status === 'loading'
+  return { data: data ?? [], loading: waitingForSession || isLoading, onFollow, following }
 }

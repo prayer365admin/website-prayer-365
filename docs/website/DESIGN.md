@@ -17,9 +17,10 @@ screens only.
 
 ## Shared layout
 
-Website pages share a top navigation bar and footer. The navigation bar shows
-the PRAYER brand, a language selector, and the signed-in account menu. It is a
-light shell — it does not include the admin sidebar.
+Website pages in the `(site)` route group share a top navigation bar and footer.
+The navigation bar shows the PRAYER brand, a language selector, and the signed-in
+account menu. `/customer` is intentionally outside that group and has its own
+dashboard-style header/content/footer layout without the admin sidebar.
 
 | Element   | Content                                                                |
 | --------- | ---------------------------------------------------------------------- |
@@ -30,6 +31,12 @@ light shell — it does not include the admin sidebar.
 Do not show admin menus to customers. Everything is behind sign-in; the
 website never renders content pages to unauthenticated visitors (they go to
 sign-in).
+
+Design tokens (WB1): colours live as CSS variables in `src/styles/global.scss`
+(`:root`) and are mapped in `tailwind.config.ts`; form sizes in
+`siteFormTheme` (`src/config/antdTheme.tsx`). These files are shared with the
+admin dashboard, and the admin impact (global `p` rule, `gray-100`, `blue-800`)
+is accepted (REPORT R-10).
 
 ## Screen Index
 
@@ -61,16 +68,20 @@ separate login at `/admin/login` (not shared; see SPEC §4 note).
 - Actions: Sign In, link to Register, link to Forgot password.
 - On success: go to W05 if the customer has not completed setup, else W06.
 - State: unverified email → message "verify your email first" with resend link.
-- Note: NextAuth currently requires a role to sign in; the website adds a
-  customer branch so role-less accounts can log in (SPEC W1).
+- Built (WB1): image design `design/wb1/page-sign-in.png`. "Member ID",
+  "Keep me signed in", ChurchID (EELK) and Magic Link are shown with no action
+  (email + password only, R-04). W1 resolved: Option B (SPEC §3).
 
 ### W02 — Register
 
 **Route:** `/register` (existing register content).
 
-- Fields: full name, email, password, confirm password.
+- Fields: full name, email, password (the image design has no confirm field;
+  the request sends the password as confirmation).
 - On submit: create account, send verification email.
 - Success state: "Check your email" message (does not auto sign in).
+- Built (WB1): image design `design/wb1/page-sign-up-step-1.png`. Language and
+  main church are not asked here (onboarding, W05).
 
 ### W03 — Verify Email
 
@@ -85,16 +96,24 @@ separate login at `/admin/login` (not shared; see SPEC §4 note).
 
 - Forgot: enter email → soft-success message (no account enumeration).
 - Reset: token + new password + confirm → success → sign in.
+- Built (WB1, decided 14 Oct 2026): the W01 sign-in card **without the
+  aside**, same header and quote, title "Forgot Password" / "Reset Password".
+  The result ("Check your email!", "Password changed", invalid link) replaces
+  the form. Shared by customers and staff.
 
 ### W05 — Language and Church Setup
 
-**Route:** `/setup` (first-login onboarding step, skippable to later).
+**Route:** `/customer/setup` (first-login onboarding; the optional parish step may be skipped).
 
-- Step 1: language cards (English / Eesti / Svenska / Suomi).
-- Step 2: choose a main church (search + select from approved churches).
-- Step 3: follow additional churches (optional).
-- Action: Finish → go to Home (W06).
-- Later reachable from Profile (W13) to change language and follows.
+- Built (WB1), from image designs `design/wb1/page-sign-up-step-2.png` and
+  `-step-3.png`:
+  - Step 1: parish connection — search approved churches + 4 frequent chips;
+    optional ("Optional" pill).
+  - Step 2: language (English / Eesti / Svenska / Suomi) + two notification
+    checkboxes (UI only, R-03).
+- Actions: "Skip for now" (step 1), Back (step 2), "Enter the Sanctuary"
+  finish → Home (W06). Finishing or skipping is remembered per browser.
+- Follows beyond the main church and later changes: Profile (W13).
 
 ### W06 — Home (Prayer Feed)
 
@@ -166,7 +185,7 @@ separate login at `/admin/login` (not shared; see SPEC §4 note).
 
 ### W13 — Profile
 
-**Route:** `/profile`.
+**Route:** `/customer` (renamed from `/profile`, 14 Oct 2026).
 
 - View / edit: name, language, main church, followed churches.
 - Profile picture upload (reuse avatar upload path).
@@ -203,6 +222,21 @@ flowchart LR
     H --> M[W13 Profile]
     L -.->|after setup| H
 ```
+
+## WB1 design sign-off checklist (R-14)
+
+Built without a design or differing from it. Confirm as built or supply a
+design, and record the outcome here. Escalate unclear screens to the Tech Lead.
+
+| Item                                                                            | Status  |
+| ------------------------------------------------------------------------------- | ------- |
+| W02 "Check your email" success screen (card style, no design)                   | Pending |
+| W02 is one step; the design's steps 2-3 became W05 `/customer/setup` (R-06)     | Pending |
+| W05 copy: title, subtitle, "Skip for now", "Enter the Sanctuary", "Form n of 2" | Pending |
+| W05 step 2 Back button (not in the design)                                      | Pending |
+| Phones: secondary action centered on top, primary button full width, `md` size  | Pending |
+| W03 verify, W13 profile: reuse the auth card style (W04 decided 14 Oct)         | Pending |
+| Background shapes (sign-up dot, privacy-note glow): positions matched by eye    | Pending |
 
 ## Future — not designed here
 

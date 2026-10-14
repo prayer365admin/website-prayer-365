@@ -12,9 +12,8 @@ import {
 } from '@/providers/auth-token'
 import { CREATE_CUSTOMER, GET_USER_BY_EMAIL, UPDATE_USER } from '@/providers/user'
 import { isSiteLocale, SITE_LOCALES } from '@/config/site-locale'
+import { CUSTOMER_ROLE } from '@/utils/customer-role'
 import { updateUser } from '@/controller/user'
-
-const CUSTOMER_ROLE = 'prayer_user'
 
 const invalidMainChurch = () =>
   new GeneralError({
@@ -73,7 +72,7 @@ export const registerUser = async ({
   full_name: string
   email: string
   password: string
-  locale: string
+  locale?: string | null
   main_church_id?: string | null
   baseUrl: string
 }) => {
@@ -107,8 +106,9 @@ export const registerUser = async ({
     })
   }
 
-  // Customers must pick an interface language (WB1). The main church is optional.
-  if (!isSiteLocale(locale)) {
+  // Locale and main church are onboarding choices (R-06): both optional here.
+  // A missing locale remains null until onboarding; a supplied one must be supported.
+  if (locale !== undefined && locale !== null && locale !== '' && !isSiteLocale(locale)) {
     throw new GeneralError({
       code: 400,
       error: 'BAD_REQUEST',
@@ -141,7 +141,7 @@ export const registerUser = async ({
     email: emailNormalized,
     name: name,
     password: passwordHash,
-    locale,
+    locale: isSiteLocale(locale) ? locale : null,
     main_church_id,
     role_name: CUSTOMER_ROLE,
   })

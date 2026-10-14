@@ -5,6 +5,14 @@ import { ArrowRightIcon } from '@/components/icon/arrow-right'
 import { LockIcon } from '@/components/icon/lock'
 import FormError from '@/components/site/form-error'
 import { useCredentialsSignIn } from '@/hooks/ui/credentials-sign-in'
+import {
+  CUSTOMER_HOME,
+  readSetupProgress,
+  setupTarget,
+  writeSetupProgress,
+} from '@/utils/setup-progress-storage'
+import axios from 'axios'
+import { getSession } from 'next-auth/react'
 import { useSiteI18n } from '@/i18n/site-i18n'
 import { UserOutlined } from '@ant-design/icons'
 import { Checkbox, Form, Input } from 'antd'
@@ -24,7 +32,20 @@ type SignInValues = { email: string; password: string; remember: boolean }
 export default function SignInForm() {
   const { t } = useSiteI18n()
   const [form] = Form.useForm<SignInValues>()
-  const { onSignIn, loading } = useCredentialsSignIn('/')
+  // After sign-in: /customer/setup when church or language is unfilled and
+  // this browser has not asked yet, else /customer. Recorded per browser (WB-15).
+  const { onSignIn, loading } = useCredentialsSignIn(async () => {
+    try {
+      const userId = (await getSession())?.user?.user_id
+      if (userId && readSetupProgress(userId)) return CUSTOMER_HOME
+      const { data } = await axios.get('/api/v1/site/me/setup-progress')
+      if (userId) writeSetupProgress(userId, data.result)
+      return setupTarget(data.result)
+    } catch {
+      // Unknown progress: /customer re-checks on the server and redirects if needed.
+      return CUSTOMER_HOME
+    }
+  })
   const [errorCode, setErrorCode] = useState<string | null>(null)
 
   const handleSubmit = async ({ email, password }: SignInValues) => {
