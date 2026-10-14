@@ -2,10 +2,17 @@ import 'dotenv/config'
 import { PrismaClient } from '@prisma/client'
 import { PrismaPg } from '@prisma/adapter-pg'
 
+const connectionString = process.env.DATABASE_URL
+if (!connectionString) {
+  throw new Error(
+    'DATABASE_URL is not set — the runtime cannot start without a database connection',
+  )
+}
+
 // sslmode=require on managed Postgres (self-signed) is treated by the pg
 // adapter as verify-full and fails. Strip the param and set ssl explicitly
 // to preserve the historical "encrypt, don't pin CA" behavior.
-const rawUrl = new URL(process.env.DATABASE_URL!)
+const rawUrl = new URL(connectionString)
 rawUrl.searchParams.delete('sslmode')
 
 const isLocal = ['localhost', '127.0.0.1', '::1'].includes(rawUrl.hostname)

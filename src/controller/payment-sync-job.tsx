@@ -1,5 +1,6 @@
 import crypto from 'node:crypto'
 import { GeneralError } from '@/utils/general-error'
+import { logger } from '@/utils/logger'
 import { CLAIM_PENDING_JOBS, GET_JOB, MARK_JOB_STATE } from '@/providers/outbox-job'
 import {
   GET_PAYMENT_SYNC_CONTEXT,
@@ -277,6 +278,12 @@ export const processPaymentSyncJob = async (
         : e instanceof Error && 'code' in e
           ? String(e.code)
           : 'INTERNAL_JOB_ERROR'
+    logger.error('payment_sync_job_error', {
+      job_id: job.id,
+      error_code: code,
+      error_name: e instanceof Error ? e.name : typeof e,
+      error_message: e instanceof Error ? e.message : String(e),
+    })
     return requeueOrFail(job, code)
   }
 }

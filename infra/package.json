@@ -1,0 +1,32 @@
+{
+  "name": "prayer365-infra",
+  "private": true,
+  "version": "0.1.0",
+  "description": "AWS CDK app for the PRAYER 365 AWS side (storage, data, workers). Deployed per environment with -c env=<name>.",
+  "scripts": {
+    "synth": "cdk synth",
+    "diff": "cdk diff",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit",
+    "deploy": "bash scripts/deploy.sh",
+    "deploy:check": "bash scripts/deploy.sh --check",
+    "proof:db": "cd .. && node infra/scripts/lambda-db-proof.cjs",
+    "deploy:storage": "cdk deploy prayer365-$PRAYER365_ENV-storage -c env=$PRAYER365_ENV",
+    "deploy:data": "cdk deploy prayer365-$PRAYER365_ENV-data -c env=$PRAYER365_ENV",
+    "deploy:workers": "cdk deploy prayer365-$PRAYER365_ENV-workers -c env=$PRAYER365_ENV",
+    "deploy:all": "cdk deploy --all -c env=$PRAYER365_ENV",
+    "destroy:all": "cdk destroy --all -c env=$PRAYER365_ENV"
+  },
+  "devDependencies": {
+    "@types/aws-lambda": "^8.10.145",
+    "@types/node": "^22",
+    "aws-cdk": "^2.160.0",
+    "aws-cdk-lib": "^2.160.0",
+    "constructs": "^10.4.2",
+    "esbuild": "^0.24.0",
+    "source-map-support": "^0.5.21",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.6.3",
+    "vitest": "^2.1.8"
+  }
+}

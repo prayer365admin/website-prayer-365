@@ -195,7 +195,7 @@ export const processVoiceRegisterJob = async (
       voice_profile_id: profile.id,
       error_code: err instanceof VoiceProviderError ? err.errorCode : 'INTERNAL_JOB_ERROR',
       provider_status: err instanceof VoiceProviderError ? err.providerStatus : undefined,
-      message: err instanceof Error ? err.message : String(err),
+      error_message: err instanceof Error ? err.message : String(err),
     })
     if (err instanceof VoiceProviderError && err.kind === 'permanent') return fail(err.errorCode)
     if (err instanceof VoiceProviderError && err.kind === 'ambiguous') {

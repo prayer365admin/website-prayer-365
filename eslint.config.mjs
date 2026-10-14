@@ -13,6 +13,8 @@ export default defineConfig([
     'prisma/dbml/**',
     '.hermes/**',
     'coverage/**',
+    'infra/**',
+    'cdk.out/**',
   ]),
   {
     files: ['**/*.{ts,tsx}'],

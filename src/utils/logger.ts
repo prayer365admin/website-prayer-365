@@ -21,7 +21,7 @@ const REDACT_KEYS = new Set([
   'api_key',
   'secret',
   'authorization',
-  'message', // private request bodies
+  'message', // private request bodies (nested); the top-level event name is exempt in redactFilter
   'request_message',
   'phone',
   'email',
@@ -57,7 +57,24 @@ const redactNode = (value: unknown): RedactedNode => {
  */
 export const redact = (value: unknown): TransformableInfo => redactNode(value) as TransformableInfo
 
-const redactFilter = format((info) => redact(info))
+/**
+ * Winston format that redacts denylisted fields **in place**.
+ *
+ * It must mutate and return the object winston handed us. Winston attaches
+ * Symbol-keyed fields (`Symbol.for('level')`, the rendered message) and its
+ * transports read those when writing; replacing the record with the plain
+ * object `redact()` returns made every transport drop it silently, so no log
+ * line in this repo reached stdout. `info.level` and the top-level
+ * `info.message` (the event name, e.g. `prayer_publish_tick`) are therefore left
+ * alone — anything nested named `message` is still redacted by `redactNode`.
+ */
+export const redactFilter = format((info) => {
+  for (const key of Object.keys(info)) {
+    if (key === 'level' || key === 'message') continue
+    info[key] = REDACT_KEYS.has(key.toLowerCase()) ? '[REDACTED]' : redactNode(info[key])
+  }
+  return info
+})
 
 export const logger: Logger = createLogger({
   level: process.env.LOG_LEVEL || 'info',
