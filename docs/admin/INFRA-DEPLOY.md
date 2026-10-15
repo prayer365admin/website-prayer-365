@@ -427,6 +427,38 @@ Both went through the full loop: local reproduction → root cause → fix → u
 
 To repeat this test by hand, see the sequence in the table above; the session cookie comes from `POST /api/auth/callback/credentials` with the form fields `name` (the e-mail), `password`, `csrfToken` and `callbackUrl`.
 
+### 7.5 Production verification — Vercel app → Lambda → SQS → database (14 Oct 2026)
+
+The same pipeline was re-verified against the **live site** (`https://prayer-365.catatia.com`), so the
+request entered the Vercel deployment and the work was done by the deployed Lambdas:
+
+| #   | Step                                                                    | Evidence                                                                                       |
+| --- | ----------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------- |
+| 1   | Login on production (`POST /api/auth/callback/credentials`)             | `302 → /dashboard`; session returns `admin@catatia.com`                                        |
+| 2   | Create a test prayer (`POST /api/v1/admin/churches/{churchId}/prayers`) | 200 → prayer `01a139d5-394b-75b8-a349-5b4c1eccefa8`                                            |
+| 3   | Approve its text (`POST …/approve-text`)                                | 200, `approvedAt` set                                                                          |
+| 4   | Enqueue audio (`POST …/audio`, `Idempotency-Key`)                       | **202**, `PrayerAudio` QUEUED (09:55:35Z), id `01a139d6-b7fb-766d-b0a3-632f6d678fb6`           |
+| 5   | Dispatcher tick (EventBridge, 1 min)                                    | `job_dispatch_tick {"audio.generate":1}` at 09:56:02Z                                          |
+| 6   | Consumer Lambda                                                         | `job_processed outcome:"succeeded"` at 09:56:06.674Z (3.2 s)                                   |
+| 7   | Final state                                                             | audio `READY`, outbox `SUCCEEDED attempts=1`, asset `READY`, `audio/mpeg`, **54,796 bytes**    |
+| 8   | Public media read (mobile path)                                         | `HTTP 200`, `content-type: audio/mpeg`, 54,796 bytes                                           |
+| 9   | Read back through the app                                               | `GET …/prayers/{id}` → `latestAudioId` = the new audio, `latestAudioStatus: "READY"`           |
+| 10  | Queues and alarms after the run                                         | jobs queue `0/0`, DLQ `0`, all three alarms `OK`; rule enabled, SQS trigger `Enabled`, batch 5 |
+
+Latency was about 31 seconds and `attempts=1` proves single delivery: the Vercel app and the Lambdas
+share one database, which is the design.
+
+Two API details that cost a retry each — know them before a smoke test:
+
+| Symptom                                               | Cause                                                                                                                             | Fix                                                                      |
+| ----------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------ |
+| `409 STALE_VERSION` after a successful `approve-text` | approval bumps the prayer's optimistic `version` counter                                                                          | Read `prayer.version` back before the audio call and send the new number |
+| Malformed request path returned `308 Redirecting...`  | the response payload is nested under `result`, not `data`, so a `data.*` parse produced an empty id and the URL collapsed to `//` | Parse `result.*`                                                         |
+
+Also: every prayer with an approved current version already has audio, and the enqueue endpoint rejects
+a non-current version — so testing a _new_ job means creating a fresh prayer through the API
+(`POST …/prayers` → `approve-text` → `audio`), which is what steps 2–4 do.
+
 ---
 
 ## 8. Known limitations
