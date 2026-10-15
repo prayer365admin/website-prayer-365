@@ -36,6 +36,7 @@ vi.mock('next-auth/react', () => ({
   useSession: (...args: unknown[]) =>
     sessionMock(...args) || { data: null, status: 'unauthenticated' },
   signIn: signInMock,
+  getSession: async () => (sessionMock() || { data: null }).data,
 }))
 
 vi.mock('axios', () => ({ default: axiosMock }))

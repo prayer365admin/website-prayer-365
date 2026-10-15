@@ -91,6 +91,10 @@ import '@/app/api/v1/admin/central/voice-profiles/[voiceId]/approve/route'
 import '@/app/api/v1/admin/central/voice-profiles/[voiceId]/reject/route'
 import '@/app/api/v1/admin/churches/[churchId]/voice-profiles/[voiceId]/reclone/route'
 
+// --- Public church picker (WB1 sign-up, no session) ---
+import '@/app/api/v1/public/churches/route'
+import '@/app/api/v1/public/churches/frequent/route'
+
 // --- Mobile shared backend (Phase 9 / Tasks 39-43) ---
 import '@/app/api/v1/mobile/churches/route'
 import '@/app/api/v1/mobile/churches/[churchId]/route'

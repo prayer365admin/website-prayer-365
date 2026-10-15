@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { SITE_LOCALES } from '@/config/site-locale'
 
 /*
  * Mobile shared backend DTOs (SPEC §8.4 / Tasks 39-43).
@@ -125,6 +126,20 @@ export const MobileMePatchSchema = z
   .strict()
 
 export type MobileMePatch = z.infer<typeof MobileMePatchSchema>
+
+/**
+ * Website profile patch (WB1). The locale must be a site locale (en/et/sv/fi)
+ * and cannot be cleared; the main church is optional and can be cleared with
+ * null (R-07, same as mobile).
+ */
+export const SiteMePatchSchema = MobileMePatchSchema.extend({
+  locale: z.enum(SITE_LOCALES).optional(),
+  mainChurchId: z.string().uuid().nullable().optional(),
+  // Setup "Skip" saves the default locale without marking the language step filled.
+  localeSkipped: z.boolean().optional(),
+})
+
+export type SiteMePatch = z.infer<typeof SiteMePatchSchema>
 
 export const MobileMyChurchSchema = z.object({
   churchId: z.string(),

@@ -257,10 +257,20 @@ export const GET_ME_PROFILE = async ({
   profilePicture: string | null
   mainChurchId: string | null
   mainChurchName: string | null
+  churchSetupCompletedAt: Date | null
+  localeSetupCompletedAt: Date | null
 } | null> => {
   const user = await db.user.findUnique({
     where: { id: userId },
-    select: { id: true, email: true, name: true, locale: true, profile_picture: true },
+    select: {
+      id: true,
+      email: true,
+      name: true,
+      locale: true,
+      profile_picture: true,
+      church_setup_completed_at: true,
+      locale_setup_completed_at: true,
+    },
   })
   if (!user) return null
   const main = await db.userChurch.findFirst({
@@ -275,6 +285,8 @@ export const GET_ME_PROFILE = async ({
     profilePicture: user.profile_picture,
     mainChurchId: main?.church.id ?? null,
     mainChurchName: main?.church.name ?? null,
+    churchSetupCompletedAt: user.church_setup_completed_at,
+    localeSetupCompletedAt: user.locale_setup_completed_at,
   }
 }
 
@@ -283,12 +295,14 @@ export const UPDATE_ME_PROFILE = async ({
   userId,
   name,
   locale,
+  localeChosen = true,
   mainChurchId,
   profilePicture,
 }: {
   userId: string
   name?: string
   locale?: string | null
+  localeChosen?: boolean
   mainChurchId?: string | null
   profilePicture?: string | null
 }): Promise<MobileChurchSummary['id']> => {
@@ -302,6 +316,14 @@ export const UPDATE_ME_PROFILE = async ({
         profile_picture: profilePicture === undefined ? undefined : profilePicture,
       },
     })
+    // Onboarding (WB-15): a chosen language / church fills its setup step
+    // (first time only). A skipped step stays unfilled.
+    if (locale && localeChosen) {
+      await tx.user.updateMany({
+        where: { id: userId, locale_setup_completed_at: null },
+        data: { locale_setup_completed_at: new Date() },
+      })
+    }
     if (mainChurchId === undefined) return
     if (mainChurchId) {
       const church = await tx.church.findFirst({
@@ -309,6 +331,10 @@ export const UPDATE_ME_PROFILE = async ({
         select: { id: true },
       })
       if (!church) throw notFoundChurch()
+      await tx.user.updateMany({
+        where: { id: userId, church_setup_completed_at: null },
+        data: { church_setup_completed_at: new Date() },
+      })
       await tx.userChurch.updateMany({ where: { user_id: userId }, data: { is_main: false } })
       await tx.userChurch.upsert({
         where: { user_id_church_id: { user_id: userId, church_id: mainChurchId } },

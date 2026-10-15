@@ -554,32 +554,32 @@ The URL determines church ownership; inputs cannot override it. Validate asset o
 
 Preserve the template `/dashboard` layout and existing user-management URLs. `/` remains the template public entry; no public marketing-site work is added. New URLs extend the required features. Editors may use drawers within these pages; separate pages are not required just because a resource has an API.
 
-| Page URL                                            | Purpose                                                          | Access / feature                                |
-| --------------------------------------------------- | ---------------------------------------------------------------- | ----------------------------------------------- |
-| `/login`                                            | Staff sign-in entry                                              | Public entry; F1                                |
-| `/dashboard`                                        | Redirect/show authorized church, central, or regional home       | Authenticated staff; F1                         |
-| `/dashboard/churches`                               | Select from assigned churches                                    | Staff with church scope; F1                     |
-| `/dashboard/churches/:churchId`                     | Church overview                                                  | Church read; F2                                 |
-| `/dashboard/churches/:churchId/profile`             | Church details, assigned pastor information, service times       | Church edit; F3                                 |
-| `/dashboard/churches/:churchId/prayers`             | Current/historical prayers                                       | Content access; F4                              |
-| `/dashboard/churches/:churchId/prayers/new`         | Create prayer                                                    | Content manage; F4                              |
-| `/dashboard/churches/:churchId/prayers/:prayerId`   | Edit, review, audio, schedule, publish                           | Appropriate content/publication permissions; F4 |
-| `/dashboard/churches/:churchId/events`              | Event list and create/edit form                                  | Content manage; F5                              |
-| `/dashboard/churches/:churchId/announcements`       | News list and create/edit/publish form                           | Content manage; F5                              |
-| `/dashboard/churches/:churchId/requests`            | Authorized request list                                          | Request permission; F6                          |
-| `/dashboard/churches/:churchId/requests/:requestId` | Authorized request details/contact preferences                   | Sensitive rules also apply; F6                  |
-| `/dashboard/churches/:churchId/donations`           | Activity, recurring and monthly reporting tabs                   | Donation read; F7                               |
-| `/dashboard/churches/:churchId/analytics`           | Basic activity and attendance aggregates                         | Analytics read; F10                             |
-| `/dashboard/central`                                | Platform activity, user/donation summaries                       | Platform management; F8                         |
-| `/dashboard/central/churches`                       | Church creation, approval, suspension/archive                    | Platform management; F8                         |
-| `/dashboard/central/churches/:churchId`             | Church setup and lifecycle actions                               | Platform management; F8                         |
-| `/dashboard/user-management/user`                   | Create staff and bind a single role                              | Platform management; F8                         |
-| `/dashboard/user-management/user/create`            | Existing staff creation form, binds a single role                | Central staff management; F8                    |
-| `/dashboard/user-management/user/:id`               | Existing staff editor, binds a single role                       | Central staff management; F8                    |
-| `/dashboard/user-management/role`                   | Supported role catalogue using template UI                       | Central role read; F8                           |
-| `/dashboard/user-management/role/:id`               | Role details + per-role permission editing (Role Access Control) | Central role permission; F8                     |
-| `/dashboard/customer`                               | End-user/customer list (mobile users, no admin role)             | Central `prayer_administrator` read; F8         |
-| `/dashboard/central/pastors`                        | Pastor records, canonical images and church relationships        | Platform management; F8                         |
+| Page URL                                            | Purpose                                                                   | Access / feature                                |
+| --------------------------------------------------- | ------------------------------------------------------------------------- | ----------------------------------------------- |
+| `/login`                                            | Staff sign-in entry                                                       | Public entry; F1                                |
+| `/dashboard`                                        | Redirect/show authorized church, central, or regional home                | Authenticated staff; F1                         |
+| `/dashboard/churches`                               | Select from assigned churches                                             | Staff with church scope; F1                     |
+| `/dashboard/churches/:churchId`                     | Church overview                                                           | Church read; F2                                 |
+| `/dashboard/churches/:churchId/profile`             | Church details, assigned pastor information, service times                | Church edit; F3                                 |
+| `/dashboard/churches/:churchId/prayers`             | Current/historical prayers                                                | Content access; F4                              |
+| `/dashboard/churches/:churchId/prayers/new`         | Create prayer                                                             | Content manage; F4                              |
+| `/dashboard/churches/:churchId/prayers/:prayerId`   | Edit, review, audio, schedule, publish                                    | Appropriate content/publication permissions; F4 |
+| `/dashboard/churches/:churchId/events`              | Event list and create/edit form                                           | Content manage; F5                              |
+| `/dashboard/churches/:churchId/announcements`       | News list and create/edit/publish form                                    | Content manage; F5                              |
+| `/dashboard/churches/:churchId/requests`            | Authorized request list                                                   | Request permission; F6                          |
+| `/dashboard/churches/:churchId/requests/:requestId` | Authorized request details/contact preferences                            | Sensitive rules also apply; F6                  |
+| `/dashboard/churches/:churchId/donations`           | Activity, recurring and monthly reporting tabs                            | Donation read; F7                               |
+| `/dashboard/churches/:churchId/analytics`           | Basic activity and attendance aggregates                                  | Analytics read; F10                             |
+| `/dashboard/central`                                | Platform activity, user/donation summaries                                | Platform management; F8                         |
+| `/dashboard/central/churches`                       | Church creation, approval, suspension/archive                             | Platform management; F8                         |
+| `/dashboard/central/churches/:churchId`             | Church setup and lifecycle actions                                        | Platform management; F8                         |
+| `/dashboard/user-management/user`                   | Create staff and bind a single role                                       | Platform management; F8                         |
+| `/dashboard/user-management/user/create`            | Existing staff creation form, binds a single role                         | Central staff management; F8                    |
+| `/dashboard/user-management/user/:id`               | Existing staff editor, binds a single role                                | Central staff management; F8                    |
+| `/dashboard/user-management/role`                   | Supported role catalogue using template UI                                | Central role read; F8                           |
+| `/dashboard/user-management/role/:id`               | Role details + per-role permission editing (Role Access Control)          | Central role permission; F8                     |
+| `/dashboard/customer`                               | End-user/customer list (website + mobile users: no role or `prayer_user`) | Central `prayer_administrator` read; F8         |
+| `/dashboard/central/pastors`                        | Pastor records, canonical images and church relationships                 | Platform management; F8                         |
 
 Pastor details include name, introduction, canonical image, optional staff-account identity association and church relationships. The Central list shows the canonical image. The linked account identifies the staff user; role and access remain managed separately through the role and permission system. My Church shows these shared identity fields read-only and edits only the church relationship fields. The displayed image resolves church override, then canonical Pastor image, then the default avatar.
 
@@ -602,6 +602,8 @@ The template role-create page is not enabled by default: custom roles remain exc
 `C` below abbreviates `/api/v1/admin/churches/:churchId`; `A` means `/api/v1/admin`; `M` means `/api/v1/mobile`. These are documentation abbreviations, not literal route names.
 
 Every nested resource must belong to the church in its URL. Every write produces an audit record without sensitive payloads. Role keys map to the permission checks in section 3; hiding a UI control does not authorize an endpoint.
+
+**Signup and roles (website WB1, updated 14 Oct 2026).** `POST /api/v1/auth/signup` (shared by the website and the mobile app) takes `full_name`, `email`, `password`, `confirm_password`; `locale` is optional (`null` until onboarding, `INVALID_LOCALE` only for a supplied unsupported value) and `main_church_id` is optional (`INVALID_MAIN_CHURCH` for an unknown or unapproved church). Signup creates a customer with the `prayer_user` role, which must be seeded (otherwise 500 `CUSTOMER_ROLE_MISSING`). One email has exactly one role: staff are created or promoted in user management (single `role_id`), and `POST A/central/role-assignments` refuses a customer (`USER_IS_CUSTOMER`). The admin dashboard and `POST /api/v1/auth/login` are staff-only.
 
 ### 8.2 Staff, Church, and Content Endpoints
 
@@ -655,14 +657,14 @@ Every nested resource must belong to the church in its URL. Every write produces
 | `POST A/central/churches/:churchId/approve`       | Version → approved church                                                                            | Manual approval; required setup validation                                                                                                                                        |
 | `POST A/central/churches/:churchId/suspend`       | Version → suspended church                                                                           | Effects subject to D2                                                                                                                                                             |
 | `POST A/central/churches/:churchId/archive`       | Version → archived church                                                                            | Effects subject to D2; not hard delete                                                                                                                                            |
-| `GET / POST /api/v1/users`                        | Paginated query / name, email, password and single role_id → safe staff list / created staff         | Central `prayer_administrator` read/create; hash password, never return it; users with role_id null are end-users/customers                                                       |
+| `GET / POST /api/v1/users`                        | Paginated query / name, email, password and single role_id → safe staff list / created staff         | Central `prayer_administrator` read/create; hash password, never return it; users with no role or the `prayer_user` role are end-users/customers and are excluded                 |
 | `GET / PUT /api/v1/users/:id`                     | None / allowlisted fields and version → safe staff DTO                                               | Central staff management in current Prayer UI; no unrestricted self-service role change                                                                                           |
 | `GET /api/v1/roles`, `GET /api/v1/roles/:id`      | Query / ID → supported role catalogue/detail                                                         | Central `prayer_role` read                                                                                                                                                        |
 | `PUT /api/v1/roles/:id`                           | permission_list and version → safe role DTO                                                          | Central role permission management; validate grant ceiling and invalidate permission caches                                                                                       |
 | `GET /api/v1/permissions`                         | None → fixed Prayer permission catalogue                                                             | Central `prayer_permission` read                                                                                                                                                  |
 | `GET / POST A/central/role-assignments`           | Query / userId, roleKey, orgNodeId → church/region assignments / assignment                          | Platform management; tenancy layer (option 1); prevent escalation                                                                                                                 |
 | `DELETE A/central/role-assignments/:assignmentId` | None → revoked, 204                                                                                  | Platform management; audit and invalidate cached scope                                                                                                                            |
-| `GET /api/v1/customers`                           | Paginated query → safe end-user/customer list (role_id null)                                         | Central `prayer_administrator` read                                                                                                                                               |
+| `GET /api/v1/customers`                           | Paginated query → safe end-user/customer list (no role or `prayer_user`)                             | Central `prayer_administrator` read                                                                                                                                               |
 | `GET / POST A/central/pastors`                    | Query / name, introduction, canonical image, optional linked user → profiles / profile               | Platform management; canonical image must be a ready image belonging to an assigned church                                                                                        |
 | `PATCH A/central/pastors/:pastorId`               | Version and shared profile fields, including canonical image → updated pastor                        | Platform management; global profile authority                                                                                                                                     |
 | `PUT A/central/churches/:churchId/pastors`        | Assigned pastor IDs and church roles/images → assignments                                            | Platform management; preserve referenced historical attribution                                                                                                                   |
@@ -1131,6 +1133,7 @@ Voice-consent revocation disables new generation immediately once recorded. Poli
 - Back up the database and required storage; test restoration. Recovery objectives, backup retention and availability tier remain to confirm.
 - Rollback application releases only with compatible schema changes; use forward corrections for destructive migrations.
 - Handover environment variable names, account ownership, deployment/migration procedures, recovery steps, API schemas and provider inventory. Never commit live credentials.
+- Seeding is a release step, not optional: every environment must have the role templates (§3.3, incl. `prayer_user`) and the language rows (`en`, `et`, `fi`, `sv`) before the website or mobile signup is enabled; signup fails with 500 `CUSTOMER_ROLE_MISSING` without `prayer_user` (WB1 R-09).
 
 ## 12. Verification Matrix
 

@@ -15,13 +15,13 @@ Reference points to the admin spec `docs/SPEC.md` (sections cited as
 
 Decision status (details in section 13):
 
-| Ref | Decision                            | Status                         |
-| --- | ----------------------------------- | ------------------------------ |
-| W1  | Customer sign-in through NextAuth   | Open — needs a customer branch |
-| W2  | Donation payment model / currencies | Open (inherits D6)             |
-| W3  | Stripe Connect account setup + fees | Open                           |
-| W4  | Prayer language filtering at launch | Open                           |
-| W5  | Privacy notice / legal text         | Open                           |
+| Ref | Decision                            | Status                            |
+| --- | ----------------------------------- | --------------------------------- |
+| W1  | Customer sign-in through NextAuth   | Resolved — Option B (14 Oct 2026) |
+| W2  | Donation payment model / currencies | Open (inherits D6)                |
+| W3  | Stripe Connect account setup + fees | Open                              |
+| W4  | Prayer language filtering at launch | Open                              |
+| W5  | Privacy notice / legal text         | Open                              |
 
 ## 2. Architecture
 
@@ -88,15 +88,17 @@ No parallel DB schema: the website reads the same Prisma models.
 ## 3. Identity and Authentication
 
 - NextAuth v5 **credentials** strategy with JWT session (existing `src/auth.ts`).
-- **Gap:** `authorize` returns `null` when the user has no role
-  (`if (!userSession?.role) return null`), and the `jwt` callback also returns
-  `null` without a role. Customers are created by `registerUser` with
-  `role_id = null`. Therefore the website needs a **customer sign-in branch**:
-  - Option A (recommended): allow role-less accounts to create a "customer"
-    session (no permission object, `role` set to a sentinel like
-    `{ id: '', name: 'customer' }`).
-  - Option B: assign the `prayer_user` role on signup and keep role gating.
-  - Verified decision is W1. Do not silently give customers staff permissions.
+- **W1 resolved (14 Oct 2026): Option B.** `registerUser` creates customers
+  with the `prayer_user` role (no admin grants). NextAuth `authorize` / `jwt`
+  also accept role-less accounts, which remain only as legacy customers.
+- Customer vs staff is one rule (`src/utils/customer-role.ts`): no role or
+  `prayer_user` = customer. The admin dashboard and the token login
+  `POST /api/v1/auth/login` are **staff-only**; customers are redirected to `/`.
+  One email = one role: a church/region assignment is refused for a customer
+  (`USER_IS_CUSTOMER`); staff are created or promoted in user management.
+- Signup collects name, email and password only. `locale` is optional at
+  signup and remains `null` until onboarding; `main_church_id` is optional (must be APPROVED
+  when sent). Both are set during onboarding (`/customer/setup`).
 - Register / verify / resend use existing `src/app/api/v1/auth/signup`,
   `verify-email`, `resend-verification` and `src/controller/auth.tsx`.
 - Forgot/reset reuse existing `/forgot-password`, `/reset-password` and
@@ -114,18 +116,20 @@ No parallel DB schema: the website reads the same Prisma models.
 | `/verify-email`               | Verify (W03)    | Public | `verifyEmail`                       |
 | `/forgot-password`            | Forgot (W04)    | Public | send reset email                    |
 | `/reset-password`             | Reset (W04)     | Public | `resetPassword`                     |
-| `/setup`                      | Setup (W05)     | Yes    | patch locale + main/follow          |
+| `/customer/setup`             | Setup (W05)     | Yes    | patch locale + main/follow          |
 | `/churches`                   | Directory (W07) | Yes    | `listPublicChurches`                |
 | `/churches/:churchId`         | Profile (W08)   | Yes    | `getPublicChurch`                   |
 | `/churches/:churchId/prayers` | Prayers (W09)   | Yes    | `listPublishedPrayers`              |
 | `/prayers/:prayerId`          | Prayer (W10)    | Yes    | `getPublishedPrayer`                |
 | `/donate/:churchId`           | Donation (W11)  | Yes    | site donation controller → Stripe   |
 | `/donate/result`              | Result (W12)    | Yes    | donor / attempt status              |
-| `/profile`                    | Profile (W13)   | Yes    | `getMe` / `patchMe` / avatar upload |
+| `/customer`                   | Profile (W13)   | Yes    | `getMe` / `patchMe` / avatar upload |
 
 Routing guard: any website page except the four public account pages requires
 a session; unauthenticated visitors go to `/login`. Content is never rendered
 to unauthenticated visitors (see FEATURE WF1).
+`/login` and `/register` are guest-only for customers: a live authenticated
+customer session is redirected to `/` before either form is rendered.
 
 Login separation: the customer website and the staff dashboard have **separate
 sign-in pages**. `/login` is the customer page (this spec). The staff dashboard
@@ -159,7 +163,11 @@ models documented in admin SPEC §5 and the mobile DTOs in
   language contract used by the website language selector.
 - Website UI strings ship in the four locales (reuse/extend the mobile
   translation keys at the website layer; mobile translations are not imported
-  into this repo).
+  into this repo). et/sv/fi are drafts until a native-speaker review.
+- The user's language is chosen after signup at `/customer/setup` (the selector starts at `en`) and
+  saved with `PATCH /api/v1/site/me`; it must be a site locale and cannot be
+  cleared. The main church is optional and **can be cleared** with
+  `mainChurchId: null` (same as mobile `PATCH M/me`).
 
 ### 5.2 Prayer audio URL
 
@@ -225,11 +233,18 @@ Website pages follow the shared envelope wherever data crosses a route handler:
 
 ### WF1 — Onboarding
 
-1. `/register` → `registerUser` → user with `role_id = null` + verification email.
+1. `/register` (name, email, password) → `registerUser` → user with the
+   `prayer_user` role, locale `null` until onboarding + verification email.
 2. Verify via link → `email_verified_at` set.
-3. `/login` (NextAuth customer branch, W1) → session.
-4. `/setup` → set `locale`, main church, follows.
-5. `/profile` → view/edit name, locale, picture; change main church/follows.
+3. `/login` (NextAuth, W1 Option B) → session.
+4. First visit to a website page without completed onboarding → `/customer/setup`:
+   parish (optional) then language. Step 1 immediately saves the selected parish
+   (or `null` when skipped); step 2 immediately saves the selected locale, or
+   English when skipped, and completes onboarding. The saved locale is the
+   server-side completion marker; an account-scoped cookie resumes step 2 when
+   the optional parish was skipped.
+5. `/customer` (profile) → view/edit name, locale, picture; set, change or clear the main
+   church; follows.
 
 ### WF2 — Directory
 
@@ -309,7 +324,7 @@ without a separately agreed scope change. Deferred features stay deferred.
 
 | Ref | Question / decision                                                                       | Blocker                    |
 | --- | ----------------------------------------------------------------------------------------- | -------------------------- |
-| W1  | Customer NextAuth sign-in branch (role-less session vs `prayer_user` role).               | WF1 (all onboarding)       |
+| W1  | **Resolved (14 Oct 2026): Option B** — `prayer_user` on signup; admin is staff-only.      | —                          |
 | W2  | Donation payment model: currencies, presets, monthly semantics, fees (links to admin D6). | WF4 (donate screen fields) |
 | W3  | Stripe Connect: per-church account onboarding, payout/fee handling, success/cancel URLs.  | WF4 (checkout)             |
 | W4  | Prayer language filtering and content-language availability at launch.                    | WF3 (prayer feed)          |

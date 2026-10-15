@@ -1,0 +1,32 @@
+'use client'
+
+import React from 'react'
+import Icon from '@ant-design/icons'
+import type { GetProps } from 'antd'
+
+type CustomIconComponentProps = GetProps<typeof Icon>
+
+// Source: public/icons/icon-active-original-sancutary.svg. Fill is currentColor, size 1em: set color /
+// fontSize on the icon (style or className) to theme it.
+const IconSvg = () => (
+  <>
+    <svg
+      width="1em"
+      height="1em"
+      viewBox="0 0 25 25"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+    >
+      <path
+        d="M13.5 5.25V6H14.5H15.25V7.5H14.5H13.5V8.34375L17.4062 10.875L17.75 11.0938V11.5V19H21.25V15.6875L18.75 14.0625V12.2812L22.4062 14.625L22.75 14.8438V15.25V19.75V20.5H22H17.75H17H16.75H8.75H3.5H2.75V19.75V15.25V14.8438L3.09375 14.625L6.75 12.2812V14.0625L4.25 15.6875V19H7.75V11.5V11.0938L8.09375 10.875L12 8.34375V7.5H11H10.25V6H11H12V5.25V4.5H13.5V5.25ZM9.25 11.9375V19H11.25V16C11.25 15.1875 11.9062 14.5 12.75 14.5C13.5625 14.5 14.25 15.1875 14.25 16V19H16.25V11.9375L12.75 9.65625L9.25 11.9375Z"
+        fill="currentColor"
+      />
+    </svg>
+  </>
+)
+
+const CustomIcon = (props: Partial<CustomIconComponentProps>) => (
+  <Icon component={IconSvg} {...props} />
+)
+
+export { CustomIcon as SanctuaryIcon }

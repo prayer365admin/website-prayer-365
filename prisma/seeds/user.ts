@@ -2,8 +2,10 @@ import { db } from '../../src/utils/db-connection'
 import { PRAYER_ROLES } from './prayer-roles'
 import { getDemoChurch, getDemoChurchNode } from './test-context'
 
+// Every seeded user is verified and has a language (English by default, R-07).
 const verifiedSeedUser = {
   email_verified_at: new Date(),
+  locale_language: { connect: { code: 'en' } },
 }
 
 // Known demo password for the prayer test + admin accounts — plaintext: `Test123!`
@@ -117,15 +119,21 @@ export const seedUsers = async () => {
   // End-users (no role) + subject-only mobile records.
   const church = await getDemoChurch()
   for (const eu of END_USERS) {
+    // Demo customers have finished onboarding (parish + language, WB-15), so
+    // they land on /customer; register a new account to try /customer/setup.
+    const onboarded = {
+      ...verifiedSeedUser,
+      church_setup_completed_at: new Date(),
+      locale_setup_completed_at: new Date(),
+    }
     const user = await db.user.upsert({
       where: { email: eu.email },
-      update: {},
+      update: onboarded,
       create: {
         email: eu.email,
         name: eu.name,
         password: TEST_PASSWORD,
-        ...verifiedSeedUser,
-        role_id: null,
+        ...onboarded, // no role: legacy role-less customer
       },
     })
     if (!church) continue

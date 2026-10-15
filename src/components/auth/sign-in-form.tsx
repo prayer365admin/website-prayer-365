@@ -1,13 +1,12 @@
 'use client'
 
 import { App, Button, Card, Form, Input } from 'antd'
-import { signIn } from 'next-auth/react'
+import { useCredentialsSignIn } from '@/hooks/ui/credentials-sign-in'
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
 
-// Shared credentials form behind both the customer (/login) and staff
-// (/admin/login) sign-in pages. Everything is parameterized; copy is plain
-// English for the foundation (the customer copy moves to i18n in WB-11).
+// Plain credentials form for the staff /admin/login page. Copy is plain
+// English. The customer /login has its own designed screen
+// (contents/site/sign-in) on the same useCredentialsSignIn hook.
 export default function SignInForm({
   brandTitle,
   welcome,
@@ -17,35 +16,26 @@ export default function SignInForm({
   welcome: string
   redirectTo: string
 }) {
-  const router = useRouter()
   const { notification } = App.useApp()
   const [loginForm] = Form.useForm()
+  const { onSignIn } = useCredentialsSignIn(redirectTo)
 
   const handleLogin = async () => {
     const payload = await loginForm.validateFields()
-    const result = await signIn('credentials', {
-      name: payload.name,
-      password: payload.password,
-      redirect: false,
-    })
+    const code = await onSignIn({ email: payload.name, password: payload.password })
 
-    if (result?.error) {
-      if (result.code === 'PASSWORD_INVALID') {
-        return notification.error({
-          message: 'Password invalid',
-          description: 'Please check your email and password, and try again!',
-        })
-      }
-      if (result.code === 'EMAIL_NOT_VERIFIED') {
-        return router.push(`/verify-account?email=${encodeURIComponent(payload.name)}`)
-      }
+    if (code === 'PASSWORD_INVALID') {
+      return notification.error({
+        message: 'Password invalid',
+        description: 'Please check your email and password, and try again!',
+      })
+    }
+    if (code) {
       return notification.error({
         message: 'Sign in failed',
         description: 'Please check your email, and try again!',
       })
     }
-
-    router.push(redirectTo)
   }
 
   return (

@@ -5,13 +5,17 @@ import { RoleType } from '@prisma/client'
 import { db } from '@/utils/db-connection'
 import keywordSearch from '@/utils/keyword-search'
 import { Prisma } from '@prisma/client'
+import { CUSTOMER_ROLE } from '@/utils/customer-role'
 
 const data = 'user'
 
 // Never return the password hash from any read/write that surfaces a DTO.
 const SAFE = { password: true }
 
-/** Staff list (identity: role_id set). Optional `role` filter narrows by role id. */
+/**
+ * Staff list: users with a staff role (not the `prayer_user` customer role, R-02).
+ * Optional `role` filter narrows by role id.
+ */
 export const GET_USERS = async ({
   limit,
   page,
@@ -23,7 +27,7 @@ export const GET_USERS = async ({
   const offset = page && limit && (page - 1) * limit
 
   const filter: Prisma.UserWhereInput = {
-    role_id: { not: null },
+    role: { is: { name: { not: CUSTOMER_ROLE } } },
     ...(role ? { role_id: role } : {}),
     ...(search && {
       OR: [
@@ -50,7 +54,7 @@ export const GET_USERS = async ({
   return { result, total }
 }
 
-/** Customer list (end-users = identity role_id null). */
+/** Customer list: no role (legacy) or the `prayer_user` customer role (R-01/R-02). */
 export const GET_CUSTOMERS = async ({
   limit,
   page,
@@ -61,13 +65,19 @@ export const GET_CUSTOMERS = async ({
   const offset = page && limit && (page - 1) * limit
 
   const filter: Prisma.UserWhereInput = {
-    role_id: null,
-    ...(search && {
-      OR: [
-        ...keywordSearch({ keyword: search, name: 'name' }),
-        ...keywordSearch({ keyword: search, name: 'email' }),
-      ],
-    }),
+    AND: [
+      { OR: [{ role_id: null }, { role: { is: { name: CUSTOMER_ROLE } } }] },
+      ...(search
+        ? [
+            {
+              OR: [
+                ...keywordSearch({ keyword: search, name: 'name' }),
+                ...keywordSearch({ keyword: search, name: 'email' }),
+              ],
+            },
+          ]
+        : []),
+    ],
   }
 
   const [total, result] = await db.$transaction([
@@ -117,6 +127,53 @@ export const CREATE_USER = async (payload: {
   })
   return result
 }
+
+/**
+ * Website/mobile customer signup (WB1): user with the `prayer_user` role and
+ * locale, plus the main church row when one is chosen (optional), in one
+ * transaction. `role` is null when the seed is missing; `churchNotFound` when a
+ * main church was given but is not APPROVED (nothing is created then).
+ */
+export const CREATE_CUSTOMER = async (payload: {
+  email: string
+  name: string
+  password: string
+  locale: string | null
+  main_church_id?: string | null
+  role_name: string
+}) =>
+  db.$transaction(async (tx) => {
+    const role = await tx.role.findUnique({
+      where: { name: payload.role_name },
+      select: { id: true },
+    })
+    if (!role) return { role: null, user: null, churchNotFound: false }
+
+    const church = payload.main_church_id
+      ? await tx.church.findFirst({
+          where: { id: payload.main_church_id, status: 'APPROVED' },
+          select: { id: true },
+        })
+      : null
+    if (payload.main_church_id && !church) return { role, user: null, churchNotFound: true }
+
+    const user = await tx.user.create({
+      data: {
+        email: payload.email,
+        name: payload.name,
+        password: payload.password,
+        locale: payload.locale,
+        role_id: role.id,
+      },
+      omit: SAFE,
+    })
+    if (church) {
+      await tx.userChurch.create({
+        data: { user_id: user.id, church_id: church.id, is_main: true, is_followed: true },
+      })
+    }
+    return { role, user, churchNotFound: false }
+  })
 
 export const UPDATE_USER = async ({
   user_id,
