@@ -503,11 +503,14 @@ describe('LIST_PUBLIC_CHURCHES — discovery search by name or city', () => {
           coverAssetId: null,
           coverUrl: null,
           distanceKm: null,
+          latitude: null,
+          longitude: null,
           addressLine1: 'Main St',
         },
       ],
       total: 1,
     })
+    expect(res.result[0].latitude).toBe(summaryRow.latitude)
   })
 
   it('omits OR search clause when search query is not provided', async () => {
@@ -714,6 +717,8 @@ describe('LIST_PUBLIC_CHURCHES — directory filters (WB-25)', () => {
     expect(res.total).toBe(1)
     expect(res.result).toHaveLength(1)
     expect(res.result[0].id).toBe('c1')
+    expect(res.result[0].latitude).toBe(59.437)
+    expect(res.result[0].longitude).toBe(24.754)
   })
 
   it('sorts churches by distance ascending when coordinates are provided (null coords last)', async () => {
@@ -863,6 +868,23 @@ describe('LIST_PUBLIC_CHURCHES — directory filters (WB-25)', () => {
     expect(db.church.count).toHaveBeenCalledWith({ where: expectedWhere })
     expect(res.total).toBe(0)
     expect(res.result).toEqual([])
+  })
+
+  it('returns accessibility as an array of items split by delimiter instead of joined string', async () => {
+    const row = summaryRow({
+      accessibility: 'Level wheelchair access • Hearing loop • Braille hymnals',
+    })
+    db.$transaction.mockResolvedValueOnce([1, [row]])
+
+    const res = await LIST_PUBLIC_CHURCHES({
+      query: { page: 1, limit: 10 },
+    })
+
+    expect(res.result[0].accessibility).toEqual([
+      'Level wheelchair access',
+      'Hearing loop',
+      'Braille hymnals',
+    ])
   })
 })
 

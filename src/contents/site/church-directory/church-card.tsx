@@ -32,7 +32,7 @@ export default function ChurchCard({
   const distanceText = church.distanceKm != null ? `${church.distanceKm} km` : null
   const locationText = church.city ?? null
   const denomination = church.denomination
-
+  const primaryAccessibility = church.accessibility?.[0] ?? null
   return (
     <article
       className={`flex flex-col rounded-2xl bg-white ${
@@ -143,14 +143,14 @@ export default function ChurchCard({
         )}
 
         {/* Accessibility & View Details line */}
-        <div className="flex items-center justify-between pt-1">
-          <span className="text-xs text-[#5B6370]">{church.accessibility}</span>
+        <div className="flex items-center justify-between gap-4 pt-1">
+          <span className="text-xs text-[#5B6370]">{primaryAccessibility}</span>
           <Link
             href={`/churches/${church.id}`}
-            className="flex items-center gap-1 text-sm font-semibold text-primary_color hover:underline"
+            className="flex shrink-0 items-center gap-1 text-sm font-semibold text-primary_color hover:underline whitespace-nowrap"
           >
-            <span>{t('viewDetails')}</span>
-            <ArrowRightOutlined aria-hidden="true" className="text-xs" />
+            <span className="whitespace-nowrap">{t('viewDetails')}</span>
+            <ArrowRightOutlined aria-hidden="true" className="text-xs shrink-0" />
           </Link>
         </div>
 

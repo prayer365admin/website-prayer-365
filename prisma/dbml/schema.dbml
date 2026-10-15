@@ -423,6 +423,7 @@ Table events {
   location String [not null]
   registration_url String
   language_code String
+  cta_label String
   created_at DateTime [default: `now()`, not null]
   updated_at DateTime
   version Int [not null, default: 1]

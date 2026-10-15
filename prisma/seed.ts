@@ -1,7 +1,12 @@
 import { db } from '../src/utils/db-connection'
 
 import { seedAnnouncements } from './seeds/announcement'
-import { seedChurches, seedSecondChurch, seedStJohnsChurch } from './seeds/church'
+import {
+  seedChurches,
+  seedSecondChurch,
+  seedStJohnsChurch,
+  seedAdditionalChurches,
+} from './seeds/church'
 import { seedConsents } from './seeds/consent'
 import { seedDonations } from './seeds/donation'
 import { seedCountries } from './seeds/country'
@@ -38,6 +43,7 @@ async function main() {
   await seedChurches()
   await seedSecondChurch()
   await seedStJohnsChurch()
+  await seedAdditionalChurches()
   await seedUsers() // prayer test users + end-users (needs org nodes + demo church)
   await seedPastors() // links the demo pastor to the prayer_pastor test user
   await seedConsents()

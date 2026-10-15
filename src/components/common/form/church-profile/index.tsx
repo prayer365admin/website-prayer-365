@@ -28,6 +28,7 @@ import {
 import { ServiceTimeEntry, ServiceTimeScheduleInput } from '@/models/service-time'
 import { ChurchProfileInput, ChurchProfileOutput } from '@/models/church'
 import FormChurchServiceTimes from '../church-service-times'
+import { GoogleMapPicker } from '@/components/common/google-map'
 import dayjs from 'dayjs'
 import customParseFormat from 'dayjs/plugin/customParseFormat'
 import { useState } from 'react'
@@ -183,6 +184,9 @@ export default function FormChurchProfileTabs({
       orderIndex: g.orderIndex ?? idx,
     })),
   )
+  const [pickerCoords, setPickerCoords] = useState<{ latitude: number; longitude: number } | null>(
+    initialValues.coordinates ?? null,
+  )
   const [galleryUploading, setGalleryUploading] = useState(false)
   const { onUpload: uploadGalleryImage } = useMediaUpload({ churchId, purpose: 'IMAGE' })
 
@@ -292,10 +296,13 @@ export default function FormChurchProfileTabs({
         caption: g.caption || null,
         orderIndex: idx,
       })),
-    } as ChurchProfileInput
+    } as Record<string, unknown>
+    delete payload.coordinates
+    payload.coordinates = pickerCoords
+    const profilePayload = payload as ChurchProfileInput
     let profileResult: ChurchProfileOutput | undefined
     try {
-      profileResult = await onSubmit(payload)
+      profileResult = await onSubmit(profilePayload)
     } catch (_e) {
       return // Profile update failed, skip schedule update
     }
@@ -558,11 +565,18 @@ export default function FormChurchProfileTabs({
             </Col>
             <Col span={12}>
               <Form.Item label=" ">
-                <div
-                  className="bg-gray-100 flex items-center justify-center text-gray-500 rounded border border-solid border-gray-300"
-                  style={{ height: 284 }}
-                >
-                  Map / location marker
+                <div className="flex flex-col gap-2">
+                  <GoogleMapPicker
+                    label="Church location"
+                    latitude={pickerCoords?.latitude}
+                    longitude={pickerCoords?.longitude}
+                    onChange={(next) => setPickerCoords(next)}
+                  />
+                  {pickerCoords && (
+                    <Typography.Text type="secondary" data-testid="coords-preview">
+                      {pickerCoords.latitude.toFixed(6)}, {pickerCoords.longitude.toFixed(6)}
+                    </Typography.Text>
+                  )}
                 </div>
               </Form.Item>
             </Col>

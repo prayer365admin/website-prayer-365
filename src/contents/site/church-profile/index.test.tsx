@@ -5,6 +5,21 @@ import { SiteI18nProvider } from '@/i18n/site-i18n'
 import { axiosMock, renderWithProviders, resolveGet, sessionMock } from '@/test/frontend/render'
 import ContentsSiteChurchProfile from './index'
 
+vi.mock('@/components/common/google-map', () => ({
+  GoogleMapPins: ({
+    points,
+  }: {
+    points: { id: string; latitude: number; longitude: number }[]
+  }) => (
+    <div data-testid="gm-pins" data-count={points.length}>
+      {points.map((p) => (
+        <span key={p.id}>
+          {p.id}:{p.latitude},{p.longitude}
+        </span>
+      ))}
+    </div>
+  ),
+}))
 const church = {
   id: 'c1',
   name: 'Grace',
@@ -104,9 +119,9 @@ describe('ContentsSiteChurchProfile', () => {
     expect(screen.getAllByText(/Tallinn/).length).toBeGreaterThan(0)
 
     // Directions link with maps url
-    const directionsLink = screen.getByRole('link', { name: /directions/i })
-    expect(directionsLink.getAttribute('href')).toContain('google.com/maps')
-    expect(directionsLink.getAttribute('href')).toContain('59.437')
+    const directionsLinks = screen.getAllByRole('link', { name: /directions/i })
+    expect(directionsLinks[0].getAttribute('href')).toContain('google.com/maps')
+    expect(directionsLinks[0].getAttribute('href')).toContain('59.437')
   })
 
   it('renders sanctuary hours card showing hours are unlisted when no devotion data exists', async () => {
@@ -715,6 +730,23 @@ describe('ContentsSiteChurchProfile', () => {
     // Slider appears when playing
     expect(screen.getByRole('slider', { name: 'Audio progress' })).toBeTruthy()
     expect(screen.getByRole('button', { name: 'Pause' })).toBeTruthy()
+
+    // Shows exactly 3 audio action buttons: Download, Transcript, and Save (no Mute button)
+    expect(screen.getByRole('link', { name: 'Download Audio' })).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'View Transcript' })).toBeTruthy()
+    const saveBtn = screen.getByRole('button', { name: 'Save' })
+    expect(saveBtn).toBeTruthy()
+    expect(screen.queryByRole('button', { name: 'Mute' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Unmute' })).toBeNull()
+
+    // Toggle save
+    await user.click(saveBtn)
+    expect(screen.getByRole('button', { name: 'Saved' })).toBeTruthy()
+
+    // Open transcript modal
+    const transcriptBtn = screen.getByRole('button', { name: 'View Transcript' })
+    await user.click(transcriptBtn)
+    expect(await screen.findByText('Do not be anxious about anything...')).toBeTruthy()
   })
   it('renders 5-tile gallery layout with architect attribution when 5+ images exist', async () => {
     const mock5Gallery = [
@@ -787,5 +819,42 @@ describe('ContentsSiteChurchProfile', () => {
     expect(screen.getByText('Baltic Refugee Resettlement Circle')).toBeTruthy()
     expect(screen.getByText('Active Support Network')).toBeTruthy()
     expect(screen.getByText('34 Families inCare')).toBeTruthy()
+  })
+
+  it('renders Location card with map and Directions link when church has coordinates', async () => {
+    axiosMock.get.mockImplementation(async (url: string) => {
+      if (url.includes('/events')) return { data: resolveGet([], 0) }
+      if (url.includes('/announcements')) return { data: resolveGet([], 0) }
+      if (url.includes('/home')) return { data: resolveGet({ mainChurch: null }) }
+      return { data: resolveGet(church) }
+    })
+
+    renderProfile()
+
+    expect(await screen.findByRole('heading', { level: 2, name: 'Location' })).toBeTruthy()
+    expect(screen.getByTestId('gm-pins')).toBeTruthy()
+    expect(screen.getByTestId('gm-pins').getAttribute('data-count')).toBe('1')
+
+    const directionsLinks = screen.getAllByRole('link', { name: 'Directions' })
+    expect(directionsLinks.length).toBeGreaterThanOrEqual(1)
+    const cardDirections = directionsLinks.find((l) =>
+      l.getAttribute('href')?.includes('59.437%2C24.7536'),
+    )
+    expect(cardDirections).toBeTruthy()
+  })
+
+  it('does not render Location card when church coordinates are null', async () => {
+    axiosMock.get.mockImplementation(async (url: string) => {
+      if (url.includes('/events')) return { data: resolveGet([], 0) }
+      if (url.includes('/announcements')) return { data: resolveGet([], 0) }
+      if (url.includes('/home')) return { data: resolveGet({ mainChurch: null }) }
+      return { data: resolveGet({ ...church, coordinates: null }) }
+    })
+
+    renderProfile()
+
+    expect(await screen.findByText('Grace')).toBeTruthy()
+    expect(screen.queryByRole('heading', { level: 2, name: 'Location' })).toBeNull()
+    expect(screen.queryByTestId('gm-pins')).toBeNull()
   })
 })

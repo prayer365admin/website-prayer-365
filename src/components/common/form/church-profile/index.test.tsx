@@ -12,6 +12,23 @@ vi.mock('@/hooks/data/access-permission', () => ({
   }),
 }))
 
+vi.mock('@/components/common/google-map', () => ({
+  GoogleMapPicker: ({
+    onChange,
+  }: {
+    onChange: (v: { latitude: number; longitude: number } | null) => void
+  }) => (
+    <div data-testid="gm-picker" className="bg-[#ECEEF0]">
+      <button type="button" onClick={() => onChange({ latitude: 59.4, longitude: 24.7 })}>
+        Find address
+      </button>
+      <button type="button" onClick={() => onChange(null)}>
+        Clear marker
+      </button>
+    </div>
+  ),
+}))
+
 import FormChurchProfileTabs from './index'
 
 const profile = {
@@ -194,7 +211,7 @@ describe('FormChurchProfileTabs', () => {
     expect(screen.getByText('Upload')).toBeTruthy()
   })
 
-  it('renders map placeholder in Location tab', async () => {
+  it('renders map fallback in Location tab', async () => {
     renderWithProviders(
       <FormChurchProfileTabs
         initialValues={profile as unknown as ChurchProfileOutput}
@@ -205,7 +222,52 @@ describe('FormChurchProfileTabs', () => {
       />,
     )
     await userEvent.click(screen.getByRole('tab', { name: 'Location & Contact' }))
-    expect(screen.getByText('Map / location marker')).toBeTruthy()
+    const picker = screen.getByTestId('gm-picker')
+    expect(picker).toBeTruthy()
+    expect(picker.className).toContain('bg-[#ECEEF0]')
+    expect(screen.getByText('Find address')).toBeTruthy()
+    expect(screen.getByText('Clear marker')).toBeTruthy()
+  })
+
+  it('updates coordinates via map picker and saves, and clears coordinates on clear', async () => {
+    const user = userEvent.setup()
+    const submitSpy = vi.fn().mockResolvedValue({ ...profile, version: 4 })
+
+    renderWithProviders(
+      <FormChurchProfileTabs
+        initialValues={
+          {
+            ...profile,
+            coordinates: { latitude: 58.0, longitude: 26.0 },
+          } as unknown as ChurchProfileOutput
+        }
+        serviceTimes={serviceTimes}
+        churchId="church-1"
+        onSubmit={submitSpy}
+        onSubmitSchedule={vi.fn()}
+      />,
+    )
+    await userEvent.click(screen.getByRole('tab', { name: 'Location & Contact' }))
+
+    expect(screen.getByTestId('coords-preview').textContent).toContain('58.000000, 26.000000')
+
+    await user.click(screen.getByText('Find address'))
+    expect(screen.getByTestId('coords-preview').textContent).toContain('59.400000, 24.700000')
+
+    await user.click(screen.getByText('Save'))
+    await waitFor(() => {
+      expect(submitSpy).toHaveBeenCalledTimes(1)
+    })
+    expect(submitSpy.mock.calls[0][0].coordinates).toEqual({ latitude: 59.4, longitude: 24.7 })
+
+    await user.click(screen.getByText('Clear marker'))
+    expect(screen.queryByTestId('coords-preview')).toBeNull()
+
+    await user.click(screen.getByText('Save'))
+    await waitFor(() => {
+      expect(submitSpy).toHaveBeenCalledTimes(2)
+    })
+    expect(submitSpy.mock.calls[1][0].coordinates).toBeNull()
   })
 
   it('save with unchanged schedule does not call onSubmitSchedule', async () => {

@@ -5,6 +5,23 @@ import { SiteI18nProvider } from '@/i18n/site-i18n'
 import { axiosMock, renderWithProviders, resolveGet, sessionMock } from '@/test/frontend/render'
 import ContentsSiteChurchDirectory from './index'
 
+vi.mock('@/components/common/google-map', () => ({
+  GoogleMapPins: ({
+    points,
+    activeId,
+    onSelect,
+  }: {
+    points: { id: string }[]
+    activeId?: string
+    onSelect?: (id: string) => void
+  }) => (
+    <div data-testid="gm-pins" data-active={activeId}>
+      {points.map(({ id }) => (
+        <button key={id} type="button" aria-label={`Pin ${id}`} onClick={() => onSelect?.(id)} />
+      ))}
+    </div>
+  ),
+}))
 const summaryA = {
   id: 'c1',
   name: 'Grace',
@@ -13,6 +30,8 @@ const summaryA = {
   coverAssetId: null,
   coverUrl: null,
   distanceKm: null,
+  latitude: 59.437,
+  longitude: 24.754,
 }
 
 const summaryB = {
@@ -23,6 +42,8 @@ const summaryB = {
   coverAssetId: 'a1',
   coverUrl: 'https://cdn.test/cover.jpg',
   distanceKm: null,
+  latitude: 58.378,
+  longitude: 26.729,
 }
 
 function renderDirectory() {
@@ -181,19 +202,30 @@ describe('ContentsSiteChurchDirectory', () => {
       })
     })
   })
-  it('renders map pins, selected tooltip, and preview card', async () => {
+  it('renders map pins and preview card, updating preview card on pin select', async () => {
+    const user = userEvent.setup()
     axiosMock.get.mockResolvedValueOnce({
       data: resolveGet([summaryA, summaryB], 2),
     })
 
-    const { container } = renderDirectory()
+    renderDirectory()
 
-    expect(await screen.findByText('Grace (Selected)')).toBeTruthy()
+    expect(await screen.findByRole('button', { name: 'Pin c1' })).toBeTruthy()
+    const pinsContainer = screen.getByTestId('gm-pins')
+    expect(pinsContainer.getAttribute('data-active')).toBe('c1')
+
     expect(screen.getAllByText('Grace').length).toBeGreaterThanOrEqual(1)
     expect(screen.getByRole('link', { name: 'Profile' }).getAttribute('href')).toBe('/churches/c1')
 
-    const pinButtons = container.querySelectorAll('button[aria-label^="Select"]')
-    expect(pinButtons.length).toBe(2)
+    const pin2 = screen.getByRole('button', { name: 'Pin c2' })
+    await user.click(pin2)
+
+    await waitFor(() => {
+      expect(pinsContainer.getAttribute('data-active')).toBe('c2')
+      expect(screen.getByRole('link', { name: 'Profile' }).getAttribute('href')).toBe(
+        '/churches/c2',
+      )
+    })
   })
 
   it('toggles quick-filter chips and triggers API fetch with filter flags', async () => {

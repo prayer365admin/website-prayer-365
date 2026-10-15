@@ -96,7 +96,7 @@ const toSummary = (
     latitude: unknown
     longitude: unknown
     description?: string | null
-    accessibility?: string | null
+    accessibility?: string | string[] | null
     sanctuary_hours?: string | null
     pastors?: Array<{ pastor: { name: string } }>
     serviceTimes?: Array<{ weekday: number; local_time: Date; label: string | null }>
@@ -117,10 +117,19 @@ const toSummary = (
     city,
     coverAssetId: c.cover_asset_id,
     distanceKm,
+    latitude: c.latitude !== null && c.longitude !== null ? Number(c.latitude) : null,
+    longitude: c.latitude !== null && c.longitude !== null ? Number(c.longitude) : null,
   }
   if (addr?.line1) summary.addressLine1 = addr.line1
   if (c.description) summary.description = c.description
-  if (c.accessibility) summary.accessibility = c.accessibility
+  if (c.accessibility) {
+    summary.accessibility = Array.isArray(c.accessibility)
+      ? c.accessibility
+      : c.accessibility
+          .split(' • ')
+          .map((s) => s.trim())
+          .filter(Boolean)
+  }
   if (c.sanctuary_hours) summary.sanctuaryHours = c.sanctuary_hours
   if (c.pastors?.[0]?.pastor?.name) summary.pastorName = c.pastors[0].pastor.name
   if (c.serviceTimes?.length) {

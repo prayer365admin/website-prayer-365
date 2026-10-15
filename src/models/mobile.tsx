@@ -64,11 +64,13 @@ export const MobileChurchSummarySchema = z.object({
   coverAssetId: z.string().nullable(),
   coverUrl: z.string().nullable(),
   distanceKm: z.number().nullable(),
+  latitude: z.number().nullable(),
+  longitude: z.number().nullable(),
   addressLine1: z.string().nullable().optional(),
   description: z.string().nullable().optional(),
   pastorName: z.string().nullable().optional(),
   serviceTimes: z.string().nullable().optional(),
-  accessibility: z.string().nullable().optional(),
+  accessibility: z.array(z.string()).optional(),
   sanctuaryHours: z.string().nullable().optional(),
 })
 

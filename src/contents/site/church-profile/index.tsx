@@ -17,16 +17,11 @@ import { useSiteI18n } from '@/i18n/site-i18n'
 import type { MobilePublishedPrayer } from '@/models/mobile'
 import {
   ArrowRightOutlined,
-  BookFilled,
-  BookOutlined,
   CaretRightFilled,
-  DownloadOutlined,
   EnvironmentOutlined,
-  FileTextOutlined,
   MailOutlined,
   PauseOutlined,
   PhoneOutlined,
-  SoundOutlined,
 } from '@ant-design/icons'
 import { Alert, Button, Modal, Skeleton, Typography } from 'antd'
 import axios from 'axios'
@@ -36,7 +31,7 @@ import utc from 'dayjs/plugin/utc'
 import Image from 'next/image'
 import Link from 'next/link'
 import { Hero } from './hero'
-
+import { GoogleMapPins } from '@/components/common/google-map'
 import { IntercessionHub } from './intercession-hub'
 import { SectionCard } from './section-card'
 import { Stewardship } from './stewardship'
@@ -56,6 +51,87 @@ interface PrayerAudioRowProps {
   onToggleSave: () => void
 }
 
+function DownloadIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      width="16"
+      height="16"
+      viewBox="0 0 16 16"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+      className={className}
+      aria-hidden="true"
+    >
+      <path
+        d="M2.5 10.5V12.5C2.5 13.0523 2.94772 13.5 3.5 13.5H12.5C13.0523 13.5 13.5 13.0523 13.5 12.5V10.5"
+        stroke="currentColor"
+        strokeWidth="1.6"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M8 2.5V10.5M8 10.5L4.75 7.25M8 10.5L11.25 7.25"
+        stroke="currentColor"
+        strokeWidth="1.6"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  )
+}
+
+function TranscriptIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      width="16"
+      height="16"
+      viewBox="0 0 16 16"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+      className={className}
+      aria-hidden="true"
+    >
+      <path
+        d="M3 3.75H9M3 7.25H13M3 10.75H8.5M3 14.25H13"
+        stroke="currentColor"
+        strokeWidth="1.6"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  )
+}
+
+function BookmarkPlusIcon({ className, filled }: { className?: string; filled?: boolean }) {
+  return (
+    <svg
+      width="16"
+      height="16"
+      viewBox="0 0 16 16"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+      className={className}
+      aria-hidden="true"
+    >
+      <path
+        d="M3.75 2.5C3.75 1.94772 4.19772 1.5 4.75 1.5H11.25C11.8023 1.5 12.25 1.94772 12.25 2.5V14.5L8 11.75L3.75 14.5V2.5Z"
+        stroke="currentColor"
+        strokeWidth="1.6"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        fill={filled ? 'currentColor' : 'none'}
+      />
+      <path
+        d="M8 4.75V8.25M6.25 6.5H9.75"
+        stroke={filled ? '#FFFFFF' : 'currentColor'}
+        strokeWidth="1.6"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  )
+}
+
 function PrayerAudioRow({
   prayer,
   isActive,
@@ -69,7 +145,6 @@ function PrayerAudioRow({
   const audioRef = useRef<HTMLAudioElement | null>(null)
   const [currentTime, setCurrentTime] = useState<number>(0)
   const [duration, setDuration] = useState<number>(60)
-  const [isMuted, setIsMuted] = useState<boolean>(false)
 
   const audioSrc = prayer.audio?.assetKey || '/audio/peace-in-uncertain-times.mp3'
 
@@ -97,12 +172,6 @@ function PrayerAudioRow({
     const nextTime = percent * duration
     audioRef.current.currentTime = nextTime
     setCurrentTime(nextTime)
-  }
-
-  const handleToggleMute = () => {
-    if (!audioRef.current) return
-    audioRef.current.muted = !audioRef.current.muted
-    setIsMuted(audioRef.current.muted)
   }
 
   return (
@@ -195,53 +264,39 @@ function PrayerAudioRow({
             )}
           </div>
         </div>
-        <div className="flex items-center gap-1.5 self-end sm:self-center">
-          <button
-            type="button"
-            title={isMuted ? 'Unmute' : 'Mute'}
-            aria-label={isMuted ? 'Unmute' : 'Mute'}
-            onClick={handleToggleMute}
-            className={`flex h-8 w-8 items-center justify-center rounded-lg border transition-colors ${
-              isMuted
-                ? 'border-[#E02D3C] text-[#E02D3C] bg-red-50'
-                : 'border-[#DDE0E4] bg-white text-[#5C6370] hover:border-[#2F7AD2] hover:text-[#2F7AD2]'
-            }`}
-          >
-            <SoundOutlined className="text-sm" />
-          </button>
+        <div className="flex items-center gap-2 self-end sm:self-center">
           <a
             href={audioSrc}
             download={`${prayer.version.title}.mp3`}
             target="_blank"
             rel="noopener noreferrer"
             title="Download Audio"
-            className="flex h-8 w-8 items-center justify-center rounded-lg border border-[#DDE0E4] bg-white text-[#5C6370] transition-colors hover:border-[#2F7AD2] hover:text-[#2F7AD2]"
+            aria-label="Download Audio"
+            className="flex h-9 w-9 items-center justify-center rounded-xl border border-[#DDE0E4] bg-white text-[#2F7AD2] transition-colors hover:bg-[#F4F7FC] hover:border-[#2F7AD2]"
           >
-            <DownloadOutlined className="text-sm" />
+            <DownloadIcon />
           </a>
           <button
             type="button"
             title="View Transcript"
+            aria-label="View Transcript"
             onClick={() => onOpenTranscript(prayer.version.title, prayer.version.body)}
-            className="flex h-8 w-8 items-center justify-center rounded-lg border border-[#DDE0E4] bg-white text-[#5C6370] transition-colors hover:border-[#2F7AD2] hover:text-[#2F7AD2]"
+            className="flex h-9 w-9 items-center justify-center rounded-xl border border-[#DDE0E4] bg-white text-[#2F7AD2] transition-colors hover:bg-[#F4F7FC] hover:border-[#2F7AD2]"
           >
-            <FileTextOutlined className="text-sm" />
+            <TranscriptIcon />
           </button>
           <button
             type="button"
-            title="Save"
+            title={isSaved ? 'Saved' : 'Save'}
+            aria-label={isSaved ? 'Saved' : 'Save'}
             onClick={onToggleSave}
-            className={`flex h-8 w-8 items-center justify-center rounded-lg border transition-colors ${
+            className={`flex h-9 w-9 items-center justify-center rounded-xl border transition-colors ${
               isSaved
                 ? 'border-[#2F7AD2] bg-[#E6EDFB] text-[#2F7AD2]'
-                : 'border-[#DDE0E4] bg-white text-[#5C6370] hover:border-[#2F7AD2] hover:text-[#2F7AD2]'
+                : 'border-[#DDE0E4] bg-white text-[#2F7AD2] hover:bg-[#F4F7FC] hover:border-[#2F7AD2]'
             }`}
           >
-            {isSaved ? (
-              <BookFilled className="text-sm text-[#2F7AD2]" />
-            ) : (
-              <BookOutlined className="text-sm" />
-            )}
+            <BookmarkPlusIcon filled={isSaved} />
           </button>
         </div>
       </div>
@@ -494,6 +549,13 @@ export default function ContentsSiteChurchProfile({ churchId }: { churchId: stri
     .filter(Boolean)
     .join(', ')
 
+  const destinationQuery = data.coordinates
+    ? `${data.coordinates.latitude},${data.coordinates.longitude}`
+    : fullAddress
+
+  const directionsHref = destinationQuery
+    ? `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(destinationQuery)}`
+    : '#'
   return (
     <div className="min-h-screen bg-[#F7F9FB]">
       {/* 1. Hero banner */}
@@ -927,6 +989,35 @@ export default function ContentsSiteChurchProfile({ churchId }: { churchId: stri
           <div className="space-y-6">
             {/* Parish Intercession Hub */}
             <IntercessionHub churchId={churchId} churchName={data.name} />
+
+            {/* Location card */}
+            {data.coordinates && (
+              <section className="rounded-2xl border border-[#DDE0E4] bg-white p-5 shadow-[0_1px_2px_rgba(0,0,0,0.05)]">
+                <h2 className="text-xl font-semibold text-[#0E203E]">{t('location')}</h2>
+                <GoogleMapPins
+                  points={[
+                    {
+                      id: data.id,
+                      latitude: data.coordinates.latitude,
+                      longitude: data.coordinates.longitude,
+                      label: data.name,
+                    },
+                  ]}
+                  zoom={15}
+                  className="mt-3 h-[220px] w-full"
+                />
+                {fullAddress && (
+                  <a
+                    href={directionsHref}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="mt-3 inline-flex w-full items-center justify-center rounded-xl border border-[#DDE0E4] bg-white px-4 py-2 text-sm font-semibold text-[#0E203E] hover:bg-[#F7F9FB]"
+                  >
+                    {t('directions')}
+                  </a>
+                )}
+              </section>
+            )}
 
             {/* Pastoral Care Office card */}
             <section className="rounded-2xl border border-[#DDE0E4] bg-white p-5 shadow-[0_1px_2px_rgba(0,0,0,0.05)]">

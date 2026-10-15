@@ -20,7 +20,8 @@ import { useSiteI18n } from '@/i18n/site-i18n'
 import { useSiteChurches } from '@/hooks/data/site/churches'
 import { MobileChurchSummary } from '@/models/mobile'
 import ChurchCard from './church-card'
-import SanctuaryMap from './sanctuary-map'
+import { GoogleMapPins } from '@/components/common/google-map'
+import MapPreviewCard from './map-preview-card'
 import { DENOMINATION_OPTIONS, LANGUAGE_OPTIONS, RADIUS_OPTIONS } from '@/utils/constant'
 
 const DEFAULT_COORDS = { latitude: 59.437, longitude: 24.754 }
@@ -101,6 +102,9 @@ export default function ContentsSiteChurchDirectory() {
     () => [{ value: '', label: t('allLanguages') }, ...LANGUAGE_OPTIONS],
     [t],
   )
+
+  const activeId = selectedId ?? data?.[0]?.id
+  const selectedChurch = (data ?? []).find((c) => c.id === activeId)
 
   return (
     <div className="bg-[#F7F9FB]">
@@ -351,12 +355,17 @@ export default function ContentsSiteChurchDirectory() {
 
           {/* Right column */}
           <div className="self-start lg:sticky lg:top-6">
-            <SanctuaryMap
-              churches={data ?? []}
-              total={total}
-              selectedId={selectedId ?? data?.[0]?.id}
+            <GoogleMapPins
+              points={(data ?? []).flatMap((c) =>
+                c.latitude != null && c.longitude != null
+                  ? [{ id: c.id, latitude: c.latitude, longitude: c.longitude, label: c.name }]
+                  : [],
+              )}
+              activeId={activeId}
               onSelect={setSelectedId}
+              className="h-[480px] w-full lg:h-[720px]"
             />
+            {selectedChurch && <MapPreviewCard church={selectedChurch} />}
           </div>
         </section>
 

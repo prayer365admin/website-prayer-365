@@ -32,24 +32,24 @@ export const TALLINN_CHURCH_PROFILE = {
   timezone: 'Europe/Tallinn',
   denomination: 'Lutheran (EELK)',
   description:
-    "A living sanctuary of quiet presence, community refuge, and continuous prayer amidst the rhythm of the city. Whether you seek the thunderous transcendence of our 1867 Walcker pipe organ, a candlelit corner in the crypt for silent tears and thanksgiving, or a fellowship meal with brothers and sisters in Christ, our doors at Freedom Square are open to you. In Christ's peace, enter and be still.",
+    'Historic cathedral atop Toompea Hill, founded in the early 13th century. An enduring sanctuary of quiet presence, community refuge, organ praise, and continuous prayer overlooking the capital.',
   address: {
-    line1: 'Vabaduse väljak 1',
-    line2: null,
+    line1: 'Toom-Kooli 6',
+    line2: 'Toompea',
     city: 'Tallinn',
-    postalCode: '10146',
+    postalCode: '10130',
     countryCode: 'EE',
   },
-  latitude: 59.4343,
-  longitude: 24.7453,
+  latitude: 59.4371,
+  longitude: 24.7391,
   contacts: {
-    email: 'tallinna.jaani@eelk.ee',
-    phone: '+372 644 6206',
+    email: 'tallinna.toom@eelk.ee',
+    phone: '+372 644 4140',
   },
-  website: 'https://tallinnajaani.ee',
+  website: 'https://toomkirik.ee',
   social_links: [
-    { label: 'Facebook', url: 'https://facebook.com/tallinnajaanikirik' },
-    { label: 'YouTube', url: 'https://youtube.com/@tallinnajaanikirik' },
+    { label: 'Facebook', url: 'https://facebook.com/tallinnatoomkirik' },
+    { label: 'YouTube', url: 'https://youtube.com/@tallinnatoomkirik' },
   ],
   accessibility: 'Wheelchair accessible sanctuary & level threshold',
   sunday_live_stream: true,
@@ -803,4 +803,127 @@ export const seedStJohnsChurch = async () => {
   }
 
   return churchId
+}
+
+export const ST_OLAFS_CHURCH_NAME = "St. Olaf's Church"
+export const ST_OLAFS_CHURCH_NODE_NAME = "St. Olaf's Church Node"
+export const ST_OLAFS_CHURCH_PROFILE = {
+  status: 'APPROVED' as const,
+  timezone: 'Europe/Tallinn',
+  denomination: 'Baptist (EEKBKL)',
+  description:
+    'Historic 13th-century church once known as the tallest building in medieval Europe. A beacon of active evangelical faith, youth ministry, and community outreach in northern Tallinn Old Town.',
+  address: {
+    line1: 'Lai 50',
+    line2: 'Old Town',
+    city: 'Tallinn',
+    postalCode: '10133',
+    countryCode: 'EE',
+  },
+  latitude: 59.4414,
+  longitude: 24.7478,
+  contacts: {
+    email: 'oleviste@oleviste.ee',
+    phone: '+372 641 2241',
+  },
+  website: 'https://oleviste.ee',
+  social_links: [{ label: 'Facebook', url: 'https://facebook.com/olevistekirik' }],
+  accessibility: 'Level entrance via side aisle, induction hearing loop',
+  sunday_live_stream: true,
+  taize_chants: false,
+  youth_ministry: true,
+  sanctuary_hours: '10:00–18:00 daily',
+}
+
+export const PARNU_CHURCH_NAME = "Pärnu St. Elizabeth's Church"
+export const PARNU_CHURCH_NODE_NAME = 'Pärnu Church Node'
+export const PARNU_CHURCH_PROFILE = {
+  status: 'APPROVED' as const,
+  timezone: 'Europe/Tallinn',
+  denomination: 'Lutheran (EELK)',
+  description:
+    'One of the finest baroque sacral buildings in the Baltics, renowned for exceptional neo-baroque organ acoustics, active choral tradition, and summer festival devotions.',
+  address: {
+    line1: 'Nikolai 22',
+    line2: null,
+    city: 'Pärnu',
+    postalCode: '80010',
+    countryCode: 'EE',
+  },
+  latitude: 58.3849,
+  longitude: 24.4994,
+  contacts: {
+    email: 'parnu.eliisabeti@eelk.ee',
+    phone: '+372 443 1381',
+  },
+  website: 'https://eliisabet.ee',
+  social_links: [{ label: 'Facebook', url: 'https://facebook.com/eliisabetikogudus' }],
+  accessibility: 'Wheelchair ramp at main portal, level nave access',
+  sunday_live_stream: false,
+  taize_chants: true,
+  youth_ministry: false,
+  sanctuary_hours: '11:00–17:00 daily',
+}
+
+export const seedAdditionalChurches = async () => {
+  const admin = await getAdminUser()
+  if (!admin) throw new Error('seedAdditionalChurches: admin missing')
+
+  let deanery = await db.orgNode.findFirst({
+    where: { kind: 'DEANERY', name: 'Tallinn Deanery' },
+  })
+  if (!deanery) {
+    deanery = await db.orgNode.findFirst({ where: { kind: 'DEANERY' } })
+  }
+  if (!deanery) throw new Error('seedAdditionalChurches: deanery node missing')
+
+  // 1. St. Olaf's Church
+  const existingOlaf = await db.church.findFirst({ where: { name: ST_OLAFS_CHURCH_NAME } })
+  if (existingOlaf) {
+    await db.church.update({
+      where: { id: existingOlaf.id },
+      data: ST_OLAFS_CHURCH_PROFILE,
+    })
+  } else {
+    let node = await db.orgNode.findFirst({ where: { name: ST_OLAFS_CHURCH_NODE_NAME } })
+    if (!node) {
+      node = await db.orgNode.create({
+        data: { kind: 'CHURCH', name: ST_OLAFS_CHURCH_NODE_NAME, parent_id: deanery.id },
+      })
+    }
+    await db.church.create({
+      data: {
+        org_node_id: node.id,
+        name: ST_OLAFS_CHURCH_NAME,
+        approved_by: admin.id,
+        approved_at: new Date(),
+        ...ST_OLAFS_CHURCH_PROFILE,
+      },
+    })
+  }
+
+  // 2. Pärnu St. Elizabeth's Church
+  const existingParnu = await db.church.findFirst({ where: { name: PARNU_CHURCH_NAME } })
+  if (existingParnu) {
+    await db.church.update({
+      where: { id: existingParnu.id },
+      data: PARNU_CHURCH_PROFILE,
+    })
+  } else {
+    let node = await db.orgNode.findFirst({ where: { name: PARNU_CHURCH_NODE_NAME } })
+    if (!node) {
+      node = await db.orgNode.create({
+        data: { kind: 'CHURCH', name: PARNU_CHURCH_NODE_NAME, parent_id: deanery.id },
+      })
+    }
+    await db.church.create({
+      data: {
+        org_node_id: node.id,
+        name: PARNU_CHURCH_NAME,
+        approved_by: admin.id,
+        approved_at: new Date(),
+        ...PARNU_CHURCH_PROFILE,
+      },
+    })
+  }
 }
