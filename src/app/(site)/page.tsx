@@ -1,15 +1,14 @@
-import { auth } from '@/auth'
+import ContentsSiteHome from '@/contents/site/home'
+import { getHome } from '@/controller/mobile'
+import requiredWebAuth from '@/utils/required-webauth'
+import { redirect } from 'next/navigation'
 
-// Placeholder website home. WB-31 replaces the body with the getHome() prayer feed.
 export default async function Page() {
-  const session = await auth()
+  const web = await requiredWebAuth().catch(() => null)
+  if (!web) redirect('/login')
 
+  const home = await getHome({ userId: web.session.user.user_id })
   return (
-    <div className="mx-auto max-w-4xl p-6">
-      <h1 className="text-2xl font-bold">PRAYER</h1>
-      <p className="mt-2">
-        Signed in as {session?.user?.name ?? session?.user?.email ?? 'customer'}.
-      </p>
-    </div>
+    <ContentsSiteHome home={home} name={web.session.user.name} now={new Date().toISOString()} />
   )
 }

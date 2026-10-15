@@ -166,6 +166,7 @@ export const MobilePublishedAudioSchema = z.object({
   prayerAudioId: z.string(),
   assetId: z.string().nullable(),
   assetKey: z.string().nullable(),
+  url: z.string().nullable(),
   approvedAt: z.string(),
 })
 
@@ -174,11 +175,13 @@ export type MobilePublishedAudio = z.infer<typeof MobilePublishedAudioSchema>
 export const MobilePublishedPrayerSchema = z.object({
   id: z.string(),
   churchId: z.string(),
+  churchName: z.string(),
   publishedAt: z.string(),
   version: z.object({
     prayerVersionId: z.string(),
     versionNumber: z.number(),
     pastorId: z.string(),
+    pastorName: z.string(),
     title: z.string(),
     introduction: z.string().nullable(),
     body: z.string(),
@@ -190,11 +193,13 @@ export const MobilePublishedPrayerSchema = z.object({
 export type MobilePublishedPrayer = {
   id: string
   churchId: string
+  churchName: string
   publishedAt: string
   version: {
     prayerVersionId: string
     versionNumber: number
     pastorId: string
+    pastorName: string
     title: string
     introduction: string | null
     body: string

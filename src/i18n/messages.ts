@@ -183,6 +183,26 @@ export const SITE_MESSAGES = {
     profilePictureError: 'Use a JPG, PNG, WEBP or HEIC image up to 8 MB.',
     profileLoadError: 'Your profile could not be loaded',
     profileLoadErrorBody: 'Refresh the page or try again shortly.',
+    // --- WB3 Home devotional hero ---
+    homeLiturgicalFocus: "Today's Liturgical Focus",
+    homeGoodMorning: 'Good morning',
+    homeGoodAfternoon: 'Good afternoon',
+    homeGoodEvening: 'Good evening',
+    homeNotAlone: 'You are not alone.',
+    homeWelcomeBody:
+      'Today is a new opportunity to pray, belong, give, and grow in fellowship across our northern communities.',
+    homeGuidedContemplation: 'Guided contemplation',
+    homeDailyPrayer: 'Daily prayer',
+    homeReadPrayer: 'Read prayer',
+    homePrayerReflection: 'Prayer reflection',
+    homeSharePrayer: 'Share prayer',
+    homeLinkCopied: 'Prayer link copied',
+    homeSaveUnavailable: 'Saving prayers is not available yet',
+    homeEmptyTitle: 'No prayers yet from your churches',
+    homeEmptyBody: 'Choose a main church or follow a church to begin your daily prayer rhythm.',
+    homeGoDirectory: 'Go to church directory',
+    homeQuietPlace: 'A quiet place for prayer.',
+    homeQuietPlaceBody: 'Your latest church prayers will appear here when they are published.',
   },
   // DRAFT — Estonian strings not yet reviewed by a native speaker (REPORT R-13).
   // Do not treat as final launch text.

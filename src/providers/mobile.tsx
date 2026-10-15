@@ -423,7 +423,7 @@ export const GET_HOME = async ({ userId }: { userId: string }): Promise<MobileHo
       // approved enforced by where; both flags default relationship if main or followed
       r.is_main || r.is_followed,
   )
-  const mainRow = approved.find((r) => r.is_main) ?? approved[0]
+  const mainRow = approved.find((r) => r.is_main)
   let mainChurch: MobilePublicChurch | null = null
   let latestPrayers: MobilePublishedPrayer[] = []
   let latestEvents: MobilePublicEvent[] = []
@@ -431,9 +431,6 @@ export const GET_HOME = async ({ userId }: { userId: string }): Promise<MobileHo
   if (mainRow) {
     mainChurch = await GET_PUBLIC_CHURCH({ churchId: mainRow.church_id })
     if (mainChurch) {
-      latestPrayers = (
-        await LIST_PUBLISHED_PRAYERS({ churchId: mainRow.church_id, query: { page: 1, limit: 3 } })
-      ).result
       latestEvents = (
         await LIST_PUBLIC_EVENTS({ churchId: mainRow.church_id, query: { page: 1, limit: 3 } })
       ).result
@@ -444,6 +441,12 @@ export const GET_HOME = async ({ userId }: { userId: string }): Promise<MobileHo
         })
       ).result
     }
+  }
+  const prayerChurchIds = Array.from(
+    new Set(approved.filter((r) => r.is_main || r.is_followed).map((r) => r.church_id)),
+  )
+  if (prayerChurchIds.length) {
+    latestPrayers = await LIST_LATEST_PUBLISHED_PRAYERS({ churchIds: prayerChurchIds, limit: 3 })
   }
   const followedIds = approved.filter((r) => r.is_followed).map((r) => r.church_id)
   const followed = followedIds.length
@@ -473,8 +476,8 @@ export const GET_HOME = async ({ userId }: { userId: string }): Promise<MobileHo
 // Task 41 — published prayers / approved audio
 // ---------------------------------------------------------------------------
 
-const publishedPrayerWhere = (churchId: string): Prisma.PrayerWhereInput => ({
-  church_id: churchId,
+const publishedPrayerWhere = (churchId: string | string[]): Prisma.PrayerWhereInput => ({
+  church_id: Array.isArray(churchId) ? { in: churchId } : churchId,
   church: { status: APPROVED },
   published_version_id: { not: null },
   published_at: { not: null },
@@ -483,6 +486,7 @@ const publishedPrayerWhere = (churchId: string): Prisma.PrayerWhereInput => ({
 const mapPublishedPrayer = (p: {
   id: string
   church_id: string
+  church: { name: string }
   published_at: Date | null
   version: {
     id: string
@@ -492,6 +496,7 @@ const mapPublishedPrayer = (p: {
     introduction: string | null
     body: string
     language_code: string
+    pastor: { name: string }
     selected_audio: {
       id: string
       status: string
@@ -507,11 +512,13 @@ const mapPublishedPrayer = (p: {
   return {
     id: p.id,
     churchId: p.church_id,
+    churchName: p.church.name,
     publishedAt: toIso(p.published_at) ?? '',
     version: {
       prayerVersionId: p.version.id,
       versionNumber: p.version.version_number,
       pastorId: p.version.pastor_id,
+      pastorName: p.version.pastor.name,
       title: p.version.title,
       introduction: p.version.introduction,
       body: p.version.body,
@@ -522,6 +529,7 @@ const mapPublishedPrayer = (p: {
           prayerAudioId: audio.id,
           assetId: audio.asset!.id,
           assetKey: audio.asset!.object_key,
+          url: S3_PUBLIC_URL({ key: audio.asset!.object_key }),
           approvedAt: toIso(audio.approved_at) ?? '',
         }
       : null,
@@ -543,7 +551,13 @@ export const LIST_PUBLISHED_PRAYERS = async ({
       take: query.limit,
       skip: (query.page - 1) * query.limit,
       orderBy: [{ published_at: 'desc' }, { id: 'asc' }],
-      select: { id: true, church_id: true, published_at: true, published_version_id: true },
+      select: {
+        id: true,
+        church_id: true,
+        church: { select: { name: true } },
+        published_at: true,
+        published_version_id: true,
+      },
     }),
   ])
   const versionIds = rows.map((r) => r.published_version_id).filter((v): v is string => Boolean(v))
@@ -551,6 +565,7 @@ export const LIST_PUBLISHED_PRAYERS = async ({
     ? await db.prayerVersion.findMany({
         where: { id: { in: versionIds } },
         include: {
+          pastor: { select: { name: true } },
           selected_audio: { include: { asset: { select: { id: true, object_key: true } } } },
         },
       })
@@ -561,6 +576,7 @@ export const LIST_PUBLISHED_PRAYERS = async ({
       mapPublishedPrayer({
         id: r.id,
         church_id: r.church_id,
+        church: r.church,
         published_at: r.published_at,
         version: r.published_version_id
           ? ((versionById.get(r.published_version_id) as never) ?? null)
@@ -569,6 +585,54 @@ export const LIST_PUBLISHED_PRAYERS = async ({
     )
     .filter((x): x is MobilePublishedPrayer => Boolean(x))
   return { result, total }
+}
+
+/** Latest published prayers across the customer's main and followed churches. */
+export const LIST_LATEST_PUBLISHED_PRAYERS = async ({
+  churchIds,
+  limit,
+}: {
+  churchIds: string[]
+  limit: number
+}): Promise<MobilePublishedPrayer[]> => {
+  if (!churchIds.length) return []
+  const where = publishedPrayerWhere(churchIds)
+  const rows = await db.prayer.findMany({
+    where,
+    take: limit,
+    orderBy: [{ published_at: 'desc' }, { id: 'asc' }],
+    select: {
+      id: true,
+      church_id: true,
+      church: { select: { name: true } },
+      published_at: true,
+      published_version_id: true,
+    },
+  })
+  const versionIds = rows.map((row) => row.published_version_id).filter((id): id is string => !!id)
+  const versions = versionIds.length
+    ? await db.prayerVersion.findMany({
+        where: { id: { in: versionIds } },
+        include: {
+          pastor: { select: { name: true } },
+          selected_audio: { include: { asset: { select: { id: true, object_key: true } } } },
+        },
+      })
+    : []
+  const versionById = new Map(versions.map((version) => [version.id, version]))
+  return rows
+    .map((row) =>
+      mapPublishedPrayer({
+        id: row.id,
+        church_id: row.church_id,
+        church: row.church,
+        published_at: row.published_at,
+        version: row.published_version_id
+          ? ((versionById.get(row.published_version_id) as never) ?? null)
+          : null,
+      }),
+    )
+    .filter((prayer): prayer is MobilePublishedPrayer => !!prayer)
 }
 
 export const GET_PUBLISHED_PRAYER = async ({
@@ -586,6 +650,7 @@ export const GET_PUBLISHED_PRAYER = async ({
     select: {
       id: true,
       church_id: true,
+      church: { select: { name: true } },
       published_at: true,
       published_version_id: true,
     },
@@ -594,12 +659,14 @@ export const GET_PUBLISHED_PRAYER = async ({
   const version = await db.prayerVersion.findFirst({
     where: { id: p.published_version_id, prayer_id: p.id },
     include: {
+      pastor: { select: { name: true } },
       selected_audio: { include: { asset: { select: { id: true, object_key: true } } } },
     },
   })
   return mapPublishedPrayer({
     id: p.id,
     church_id: p.church_id,
+    church: p.church,
     published_at: p.published_at,
     version: (version as never) ?? null,
   })

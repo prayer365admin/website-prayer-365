@@ -310,6 +310,7 @@ describe('mapPublishedPrayer (via GET_PUBLISHED_PRAYER)', () => {
     db.prayer.findFirst.mockResolvedValueOnce({
       id: 'p1',
       church_id: 'c1',
+      church: { name: 'Hope Church' },
       published_at: new Date(),
       published_version_id: 'v1',
     })
@@ -325,7 +326,7 @@ describe('mapPublishedPrayer (via GET_PUBLISHED_PRAYER)', () => {
       },
       pastor: {
         id: 'pa1',
-        display_name: 'Pastor',
+        name: 'Pastor',
       },
     })
 
@@ -338,6 +339,7 @@ describe('mapPublishedPrayer (via GET_PUBLISHED_PRAYER)', () => {
     db.prayer.findFirst.mockResolvedValueOnce({
       id: 'p1',
       church_id: 'c1',
+      church: { name: 'Hope Church' },
       published_at: new Date(),
       published_version_id: 'v1',
     })
@@ -353,7 +355,7 @@ describe('mapPublishedPrayer (via GET_PUBLISHED_PRAYER)', () => {
       },
       pastor: {
         id: 'pa1',
-        display_name: 'Pastor',
+        name: 'Pastor',
       },
     })
 
@@ -366,6 +368,7 @@ describe('mapPublishedPrayer (via GET_PUBLISHED_PRAYER)', () => {
     db.prayer.findFirst.mockResolvedValueOnce({
       id: 'p1',
       church_id: 'c1',
+      church: { name: 'Hope Church' },
       published_at: new Date(),
       published_version_id: 'v1',
     })
@@ -382,7 +385,7 @@ describe('mapPublishedPrayer (via GET_PUBLISHED_PRAYER)', () => {
       },
       pastor: {
         id: 'pa1',
-        display_name: 'Pastor',
+        name: 'Pastor',
       },
     })
 
@@ -392,6 +395,7 @@ describe('mapPublishedPrayer (via GET_PUBLISHED_PRAYER)', () => {
       prayerAudioId: 'a1',
       assetId: 'asset1',
       assetKey: 'media/asset1',
+      url: 'https://cdn.test/media/asset1',
       approvedAt: '2026-01-01T00:00:00.000Z',
     })
   })
@@ -403,6 +407,7 @@ describe('LIST_PUBLISHED_PRAYERS — historical pastor attribution', () => {
       {
         id: 'prayer-1',
         church_id: 'church-1',
+        church: { name: 'Hope Church' },
         published_at: new Date('2026-09-30T12:00:00.000Z'),
         published_version_id: 'version-1',
       },
@@ -417,6 +422,7 @@ describe('LIST_PUBLISHED_PRAYERS — historical pastor attribution', () => {
         introduction: null,
         body: 'Prayer body',
         language_code: 'en',
+        pastor: { name: 'Pastor' },
         selected_audio: null,
       },
     ])
@@ -667,7 +673,13 @@ describe('GET_HOME — MB-10 typed projection', () => {
     )
     db.prayer.count.mockResolvedValueOnce(1)
     db.prayer.findMany.mockResolvedValueOnce([
-      { id: 'p1', church_id: 'c1', published_at: new Date(), published_version_id: 'v1' },
+      {
+        id: 'p1',
+        church_id: 'c1',
+        church: { name: 'Main' },
+        published_at: new Date(),
+        published_version_id: 'v1',
+      },
     ])
     db.prayerVersion.findMany.mockResolvedValueOnce([
       {
@@ -676,7 +688,7 @@ describe('GET_HOME — MB-10 typed projection', () => {
         body: 'Amen',
         language_code: 'en',
         selected_audio: null,
-        pastor: { id: 'pa1', display_name: 'Pastor' },
+        pastor: { id: 'pa1', name: 'Pastor' },
       },
     ])
     db.event.count.mockResolvedValueOnce(0)
@@ -711,5 +723,58 @@ describe('GET_HOME — MB-10 typed projection', () => {
     expect(res.latestPrayers[0].version.title).toBe('Prayer')
     expect(res.latestEvents).toEqual([])
     expect(res.latestAnnouncements).toEqual([])
+  })
+
+  it('keeps mainChurch null for follows-only users and loads followed prayers', async () => {
+    db.userChurch.findMany.mockResolvedValueOnce([
+      { is_main: false, is_followed: true, church_id: 'c2' },
+    ])
+    db.prayer.findMany.mockResolvedValueOnce([
+      {
+        id: 'p2',
+        church_id: 'c2',
+        church: { name: 'Followed Church' },
+        published_at: new Date('2026-10-15T06:00:00.000Z'),
+        published_version_id: 'v2',
+      },
+    ])
+    db.prayerVersion.findMany.mockResolvedValueOnce([
+      {
+        id: 'v2',
+        version_number: 1,
+        pastor_id: 'pa2',
+        title: 'Followed prayer',
+        introduction: null,
+        body: 'Amen',
+        language_code: 'et',
+        pastor: { name: 'Pastor Two' },
+        selected_audio: null,
+      },
+    ])
+    db.church.findMany.mockResolvedValueOnce([
+      {
+        id: 'c2',
+        name: 'Followed Church',
+        denomination: null,
+        address: null,
+        cover_asset_id: null,
+        latitude: null,
+        longitude: null,
+      },
+    ])
+
+    const res = await GET_HOME({ userId: 'u2' })
+
+    expect(res.mainChurch).toBeNull()
+    expect(res.latestPrayers[0]).toMatchObject({
+      churchId: 'c2',
+      churchName: 'Followed Church',
+      version: { pastorName: 'Pastor Two' },
+    })
+    expect(db.prayer.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({ church_id: { in: ['c2'] } }),
+      }),
+    )
   })
 })
