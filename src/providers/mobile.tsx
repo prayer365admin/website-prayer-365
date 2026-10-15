@@ -13,6 +13,7 @@ import {
   MobileHome,
   MobileMyChurch,
   MobilePrayerListQuery,
+  MobileDiaconalProgram,
   MobilePublicAnnouncement,
   MobilePublicChurch,
   MobilePublicEvent,
@@ -72,6 +73,19 @@ const withCover = async <T extends { coverAssetId: string | null }>(
   coverUrl: await coverUrlFor(row.coverAssetId),
 })
 
+const galleryUrlFor = (asset: { object_key: string | null } | null | undefined): string | null => {
+  if (!asset?.object_key) return null
+  return S3_PUBLIC_URL({ key: asset.object_key })
+}
+
+const staffImageUrlFor = (
+  churchOverride: string | null | undefined,
+  canonicalFallback: string | null | undefined,
+): string | null => {
+  const key = churchOverride || canonicalFallback
+  if (!key) return null
+  return S3_PUBLIC_URL({ key })
+}
 const toSummary = (
   c: {
     id: string
@@ -83,6 +97,7 @@ const toSummary = (
     longitude: unknown
     description?: string | null
     accessibility?: string | null
+    sanctuary_hours?: string | null
     pastors?: Array<{ pastor: { name: string } }>
     serviceTimes?: Array<{ weekday: number; local_time: Date; label: string | null }>
   },
@@ -106,6 +121,7 @@ const toSummary = (
   if (addr?.line1) summary.addressLine1 = addr.line1
   if (c.description) summary.description = c.description
   if (c.accessibility) summary.accessibility = c.accessibility
+  if (c.sanctuary_hours) summary.sanctuaryHours = c.sanctuary_hours
   if (c.pastors?.[0]?.pastor?.name) summary.pastorName = c.pastors[0].pastor.name
   if (c.serviceTimes?.length) {
     summary.serviceTimes = c.serviceTimes
@@ -232,6 +248,24 @@ const mapPublicChurch = (
       label: string | null
       language_code: string | null
     }[]
+    sanctuary_hours?: string | null
+    pastors?: Array<{
+      pastoral_role: string
+      image_asset?: { object_key: string | null } | null
+      pastor: {
+        name: string
+        image_asset?: { object_key: string | null } | null
+      }
+    }>
+    galleryItems?: Array<{
+      caption: string | null
+      order_index: number
+      media_asset: { id: string; object_key: string | null } | null
+    }>
+    org_node?: {
+      parent: { kind: string; name: string } | null
+    } | null
+    diaconal_programs?: unknown
   },
   lat?: number,
   lng?: number,
@@ -277,6 +311,27 @@ const mapPublicChurch = (
       languageCode: s.language_code,
     })),
     distanceKm,
+    pastorName: c.pastors?.[0]?.pastor?.name ?? null,
+    pastorRole: c.pastors?.[0]?.pastoral_role ?? null,
+    sanctuaryHours: c.sanctuary_hours ?? null,
+    gallery: (c.galleryItems ?? []).map((g) => ({
+      assetId: g.media_asset?.id ?? '',
+      url: galleryUrlFor(g.media_asset),
+      caption: g.caption,
+      orderIndex: g.order_index,
+    })),
+    staff: (c.pastors ?? []).map((p) => ({
+      name: p.pastor.name,
+      pastoralRole: p.pastoral_role,
+      imageUrl: staffImageUrlFor(
+        p.image_asset?.object_key ?? null,
+        p.pastor.image_asset?.object_key ?? null,
+      ),
+    })),
+    deaneryName: c.org_node?.parent?.kind === 'DEANERY' ? c.org_node.parent.name : null,
+    diaconalPrograms: Array.isArray(c.diaconal_programs)
+      ? (c.diaconal_programs as MobileDiaconalProgram[])
+      : [],
   }
 }
 
@@ -313,6 +368,7 @@ export const LIST_PUBLIC_CHURCHES = async ({
           longitude: true,
           description: true,
           accessibility: true,
+          sanctuary_hours: true,
           pastors: {
             include: { pastor: { select: { name: true } } },
             take: 1,
@@ -345,6 +401,7 @@ export const LIST_PUBLIC_CHURCHES = async ({
       longitude: true,
       description: true,
       accessibility: true,
+      sanctuary_hours: true,
       timezone: true,
       pastors: {
         include: { pastor: { select: { name: true } } },
@@ -408,6 +465,44 @@ export const GET_PUBLIC_CHURCH = async ({
       churchLanguages: { select: { language_code: true } },
       serviceTimes: {
         orderBy: [{ weekday: 'asc' } as const],
+      },
+      pastors: {
+        where: { pastor: { deleted_at: null } },
+        include: {
+          pastor: {
+            select: {
+              name: true,
+              image_asset: { select: { object_key: true } },
+            },
+          },
+          image_asset: { select: { object_key: true } },
+        },
+      },
+      galleryItems: {
+        where: {
+          media_asset: {
+            status: 'READY' as const,
+            purpose: 'IMAGE' as const,
+          },
+        },
+        orderBy: [{ order_index: 'asc' } as const],
+        select: {
+          caption: true,
+          order_index: true,
+          media_asset: {
+            select: { id: true, object_key: true },
+          },
+        },
+      },
+      org_node: {
+        select: {
+          parent: {
+            select: {
+              kind: true,
+              name: true,
+            },
+          },
+        },
       },
     },
   })
@@ -605,6 +700,7 @@ export const GET_HOME = async ({ userId }: { userId: string }): Promise<MobileHo
           cover_asset_id: true,
           latitude: true,
           longitude: true,
+          sanctuary_hours: true,
         },
       })
     : []
@@ -791,6 +887,7 @@ export const LIST_PUBLIC_EVENTS = async ({
       location: e.location,
       registrationUrl: e.registration_url,
       languageCode: e.language_code,
+      ctaLabel: 'cta_label' in e && typeof e.cta_label === 'string' ? e.cta_label : null,
     })),
     total,
   }

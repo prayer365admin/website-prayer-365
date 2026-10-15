@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { MobileDiaconalProgram, MobileDiaconalProgramSchema } from './mobile'
 
 /*
  * Church DTOs (SPEC §6.2 ChurchProfileInput + Task 12/13).
@@ -39,6 +40,23 @@ export const SocialLinkSchema = z
     url: z.string().trim().min(1).max(500),
   })
   .strict()
+export const ChurchGalleryItemInputSchema = z.object({
+  id: z.string().optional(),
+  mediaAssetId: z.string(),
+  caption: z.string().trim().max(500).nullish(),
+  orderIndex: z.number().int().min(0),
+})
+
+export const ChurchGalleryItemOutputSchema = z.object({
+  id: z.string(),
+  mediaAssetId: z.string(),
+  caption: z.string().nullable(),
+  orderIndex: z.number(),
+  url: z.string().nullable().optional(),
+})
+
+export type ChurchGalleryItemInput = z.infer<typeof ChurchGalleryItemInputSchema>
+export type ChurchGalleryItemOutput = z.infer<typeof ChurchGalleryItemOutputSchema>
 
 export const ChurchProfileInputSchema = z
   .object({
@@ -55,6 +73,9 @@ export const ChurchProfileInputSchema = z
     languageCodes: z.array(z.string().trim().min(1).max(10)).max(50),
     accessibility: z.string().trim().max(2000).nullish(),
     coverAssetId: z.string().uuid().nullish(),
+    sanctuaryHours: z.string().trim().max(2000).nullish(),
+    galleryItems: z.array(ChurchGalleryItemInputSchema).optional(),
+    diaconalPrograms: z.array(MobileDiaconalProgramSchema).nullish(),
   })
   .strict()
 
@@ -74,6 +95,9 @@ export const ChurchProfileOutputSchema = z.object({
   languageCodes: z.array(z.string()),
   accessibility: z.string().nullable(),
   coverAssetId: z.string().nullable(),
+  sanctuaryHours: z.string().nullable().optional(),
+  galleryItems: z.array(ChurchGalleryItemOutputSchema).default([]),
+  diaconalPrograms: z.array(MobileDiaconalProgramSchema).default([]),
   status: z.string(),
   version: z.number(),
 })
@@ -92,6 +116,9 @@ export type ChurchProfileOutput = {
   languageCodes: string[]
   accessibility: string | null
   coverAssetId: string | null
+  sanctuaryHours?: string | null
+  galleryItems?: ChurchGalleryItemOutput[]
+  diaconalPrograms?: MobileDiaconalProgram[]
   status: string
   version: number
 }

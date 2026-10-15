@@ -69,9 +69,38 @@ export const MobileChurchSummarySchema = z.object({
   pastorName: z.string().nullable().optional(),
   serviceTimes: z.string().nullable().optional(),
   accessibility: z.string().nullable().optional(),
+  sanctuaryHours: z.string().nullable().optional(),
 })
 
 export type MobileChurchSummary = z.infer<typeof MobileChurchSummarySchema>
+
+/** Public church profile — deliberately omits approved_by/at, status gates, payment. */
+export const MobileChurchGalleryItemSchema = z.object({
+  assetId: z.string(),
+  url: z.string().nullable(),
+  caption: z.string().nullable(),
+  orderIndex: z.number(),
+})
+
+export type MobileChurchGalleryItem = z.infer<typeof MobileChurchGalleryItemSchema>
+
+export const MobileChurchStaffSchema = z.object({
+  name: z.string(),
+  pastoralRole: z.string(),
+  imageUrl: z.string().nullable(),
+})
+
+export type MobileChurchStaff = z.infer<typeof MobileChurchStaffSchema>
+
+export const MobileDiaconalProgramSchema = z.object({
+  title: z.string(),
+  description: z.string(),
+  badgeText: z.string(),
+  metaText: z.string(),
+  icon: z.string().optional(),
+})
+
+export type MobileDiaconalProgram = z.infer<typeof MobileDiaconalProgramSchema>
 
 /** Public church profile — deliberately omits approved_by/at, status gates, payment. */
 export const MobilePublicChurchSchema = z.object({
@@ -91,6 +120,13 @@ export const MobilePublicChurchSchema = z.object({
   languageCodes: z.array(z.string()),
   serviceTimes: z.array(MobileServiceTimeSchema),
   distanceKm: z.number().nullable(),
+  pastorName: z.string().nullable().optional(),
+  pastorRole: z.string().nullable().optional(),
+  sanctuaryHours: z.string().nullable().optional(),
+  gallery: z.array(MobileChurchGalleryItemSchema).optional(),
+  staff: z.array(MobileChurchStaffSchema).optional(),
+  deaneryName: z.string().nullable().optional(),
+  diaconalPrograms: z.array(MobileDiaconalProgramSchema).optional(),
 })
 
 export type MobilePublicChurch = z.infer<typeof MobilePublicChurchSchema>
@@ -227,6 +263,7 @@ export const MobilePublicEventSchema = z.object({
   location: z.string(),
   registrationUrl: z.string().nullable(),
   languageCode: z.string().nullable(),
+  ctaLabel: z.string().nullable().optional(),
 })
 
 export type MobilePublicEvent = {
@@ -239,6 +276,7 @@ export type MobilePublicEvent = {
   location: string
   registrationUrl: string | null
   languageCode: string | null
+  ctaLabel?: string | null
 }
 
 export const MobileEventListQuerySchema = z.object({

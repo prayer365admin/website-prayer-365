@@ -3,9 +3,11 @@
 import {
   Alert,
   Button,
+  Card,
   Col,
   Empty,
   Form,
+  Image,
   Input,
   Modal,
   Row,
@@ -13,7 +15,16 @@ import {
   Skeleton,
   Tabs,
   Typography,
+  Upload,
 } from 'antd'
+import {
+  ArrowDownOutlined,
+  ArrowUpOutlined,
+  DeleteOutlined,
+  LoadingOutlined,
+  PictureOutlined,
+  PlusOutlined,
+} from '@ant-design/icons'
 import { ServiceTimeEntry, ServiceTimeScheduleInput } from '@/models/service-time'
 import { ChurchProfileInput, ChurchProfileOutput } from '@/models/church'
 import FormChurchServiceTimes from '../church-service-times'
@@ -26,6 +37,7 @@ import { useChurchPastorAssignments } from '@/hooks/data/central'
 import { useMediaUpload } from '@/hooks/data/media-upload'
 import { ChurchPastorSummary } from '@/models/pastor'
 import { useAccessPermission } from '@/hooks/data/access-permission'
+import { MobileDiaconalProgram } from '@/models/mobile'
 
 dayjs.extend(customParseFormat)
 
@@ -62,6 +74,63 @@ const toPayload = (
       ...(r.languageCode ? { languageCode: r.languageCode } : {}),
     }))
 
+export type SanctuaryScheduleItem = {
+  title: string
+  time: string
+  description: string
+}
+
+export function parseInitialSanctuaryHours(
+  raw: string | null | undefined,
+): SanctuaryScheduleItem[] {
+  if (!raw || !raw.trim()) return []
+  const trimmed = raw.trim()
+  if (trimmed.startsWith('[') && trimmed.endsWith(']')) {
+    try {
+      const parsed: unknown = JSON.parse(trimmed)
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        return parsed.map((item: Record<string, unknown>) => ({
+          title: String(item.title || ''),
+          time: String(item.time || ''),
+          description: String(item.description || ''),
+        }))
+      }
+    } catch {
+      // Fall through to string parsing
+    }
+  }
+
+  if (trimmed.includes(' • ')) {
+    return trimmed.split(' • ').map((part) => {
+      const p = part.trim()
+      const match = p.match(/^([A-Za-z\u2013\u2014\-’'\s]+)\s+([\d:–\- ]+)$/)
+      if (match) {
+        let title = match[1].trim()
+        if (title === 'Mon–Fri' || title === 'Mon-Fri') title = 'Monday - Friday'
+        else if (title === 'Sat') title = 'Saturday'
+        else if (title === 'Sun') title = 'LORD’S Day (Sunday)'
+        let description =
+          'Altar steps & Nave open. Votive candles and prayer request scrolls provided.'
+        if (title === 'Saturday') {
+          description = 'Organ rehearsals in progress. Meditative listening encouraged.'
+        } else if (title === 'LORD’S Day (Sunday)') {
+          description = 'Continuous worship, Eucharist, fellowship coffee, and choral vespers.'
+        }
+        return { title, time: match[2].trim(), description }
+      }
+      return { title: p, time: '', description: '' }
+    })
+  }
+
+  return [
+    {
+      title: 'Daily Sanctuary Hours',
+      time: trimmed,
+      description: 'Altar steps & Nave open for quiet prayer, contemplation, and devotion.',
+    },
+  ]
+}
+
 export default function FormChurchProfileTabs({
   initialValues,
   serviceTimes,
@@ -97,6 +166,25 @@ export default function FormChurchProfileTabs({
     file?: File | null
   }>({ url: null, assetId: null })
   const { onUpload: uploadPastorImage } = useMediaUpload({ churchId, purpose: 'IMAGE' })
+  const [galleryItems, setGalleryItems] = useState<
+    Array<{
+      id?: string
+      mediaAssetId: string
+      url?: string | null
+      caption?: string | null
+      orderIndex: number
+    }>
+  >(
+    (initialValues.galleryItems ?? []).map((g, idx) => ({
+      id: g.id,
+      mediaAssetId: g.mediaAssetId,
+      url: g.url ?? null,
+      caption: g.caption ?? '',
+      orderIndex: g.orderIndex ?? idx,
+    })),
+  )
+  const [galleryUploading, setGalleryUploading] = useState(false)
+  const { onUpload: uploadGalleryImage } = useMediaUpload({ churchId, purpose: 'IMAGE' })
 
   const address = (initialValues.address ?? {}) as {
     line1?: string
@@ -107,12 +195,21 @@ export default function FormChurchProfileTabs({
   }
   const contacts = (initialValues.contacts ?? {}) as { email?: string; phone?: string }
   const socialLinks = (initialValues.socialLinks ?? []) as Array<{ label: string; url: string }>
+  const accessibilityList = initialValues.accessibility
+    ? initialValues.accessibility
+        .split(' • ')
+        .map((s) => s.trim())
+        .filter(Boolean)
+    : []
+  const sanctuarySchedule = parseInitialSanctuaryHours(initialValues.sanctuaryHours)
 
   const handleSubmit = async () => {
     // @ts-expect-error schedule is part of the form values but not the profile input type
-    const { schedule, ...values } = await form.validateFields()
-
-    // Omit server-owned output fields
+    const { schedule, ...rawValues } = await form.validateFields()
+    const values = rawValues as ChurchProfileInput & {
+      accessibilityList?: string[]
+      sanctuarySchedule?: SanctuaryScheduleItem[]
+    }
     const {
       id: _id,
       status: _status,
@@ -136,13 +233,66 @@ export default function FormChurchProfileTabs({
     if (contactsPayload.email === null) delete contactsPayload.email
     if (contactsPayload.phone === null) delete contactsPayload.phone
 
+    const accessItems: string[] = (values.accessibilityList ?? [])
+      .flatMap((s: string) => (typeof s === 'string' ? s.split('\n').map((x) => x.trim()) : []))
+      .filter(Boolean)
+    const accessibility =
+      accessItems.length > 0
+        ? accessItems.join(' • ')
+        : typeof values.accessibility === 'string' && values.accessibility.trim()
+          ? values.accessibility.trim()
+          : null
+
+    const scheduleBlocks: SanctuaryScheduleItem[] = (values.sanctuarySchedule ?? [])
+      .filter((b: SanctuaryScheduleItem) => b && (b.title?.trim() || b.time?.trim()))
+      .map((b: SanctuaryScheduleItem) => ({
+        title: b.title?.trim() || '',
+        time: b.time?.trim() || '',
+        description: b.description?.trim() || '',
+      }))
+    const sanctuaryHours =
+      scheduleBlocks.length === 1 &&
+      scheduleBlocks[0].title === 'Daily Sanctuary Hours' &&
+      scheduleBlocks[0].time
+        ? scheduleBlocks[0].time
+        : scheduleBlocks.length > 0
+          ? JSON.stringify(scheduleBlocks)
+          : typeof values.sanctuaryHours === 'string' && values.sanctuaryHours.trim()
+            ? values.sanctuaryHours.trim()
+            : null
+
+    const {
+      accessibilityList: _al,
+      sanctuarySchedule: _ss,
+      accessibility: _acc,
+      sanctuaryHours: _sh,
+      ...cleanValues
+    } = values
+
     const payload = {
       ...baseProfile,
-      ...values,
+      ...cleanValues,
       address: addressPayload,
       contacts: contactsPayload,
+      accessibility,
+      coverAssetId: coverAsset.assetId ?? null,
+      sanctuaryHours,
+      diaconalPrograms: (values.diaconalPrograms ?? [])
+        .filter((p: MobileDiaconalProgram) => p && p.title?.trim())
+        .map((p: MobileDiaconalProgram) => ({
+          title: p.title.trim(),
+          description: p.description?.trim() || '',
+          badgeText: p.badgeText?.trim() || '',
+          metaText: p.metaText?.trim() || '',
+          icon: p.icon || 'utensils',
+        })),
+      galleryItems: galleryItems.map((g, idx) => ({
+        id: g.id,
+        mediaAssetId: g.mediaAssetId,
+        caption: g.caption || null,
+        orderIndex: idx,
+      })),
     } as ChurchProfileInput
-
     let profileResult: ChurchProfileOutput | undefined
     try {
       profileResult = await onSubmit(payload)
@@ -226,9 +376,147 @@ export default function FormChurchProfileTabs({
                   ))}
                 </Select>
               </Form.Item>
-              <Form.Item name={'accessibility'} label="Accessibility information">
-                <Input placeholder="Provided by the church" />
-              </Form.Item>
+            </Col>
+          </Row>
+
+          <Row gutter={24} className="mt-6 border-t border-[#DDE0E4] pt-6">
+            {/* Left column: Accessibility information */}
+            <Col span={12}>
+              <div className="mb-4">
+                <Typography.Title level={4}>
+                  <label htmlFor="accessibility-input-0">Accessibility information</label>
+                </Typography.Title>
+                <Typography.Text type="secondary" className="block text-xs">
+                  Add individual facility features. Displayed with dedicated icons on the public
+                  profile without typing any delimiters.
+                </Typography.Text>
+              </div>
+
+              <Form.List name="accessibilityList">
+                {(fields, { add, remove }) => (
+                  <div className="space-y-2">
+                    {fields.map(({ key, name, ...restField }) => (
+                      <div key={key} className="flex items-center gap-2">
+                        <Form.Item
+                          {...restField}
+                          name={name}
+                          noStyle
+                          rules={[{ required: true, message: 'Please enter facility feature' }]}
+                        >
+                          <Input
+                            aria-label={
+                              name === 0
+                                ? 'Accessibility information'
+                                : `Facility feature #${name + 1}`
+                            }
+                            placeholder="e.g. Level wheelchair access via South Portico ramp"
+                          />
+                        </Form.Item>
+                        <Button
+                          type="text"
+                          danger
+                          icon={<DeleteOutlined />}
+                          onClick={() => remove(name)}
+                        />
+                      </div>
+                    ))}
+                    <Button type="dashed" onClick={() => add('')} block icon={<PlusOutlined />}>
+                      Add Facility Feature
+                    </Button>
+                  </div>
+                )}
+              </Form.List>
+            </Col>
+
+            {/* Right column: Sanctuary Hours for Private Devotion */}
+            <Col span={12}>
+              <div className="mb-4">
+                <Typography.Title level={4}>Sanctuary Hours for Private Devotion</Typography.Title>
+                <Typography.Text type="secondary" className="block text-xs">
+                  Configure individual schedule blocks with days, opening hours, and devotion notes
+                  displayed in the sanctuary hours grid.
+                </Typography.Text>
+              </div>
+
+              <Form.List name="sanctuarySchedule">
+                {(fields, { add, remove }) => (
+                  <div className="space-y-4">
+                    {fields.map(({ key, name, ...restField }) => (
+                      <Card
+                        key={key}
+                        size="small"
+                        title={`Schedule Block #${name + 1}`}
+                        extra={
+                          <Button
+                            type="text"
+                            danger
+                            icon={<DeleteOutlined />}
+                            onClick={() => remove(name)}
+                          >
+                            Remove
+                          </Button>
+                        }
+                        className="border border-[#DDE0E4] bg-[#FAFAFB]"
+                      >
+                        <Row gutter={12}>
+                          <Col span={12}>
+                            <Form.Item
+                              {...restField}
+                              name={[name, 'title']}
+                              label="Days / Label"
+                              rules={[{ required: true, message: 'Please enter schedule label' }]}
+                            >
+                              <Input placeholder="e.g. Monday - Friday / Saturday" />
+                            </Form.Item>
+                          </Col>
+                          <Col span={12}>
+                            <Form.Item
+                              {...restField}
+                              name={[name, 'time']}
+                              label={name === 0 ? 'Sanctuary hours (private devotion)' : 'Hours'}
+                              rules={[{ required: true, message: 'Please enter opening hours' }]}
+                            >
+                              <Input
+                                aria-label={
+                                  name === 0 ? 'Sanctuary hours (private devotion)' : 'Hours'
+                                }
+                                placeholder="e.g. 10:00 – 18:30"
+                              />
+                            </Form.Item>
+                          </Col>
+                        </Row>
+
+                        <Form.Item
+                          {...restField}
+                          name={[name, 'description']}
+                          label="Devotion & Access Notes"
+                          className="!mb-0"
+                        >
+                          <Input.TextArea
+                            rows={2}
+                            placeholder="e.g. Altar steps & Nave open. Votive candles and prayer request scrolls provided."
+                          />
+                        </Form.Item>
+                      </Card>
+                    ))}
+
+                    <Button
+                      type="dashed"
+                      onClick={() =>
+                        add({
+                          title: '',
+                          time: '',
+                          description: '',
+                        })
+                      }
+                      block
+                      icon={<PlusOutlined />}
+                    >
+                      Add Schedule Block
+                    </Button>
+                  </div>
+                )}
+              </Form.List>
             </Col>
           </Row>
         </>
@@ -395,6 +683,271 @@ export default function FormChurchProfileTabs({
         </>
       ),
     },
+    {
+      key: 'gallery',
+      label: 'Gallery',
+      forceRender: true,
+      children: (
+        <div className="space-y-6">
+          <div>
+            <Typography.Title level={4}>Sanctuary Gallery</Typography.Title>
+            <Typography.Text type="secondary">
+              Photographs of the sanctuary, sacred architecture, stained glass, and altar. These
+              images are displayed on the public church profile.
+            </Typography.Text>
+          </div>
+
+          {galleryItems.length === 0 ? (
+            <Empty description="No gallery photos added yet. Upload photos below to display in the sanctuary gallery." />
+          ) : (
+            <div className="flex flex-col gap-4">
+              {galleryItems.map((item, idx) => (
+                <div
+                  key={item.id || `${item.mediaAssetId}-${idx}`}
+                  className="flex flex-col sm:flex-row items-start sm:items-center gap-4 p-4 border border-gray-200 rounded-xl bg-white shadow-sm"
+                >
+                  <div className="relative w-32 h-24 shrink-0 rounded-lg overflow-hidden bg-gray-100 flex items-center justify-center border border-gray-200">
+                    {item.url ? (
+                      <Image
+                        src={item.url}
+                        alt={item.caption || `Gallery photo ${idx + 1}`}
+                        style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                        className="rounded-lg"
+                      />
+                    ) : (
+                      <PictureOutlined className="text-2xl text-gray-400" />
+                    )}
+                  </div>
+
+                  <div className="flex-1 w-full space-y-1">
+                    <label className="text-xs font-semibold text-gray-600">Caption</label>
+                    <Input
+                      placeholder="e.g. Altar & stained glass"
+                      value={item.caption ?? ''}
+                      onChange={(e) => {
+                        const val = e.target.value
+                        setGalleryItems((prev) =>
+                          prev.map((it, i) => (i === idx ? { ...it, caption: val } : it)),
+                        )
+                      }}
+                    />
+                  </div>
+
+                  <div className="flex items-center gap-2 self-end sm:self-center shrink-0">
+                    <Button
+                      size="small"
+                      icon={<ArrowUpOutlined />}
+                      disabled={idx === 0}
+                      onClick={() => {
+                        setGalleryItems((prev) => {
+                          const copy = [...prev]
+                          const temp = copy[idx - 1]
+                          copy[idx - 1] = copy[idx]
+                          copy[idx] = temp
+                          return copy
+                        })
+                      }}
+                      title="Move Up"
+                    />
+                    <Button
+                      size="small"
+                      icon={<ArrowDownOutlined />}
+                      disabled={idx === galleryItems.length - 1}
+                      onClick={() => {
+                        setGalleryItems((prev) => {
+                          const copy = [...prev]
+                          const temp = copy[idx + 1]
+                          copy[idx + 1] = copy[idx]
+                          copy[idx] = temp
+                          return copy
+                        })
+                      }}
+                      title="Move Down"
+                    />
+                    <Button
+                      size="small"
+                      danger
+                      icon={<DeleteOutlined />}
+                      onClick={() => {
+                        setGalleryItems((prev) => prev.filter((_, i) => i !== idx))
+                      }}
+                    >
+                      Remove
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          <div className="pt-2">
+            <Typography.Text strong className="block mb-2">
+              Add Photo to Gallery
+            </Typography.Text>
+            <Upload.Dragger
+              name="galleryFile"
+              showUploadList={false}
+              multiple={false}
+              accept="image/*"
+              disabled={galleryUploading}
+              customRequest={async ({ file, onSuccess, onError }) => {
+                setGalleryUploading(true)
+                try {
+                  const res = await uploadGalleryImage(file as File)
+                  if (res?.assetId && res.url) {
+                    setGalleryItems((prev) => [
+                      ...prev,
+                      {
+                        mediaAssetId: res.assetId,
+                        url: res.url,
+                        caption: '',
+                        orderIndex: prev.length,
+                      },
+                    ])
+                    onSuccess?.('ok')
+                  }
+                } catch (err) {
+                  onError?.(err as Error)
+                } finally {
+                  setGalleryUploading(false)
+                }
+              }}
+              className="p-4"
+            >
+              <p className="ant-upload-drag-icon">
+                {galleryUploading ? <LoadingOutlined /> : <PlusOutlined />}
+              </p>
+              <p className="ant-upload-text">
+                {galleryUploading
+                  ? 'Uploading image...'
+                  : 'Click or drag an image here to add to gallery'}
+              </p>
+              <p className="ant-upload-hint">Supports JPG, PNG, WEBP</p>
+            </Upload.Dragger>
+          </div>
+        </div>
+      ),
+    },
+    {
+      key: 'diaconal-programs',
+      label: 'Diaconal Programs',
+      forceRender: true,
+      children: (
+        <div className="space-y-6">
+          <div>
+            <Typography.Title level={4}>Diaconal Ministry & Community Care</Typography.Title>
+            <Typography.Text type="secondary">
+              Community care, soup kitchens, refugee assistance, and volunteer programs displayed on
+              the public church profile.
+            </Typography.Text>
+          </div>
+
+          <Form.List name="diaconalPrograms">
+            {(fields, { add, remove }) => (
+              <div className="space-y-4">
+                {fields.map(({ key, name, ...restField }) => (
+                  <Card
+                    key={key}
+                    size="small"
+                    title={`Program #${name + 1}`}
+                    extra={
+                      <Button
+                        type="text"
+                        danger
+                        icon={<DeleteOutlined />}
+                        onClick={() => remove(name)}
+                      >
+                        Remove
+                      </Button>
+                    }
+                    className="border border-[#DDE0E4] bg-[#FAFAFB]"
+                  >
+                    <Row gutter={16}>
+                      <Col span={16}>
+                        <Form.Item
+                          {...restField}
+                          name={[name, 'title']}
+                          label="Program Title"
+                          rules={[{ required: true, message: 'Please input program title' }]}
+                        >
+                          <Input placeholder="e.g. Crypt Warm Meals & Winter Shelter" />
+                        </Form.Item>
+                      </Col>
+                      <Col span={8}>
+                        <Form.Item {...restField} name={[name, 'icon']} label="Program Icon">
+                          <Select>
+                            <Select.Option value="utensils">
+                              Utensils (Meals & Shelter)
+                            </Select.Option>
+                            <Select.Option value="users-group">
+                              Users Group (Refugee & Community Care)
+                            </Select.Option>
+                          </Select>
+                        </Form.Item>
+                      </Col>
+                    </Row>
+
+                    <Row gutter={16}>
+                      <Col span={24}>
+                        <Form.Item
+                          {...restField}
+                          name={[name, 'description']}
+                          label="Program Description"
+                          rules={[{ required: true, message: 'Please input program description' }]}
+                        >
+                          <Input.TextArea
+                            rows={3}
+                            placeholder="Describe the diaconal service, operating days, and community impact."
+                          />
+                        </Form.Item>
+                      </Col>
+                    </Row>
+
+                    <Row gutter={16}>
+                      <Col span={12}>
+                        <Form.Item
+                          {...restField}
+                          name={[name, 'badgeText']}
+                          label="Status / Volunteer Badge"
+                        >
+                          <Input placeholder="e.g. Volunteer shifts available / Active Support Network" />
+                        </Form.Item>
+                      </Col>
+                      <Col span={12}>
+                        <Form.Item
+                          {...restField}
+                          name={[name, 'metaText']}
+                          label="Ministry Lead / Beneficiary Count"
+                        >
+                          <Input placeholder="e.g. Led by Deacon Tiit / 34 Families inCare" />
+                        </Form.Item>
+                      </Col>
+                    </Row>
+                  </Card>
+                ))}
+
+                <Button
+                  type="dashed"
+                  onClick={() =>
+                    add({
+                      title: '',
+                      description: '',
+                      badgeText: '',
+                      metaText: '',
+                      icon: 'utensils',
+                    })
+                  }
+                  block
+                  icon={<PlusOutlined />}
+                >
+                  Add Diaconal Program
+                </Button>
+              </div>
+            )}
+          </Form.List>
+        </div>
+      ),
+    },
   ]
 
   return (
@@ -406,6 +959,9 @@ export default function FormChurchProfileTabs({
           address,
           contacts,
           socialLinks,
+          accessibilityList: accessibilityList.length > 0 ? accessibilityList : [''],
+          sanctuarySchedule,
+          diaconalPrograms: initialValues.diaconalPrograms ?? [],
           schedule: toRows(serviceTimes),
         }}
         form={form}

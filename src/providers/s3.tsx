@@ -114,6 +114,8 @@ export const S3_PUT_OBJECT = async ({
  * No private media exists yet — see SPEC §10.4.1 / D13 for the pre-production revert.
  */
 export const S3_PUBLIC_URL = ({ key }: { key: string }): string | null => {
+  if (key.startsWith('/') || key.startsWith('http://') || key.startsWith('https://')) return key
+  if (key.startsWith('images/')) return `/${key}`
   const base = process.env.S3_PUBLIC_BASE_URL?.replace(/\/$/, '')
   if (base) return `${base}/${key}`
   const b = bucket()
@@ -129,6 +131,8 @@ export const S3_GET_SIGNED_URL = async ({
   key: string
   expiresIn?: number
 }): Promise<string> => {
+  if (key.startsWith('/') || key.startsWith('http://') || key.startsWith('https://')) return key
+  if (key.startsWith('images/')) return `/${key}`
   const b = bucket()
   if (!b) throw notConfigured()
   return getSignedUrl(client(), new GetObjectCommand({ Bucket: b, Key: key }), { expiresIn })

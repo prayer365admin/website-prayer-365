@@ -400,4 +400,152 @@ describe('FormChurchProfileTabs', () => {
       expect(await screen.findByText(details)).toBeTruthy()
     },
   )
+
+  it('renders Gallery tab with existing items and supports caption edit and removal', async () => {
+    const profileWithGallery = {
+      ...profile,
+      sanctuaryHours: '10:00–18:30 daily',
+      galleryItems: [
+        {
+          id: 'g1',
+          mediaAssetId: 'm1',
+          caption: 'Altar & stained glass',
+          orderIndex: 0,
+          url: '/images/church.jpeg',
+        },
+        {
+          id: 'g2',
+          mediaAssetId: 'm2',
+          caption: 'Nave from west door',
+          orderIndex: 1,
+          url: '/images/church.jpeg',
+        },
+      ],
+    }
+    const submitSpy = vi.fn().mockResolvedValue({ ...profileWithGallery, version: 4 })
+
+    renderWithProviders(
+      <FormChurchProfileTabs
+        initialValues={profileWithGallery as unknown as ChurchProfileOutput}
+        serviceTimes={serviceTimes}
+        churchId="c1"
+        onSubmit={submitSpy}
+        onSubmitSchedule={vi.fn()}
+      />,
+    )
+
+    // Details tab shows sanctuary hours
+    expect(screen.getByLabelText(/Sanctuary hours/)).toBeTruthy()
+    expect(screen.getByDisplayValue('10:00–18:30 daily')).toBeTruthy()
+
+    // Click Gallery tab
+    await userEvent.click(screen.getByText('Gallery'))
+    expect(screen.getByText('Sanctuary Gallery')).toBeTruthy()
+    expect(screen.getByDisplayValue('Altar & stained glass')).toBeTruthy()
+    expect(screen.getByDisplayValue('Nave from west door')).toBeTruthy()
+
+    // Edit caption of first item
+    const captionInput = screen.getByDisplayValue('Altar & stained glass')
+    await userEvent.clear(captionInput)
+    await userEvent.type(captionInput, 'Restored altar')
+
+    // Remove second item
+    const removeButtons = screen.getAllByRole('button', { name: /Remove/i })
+    // removeButtons include the "Remove Image" from Cover, so gallery remove buttons are present
+    const galleryRemove = removeButtons[removeButtons.length - 1]
+    await userEvent.click(galleryRemove)
+
+    // Submit form
+    await userEvent.click(screen.getByRole('button', { name: 'Save' }))
+
+    await waitFor(() => {
+      expect(submitSpy).toHaveBeenCalled()
+    })
+
+    const payload = submitSpy.mock.calls[0][0]
+    expect(payload.sanctuaryHours).toBe('10:00–18:30 daily')
+    expect(payload.galleryItems).toEqual([
+      {
+        id: 'g1',
+        mediaAssetId: 'm1',
+        caption: 'Restored altar',
+        orderIndex: 0,
+      },
+    ])
+  })
+
+  it('renders Diaconal Programs tab and submits updated programs and normalized accessibility', async () => {
+    const submitSpy = vi.fn().mockResolvedValue({ version: 4 })
+    const profileWithPrograms = {
+      ...profile,
+      accessibility: 'Ramp access • Hearing loop',
+      diaconalPrograms: [
+        {
+          title: 'Crypt Warm Meals',
+          description: 'Hot meals served Tuesdays.',
+          badgeText: 'Volunteers needed',
+          metaText: 'Led by Deacon Tiit',
+          icon: 'utensils',
+        },
+      ],
+    }
+
+    renderWithProviders(
+      <FormChurchProfileTabs
+        initialValues={profileWithPrograms as unknown as ChurchProfileOutput}
+        serviceTimes={serviceTimes}
+        churchId="c1"
+        onSubmit={submitSpy}
+        onSubmitSchedule={vi.fn()}
+      />,
+    )
+
+    // Edit accessibility in Details tab using dynamic fields
+    const accessInputs = screen.getAllByPlaceholderText(
+      /Level wheelchair access via South Portico ramp/i,
+    )
+    await userEvent.clear(accessInputs[0])
+    await userEvent.type(accessInputs[0], 'Wheelchair ramp')
+
+    await userEvent.click(screen.getByRole('button', { name: /Add Facility Feature/i }))
+    const accessInputsAfterAdd1 = screen.getAllByPlaceholderText(
+      /Level wheelchair access via South Portico ramp/i,
+    )
+    await userEvent.type(accessInputsAfterAdd1[accessInputsAfterAdd1.length - 1], 'Braille hymnals')
+
+    await userEvent.click(screen.getByRole('button', { name: /Add Facility Feature/i }))
+    const accessInputsAfterAdd2 = screen.getAllByPlaceholderText(
+      /Level wheelchair access via South Portico ramp/i,
+    )
+    await userEvent.type(accessInputsAfterAdd2[accessInputsAfterAdd2.length - 1], 'Quiet room')
+    // Navigate to Diaconal Programs tab
+    await userEvent.click(screen.getByText('Diaconal Programs'))
+    expect(screen.getByText('Diaconal Ministry & Community Care')).toBeTruthy()
+    expect(screen.getByDisplayValue('Crypt Warm Meals')).toBeTruthy()
+    expect(screen.getByDisplayValue('Hot meals served Tuesdays.')).toBeTruthy()
+
+    // Add a second program
+    await userEvent.click(screen.getByRole('button', { name: /Add Diaconal Program/i }))
+    const titles = screen.getAllByLabelText('Program Title')
+    expect(titles).toHaveLength(2)
+    await userEvent.type(titles[1], 'Refugee Resettlement')
+
+    const descriptions = screen.getAllByLabelText('Program Description')
+    await userEvent.type(descriptions[1], 'Language pairs and trauma support.')
+
+    // Submit form
+    await userEvent.click(screen.getByRole('button', { name: 'Save' }))
+
+    await waitFor(() => {
+      expect(submitSpy).toHaveBeenCalled()
+    })
+
+    const payload = submitSpy.mock.calls[0][0]
+    expect(payload.accessibility).toBe(
+      'Wheelchair ramp • Hearing loop • Braille hymnals • Quiet room',
+    )
+    expect(payload.diaconalPrograms).toHaveLength(2)
+    expect(payload.diaconalPrograms[0].title).toBe('Crypt Warm Meals')
+    expect(payload.diaconalPrograms[1].title).toBe('Refugee Resettlement')
+  })
 })

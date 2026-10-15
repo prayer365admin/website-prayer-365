@@ -2,7 +2,13 @@
 import { keepPreviousData, useQuery } from '@tanstack/react-query'
 import axios from 'axios'
 import { useSession } from 'next-auth/react'
-import { MobileChurchSummary, MobilePublicChurch } from '@/models/mobile'
+import {
+  MobileChurchSummary,
+  MobilePublicAnnouncement,
+  MobilePublicChurch,
+  MobilePublicEvent,
+  MobilePublishedPrayer,
+} from '@/models/mobile'
 
 export const useSiteChurches = ({
   search,
@@ -96,6 +102,83 @@ export const useSiteChurchProfile = (churchId: string) => {
 
   return {
     data: query.data,
+    loading: query.isLoading,
+    error: query.error,
+    retry: query.refetch,
+  }
+}
+
+export const useSiteChurchEvents = (churchId: string) => {
+  const { data: session } = useSession()
+  const userId = session?.user?.user_id
+
+  const query = useQuery({
+    queryKey: ['site', 'churches', churchId, 'events', userId],
+    queryFn: async () => {
+      const res = await axios.get(`/api/v1/site/churches/${churchId}/events`)
+      return {
+        events: (res.data.result ?? []) as MobilePublicEvent[],
+        total: (res.data.total ?? 0) as number,
+      }
+    },
+    enabled: !!userId && !!churchId,
+  })
+
+  return {
+    data: query.data?.events ?? [],
+    total: query.data?.total ?? 0,
+    loading: query.isLoading,
+    error: query.error,
+    retry: query.refetch,
+  }
+}
+
+export const useSiteChurchAnnouncements = (churchId: string) => {
+  const { data: session } = useSession()
+  const userId = session?.user?.user_id
+
+  const query = useQuery({
+    queryKey: ['site', 'churches', churchId, 'announcements', userId],
+    queryFn: async () => {
+      const res = await axios.get(`/api/v1/site/churches/${churchId}/announcements`)
+      return {
+        announcements: (res.data.result ?? []) as MobilePublicAnnouncement[],
+        total: (res.data.total ?? 0) as number,
+      }
+    },
+    enabled: !!userId && !!churchId,
+  })
+
+  return {
+    data: query.data?.announcements ?? [],
+    total: query.data?.total ?? 0,
+    loading: query.isLoading,
+    error: query.error,
+    retry: query.refetch,
+  }
+}
+
+export const useSiteChurchPrayers = (churchId: string) => {
+  const { data: session } = useSession()
+  const userId = session?.user?.user_id
+
+  const query = useQuery({
+    queryKey: ['site', 'churches', churchId, 'prayers', userId],
+    queryFn: async () => {
+      const res = await axios.get(`/api/v1/site/churches/${churchId}/prayers?page=1&limit=10`)
+      const raw = res.data?.result
+      const prayers = Array.isArray(raw) ? (raw as MobilePublishedPrayer[]) : []
+      return {
+        prayers,
+        total: (res.data?.total ?? prayers.length) as number,
+      }
+    },
+    enabled: !!userId && !!churchId,
+  })
+
+  return {
+    data: query.data?.prayers ?? [],
+    total: query.data?.total ?? 0,
     loading: query.isLoading,
     error: query.error,
     retry: query.refetch,

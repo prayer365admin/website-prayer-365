@@ -1,7 +1,7 @@
 import { renderHook, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { axiosMock, Providers, resolveGet, sessionMock } from '@/test/frontend/render'
-import { useSiteChurches, useSiteChurchProfile } from './churches'
+import { useSiteChurches, useSiteChurchPrayers, useSiteChurchProfile } from './churches'
 
 const summary = {
   id: 'c1',
@@ -168,5 +168,40 @@ describe('useSiteChurchProfile', () => {
 
     expect(result.current.loading).toBe(false)
     expect(axiosMock.get).not.toHaveBeenCalled()
+  })
+})
+
+describe('useSiteChurchPrayers', () => {
+  it('fetches prayers when session is present and churchId is provided', async () => {
+    sessionMock.mockReturnValue({
+      data: { user: { user_id: 'u1' } },
+      status: 'authenticated',
+    })
+    const mockPrayer = {
+      id: 'p1',
+      churchId: 'c1',
+      publishedAt: '2026-10-15T00:00:00Z',
+      version: {
+        prayerVersionId: 'pv1',
+        versionNumber: 1,
+        pastorId: 'pas1',
+        title: 'Peace in Uncertain Times',
+        introduction: null,
+        body: 'Text',
+        languageCode: 'et',
+      },
+      audio: null,
+    }
+    axiosMock.get.mockResolvedValueOnce({ data: resolveGet([mockPrayer], 1) })
+
+    const { result } = renderHook(() => useSiteChurchPrayers('c1'), {
+      wrapper: Providers,
+    })
+
+    await waitFor(() => expect(result.current.loading).toBe(false))
+
+    expect(result.current.data).toEqual([mockPrayer])
+    expect(result.current.total).toBe(1)
+    expect(axiosMock.get).toHaveBeenCalledWith('/api/v1/site/churches/c1/prayers?page=1&limit=10')
   })
 })

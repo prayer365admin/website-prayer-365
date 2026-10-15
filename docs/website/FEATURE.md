@@ -67,7 +67,12 @@ prayers and donate.
 - Show approved churches only (never suspended or archived).
 - Search churches by name/city.
 - Open a church profile with name, description, cover, address, contacts,
-  languages, service times, and the "Donate" entry point.
+  languages, service times, sanctuary devotion hours, and the "Donate" entry point.
+  Pastoral Care Office shows regional deanery name.
+- Open a church profile with gallery images and captions (new `church_gallery_items` table).
+- Show the church's upcoming events (read-only, external registration links) and published announcements (read-only) on the profile.
+- Show the church's public staff directory: name, role, and image only.
+- Mark the customer's main church with a 'Primary Parish' chip on its profile.
 
 **Acceptance criteria:**
 
@@ -75,7 +80,7 @@ prayers and donate.
 - A church profile renders the public data from the shared `getPublicChurch`
   controller, including cover URL (`coverUrl`) and service times in the
   church wall clock.
-- No private fields (approval info, staff, payment data) are exposed.
+- No private fields (approval info, payment data, staff personal contacts) are exposed. Staff exposure is limited to name, pastoral role, and image (SPEC decision W7).
 - A customer can navigate from a church profile to its prayers and to donate.
 
 ## WF3 — Prayer
@@ -150,7 +155,7 @@ main and followed churches.
 
 ## Out of scope / Future (do not build now)
 
-- Events, services, announcements.
+- Event/announcement management and detail pages, RSVP or registration systems (profile embeds are read-only; external `registration_url` links only).
 - Prayer / pastoral / meeting request forms.
 - Voluntary check-in.
 - Push notifications, device registration, data exports, in-site account

@@ -1,13 +1,14 @@
 import { db } from '../src/utils/db-connection'
 
 import { seedAnnouncements } from './seeds/announcement'
-import { seedChurches, seedSecondChurch } from './seeds/church'
+import { seedChurches, seedSecondChurch, seedStJohnsChurch } from './seeds/church'
 import { seedConsents } from './seeds/consent'
 import { seedDonations } from './seeds/donation'
 import { seedCountries } from './seeds/country'
 import { seedEvents } from './seeds/event'
 import { seedLanguages } from './seeds/language'
 import { seedMediaAssets } from './seeds/media-asset'
+import { seedGalleryItems } from './seeds/gallery'
 import { seedNotificationRules } from './seeds/notification-rule'
 import { seedOrgNodes } from './seeds/org-node'
 import { seedPastors } from './seeds/pastor'
@@ -36,10 +37,12 @@ async function main() {
   // Placeholder domain graph (dependency order).
   await seedChurches()
   await seedSecondChurch()
+  await seedStJohnsChurch()
   await seedUsers() // prayer test users + end-users (needs org nodes + demo church)
   await seedPastors() // links the demo pastor to the prayer_pastor test user
   await seedConsents()
   await seedMediaAssets()
+  await seedGalleryItems()
   await seedVoiceProfiles()
   await seedPrayers()
   await seedEvents()

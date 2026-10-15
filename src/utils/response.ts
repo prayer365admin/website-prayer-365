@@ -44,6 +44,8 @@ export const httpError = (e: unknown) => {
     if (e.fields) body.fields = e.fields
     return NextResponse.json(body, { status: e.code })
   }
+  // eslint-disable-next-line no-console
+  console.error('httpError 500 caught:', e)
   return NextResponse.json(
     {
       code: 500,

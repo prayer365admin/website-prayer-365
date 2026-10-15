@@ -144,6 +144,8 @@ Table churches {
   sunday_live_stream Boolean
   taize_chants Boolean
   youth_ministry Boolean
+  sanctuary_hours String
+  diaconal_programs Json
   approved_by String
   approved_by_user user
   approved_at DateTime
@@ -156,6 +158,7 @@ Table churches {
   announcements announcements [not null]
   requests requests [not null]
   mediaAssets media_assets [not null]
+  galleryItems church_gallery_items [not null]
   donations donations [not null]
   donationSubscriptions donation_subscriptions [not null]
   checkIns check_ins [not null]
@@ -393,8 +396,20 @@ Table media_assets {
   voiceSamples voice_profile_samples [not null]
   consentEvidence consents [not null]
   audioAssets prayer_audio [not null]
+  galleryItems church_gallery_items [not null]
   created_at DateTime [default: `now()`, not null]
   updated_at DateTime
+}
+
+Table church_gallery_items {
+  id String [pk]
+  church_id String [not null]
+  church churches [not null]
+  media_asset_id String [not null]
+  media_asset media_assets [not null]
+  caption String
+  order_index Int [not null]
+  created_at DateTime [default: `now()`, not null]
 }
 
 Table events {
@@ -824,6 +839,10 @@ Ref: voice_profile_samples.asset_id > media_assets.id
 Ref: media_assets.church_id - churches.id
 
 Ref: media_assets.uploaded_by > user.id
+
+Ref: church_gallery_items.church_id > churches.id [delete: Cascade]
+
+Ref: church_gallery_items.media_asset_id > media_assets.id
 
 Ref: events.church_id > churches.id
 

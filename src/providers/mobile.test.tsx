@@ -1,4 +1,6 @@
+import { Prisma } from '@prisma/client'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { MobilePublicChurchSchema } from '@/models/mobile'
 
 const db = vi.hoisted(() => ({
   $transaction: vi.fn(),
@@ -255,6 +257,206 @@ describe('GET_PUBLIC_CHURCH — admin profile reflected in mobile contract', () 
     db.church.findFirst.mockResolvedValueOnce(null)
     const result = await GET_PUBLIC_CHURCH({ churchId: 'c1' })
     expect(result).toBeNull()
+  })
+
+  it('queries with status APPROVED and church id in where-clause', async () => {
+    db.church.findFirst.mockResolvedValueOnce(null)
+    await GET_PUBLIC_CHURCH({ churchId: 'c1' })
+    expect(db.church.findFirst).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          id: 'c1',
+          status: 'APPROVED',
+        }),
+      }),
+    )
+  })
+
+  it('reflects gallery items ordered, with image urls and null when asset is missing', async () => {
+    db.church.findFirst.mockResolvedValueOnce({
+      id: 'c1',
+      name: 'Grace',
+      timezone: 'UTC',
+      churchLanguages: [],
+      serviceTimes: [],
+      galleryItems: [
+        {
+          caption: 'Altar',
+          order_index: 0,
+          media_asset: { id: 'm1', object_key: 'churches/c1/altar.jpg' },
+        },
+        {
+          caption: 'Nave',
+          order_index: 1,
+          media_asset: null,
+        },
+      ],
+    })
+
+    const result = await GET_PUBLIC_CHURCH({ churchId: 'c1' })
+    expect(result?.gallery).toEqual([
+      {
+        assetId: 'm1',
+        url: 'https://cdn.test/churches/c1/altar.jpg',
+        caption: 'Altar',
+        orderIndex: 0,
+      },
+      {
+        assetId: '',
+        url: null,
+        caption: 'Nave',
+        orderIndex: 1,
+      },
+    ])
+  })
+
+  it('reflects staff items with church override image first, canonical pastor fallback, and null when neither', async () => {
+    db.church.findFirst.mockResolvedValueOnce({
+      id: 'c1',
+      name: 'Grace',
+      timezone: 'UTC',
+      churchLanguages: [],
+      serviceTimes: [],
+      pastors: [
+        {
+          pastoral_role: 'Senior Pastor',
+          image_asset: { object_key: 'churches/c1/override.jpg' },
+          pastor: {
+            name: 'Pastor John',
+            image_asset: { object_key: 'pastors/p1/canonical.jpg' },
+          },
+        },
+        {
+          pastoral_role: 'Associate Pastor',
+          image_asset: null,
+          pastor: {
+            name: 'Pastor Jane',
+            image_asset: { object_key: 'pastors/p2/canonical.jpg' },
+          },
+        },
+        {
+          pastoral_role: 'Youth Leader',
+          image_asset: null,
+          pastor: {
+            name: 'Leader Sam',
+            image_asset: null,
+          },
+        },
+      ],
+    })
+
+    const result = await GET_PUBLIC_CHURCH({ churchId: 'c1' })
+    expect(result?.staff).toEqual([
+      {
+        name: 'Pastor John',
+        pastoralRole: 'Senior Pastor',
+        imageUrl: 'https://cdn.test/churches/c1/override.jpg',
+      },
+      {
+        name: 'Pastor Jane',
+        pastoralRole: 'Associate Pastor',
+        imageUrl: 'https://cdn.test/pastors/p2/canonical.jpg',
+      },
+      {
+        name: 'Leader Sam',
+        pastoralRole: 'Youth Leader',
+        imageUrl: null,
+      },
+    ])
+    for (const member of result?.staff ?? []) {
+      expect(member).not.toHaveProperty('email')
+      expect(member).not.toHaveProperty('phone')
+      expect(member).not.toHaveProperty('contacts')
+    }
+  })
+
+  it('emits sanctuaryHours and resolves deaneryName when parent kind is DEANERY', async () => {
+    db.church.findFirst.mockResolvedValueOnce({
+      id: 'c1',
+      name: 'Grace',
+      timezone: 'UTC',
+      sanctuary_hours: '10:00–18:30 daily',
+      churchLanguages: [],
+      serviceTimes: [],
+      org_node: {
+        parent: {
+          kind: 'DEANERY',
+          name: 'Tallinn Deanery',
+        },
+      },
+    })
+
+    const result = await GET_PUBLIC_CHURCH({ churchId: 'c1' })
+    expect(result?.sanctuaryHours).toBe('10:00–18:30 daily')
+    expect(result?.deaneryName).toBe('Tallinn Deanery')
+  })
+
+  it('emits null for deaneryName and sanctuaryHours when absent or parent is not DEANERY', async () => {
+    db.church.findFirst.mockResolvedValueOnce({
+      id: 'c1',
+      name: 'Grace',
+      timezone: 'UTC',
+      sanctuary_hours: null,
+      churchLanguages: [],
+      serviceTimes: [],
+      org_node: {
+        parent: {
+          kind: 'DIOCESE',
+          name: 'North Diocese',
+        },
+      },
+    })
+
+    const result = await GET_PUBLIC_CHURCH({ churchId: 'c1' })
+    expect(result?.sanctuaryHours).toBeNull()
+    expect(result?.deaneryName).toBeNull()
+  })
+
+  it('GET_PUBLIC_CHURCH result conforms to MobilePublicChurchSchema', async () => {
+    db.church.findFirst.mockResolvedValueOnce({
+      id: 'c1',
+      name: 'Grace',
+      denomination: null,
+      description: null,
+      timezone: 'UTC',
+      latitude: null,
+      longitude: null,
+      address: { line1: '1 St', line2: null, city: 'Tallinn', postalCode: null, countryCode: 'EE' },
+      contacts: { email: null, phone: null },
+      website: null,
+      social_links: [],
+      accessibility: null,
+      cover_asset_id: null,
+      sanctuary_hours: null,
+      churchLanguages: [],
+      serviceTimes: [],
+      galleryItems: [],
+      pastors: [],
+    })
+
+    const result = await GET_PUBLIC_CHURCH({ churchId: 'c1' })
+    const parsed = MobilePublicChurchSchema.safeParse(result)
+    expect(parsed.success).toBe(true)
+  })
+
+  it('includes only fields and relations that exist in generated Prisma.dmmf', () => {
+    const churchModel = Prisma.dmmf.datamodel.models.find((m) => m.name === 'Church')
+    expect(churchModel).toBeDefined()
+    const fieldNames = (churchModel?.fields ?? []).map((f) => f.name)
+
+    expect(fieldNames.includes('sanctuary_hours')).toBe(true)
+    expect(fieldNames.includes('galleryItems')).toBe(true)
+    expect(fieldNames.includes('pastors')).toBe(true)
+    expect(fieldNames.includes('serviceTimes')).toBe(true)
+    expect(fieldNames.includes('churchLanguages')).toBe(true)
+    expect(fieldNames.includes('org_node')).toBe(true)
+
+    const galleryModel = Prisma.dmmf.datamodel.models.find((m) => m.name === 'ChurchGalleryItem')
+    expect(galleryModel).toBeDefined()
+    const galleryFields = (galleryModel?.fields ?? []).map((f) => f.name)
+    expect(galleryFields.includes('caption')).toBe(true)
+    expect(galleryFields.includes('order_index')).toBe(true)
+    expect(galleryFields.includes('media_asset')).toBe(true)
   })
 })
 describe('LIST_PUBLIC_CHURCHES — discovery search by name or city', () => {
@@ -807,6 +1009,7 @@ describe('LIST_PUBLIC_EVENTS — admin event edits reflected under the correct c
         location: 'Room 9',
         registration_url: 'https://example.org/r',
         language_code: 'et',
+        cta_label: 'Custom CTA',
       },
     ])
 
@@ -829,6 +1032,7 @@ describe('LIST_PUBLIC_EVENTS — admin event edits reflected under the correct c
         location: 'Room 9',
         registrationUrl: 'https://example.org/r',
         languageCode: 'et',
+        ctaLabel: 'Custom CTA',
       },
     ])
   })

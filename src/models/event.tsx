@@ -49,6 +49,7 @@ export const EventInputSchema = z
       })
       .nullish(),
     languageCode: z.string().trim().min(1).max(10).nullish(),
+    ctaLabel: z.string().trim().max(100).nullish(),
   })
   .strict()
 
@@ -80,6 +81,7 @@ export const EventOutputSchema = z.object({
   location: z.string(),
   registrationUrl: z.string().nullable(),
   languageCode: z.string().nullable(),
+  ctaLabel: z.string().nullable().optional(),
   version: z.number(),
   createdAt: z.string(),
 })
@@ -94,6 +96,7 @@ export type EventOutput = {
   location: string
   registrationUrl: string | null
   languageCode: string | null
+  ctaLabel?: string | null
   version: number
   createdAt: string
 }
@@ -108,6 +111,7 @@ export const mapEvent = (e: {
   location: string
   registration_url: string | null
   language_code: string | null
+  cta_label?: string | null
   version: number
   created_at: Date
 }): EventOutput => ({
@@ -120,6 +124,7 @@ export const mapEvent = (e: {
   location: e.location,
   registrationUrl: e.registration_url,
   languageCode: e.language_code,
+  ctaLabel: e.cta_label ?? null,
   version: e.version,
   createdAt: e.created_at.toISOString(),
 })

@@ -13,6 +13,7 @@ const { db, tx } = vi.hoisted(() => {
   const txObj = {
     church: { updateMany: vi.fn(), findUnique: vi.fn() },
     churchLanguage: { deleteMany: vi.fn(), createMany: vi.fn() },
+    churchGalleryItem: { deleteMany: vi.fn(), createMany: vi.fn() },
     auditLog: { create: vi.fn() },
   }
   return {
@@ -177,6 +178,62 @@ describe('Church Provider', () => {
       expect(result.coordinates).toEqual({ latitude: 1, longitude: 2 })
       expect(result.languageCodes).toEqual(['en'])
       expect(result.version).toBe(4)
+    })
+    it('replaces gallery items when provided in UPDATE_CHURCH_PROFILE', async () => {
+      tx.church.updateMany.mockResolvedValueOnce({ count: 1 })
+      tx.church.findUnique.mockResolvedValueOnce({
+        id: 'c1',
+        name: 'New Name',
+        status: 'APPROVED',
+        timezone: 'UTC',
+        description: null,
+        denomination: null,
+        address: {},
+        latitude: null,
+        longitude: null,
+        contacts: {},
+        website: null,
+        social_links: [],
+        accessibility: null,
+        sanctuary_hours: '10:00–18:30 daily',
+        cover_asset_id: null,
+        version: 4,
+        churchLanguages: [],
+        galleryItems: [
+          {
+            id: 'g1',
+            media_asset_id: 'm1',
+            caption: 'Altar',
+            order_index: 0,
+            media_asset: { id: 'm1', object_key: '/images/church.jpeg' },
+          },
+        ],
+      })
+
+      const result = await UPDATE_CHURCH_PROFILE({
+        churchId: 'c1',
+        churchIds: new Set(['c1']),
+        expectedVersion: 3,
+        payload,
+        languageCodes: [],
+        galleryItems: [{ mediaAssetId: 'm1', caption: 'Altar', orderIndex: 0 }],
+        requestId: 'r1',
+      })
+
+      expect(tx.churchGalleryItem.deleteMany).toHaveBeenCalledWith({ where: { church_id: 'c1' } })
+      expect(tx.churchGalleryItem.createMany).toHaveBeenCalledWith({
+        data: [{ church_id: 'c1', media_asset_id: 'm1', caption: 'Altar', order_index: 0 }],
+      })
+      expect(result.sanctuaryHours).toBe('10:00–18:30 daily')
+      expect(result.galleryItems).toEqual([
+        {
+          id: 'g1',
+          mediaAssetId: 'm1',
+          caption: 'Altar',
+          orderIndex: 0,
+          url: '/images/church.jpeg',
+        },
+      ])
     })
 
     it('targets the requested churchId, not ids[0]', async () => {
