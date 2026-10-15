@@ -87,4 +87,17 @@ describe('WB3 Home devotional hero', () => {
       '/churches',
     )
   })
+
+  it('links available shortcuts and marks unbuilt ones as coming soon', () => {
+    renderHome(home())
+
+    expect(screen.getByRole('link', { name: /Daily Prayer/ }).getAttribute('href')).toBe('/prayers')
+    expect(screen.getByRole('link', { name: /Find Churches/ }).getAttribute('href')).toBe(
+      '/churches',
+    )
+    expect(screen.getByRole('heading', { name: 'Sunday Services' })).toBeTruthy()
+    expect(screen.queryByRole('link', { name: /Sunday Services/ })).toBeNull()
+    expect(screen.queryByRole('link', { name: /Request Prayer/ })).toBeNull()
+    expect(screen.getAllByText('Coming soon')).toHaveLength(2)
+  })
 })

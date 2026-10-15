@@ -203,6 +203,24 @@ export const SITE_MESSAGES = {
     homeGoDirectory: 'Go to church directory',
     homeQuietPlace: 'A quiet place for prayer.',
     homeQuietPlaceBody: 'Your latest church prayers will appear here when they are published.',
+    // --- WB3 Home shortcuts (home-2) ---
+    homeComingSoon: 'Coming soon',
+    homeShortcutPrayerTitle: 'Daily Prayer',
+    homeShortcutPrayerBody:
+      'Guided morning, midday, and compline audio meditations refreshed at dawn.',
+    homeShortcutPrayerLink: '3 Sessions Ready',
+    homeShortcutChurchesTitle: 'Find Churches',
+    homeShortcutChurchesBody:
+      'Locate 12+ welcoming congregations near Tallinn, Harju, and Helsinki dioceses.',
+    homeShortcutChurchesLink: 'View Parish Map',
+    homeShortcutServicesTitle: 'Sunday Services',
+    homeShortcutServicesBody:
+      'Live web streams, liturgical schedules, and download bilingual hymns.',
+    homeShortcutServicesLink: 'Live Schedule',
+    homeShortcutRequestTitle: 'Request Prayer',
+    homeShortcutRequestBody:
+      'Submit private or congregational petitions directly to accredited pastors.',
+    homeShortcutRequestLink: 'Pastor Intercession',
   },
   // DRAFT — Estonian strings not yet reviewed by a native speaker (REPORT R-13).
   // Do not treat as final launch text.
@@ -381,6 +399,43 @@ export const SITE_MESSAGES = {
     profilePictureError: 'Kasuta JPG, PNG, WEBP või HEIC pilti kuni 8 MB.',
     profileLoadError: 'Profiili ei õnnestunud laadida',
     profileLoadErrorBody: 'Värskenda lehte või proovi varsti uuesti.',
+    // --- WB3 Home devotional hero ---
+    homeLiturgicalFocus: 'Tänane liturgiline fookus',
+    homeGoodMorning: 'Tere hommikust',
+    homeGoodAfternoon: 'Tere päevast',
+    homeGoodEvening: 'Tere õhtust',
+    homeNotAlone: 'Sa ei ole üksi.',
+    homeWelcomeBody:
+      'Täna on uus võimalus palvetada, kuuluda, anda ja kasvada osaduses meie põhjamaistes kogukondades.',
+    homeGuidedContemplation: 'Juhendatud mõtisklus',
+    homeDailyPrayer: 'Igapäevane palve',
+    homeReadPrayer: 'Loe palvet',
+    homePrayerReflection: 'Palvemõtisklus',
+    homeSharePrayer: 'Jaga palvet',
+    homeLinkCopied: 'Palve link kopeeritud',
+    homeSaveUnavailable: 'Palvete salvestamine pole veel saadaval',
+    homeEmptyTitle: 'Sinu kogudustelt pole veel palveid',
+    homeEmptyBody: 'Vali põhikogudus või jälgi kogudust, et alustada igapäevast palverütmi.',
+    homeGoDirectory: 'Ava koguduste kataloog',
+    homeQuietPlace: 'Vaikne paik palveks.',
+    homeQuietPlaceBody: 'Sinu koguduste uusimad palved ilmuvad siia, kui need avaldatakse.',
+    // --- WB3 Home shortcuts (home-2) ---
+    homeComingSoon: 'Tulekul',
+    homeShortcutPrayerTitle: 'Igapäevane palve',
+    homeShortcutPrayerBody:
+      'Juhendatud hommiku-, keskpäeva- ja õhtupalve helimõtisklused, uuendatud koidikul.',
+    homeShortcutPrayerLink: '3 sessiooni valmis',
+    homeShortcutChurchesTitle: 'Leia kogudusi',
+    homeShortcutChurchesBody:
+      'Leia 12+ külalislahket kogudust Tallinna, Harju ja Helsingi piiskopkondade lähedal.',
+    homeShortcutChurchesLink: 'Vaata koguduste kaarti',
+    homeShortcutServicesTitle: 'Pühapäevased jumalateenistused',
+    homeShortcutServicesBody:
+      'Otseülekanded veebis, liturgilised ajakavad ja kakskeelsed lauluraamatud allalaadimiseks.',
+    homeShortcutServicesLink: 'Otseülekannete ajakava',
+    homeShortcutRequestTitle: 'Palu eestpalvet',
+    homeShortcutRequestBody: 'Saada isiklikke või koguduse palvesoove otse volitatud pastoritele.',
+    homeShortcutRequestLink: 'Pastori eestpalve',
   },
   // DRAFT — Swedish strings not yet reviewed by a native speaker (REPORT R-13).
   // Do not treat as final launch text.
@@ -559,6 +614,45 @@ export const SITE_MESSAGES = {
     profilePictureError: 'Använd en JPG-, PNG-, WEBP- eller HEIC-bild på högst 8 MB.',
     profileLoadError: 'Din profil kunde inte laddas',
     profileLoadErrorBody: 'Ladda om sidan eller försök igen om en stund.',
+    // --- WB3 Home devotional hero ---
+    homeLiturgicalFocus: 'Dagens liturgiska fokus',
+    homeGoodMorning: 'God morgon',
+    homeGoodAfternoon: 'God eftermiddag',
+    homeGoodEvening: 'God kväll',
+    homeNotAlone: 'Du är inte ensam.',
+    homeWelcomeBody:
+      'Idag är en ny möjlighet att be, höra till, ge och växa i gemenskap i våra nordiska församlingar.',
+    homeGuidedContemplation: 'Guidad kontemplation',
+    homeDailyPrayer: 'Daglig bön',
+    homeReadPrayer: 'Läs bönen',
+    homePrayerReflection: 'Bönereflektion',
+    homeSharePrayer: 'Dela bönen',
+    homeLinkCopied: 'Länken till bönen har kopierats',
+    homeSaveUnavailable: 'Att spara böner är inte tillgängligt ännu',
+    homeEmptyTitle: 'Inga böner från dina församlingar ännu',
+    homeEmptyBody:
+      'Välj en huvudförsamling eller följ en församling för att börja din dagliga bönerytm.',
+    homeGoDirectory: 'Gå till församlingskatalogen',
+    homeQuietPlace: 'En stilla plats för bön.',
+    homeQuietPlaceBody: 'Dina församlingars senaste böner visas här när de publiceras.',
+    // --- WB3 Home shortcuts (home-2) ---
+    homeComingSoon: 'Kommer snart',
+    homeShortcutPrayerTitle: 'Daglig bön',
+    homeShortcutPrayerBody:
+      'Guidade ljudmeditationer för morgon, middag och completorium, förnyade i gryningen.',
+    homeShortcutPrayerLink: '3 sessioner redo',
+    homeShortcutChurchesTitle: 'Hitta församlingar',
+    homeShortcutChurchesBody:
+      'Hitta 12+ välkomnande församlingar nära Tallinns, Harjus och Helsingfors stift.',
+    homeShortcutChurchesLink: 'Visa församlingskarta',
+    homeShortcutServicesTitle: 'Söndagsgudstjänster',
+    homeShortcutServicesBody:
+      'Livesändningar på webben, liturgiska scheman och tvåspråkiga psalmer att ladda ner.',
+    homeShortcutServicesLink: 'Sändningsschema',
+    homeShortcutRequestTitle: 'Be om förbön',
+    homeShortcutRequestBody:
+      'Skicka personliga eller församlingens böneämnen direkt till behöriga präster.',
+    homeShortcutRequestLink: 'Prästens förbön',
   },
   // DRAFT — Finnish strings not yet reviewed by a native speaker (REPORT R-13).
   // Do not treat as final launch text.
@@ -740,6 +834,45 @@ export const SITE_MESSAGES = {
     profilePictureError: 'Käytä JPG-, PNG-, WEBP- tai HEIC-kuvaa, enintään 8 Mt.',
     profileLoadError: 'Profiilia ei voitu ladata',
     profileLoadErrorBody: 'Päivitä sivu tai yritä hetken kuluttua uudelleen.',
+    // --- WB3 Home devotional hero ---
+    homeLiturgicalFocus: 'Päivän liturginen painopiste',
+    homeGoodMorning: 'Hyvää huomenta',
+    homeGoodAfternoon: 'Hyvää iltapäivää',
+    homeGoodEvening: 'Hyvää iltaa',
+    homeNotAlone: 'Et ole yksin.',
+    homeWelcomeBody:
+      'Tänään on uusi mahdollisuus rukoilla, kuulua yhteyteen, antaa ja kasvaa yhteydessä pohjoisissa yhteisöissämme.',
+    homeGuidedContemplation: 'Ohjattu mietiskely',
+    homeDailyPrayer: 'Päivän rukous',
+    homeReadPrayer: 'Lue rukous',
+    homePrayerReflection: 'Rukousmietiskely',
+    homeSharePrayer: 'Jaa rukous',
+    homeLinkCopied: 'Rukouksen linkki kopioitu',
+    homeSaveUnavailable: 'Rukousten tallentaminen ei ole vielä käytettävissä',
+    homeEmptyTitle: 'Seurakunnistasi ei ole vielä rukouksia',
+    homeEmptyBody:
+      'Valitse pääseurakunta tai seuraa seurakuntaa aloittaaksesi päivittäisen rukousrytmin.',
+    homeGoDirectory: 'Siirry seurakuntahakemistoon',
+    homeQuietPlace: 'Hiljainen paikka rukoukselle.',
+    homeQuietPlaceBody: 'Seurakuntiesi uusimmat rukoukset näkyvät täällä, kun ne julkaistaan.',
+    // --- WB3 Home shortcuts (home-2) ---
+    homeComingSoon: 'Tulossa',
+    homeShortcutPrayerTitle: 'Päivän rukous',
+    homeShortcutPrayerBody:
+      'Ohjatut aamu-, keskipäivä- ja iltarukouksen äänimietiskelyt, päivitetty aamunkoitteessa.',
+    homeShortcutPrayerLink: '3 hetkeä valmiina',
+    homeShortcutChurchesTitle: 'Löydä seurakuntia',
+    homeShortcutChurchesBody:
+      'Löydä 12+ vieraanvaraista seurakuntaa Tallinnan, Harjun ja Helsingin hiippakuntien läheltä.',
+    homeShortcutChurchesLink: 'Näytä seurakuntakartta',
+    homeShortcutServicesTitle: 'Sunnuntain jumalanpalvelukset',
+    homeShortcutServicesBody:
+      'Suorat verkkolähetykset, liturgiset aikataulut ja kaksikieliset virret ladattaviksi.',
+    homeShortcutServicesLink: 'Lähetysaikataulu',
+    homeShortcutRequestTitle: 'Pyydä esirukousta',
+    homeShortcutRequestBody:
+      'Lähetä henkilökohtaisia tai seurakunnan rukouspyyntöjä suoraan valtuutetuille pastoreille.',
+    homeShortcutRequestLink: 'Pastorin esirukous',
   },
 } satisfies Record<SiteLocale, Record<string, string>>
 

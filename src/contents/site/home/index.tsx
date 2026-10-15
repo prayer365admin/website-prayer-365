@@ -1,6 +1,7 @@
 import BoxContainer from '@/components/container/boxed'
 import { MobileHome } from '@/models/mobile'
 import DevotionalHero from './devotional-hero'
+import HomeShortcuts from './shortcuts'
 
 export default function ContentsSiteHome({
   home,
@@ -14,6 +15,7 @@ export default function ContentsSiteHome({
   return (
     <BoxContainer containerClassName="py-6 md:py-8">
       <DevotionalHero name={name} now={now} prayer={home.latestPrayers[0]} />
+      <HomeShortcuts />
     </BoxContainer>
   )
 }
