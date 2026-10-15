@@ -72,6 +72,15 @@ const withCover = async <T extends { coverAssetId: string | null }>(
   coverUrl: await coverUrlFor(row.coverAssetId),
 })
 
+/** MB-11 — `coordinates` is a pair or null (same rule as the admin DTO). Prisma `Decimal` → number. */
+const toCoordinates = (
+  latitude: unknown,
+  longitude: unknown,
+): { latitude: number; longitude: number } | null =>
+  latitude !== null && longitude !== null
+    ? { latitude: Number(latitude), longitude: Number(longitude) }
+    : null
+
 const toSummary = (
   c: {
     id: string
@@ -97,6 +106,7 @@ const toSummary = (
     city,
     coverAssetId: c.cover_asset_id,
     distanceKm,
+    coordinates: toCoordinates(c.latitude, c.longitude),
   }
 }
 
@@ -157,10 +167,7 @@ const mapPublicChurch = (
       postalCode: addr.postalCode ?? null,
       countryCode: addr.countryCode ?? '',
     },
-    coordinates:
-      latitude !== null && longitude !== null
-        ? { latitude: Number(latitude), longitude: Number(longitude) }
-        : null,
+    coordinates: toCoordinates(latitude, longitude),
     contacts: { email: contacts.email ?? null, phone: contacts.phone ?? null },
     website: c.website,
     socialLinks: Array.isArray(c.social_links)

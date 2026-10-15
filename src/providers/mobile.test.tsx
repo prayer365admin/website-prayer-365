@@ -30,6 +30,7 @@ import {
   GET_PUBLIC_CHURCH,
   GET_PUBLISHED_PRAYER,
   LIST_MY_CHURCHES,
+  LIST_PUBLIC_CHURCHES,
   LIST_PUBLIC_ANNOUNCEMENTS,
   LIST_PUBLIC_EVENTS,
   LIST_PUBLISHED_PRAYERS,
@@ -711,5 +712,78 @@ describe('GET_HOME — MB-10 typed projection', () => {
     expect(res.latestPrayers[0].version.title).toBe('Prayer')
     expect(res.latestEvents).toEqual([])
     expect(res.latestAnnouncements).toEqual([])
+  })
+})
+
+describe('MB-11 — church summary coordinates', () => {
+  const summaryRow = (over: Record<string, unknown> = {}) => ({
+    id: 'c1',
+    name: 'Grace',
+    denomination: null,
+    address: { city: 'Tallinn' },
+    cover_asset_id: null,
+    latitude: 59.437,
+    longitude: 24.7536,
+    ...over,
+  })
+
+  const mockList = (rows: unknown[]) => {
+    db.$transaction.mockImplementationOnce(async (arg: unknown) =>
+      Array.isArray(arg) ? Promise.all(arg) : arg,
+    )
+    db.church.count.mockResolvedValueOnce(rows.length)
+    db.church.findMany.mockResolvedValueOnce(rows)
+  }
+
+  it('serves coordinates when the church has a lat/lng pair', async () => {
+    mockList([summaryRow()])
+
+    const { result } = await LIST_PUBLIC_CHURCHES({ query: { page: 1, limit: 25 } })
+
+    expect(result[0].coordinates).toEqual({ latitude: 59.437, longitude: 24.7536 })
+  })
+
+  it('serves coordinates: null when the church has none (both-or-neither rule)', async () => {
+    mockList([
+      summaryRow({ id: 'coords', latitude: 59.437, longitude: 24.7536 }),
+      summaryRow({ id: 'no-coords', latitude: null, longitude: null }),
+    ])
+
+    const { result } = await LIST_PUBLIC_CHURCHES({ query: { page: 1, limit: 25 } })
+
+    // the key is always present; the value is the honest state
+    expect(result.every((c) => 'coordinates' in c)).toBe(true)
+    expect(result.find((c) => c.id === 'no-coords')?.coordinates).toBeNull()
+    expect(result.find((c) => c.id === 'coords')?.coordinates).toEqual({
+      latitude: 59.437,
+      longitude: 24.7536,
+    })
+  })
+
+  it('home followed churches carry the same coordinates field', async () => {
+    db.userChurch.findMany.mockResolvedValueOnce([
+      { is_main: false, is_followed: true, church_id: 'c2' },
+    ])
+    // followed-only fixture: GET_HOME's main row falls back to approved[0]
+    db.church.findFirst.mockResolvedValueOnce(null)
+    db.church.findMany.mockResolvedValueOnce([
+      {
+        id: 'c2',
+        name: 'Two',
+        denomination: null,
+        address: null,
+        cover_asset_id: null,
+        latitude: 58.3776,
+        longitude: 26.729,
+      },
+    ])
+
+    const home = await GET_HOME({ userId: 'u1' })
+
+    expect(home.followedChurches.every((c) => 'coordinates' in c)).toBe(true)
+    expect(home.followedChurches[0].coordinates).toEqual({
+      latitude: 58.3776,
+      longitude: 26.729,
+    })
   })
 })

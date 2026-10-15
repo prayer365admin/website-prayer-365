@@ -65,6 +65,8 @@ export const MobileChurchSummarySchema = z.object({
   coverAssetId: z.string().nullable(),
   coverUrl: z.string().nullable(),
   distanceKm: z.number().nullable(),
+  /** MB-11 — marker position; null when the church has none (both lat+lng or neither). */
+  coordinates: MobileCoordinatesSchema.nullable(),
 })
 
 export type MobileChurchSummary = z.infer<typeof MobileChurchSummarySchema>
