@@ -46,6 +46,10 @@ export default function ChurchCard({
   // FIGMA: header pill right segments = distance • district (address line2).
   const distanceText = church.distanceKm != null ? `${church.distanceKm} km` : null
   const districtText = church.district ?? null
+  // FIGMA pill slot: worship-style/highlight per church ("Contemporary
+  // Ecumenical", "Youth & Student Parish"); falls back to the denomination
+  // acronym ("EELK") when the admin has not set a style.
+  const churchStyle = church.churchStyle ?? formatDenomination(church.denomination)
   const denomination = formatDenomination(church.denomination)
   const accessibilityText = church.accessibility?.[0] ?? null
   const quote = church.description || null
@@ -58,9 +62,9 @@ export default function ChurchCard({
           : 'shadow-[0_1px_2px_rgba(0,0,0,0.05)]'
       }`}
     >
-      {/* Header: left pill (Primary Parish / category), right distance • district */}
+      {/* Header: left pill (Primary Parish / church style), right distance • district */}
       <div className="flex items-center justify-between gap-2 p-4">
-        {denomination && (
+        {(featured || churchStyle) && (
           <div
             className={`flex w-fit items-center gap-1 rounded-full px-2 py-1 text-xs leading-[150%] ${
               featured ? 'bg-primary_color text-white' : 'bg-[#B9D8F8] text-[#0B4497]'
@@ -72,7 +76,7 @@ export default function ChurchCard({
                 <span>{t('primaryParish')}</span>
               </>
             ) : (
-              <span>{denomination}</span>
+              <span>{churchStyle}</span>
             )}
           </div>
         )}

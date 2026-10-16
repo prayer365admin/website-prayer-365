@@ -139,6 +139,33 @@ describe('PATCH /api/v1/admin/churches/[churchId]/profile', () => {
     )
   })
 
+  it('accepts churchStyle and clears it with null', async () => {
+    vi.mocked(requiredAuth).mockResolvedValue(auth() as never)
+    vi.mocked(requiredScope).mockResolvedValue(scope as never)
+    vi.mocked(patchChurchProfile).mockResolvedValue({ ...profile, version: 4 } as never)
+    const set = new NextRequest('http://x/profile', {
+      method: 'PATCH',
+      body: JSON.stringify({ ...validInput, churchStyle: 'Contemporary Ecumenical' }),
+    })
+    const setRes = (await PATCH(set, params as never))!
+    expect(setRes.status).toBe(200)
+    expect(patchChurchProfile).toHaveBeenCalledWith(
+      expect.objectContaining({
+        input: expect.objectContaining({ churchStyle: 'Contemporary Ecumenical' }),
+      }),
+    )
+
+    const clear = new NextRequest('http://x/profile', {
+      method: 'PATCH',
+      body: JSON.stringify({ ...validInput, churchStyle: null }),
+    })
+    const clearRes = (await PATCH(clear, params as never))!
+    expect(clearRes.status).toBe(200)
+    expect(patchChurchProfile).toHaveBeenCalledWith(
+      expect.objectContaining({ input: expect.objectContaining({ churchStyle: null }) }),
+    )
+  })
+
   it('rejects server-owned fields with 422', async () => {
     vi.mocked(requiredAuth).mockResolvedValue(auth() as never)
     const req = new NextRequest('http://x/profile', {

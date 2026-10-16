@@ -254,6 +254,7 @@ export const patchChurchProfile = async ({
     name: input.name,
     description: input.description ?? null,
     denomination: input.denomination ?? null,
+    church_style: input.churchStyle ?? null,
     address: input.address,
     latitude: input.coordinates ? input.coordinates.latitude : null,
     longitude: input.coordinates ? input.coordinates.longitude : null,

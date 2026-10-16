@@ -87,6 +87,7 @@ export const CREATE_CHURCH = async (
     timezone,
     description,
     denomination,
+    church_style,
     address,
     contacts,
     latitude,
@@ -100,6 +101,7 @@ export const CREATE_CHURCH = async (
     timezone: string
     description?: string | null
     denomination?: string | null
+    church_style?: string | null
     address?: unknown
     contacts?: unknown
     latitude?: number | null
@@ -116,6 +118,7 @@ export const CREATE_CHURCH = async (
     timezone,
     description: description ?? null,
     denomination: denomination ?? null,
+    church_style: church_style ?? null,
     address: (address ?? {}) as Prisma.InputJsonValue,
     contacts: (contacts ?? {}) as Prisma.InputJsonValue,
     social_links: {} as Prisma.InputJsonValue,

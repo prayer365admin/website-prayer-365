@@ -440,6 +440,38 @@ describe('GET_PUBLIC_CHURCH — admin profile reflected in mobile contract', () 
     expect(result?.deaneryName).toBe('Tallinn Deanery')
   })
 
+  it('emits churchStyle from church.church_style and null when unset', async () => {
+    const row = {
+      id: 'c1',
+      name: 'Grace',
+      denomination: 'Lutheran (EELK)',
+      church_style: 'Contemporary Ecumenical',
+      description: null,
+      timezone: 'UTC',
+      latitude: null,
+      longitude: null,
+      address: { line1: '1 St', line2: null, city: 'Tallinn', postalCode: null, countryCode: 'EE' },
+      contacts: { email: null, phone: null },
+      website: null,
+      social_links: [],
+      accessibility: null,
+      cover_asset_id: null,
+      sanctuary_hours: null,
+      churchLanguages: [],
+      serviceTimes: [],
+      galleryItems: [],
+      pastors: [],
+    }
+    db.church.findFirst.mockResolvedValueOnce(row)
+
+    const withStyle = await GET_PUBLIC_CHURCH({ churchId: 'c1' })
+    expect(withStyle?.churchStyle).toBe('Contemporary Ecumenical')
+
+    db.church.findFirst.mockResolvedValueOnce({ ...row, church_style: null })
+    const withoutStyle = await GET_PUBLIC_CHURCH({ churchId: 'c1' })
+    expect(withoutStyle?.churchStyle).toBeNull()
+  })
+
   it('emits null for deaneryName and sanctuaryHours when absent or parent is not DEANERY', async () => {
     db.church.findFirst.mockResolvedValueOnce({
       id: 'c1',
@@ -954,6 +986,23 @@ describe('LIST_PUBLIC_CHURCHES — directory filters (WB-25)', () => {
       'Hearing loop',
       'Braille hymnals',
     ])
+  })
+
+  it('projects churchStyle on the summary and omits the field when unset', async () => {
+    db.$transaction.mockResolvedValueOnce([
+      1,
+      [
+        summaryRow({ id: 'c-style', church_style: 'Contemporary Ecumenical' }),
+        summaryRow({ id: 'c-plain' }),
+      ],
+    ])
+
+    const res = await LIST_PUBLIC_CHURCHES({
+      query: { page: 1, limit: 10 },
+    })
+
+    expect(res.result[0].churchStyle).toBe('Contemporary Ecumenical')
+    expect(res.result[1].churchStyle).toBeUndefined()
   })
 })
 

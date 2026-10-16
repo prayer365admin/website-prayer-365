@@ -339,6 +339,13 @@ export default function FormChurchProfileTabs({
             </Col>
           </Row>
           <Row gutter={24}>
+            <Col span={12}>
+              <Form.Item name={'churchStyle'} label="Church style / highlight">
+                <Input placeholder="e.g. Contemporary Ecumenical, Youth & Student Parish" />
+              </Form.Item>
+            </Col>
+          </Row>
+          <Row gutter={24}>
             <Col span={24}>
               <Form.Item name={'description'} label="Description">
                 <Input.TextArea

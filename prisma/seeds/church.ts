@@ -31,6 +31,7 @@ export const TALLINN_CHURCH_PROFILE = {
   status: 'APPROVED' as const,
   timezone: 'Europe/Tallinn',
   denomination: 'Lutheran (EELK)',
+  church_style: 'Historic 14th Century',
   description:
     'Historic cathedral atop Toompea Hill, founded in the early 13th century. An enduring sanctuary of quiet presence, community refuge, organ praise, and continuous prayer overlooking the capital.',
   address: {
@@ -90,6 +91,7 @@ export const TARTU_CHURCH_PROFILE = {
   status: 'APPROVED' as const,
   timezone: 'Europe/Tallinn',
   denomination: 'Lutheran (EELK)',
+  church_style: 'Contemporary Ecumenical',
   description:
     'Historic 14th-century brick-Gothic sanctuary in the heart of Tartu Old Town, renowned for its thousands of medieval terracotta sculptures, vibrant organ concerts, and welcoming parish fellowship.',
   address: {
@@ -257,6 +259,7 @@ export const ST_JOHNS_CHURCH_PROFILE = {
   status: 'APPROVED' as const,
   timezone: 'Europe/Tallinn',
   denomination: 'Lutheran (EELK)',
+  church_style: 'Contemporary Ecumenical',
   description:
     "A living sanctuary of quiet presence, community refuge, and continuous prayer amidst the rhythm of the city. Whether you seek the thunderous transcendence of our 1867 Walcker pipe organ, a candlelit corner in the crypt for silent tears and thanksgiving, or a fellowship meal with brothers and sisters in Christ, our doors at Freedom Square are open to you. In Christ's peace, enter and be still.\n\nNeo-Gothic parish sanctuary founded in 1867. A home of continuous liturgical praise, historic pipe organ mastery, and unceasing daily intercession.",
   address: {
@@ -811,6 +814,7 @@ export const ST_OLAFS_CHURCH_PROFILE = {
   status: 'APPROVED' as const,
   timezone: 'Europe/Tallinn',
   denomination: 'Baptist (EEKBKL)',
+  church_style: 'Youth & Student Parish',
   description:
     'Historic 13th-century church once known as the tallest building in medieval Europe. A beacon of active evangelical faith, youth ministry, and community outreach in northern Tallinn Old Town.',
   address: {
@@ -841,6 +845,7 @@ export const PARNU_CHURCH_PROFILE = {
   status: 'APPROVED' as const,
   timezone: 'Europe/Tallinn',
   denomination: 'Lutheran (EELK)',
+  church_style: 'Contemporary Ecumenical',
   description:
     'One of the finest baroque sacral buildings in the Baltics, renowned for exceptional neo-baroque organ acoustics, active choral tradition, and summer festival devotions.',
   address: {

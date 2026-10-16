@@ -136,6 +136,7 @@ Table churches {
   timezone String [not null]
   description String
   denomination String
+  church_style String [note: '* Worship-style / highlight on the directory card pill (free text; admin-defined).']
   cover_asset_id String
   cover_asset media_assets
   address Json [not null]

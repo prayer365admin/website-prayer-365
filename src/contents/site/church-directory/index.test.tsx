@@ -87,6 +87,30 @@ describe('ContentsSiteChurchDirectory', () => {
     expect(screen.getAllByText('Tartu').length).toBeGreaterThanOrEqual(1)
     expect(screen.getAllByText('Baptist').length).toBe(2)
   })
+  it('shows the church style pill with denomination fallback on non-featured cards', async () => {
+    // Index 0 renders as the featured (Primary Parish) card, so the style /
+    // fallback pills belong to the second card.
+    const summaryFallback = {
+      ...summaryA,
+      id: 'c-fallback',
+      denomination: 'Lutheran (EELK)',
+    }
+    const summaryStyle = {
+      ...summaryB,
+      id: 'c-style',
+      denomination: 'Baptist (EEKBKL)',
+      churchStyle: 'Youth & Student Parish',
+    }
+    axiosMock.get.mockResolvedValueOnce({
+      data: resolveGet([summaryFallback, summaryStyle], 2),
+    })
+
+    renderDirectory()
+    expect(await screen.findByText('Youth & Student Parish')).toBeTruthy()
+    // Falls back to the denomination acronym when churchStyle is missing.
+    expect(screen.getAllByText('EELK').length).toBeGreaterThanOrEqual(1)
+  })
+
   it('formats denomination to show only text inside parentheses when present (e.g. Lutheran (EELK) => EELK)', async () => {
     const summaryEELK = {
       ...summaryA,

@@ -61,6 +61,8 @@ export const MobileChurchSummarySchema = z.object({
   id: z.string(),
   name: z.string(),
   denomination: z.string().nullable(),
+  /** Worship-style / highlight pill on directory cards; null hides the pill. */
+  churchStyle: z.string().nullable().optional(),
   city: z.string().nullable(),
   coverAssetId: z.string().nullable(),
   coverUrl: z.string().nullable(),
@@ -114,6 +116,7 @@ export const MobilePublicChurchSchema = z.object({
   id: z.string(),
   name: z.string(),
   denomination: z.string().nullable(),
+  churchStyle: z.string().nullable().optional(),
   description: z.string().nullable(),
   timezone: z.string(),
   address: MobilePublicAddressSchema,

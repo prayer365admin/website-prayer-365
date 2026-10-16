@@ -87,6 +87,7 @@ const mapProfile = (
     timezone: string
     description: string | null
     denomination: string | null
+    church_style?: string | null
     address: unknown
     latitude: unknown
     longitude: unknown
@@ -116,6 +117,7 @@ const mapProfile = (
     status: row.status,
     description: row.description,
     denomination: row.denomination,
+    churchStyle: row.church_style ?? null,
     address: row.address,
     coordinates:
       lat !== null && lng !== null ? { latitude: Number(lat), longitude: Number(lng) } : null,

@@ -279,6 +279,8 @@ model Church {
   timezone         String
   description      String?
   denomination     String?
+  /** Worship-style / highlight on the directory card pill (free text; admin-defined). */
+  church_style     String?
   cover_asset_id   String?
   cover_asset      MediaAsset?  @relation("ChurchCover", fields: [cover_asset_id], references: [id])
   address          Json

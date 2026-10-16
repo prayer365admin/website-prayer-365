@@ -84,6 +84,7 @@ export const createChurch = async ({
         timezone: payload.timezone,
         description: payload.description,
         denomination: payload.denomination,
+        church_style: payload.church_style,
         address: payload.address,
         contacts: payload.contacts,
         latitude: payload.latitude,
@@ -115,6 +116,7 @@ export const createChurch = async ({
     timezone: church.timezone,
     description: church.description,
     denomination: church.denomination,
+    church_style: church.church_style,
     version: church.version,
     createdAt: church.created_at.toISOString(),
   }
@@ -145,6 +147,7 @@ export const updateChurch = async ({
           timezone: payload.timezone,
           description: payload.description,
           denomination: payload.denomination,
+          church_style: payload.church_style,
           latitude: payload.latitude,
           longitude: payload.longitude,
           sunday_live_stream: payload.sunday_live_stream,

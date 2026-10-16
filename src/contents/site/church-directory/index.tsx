@@ -209,7 +209,7 @@ export default function ContentsSiteChurchDirectory() {
               placeholder={denomination ? undefined : t('allDenominations')}
               prefix={<ChurchIcon className="text-[20px] text-[#0E203E]" />}
               options={denominationOptions}
-              className="h-12 w-full lg:w-[231px] [&_.ant-select-selector]:!h-12 [&_.ant-select-selector]:!rounded-lg [&_.ant-select-selector]:!border-[#5C6370] [&_.ant-select-selection-item]:text-sm [&_.ant-select-selection-item]:text-[#0E203E]"
+              className="h-12 w-full lg:w-[231px] [&_.ant-select-selector]:!h-12 [&_.ant-select-selector]:!rounded-lg [&_.ant-select-selector]:!border-[#5C6370] [&_.ant-select-selection-item]:text-sm [&_.ant-select-selection-item]:text-[#0E203E] [&_.ant-select-content]:!py-2"
             />
           </div>
 

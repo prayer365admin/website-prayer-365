@@ -99,6 +99,7 @@ const toSummary = (
     id: string
     name: string
     denomination: string | null
+    church_style?: string | null
     address: unknown
     cover_asset_id: string | null
     latitude: unknown
@@ -131,6 +132,7 @@ const toSummary = (
   }
   if (addr?.line1) summary.addressLine1 = addr.line1
   if (addr?.line2) summary.district = addr.line2
+  if (c.church_style) summary.churchStyle = c.church_style
   if (c.description) summary.description = c.description
   if (c.accessibility) {
     summary.accessibility = Array.isArray(c.accessibility)
@@ -286,6 +288,7 @@ const mapPublicChurch = (
     org_node?: {
       parent: { kind: string; name: string } | null
     } | null
+    church_style?: string | null
     diaconal_programs?: unknown
   },
   lat?: number,
@@ -347,6 +350,7 @@ const mapPublicChurch = (
       ),
     })),
     deaneryName: c.org_node?.parent?.kind === 'DEANERY' ? c.org_node.parent.name : null,
+    churchStyle: c.church_style ?? null,
     diaconalPrograms: Array.isArray(c.diaconal_programs)
       ? (c.diaconal_programs as MobileDiaconalProgram[])
       : [],
@@ -380,6 +384,7 @@ export const LIST_PUBLIC_CHURCHES = async ({
           id: true,
           name: true,
           denomination: true,
+          church_style: true,
           address: true,
           cover_asset_id: true,
           latitude: true,
@@ -413,6 +418,7 @@ export const LIST_PUBLIC_CHURCHES = async ({
       id: true,
       name: true,
       denomination: true,
+      church_style: true,
       address: true,
       cover_asset_id: true,
       latitude: true,
@@ -740,6 +746,7 @@ export const GET_HOME = async ({ userId }: { userId: string }): Promise<MobileHo
           id: true,
           name: true,
           denomination: true,
+          church_style: true,
           address: true,
           cover_asset_id: true,
           latitude: true,

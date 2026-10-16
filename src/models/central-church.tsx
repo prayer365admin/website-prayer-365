@@ -23,6 +23,7 @@ export const ChurchCreateSchema = z
     parentId: z.string().optional(),
     description: z.string().optional(),
     denomination: z.string().optional(),
+    church_style: z.string().optional(),
     address: z.record(z.string(), z.unknown()).optional(),
     contacts: z.record(z.string(), z.unknown()).optional(),
     latitude: z.number().min(-90).max(90).nullable().optional(),
@@ -41,6 +42,7 @@ export const ChurchUpdateSchema = z
     timezone: z.string().min(1).optional(),
     description: z.string().nullable().optional(),
     denomination: z.string().nullable().optional(),
+    church_style: z.string().nullable().optional(),
     latitude: z.number().min(-90).max(90).nullable().optional(),
     longitude: z.number().min(-180).max(180).nullable().optional(),
     sunday_live_stream: z.boolean().nullable().optional(),
@@ -63,6 +65,7 @@ export interface ChurchSummary {
   timezone: string
   description: string | null
   denomination: string | null
+  church_style: string | null
   version: number
   createdAt: string
 }

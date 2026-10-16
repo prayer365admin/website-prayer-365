@@ -64,6 +64,7 @@ export const ChurchProfileInputSchema = z
     name: z.string().trim().min(1).max(200),
     description: z.string().trim().max(2000).nullish(),
     denomination: z.string().trim().max(200).nullish(),
+    churchStyle: z.string().trim().max(200).nullish(),
     address: ChurchAddressSchema,
     coordinates: CoordinatesSchema.nullish(),
     timezone: z.string().trim().min(1).max(64),
@@ -86,6 +87,7 @@ export const ChurchProfileOutputSchema = z.object({
   name: z.string(),
   description: z.string().nullable(),
   denomination: z.string().nullable(),
+  churchStyle: z.string().nullable().optional(),
   address: z.unknown(),
   coordinates: CoordinatesSchema.nullable(),
   timezone: z.string(),
@@ -107,6 +109,7 @@ export type ChurchProfileOutput = {
   name: string
   description: string | null
   denomination: string | null
+  churchStyle?: string | null
   address: unknown
   coordinates: { latitude: number; longitude: number } | null
   timezone: string
