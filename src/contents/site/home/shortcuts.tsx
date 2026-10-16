@@ -1,25 +1,11 @@
 'use client'
 
+import MaskIcon from '@/components/site/mask-icon'
 import { useSiteI18n } from '@/i18n/site-i18n'
 import Link from 'next/link'
-import { HOME_SHORTCUTS, HomeShortcut } from './data'
+import { HOME_SHORTCUTS, HomeShortcut, homeCardClassName } from './data'
 
-/** Recolours a single-colour SVG from /public: the file is the mask, the class sets the colour. */
-const MaskIcon = ({ src, className, size }: { src: string; className: string; size: number }) => (
-  <span
-    aria-hidden="true"
-    className={`block shrink-0 ${className}`}
-    style={{
-      width: size,
-      height: size,
-      mask: `url(${src}) center / contain no-repeat`,
-      WebkitMask: `url(${src}) center / contain no-repeat`,
-    }}
-  />
-)
-
-const cardClassName =
-  'flex h-full flex-col rounded-2xl bg-white p-5 shadow-[0_8px_30px_rgba(24,74,140,0.08)]'
+const cardClassName = `flex h-full flex-col p-5 ${homeCardClassName}`
 
 function ShortcutCard({ shortcut }: { shortcut: HomeShortcut }) {
   const { t } = useSiteI18n()

@@ -7,6 +7,7 @@ import {
   GET_DONATION_SUBSCRIPTIONS,
   GET_DONATION_SUMMARY,
   ENSURE_CHURCH_DONATION_ELIGIBLE,
+  GET_MY_ACTIVE_GIFT,
 } from '@/providers/donation'
 import {
   DonationListQuery,
@@ -154,3 +155,6 @@ export const initiateDonation = async ({
     frequency: validated.frequency,
   }
 }
+
+export const getMyActiveGift = async ({ userId }: { userId: string }) =>
+  GET_MY_ACTIVE_GIFT({ userId })

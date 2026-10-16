@@ -1,9 +1,10 @@
 import { SiteI18nProvider } from '@/i18n/site-i18n'
 import { MobileHome } from '@/models/mobile'
-import { renderWithProviders } from '@/test/frontend/render'
-import { fireEvent, screen } from '@testing-library/react'
+import { axiosMock, renderWithProviders } from '@/test/frontend/render'
+import { fireEvent, screen, waitFor } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
 import ContentsSiteHome from '.'
+import { eventIcs } from './gatherings'
 
 const home = (audioUrl: string | null = null): MobileHome => ({
   mainChurch: null,
@@ -39,10 +40,57 @@ const home = (audioUrl: string | null = null): MobileHome => ({
   ],
 })
 
-const renderHome = (data: MobileHome) =>
+const mainChurch = {
+  id: 'church-1',
+  name: 'Hope Church',
+  denomination: null,
+  description: 'Open daily for silent adoration',
+  timezone: 'Europe/Tallinn',
+  address: {
+    line1: 'Vabaduse väljak 1',
+    line2: null,
+    city: 'Tallinn',
+    postalCode: null,
+    countryCode: 'EE',
+  },
+  coordinates: { latitude: 59.4, longitude: 24.7 },
+  contacts: { email: null, phone: null },
+  website: null,
+  socialLinks: [],
+  accessibility: null,
+  coverAssetId: null,
+  coverUrl: null,
+  languageCodes: ['et'],
+  serviceTimes: [
+    { weekday: 7, localTime: '10:00', label: 'Sunday Divine Service', languageCode: 'et' },
+  ],
+  distanceKm: null,
+} as unknown as NonNullable<MobileHome['mainChurch']>
+
+const event = {
+  id: 'event-1',
+  churchId: 'church-1',
+  category: 'SERVICE',
+  title: 'Trinity Sunday Festival Worship',
+  description: 'Organ prelude; choir',
+  startsAt: '2026-06-01T07:00:00.000Z',
+  location: 'Main Nave',
+  registrationUrl: 'https://example.com/rsvp',
+  languageCode: 'et',
+}
+
+const renderHome = (
+  data: MobileHome,
+  gift: Parameters<typeof ContentsSiteHome>[0]['gift'] = null,
+) =>
   renderWithProviders(
     <SiteI18nProvider initialLocale="en">
-      <ContentsSiteHome home={data} name="Anna Example" now="2026-10-15T08:00:00.000Z" />
+      <ContentsSiteHome
+        gift={gift}
+        home={data}
+        name="Anna Example"
+        now="2026-10-15T08:00:00.000Z"
+      />
     </SiteI18nProvider>,
   )
 
@@ -99,5 +147,81 @@ describe('WB3 Home devotional hero', () => {
     expect(screen.queryByRole('link', { name: /Sunday Services/ })).toBeNull()
     expect(screen.queryByRole('link', { name: /Request Prayer/ })).toBeNull()
     expect(screen.getAllByText('Coming soon')).toHaveLength(2)
+  })
+
+  it('renders the main parish, its services, events, and the active gift', () => {
+    renderHome(
+      { ...home(), mainChurch, latestEvents: [event] },
+      {
+        amountMinor: 1000,
+        currency: 'EUR',
+        churchId: 'church-1',
+        churchName: 'Hope Church',
+      },
+    )
+
+    expect(screen.getByRole('heading', { name: 'Hope Church' })).toBeTruthy()
+    expect(screen.getByText('Every Sunday @ 10:00 (ET)')).toBeTruthy()
+    expect(screen.getByRole('link', { name: /Directions/ }).getAttribute('href')).toContain(
+      'destination=59.4%2C24.7',
+    )
+    expect(screen.getByRole('heading', { name: event.title })).toBeTruthy()
+    expect(screen.getByRole('link', { name: 'RSVP' }).getAttribute('href')).toBe(
+      event.registrationUrl,
+    )
+    expect(screen.getByRole('link', { name: 'Save Date' }).getAttribute('download')).toBe(
+      `${event.title}.ics`,
+    )
+    expect(screen.getByText('€10')).toBeTruthy()
+    expect(screen.getByText('Beneficiary: Hope Church')).toBeTruthy()
+  })
+
+  it('escapes calendar text and assumes a one-hour slot', () => {
+    const ics = eventIcs(event)
+    expect(ics).toContain('DTSTART:20260601T070000Z')
+    expect(ics).toContain('DTEND:20260601T080000Z')
+    expect(ics).toContain('DESCRIPTION:Organ prelude\\; choir')
+  })
+
+  it('sends a confidential prayer petition to the main church', async () => {
+    axiosMock.post.mockResolvedValue({
+      data: { result: { id: 'r1', kind: 'prayer', createdAt: '' } },
+    })
+    renderHome({ ...home(), mainChurch })
+
+    fireEvent.click(screen.getByRole('button', { name: 'Family & Peace' }))
+    fireEvent.change(screen.getByLabelText('Your Prayer Request'), {
+      target: { value: 'Please pray for my mother.' },
+    })
+    fireEvent.click(screen.getByLabelText('Keep confidential (Pastors only)'))
+    fireEvent.click(screen.getByRole('button', { name: /Send to Prayer Team/ }))
+
+    await waitFor(() =>
+      expect(screen.getByText('Your prayer request was sent to Hope Church.')).toBeTruthy(),
+    )
+    const [url, body, config] = axiosMock.post.mock.calls[0]
+    expect(url).toBe('/api/v1/site/churches/church-1/requests')
+    expect(body).toEqual({
+      kind: 'prayer',
+      subject: 'Family & Peace',
+      message: 'Please pray for my mother.',
+      classification: 'PRIVATE',
+      contactMethod: 'in_app',
+    })
+    expect(config.headers['Idempotency-Key']).toBeTruthy()
+  })
+
+  it('disables the petition and shows parish setup without a main church', () => {
+    renderHome(home())
+
+    expect(screen.getByText('Choose a main church to send prayer requests.')).toBeTruthy()
+    expect(
+      (screen.getByLabelText('Your Prayer Request') as HTMLTextAreaElement).closest('fieldset')
+        ?.disabled,
+    ).toBe(true)
+    expect(screen.getByRole('link', { name: 'Open profile' }).getAttribute('href')).toBe(
+      '/customer',
+    )
+    expect(screen.getByText('No active monthly gift yet.')).toBeTruthy()
   })
 })

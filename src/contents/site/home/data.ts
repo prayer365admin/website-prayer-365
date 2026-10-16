@@ -57,3 +57,24 @@ export const HOME_SHORTCUTS: HomeShortcut[] = [
     href: null,
   },
 ]
+
+/** Shared white card surface for Home section cards. */
+export const homeCardClassName = 'rounded-2xl bg-white shadow-[0_8px_30px_rgba(24,74,140,0.08)]'
+
+// Spiritual Habits figures follow the design until prayer/listening tracking exists.
+export const HOME_HABITS = { daysInPrayer: 7, daysGoal: 7, minutesThisWeek: 48, minutesGoal: 60 }
+
+export const PETITION_INTENTIONS: SiteMessageKey[] = [
+  'homeIntentionHealing',
+  'homeIntentionGuidance',
+  'homeIntentionFamily',
+  'homeIntentionThanksgiving',
+]
+
+export const EVENT_CATEGORY_LABELS: Record<string, SiteMessageKey> = {
+  SERVICE: 'homeEventService',
+  SPECIAL: 'homeEventSpecial',
+  BIBLE_STUDY: 'homeEventBibleStudy',
+  COMMUNITY: 'homeEventCommunity',
+  OTHER: 'homeEventOther',
+}

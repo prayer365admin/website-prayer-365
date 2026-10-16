@@ -30,6 +30,7 @@ const config: Config = {
         },
         primary: {
           100: 'var(--color-primary-100)',
+          150: 'var(--color-primary-150)',
           300: 'var(--color-primary-300)',
           500: 'var(--color-primary-500)',
           600: 'var(--color-primary-600)',
