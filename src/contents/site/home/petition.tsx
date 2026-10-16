@@ -42,7 +42,11 @@ export default function PrayerPetition({ church }: { church: MobilePublicChurch 
   }
 
   return (
-    <section aria-labelledby="home-petition-title" className={homeCardClassName}>
+    <section
+      aria-labelledby="home-petition-title"
+      className={homeCardClassName}
+      id="prayer-petition"
+    >
       <div className="flex items-center gap-3 border-b border-neutral-200 p-4">
         <span className="flex size-12 shrink-0 items-center justify-center rounded-xl bg-blue-50">
           <MaskIcon className="bg-primary-500" size={20} src="/icons/icon-Interceding.svg" />

@@ -1,0 +1,188 @@
+import { db } from '@/utils/db-connection'
+import { S3_PUBLIC_URL } from '@/providers/s3'
+import { stripAudioTags } from '@/utils/strip-audio-tags'
+import {
+  SitePrayerArchive,
+  SitePrayerArchiveItem,
+  SitePrayerArchiveQuery,
+} from '@/models/site-prayer'
+
+const APPROVED = 'APPROVED'
+
+type PublishedRow = {
+  id: string
+  church_id: string
+  church: { name: string }
+  published_at: Date | null
+  published_version_id: string | null
+}
+
+const includes = (value: string | null, search: string) =>
+  Boolean(value?.toLocaleLowerCase().includes(search))
+
+export const GET_SITE_PRAYER_ARCHIVE = async ({
+  userId,
+  query,
+  fixedChurchId,
+}: {
+  userId: string
+  query: SitePrayerArchiveQuery
+  fixedChurchId?: string
+}): Promise<SitePrayerArchive> => {
+  const relationships = await db.userChurch.findMany({
+    where: {
+      user_id: userId,
+      OR: [{ is_main: true }, { is_followed: true }],
+      church: { status: APPROVED },
+    },
+    select: { church_id: true, church: { select: { name: true } } },
+    orderBy: { church: { name: 'asc' } },
+  })
+
+  const relationshipChurches = Array.from(
+    new Map(relationships.map((row) => [row.church_id, row.church.name])).entries(),
+  ).map(([value, label]) => ({ value, label }))
+
+  let scopedChurches = relationshipChurches
+  if (fixedChurchId) {
+    const fixed = await db.church.findFirst({
+      where: { id: fixedChurchId, status: APPROVED },
+      select: { id: true, name: true },
+    })
+    scopedChurches = fixed ? [{ value: fixed.id, label: fixed.name }] : []
+  }
+
+  const allowedIds = scopedChurches.map((church) => church.value)
+  const selectedChurchId = fixedChurchId || query.churchId
+  const churchIds = selectedChurchId
+    ? allowedIds.includes(selectedChurchId)
+      ? [selectedChurchId]
+      : []
+    : allowedIds
+
+  if (churchIds.length === 0) {
+    return {
+      result: [],
+      featured: null,
+      total: 0,
+      page: 1,
+      limit: query.limit,
+      totalPages: 1,
+      churches: scopedChurches,
+      languages: [],
+    }
+  }
+
+  const prayers = (await db.prayer.findMany({
+    where: {
+      church_id: { in: churchIds },
+      church: { status: APPROVED },
+      published_version_id: { not: null },
+      published_at: { not: null },
+    },
+    orderBy: [{ published_at: 'desc' }, { id: 'asc' }],
+    select: {
+      id: true,
+      church_id: true,
+      church: { select: { name: true } },
+      published_at: true,
+      published_version_id: true,
+    },
+  })) as PublishedRow[]
+
+  const versionIds = prayers
+    .map((prayer) => prayer.published_version_id)
+    .filter((id): id is string => Boolean(id))
+  const versions = versionIds.length
+    ? await db.prayerVersion.findMany({
+        where: { id: { in: versionIds } },
+        include: {
+          pastor: { include: { image_asset: { select: { object_key: true } } } },
+          selected_audio: { include: { asset: { select: { object_key: true } } } },
+        },
+      })
+    : []
+  const pastorIds = Array.from(new Set(versions.map((version) => version.pastor_id)))
+  const churchPastors = pastorIds.length
+    ? await db.churchPastor.findMany({
+        where: { church_id: { in: churchIds }, pastor_id: { in: pastorIds } },
+        include: { image_asset: { select: { object_key: true } } },
+      })
+    : []
+  const versionById = new Map(versions.map((version) => [version.id, version]))
+  const churchPastorByKey = new Map(
+    churchPastors.map((row) => [`${row.church_id}:${row.pastor_id}`, row]),
+  )
+
+  const all = prayers.flatMap<SitePrayerArchiveItem>((prayer) => {
+    const version = prayer.published_version_id
+      ? versionById.get(prayer.published_version_id)
+      : null
+    if (!version || !prayer.published_at) return []
+    const assignment = churchPastorByKey.get(`${prayer.church_id}:${version.pastor_id}`)
+    const imageKey = assignment?.image_asset?.object_key ?? version.pastor.image_asset?.object_key
+    const selectedAudio = version.selected_audio
+    const audioUrl =
+      selectedAudio?.status === 'APPROVED' && selectedAudio.asset
+        ? S3_PUBLIC_URL({ key: selectedAudio.asset.object_key })
+        : null
+    return [
+      {
+        id: prayer.id,
+        churchId: prayer.church_id,
+        churchName: prayer.church.name,
+        publishedAt: prayer.published_at.toISOString(),
+        pastorId: version.pastor_id,
+        pastorName: version.pastor.name,
+        pastorRole: assignment?.pastoral_role ?? null,
+        pastorImageUrl: imageKey ? S3_PUBLIC_URL({ key: imageKey }) : null,
+        title: stripAudioTags(version.title),
+        introduction: version.introduction && stripAudioTags(version.introduction),
+        body: stripAudioTags(version.body),
+        languageCode: version.language_code,
+        audio:
+          selectedAudio?.status === 'APPROVED' && audioUrl
+            ? {
+                prayerAudioId: selectedAudio.id,
+                url: audioUrl,
+                approvedAt: selectedAudio.approved_at?.toISOString() ?? '',
+              }
+            : null,
+      },
+    ]
+  })
+
+  const languages = Array.from(new Set(all.map((prayer) => prayer.languageCode))).sort()
+  const needle = query.search.toLocaleLowerCase()
+  const filtered = all.filter((prayer) => {
+    if (query.language && prayer.languageCode !== query.language) return false
+    if (query.format === 'audio' && !prayer.audio) return false
+    if (query.format === 'text' && prayer.audio) return false
+    if (!needle) return true
+    return [
+      prayer.title,
+      prayer.introduction,
+      prayer.body,
+      prayer.pastorName,
+      prayer.churchName,
+    ].some((value) => includes(value, needle))
+  })
+
+  const featured = filtered.find((prayer) => prayer.audio) ?? null
+  const grid = featured ? filtered.filter((prayer) => prayer.id !== featured.id) : filtered
+  const total = grid.length
+  const totalPages = Math.max(1, Math.ceil(total / query.limit))
+  const page = Math.min(query.page, totalPages)
+  const result = grid.slice((page - 1) * query.limit, page * query.limit)
+
+  return {
+    result,
+    featured,
+    total,
+    page,
+    limit: query.limit,
+    totalPages,
+    churches: scopedChurches,
+    languages,
+  }
+}
