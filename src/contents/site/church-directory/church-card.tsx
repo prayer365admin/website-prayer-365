@@ -1,6 +1,7 @@
 import { DirectionIcon } from '@/components/icon/direction'
 import { useSiteI18n } from '@/i18n/site-i18n'
 import { MobileChurchSummary } from '@/models/mobile'
+import { formatDenomination } from '@/utils/denomination'
 import {
   ArrowRightOutlined,
   CheckCircleFilled,
@@ -31,7 +32,7 @@ export default function ChurchCard({
 
   const distanceText = church.distanceKm != null ? `${church.distanceKm} km` : null
   const locationText = church.city ?? null
-  const denomination = church.denomination
+  const denomination = formatDenomination(church.denomination)
   const primaryAccessibility = church.accessibility?.[0] ?? null
   return (
     <article
@@ -82,14 +83,14 @@ export default function ChurchCard({
                 className="object-cover"
                 unoptimized
               />
-              {church.denomination && (
-                <div className="absolute bottom-1.5 left-1.5 flex items-center gap-1 rounded-xl bg-white px-2 py-0.5 shadow-sm">
+              {denomination && (
+                <div className="absolute bottom-1.5 left-1.5 flex items-center gap-1 rounded-xl bg-white px-2 py-1 shadow-sm">
                   <CheckCircleFilled
                     className="text-[10px] text-primary_color"
                     aria-hidden="true"
                   />
-                  <span className="text-[10px] font-semibold text-primary_color">
-                    {church.denomination}
+                  <span className="text-[10px] font-semibold leading-none text-primary_color">
+                    {denomination}
                   </span>
                 </div>
               )}
@@ -97,14 +98,14 @@ export default function ChurchCard({
           ) : (
             <div className="relative flex h-full w-full items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 text-3xl font-bold text-primary_color">
               {displayName.charAt(0)}
-              {church.denomination && (
-                <div className="absolute bottom-1.5 left-1.5 flex items-center gap-1 rounded-xl bg-white px-2 py-0.5 shadow-sm">
+              {denomination && (
+                <div className="absolute bottom-1.5 left-1.5 flex items-center gap-1 rounded-xl bg-white px-2 py-1 shadow-sm">
                   <CheckCircleFilled
                     className="text-[10px] text-primary_color"
                     aria-hidden="true"
                   />
-                  <span className="text-[10px] font-semibold text-primary_color">
-                    {church.denomination}
+                  <span className="text-[10px] font-semibold leading-none text-primary_color">
+                    {denomination}
                   </span>
                 </div>
               )}

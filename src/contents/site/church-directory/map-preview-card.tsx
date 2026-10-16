@@ -4,10 +4,12 @@ import Image from 'next/image'
 import Link from 'next/link'
 import { SafetyCertificateOutlined } from '@ant-design/icons'
 import { useSiteI18n } from '@/i18n/site-i18n'
+import { formatDenomination } from '@/utils/denomination'
 import type { MobileChurchSummary } from '@/models/mobile'
 
 export default function MapPreviewCard({ church }: { church: MobileChurchSummary }) {
   const { t } = useSiteI18n()
+  const denomination = formatDenomination(church.denomination)
 
   return (
     <div className="mt-3 rounded-2xl border border-[#ECEEF0] bg-white/95 p-4 shadow-[0_20px_25px_-5px_rgba(0,0,0,0.1)] backdrop-blur">
@@ -31,10 +33,10 @@ export default function MapPreviewCard({ church }: { church: MobileChurchSummary
           <div className="flex flex-col">
             <div className="flex items-center gap-2">
               <span className="text-base font-semibold text-[#0D203E]">{church.name}</span>
-              {church.denomination && (
+              {denomination && (
                 <div className="flex items-center gap-1 rounded-xl border border-primary_color/20 bg-white px-2 py-0.5 text-[10px] font-semibold text-primary_color">
                   <SafetyCertificateOutlined className="text-[10px] text-primary_color" />
-                  <span>{church.denomination}</span>
+                  <span>{denomination}</span>
                 </div>
               )}
             </div>

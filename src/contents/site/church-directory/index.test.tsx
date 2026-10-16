@@ -89,6 +89,21 @@ describe('ContentsSiteChurchDirectory', () => {
     expect(screen.getAllByText('Tartu').length).toBeGreaterThanOrEqual(1)
     expect(screen.getAllByText('Baptist').length).toBe(2)
   })
+  it('formats denomination to show only text inside parentheses when present (e.g. Lutheran (EELK) => EELK)', async () => {
+    const summaryEELK = {
+      ...summaryA,
+      id: 'c-eelk',
+      denomination: 'Lutheran (EELK)',
+    }
+    axiosMock.get.mockResolvedValueOnce({
+      data: resolveGet([summaryEELK], 1),
+    })
+
+    renderDirectory()
+    expect(await screen.findByText('Primary EELK')).toBeTruthy()
+    expect(screen.getAllByText('EELK').length).toBe(2)
+    expect(screen.queryByText('Lutheran (EELK)')).toBeNull()
+  })
 
   it('renders empty state when no churches are found', async () => {
     axiosMock.get.mockResolvedValueOnce({
