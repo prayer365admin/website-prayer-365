@@ -73,7 +73,7 @@ const limitedActorRoles = [
 ]
 
 const node = { id: 'n1', name: 'Estonia', kind: 'COUNTRY' }
-const user = { id: 'u2', email: 'x@y.com', name: 'X' }
+const user = { id: 'u2', email: 'x@y.com', name: 'X', role: { name: 'prayer_administrator' } }
 
 describe('listRoleAssignments', () => {
   beforeEach(() => vi.clearAllMocks())
@@ -93,6 +93,23 @@ describe('listRoleAssignments', () => {
 
 describe('createRoleAssignment', () => {
   beforeEach(() => vi.clearAllMocks())
+
+  it.each([
+    ['prayer_user', { name: 'prayer_user' }],
+    ['no role', null],
+  ])('refuses an assignment on a customer (%s) with USER_IS_CUSTOMER (R-02)', async (_l, role) => {
+    vi.mocked(GET_ROLE_BY_KEY).mockResolvedValue(adminGrantingRole as never)
+    vi.mocked(GET_USER_BY_ID).mockResolvedValue({ ...user, role } as never)
+
+    await expect(
+      createRoleAssignment({
+        payload: { userId: 'u2', roleKey: 'prayer_global_admin', orgNodeId: 'n1' },
+        actorId: 'actor',
+        requestId: 'r',
+      }),
+    ).rejects.toMatchObject({ code: 422, error_code: 'USER_IS_CUSTOMER' })
+    expect(CREATE_ROLE_ASSIGNMENT).not.toHaveBeenCalled()
+  })
 
   it('rejects privilege escalation (403) when actor lacks a grant the target role has', async () => {
     vi.mocked(GET_ROLE_BY_KEY).mockResolvedValue(adminGrantingRole as never)

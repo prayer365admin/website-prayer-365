@@ -1,6 +1,6 @@
 import { runPaymentSyncTick } from '../src/controller/payment-sync-job'
 import { logger } from '../src/utils/logger'
-import '../src/utils/db-connection'
+import { db } from '../src/utils/db-connection'
 
 const stopping = { value: false }
 
@@ -34,14 +34,21 @@ const main = async () => {
 }
 
 main()
-  .then(() => {
-    logger.on('finish', () => process.exit(0))
+  .then(async () => {
+    // Winston's console transport writes asynchronously, so exiting straight
+    // away truncates the tick log line. Close the logger + DB and let the event
+    // loop end naturally; the short unref'd fallback only fires if a pooled
+    // socket keeps the process alive, by which time stdout has drained.
     logger.close()
+    await db.$disconnect().catch(() => undefined)
+    setTimeout(() => process.exit(0), 250).unref()
   })
   .catch((err) => {
     logger.error('payment_sync_worker_crashed', {
       error_code: 'WORKER_CRASHED',
       message: err instanceof Error ? err.message : String(err),
     })
-    process.exit(1)
+    process.exitCode = 1
+    logger.close()
+    setTimeout(() => process.exit(1), 250).unref()
   })

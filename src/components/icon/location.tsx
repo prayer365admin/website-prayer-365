@@ -1,0 +1,26 @@
+'use client'
+
+import React from 'react'
+import Icon from '@ant-design/icons'
+import type { GetProps } from 'antd'
+
+type CustomIconComponentProps = GetProps<typeof Icon>
+
+// Source: public/icons/icon-location.svg. Fill is currentColor, size 1em: set color /
+// fontSize on the icon (style or className) to theme it.
+const IconSvg = () => (
+  <>
+    <svg width="1em" height="1em" viewBox="0 0 9 12" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path
+        d="M7.875 4.5C7.875 2.64844 6.35156 1.125 4.5 1.125C2.625 1.125 1.125 2.64844 1.125 4.5C1.125 4.89844 1.28906 5.48438 1.6875 6.28125C2.08594 7.03125 2.60156 7.82812 3.14062 8.57812C3.63281 9.23438 4.10156 9.82031 4.5 10.2891C4.875 9.82031 5.34375 9.23438 5.83594 8.57812C6.375 7.82812 6.89062 7.03125 7.28906 6.28125C7.6875 5.48438 7.875 4.89844 7.875 4.5ZM9 4.5C9 6.46875 6.51562 9.63281 5.22656 11.1562C4.78125 11.6953 4.5 12 4.5 12C4.5 12 4.19531 11.6953 3.75 11.1562C2.46094 9.63281 0 6.46875 0 4.5C0 2.01562 2.01562 0 4.5 0C6.98438 0 9 2.01562 9 4.5ZM5.25 4.5C5.25 4.10156 4.89844 3.75 4.5 3.75C4.07812 3.75 3.75 4.10156 3.75 4.5C3.75 4.92188 4.07812 5.25 4.5 5.25C4.89844 5.25 5.25 4.92188 5.25 4.5ZM2.625 4.5C2.625 3.84375 2.97656 3.23438 3.5625 2.88281C4.125 2.55469 4.85156 2.55469 5.4375 2.88281C6 3.23438 6.375 3.84375 6.375 4.5C6.375 5.17969 6 5.78906 5.4375 6.14062C4.85156 6.46875 4.125 6.46875 3.5625 6.14062C2.97656 5.78906 2.625 5.17969 2.625 4.5Z"
+        fill="currentColor"
+      />
+    </svg>
+  </>
+)
+
+const CustomIcon = (props: Partial<CustomIconComponentProps>) => (
+  <Icon component={IconSvg} {...props} />
+)
+
+export { CustomIcon as LocationIcon }

@@ -11,8 +11,12 @@ const getSignedUrlMock = vi.fn()
 vi.mock('@aws-sdk/s3-request-presigner', () => ({
   getSignedUrl: (...a: unknown[]) => getSignedUrlMock(...a),
 }))
+const s3ClientCalls = vi.hoisted(() => ({ options: [] as Record<string, unknown>[] }))
 vi.mock('@aws-sdk/client-s3', () => ({
   S3Client: class {
+    constructor(options: Record<string, unknown>) {
+      s3ClientCalls.options.push(options)
+    }
     send() {
       return Promise.resolve({})
     }
@@ -40,6 +44,8 @@ const S3_KEYS = [
   'S3_ACCESS_KEY_ID',
   'AWS_SECRET_ACCESS_KEY',
   'S3_SECRET_ACCESS_KEY',
+  'AWS_SESSION_TOKEN',
+  'S3_SESSION_TOKEN',
   'S3_PUBLIC_BASE_URL',
 ] as const
 
@@ -145,5 +151,42 @@ describe('S3_PUBLIC_URL — stable public read URL (temporary public-read bucket
   it('returns local public path directly when key starts with / or images/', () => {
     expect(S3_PUBLIC_URL({ key: '/images/church.jpeg' })).toBe('/images/church.jpeg')
     expect(S3_PUBLIC_URL({ key: 'images/church.jpeg' })).toBe('/images/church.jpeg')
+  })
+})
+
+describe('S3 client credentials (Lambda temporary credentials)', () => {
+  const lastClientOptions = () =>
+    s3ClientCalls.options.at(-1) as {
+      credentials?: { accessKeyId: string; secretAccessKey: string; sessionToken?: string }
+    }
+
+  it('carries AWS_SESSION_TOKEN so Lambda execution-role keys are valid', async () => {
+    for (const k of S3_KEYS) delete process.env[k]
+    process.env.AWS_BUCKET_NAME = 'bucket-z'
+    process.env.AWS_ACCESS_KEY_ID = 'ASIAEXAMPLE'
+    process.env.AWS_SECRET_ACCESS_KEY = 'secret'
+    process.env.AWS_SESSION_TOKEN = 'session-token'
+
+    await S3_HEAD_OBJECT({ key: 'k' })
+
+    expect(lastClientOptions().credentials).toEqual({
+      accessKeyId: 'ASIAEXAMPLE',
+      secretAccessKey: 'secret',
+      sessionToken: 'session-token',
+    })
+  })
+
+  it('omits the token for static keys (local / Vercel)', async () => {
+    for (const k of S3_KEYS) delete process.env[k]
+    process.env.AWS_BUCKET_NAME = 'bucket-z'
+    process.env.AWS_ACCESS_KEY_ID = 'AKIAEXAMPLE'
+    process.env.AWS_SECRET_ACCESS_KEY = 'secret'
+
+    await S3_HEAD_OBJECT({ key: 'k' })
+
+    expect(lastClientOptions().credentials).toEqual({
+      accessKeyId: 'AKIAEXAMPLE',
+      secretAccessKey: 'secret',
+    })
   })
 })

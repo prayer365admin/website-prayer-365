@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { CredentialsSignin } from 'next-auth'
 import { loginUser } from '@/controller/authentication'
 import { signAccessToken } from '@/utils/jwt-token'
+import { isCustomerRole } from '@/utils/customer-role'
 
 export async function POST(req: NextRequest) {
   try {
@@ -14,7 +15,8 @@ export async function POST(req: NextRequest) {
     }
 
     const user = await loginUser({ email, password })
-    if (!user.role) {
+    // Staff-only token login (R-01): customers sign in through NextAuth / mobile auth.
+    if (!user.role || isCustomerRole(user.role)) {
       return NextResponse.json(
         { success: false, message: 'Invalid email or password', error_code: 'LOGIN_FAILED' },
         { status: 401 },

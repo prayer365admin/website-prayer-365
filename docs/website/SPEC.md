@@ -8,13 +8,15 @@ The customer website runs inside `prayer-365-dashboard`, sharing the Next.js pro
 
 Open decisions (details in section 13):
 
-| Ref | Decision                              | Status                      |
-| --- | ------------------------------------- | --------------------------- |
-| W1  | Customer sign-in through NextAuth     | Open, needs customer branch |
-| W2  | Donation payment model and currencies | Open, inherits D6           |
-| W3  | Stripe Connect account setup and fees | Open                        |
-| W4  | Prayer language filtering at launch   | Open                        |
-| W5  | Privacy notice and legal text         | Open                        |
+Decision status (details in section 13):
+
+| Ref | Decision                            | Status                            |
+| --- | ----------------------------------- | --------------------------------- |
+| W1  | Customer sign-in through NextAuth   | Resolved — Option B (14 Oct 2026) |
+| W2  | Donation payment model / currencies | Open (inherits D6)                |
+| W3  | Stripe Connect account setup + fees | Open                              |
+| W4  | Prayer language filtering at launch | Open                              |
+| W5  | Privacy notice / legal text         | Open                              |
 
 ## 2. Architecture
 
@@ -74,18 +76,28 @@ No separate database schema needed. The website reads existing Prisma models.
 
 ## 3. Identity and authentication
 
-- Authentication runs through NextAuth v5 credentials with JWT sessions in `src/auth.ts`.
-- Role-less users need a dedicated customer branch. Currently, `authorize` returns `null` when a user lacks a role (`if (!userSession?.role) return null`), and the `jwt` callback drops role-less sessions. New customers register via `registerUser` with `role_id = null`.
-  - Option A (recommended): allow accounts without roles to establish a customer session without permissions, assigning a sentinel role like `{ id: '', name: 'customer' }`.
-  - Option B: assign a `prayer_user` role on signup and retain role gating.
-  - Decision W1 tracks this choice. Customers must never receive staff permissions.
-- Registration and verification reuse `POST /api/v1/auth/signup`, `verify-email`, `resend-verification`, and `src/controller/auth.tsx`.
-- Password reset flows reuse `/forgot-password`, `/reset-password`, and `POST /api/v1/auth/reset-password`.
-- The `requiredWebAuth` guard verifies active status and `auth_version` on every protected read, matching `requiredAuth`.
+- NextAuth v5 **credentials** strategy with JWT session (existing `src/auth.ts`).
+- **W1 resolved (14 Oct 2026): Option B.** `registerUser` creates customers
+  with the `prayer_user` role (no admin grants). NextAuth `authorize` / `jwt`
+  also accept role-less accounts, which remain only as legacy customers.
+- Customer vs staff is one rule (`src/utils/customer-role.ts`): no role or
+  `prayer_user` = customer. The admin dashboard and the token login
+  `POST /api/v1/auth/login` are **staff-only**; customers are redirected to `/`.
+  One email = one role: a church/region assignment is refused for a customer
+  (`USER_IS_CUSTOMER`); staff are created or promoted in user management.
+- Signup collects name, email and password only. `locale` is optional at
+  signup and remains `null` until onboarding; `main_church_id` is optional (must be APPROVED
+  when sent). Both are set during onboarding (`/customer/setup`).
+- Register / verify / resend use existing `src/app/api/v1/auth/signup`,
+  `verify-email`, `resend-verification` and `src/controller/auth.tsx`.
+- Forgot/reset reuse existing `/forgot-password`, `/reset-password` and
+  `POST /api/v1/auth/reset-password`.
+- Website guard util `requiredWebAuth` revalidates the live user on every
+  protected read (active + `auth_version`), same rule as `required-auth`.
 
 ## 4. Page route map
 
-| Route                         | Screen          | Auth   | Controller called                                                                            |
+| Route                         | Screen          | Auth   | Backend called (controller)                                                                  |
 | ----------------------------- | --------------- | ------ | -------------------------------------------------------------------------------------------- |
 | `/`                           | Home (W06)      | Yes    | `getHome`                                                                                    |
 | `/login`                      | Sign In (W01)   | Public | NextAuth credentials                                                                         |
@@ -93,16 +105,20 @@ No separate database schema needed. The website reads existing Prisma models.
 | `/verify-email`               | Verify (W03)    | Public | `verifyEmail`                                                                                |
 | `/forgot-password`            | Forgot (W04)    | Public | Send reset email                                                                             |
 | `/reset-password`             | Reset (W04)     | Public | `resetPassword`                                                                              |
-| `/setup`                      | Setup (W05)     | Yes    | Patch locale, main church, follows                                                           |
+| `/customer/setup`             | Setup (W05)     | Yes    | Patch locale + main/follow                                                                   |
 | `/churches`                   | Directory (W07) | Yes    | `listPublicChurches` (search, radius, denomination, language, quick filters)                 |
 | `/churches/:churchId`         | Profile (W08)   | Yes    | `getPublicChurch` (gallery, staff), `listPublicEvents`, `listPublicAnnouncements`, `getHome` |
 | `/churches/:churchId/prayers` | Prayers (W09)   | Yes    | `listPublishedPrayers`                                                                       |
 | `/prayers/:prayerId`          | Prayer (W10)    | Yes    | `getPublishedPrayer`                                                                         |
 | `/donate/:churchId`           | Donation (W11)  | Yes    | Site donation controller to Stripe                                                           |
-| `/donate/result`              | Result (W12)    | Yes    | Donor and attempt status                                                                     |
-| `/profile`                    | Profile (W13)   | Yes    | `getMe`, `patchMe`, avatar upload                                                            |
+| `/donate/result`              | Result (W12)    | Yes    | Donor / attempt status                                                                       |
+| `/customer`                   | Profile (W13)   | Yes    | `getMe` / `patchMe` / avatar upload                                                          |
 
-Protected routes redirect unauthenticated visitors to `/login`. Content never renders without a session per feature WF1.
+Routing guard: any website page except the four public account pages requires
+a session; unauthenticated visitors go to `/login`. Content is never rendered
+to unauthenticated visitors (see FEATURE WF1).
+`/login` and `/register` are guest-only for customers: a live authenticated
+customer session is redirected to `/` before either form is rendered.
 
 Customers and staff use separate sign-in paths. Customers sign in at `/login`. Staff use `/admin/login`. Both share NextAuth credentials handling in `src/auth.ts` and the sign-in form component.
 
@@ -135,7 +151,17 @@ Four schema additions support website features: the `church_gallery_items` table
 
 ### 5.1 Language seed
 
-The mobile app includes translations for `en`, `et`, `sv`, and `fi`. The database seed currently includes `en`, `et`, and `fi` in `prisma/seeds/language.ts`. Add an `sv` entry (`sv`, `Svenska`) so the website language selector can query it. Website UI strings support all four locales.
+- The mobile app ships `en/et/sv/fi`. The backend `Language` seed only has
+  `en/et/fi` (`prisma/seeds/language.ts`) and content languages use `en/et`.
+- Add a `sv` language seed (code `sv`, name `Svenska`) and expose it in the
+  language contract used by the website language selector.
+- Website UI strings ship in the four locales (reuse/extend the mobile
+  translation keys at the website layer; mobile translations are not imported
+  into this repo). et/sv/fi are drafts until a native-speaker review.
+- The user's language is chosen after signup at `/customer/setup` (the selector starts at `en`) and
+  saved with `PATCH /api/v1/site/me`; it must be a site locale and cannot be
+  cleared. The main church is optional and **can be cleared** with
+  `mainChurchId: null` (same as mobile `PATCH M/me`).
 
 ### 5.2 Prayer audio playback
 
@@ -252,11 +278,11 @@ All profile interactions run through shared controllers guarded by `requiredWebA
 
 ### 7.1 WF1: Onboarding
 
-1. `/register` calls `registerUser`, creating a user row with `role_id = null` and sending a verification email.
-2. User clicks the verification link, setting `email_verified_at`.
-3. `/login` authenticates via NextAuth customer branch (W1) and issues a session.
-4. `/setup` sets initial `locale`, primary church, and followed churches.
-5. `/profile` allows updating name, locale, profile image, primary church, and follows.
+1. `/register` (name, email, password) → `registerUser` → user with the `prayer_user` role, locale `null` until onboarding + verification email.
+2. User clicks verification link, setting `email_verified_at`.
+3. `/login` (NextAuth credentials, W1 Option B) → session.
+4. First visit to a website page without completed onboarding → `/customer/setup`: parish (optional) then language. Step 1 immediately saves the selected parish (or `null` when skipped); step 2 immediately saves the selected locale, or English when skipped, and completes onboarding.
+5. `/customer` (profile) → view/edit name, locale, picture; set, change or clear the main church; follows.
 
 ### 7.2 WF2: Directory
 
@@ -331,23 +357,23 @@ Keep website scope limited to prayer, donations, and customer onboarding. New fe
 
 ## 13. Decision register
 
-| Ref | Decision                                                                                                                                                                                                                | Status / Impact                        |
-| --- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------- |
-| W1  | Customer NextAuth sign-in branch for role-less accounts.                                                                                                                                                                | Open. Blocks WF1 (onboarding)          |
-| W2  | Donation payment model, currency list, preset amounts, and recurring fees.                                                                                                                                              | Open. Blocks WF4 (donations)           |
-| W3  | Stripe Connect onboarding flow, payout schedules, and redirect URLs.                                                                                                                                                    | Open. Blocks WF4 (checkout flow)       |
-| W4  | Prayer language filtering and launch translations.                                                                                                                                                                      | Open. Blocks WF3 (prayer feed)         |
-| W5  | Privacy policy and legal notices for customer accounts.                                                                                                                                                                 | Open. Blocks WF1 (registration)        |
-| W6  | Store church photos in `church_gallery_items`. Admin UI deferred; data populates via seeds or direct links.                                                                                                             | Implemented (migration 20261015120000) |
-| W7  | Limit public staff listings to name, pastoral role, and photo.                                                                                                                                                          | Implemented                            |
-| W8  | Omit announcement category columns; notice cards render title, body, and publish date with category badges from title prefixes.                                                                                         | Implemented                            |
-| W9  | Add nullable `sanctuary_hours` text column to `churches`; exposed as `sanctuaryHours` on public schemas.                                                                                                                | Implemented (migration 20261015120000) |
-| W10 | Expose parent deanery name as `deaneryName` from parent org nodes where `kind = 'DEANERY'`.                                                                                                                             | Implemented                            |
-| W11 | Add `diaconal_programs` JSON column to `churches`; exposed as `diaconalPrograms` on public schemas.                                                                                                                     | Implemented (migration 20261015140000) |
-| W12 | Add `GET /api/v1/site/churches/:churchId/prayers` using `listPublishedPrayers` for liturgy playlists and audio filters.                                                                                                 | Implemented                            |
-| W13 | Add `POST /api/v1/site/churches/:churchId/requests` using `submitRequest` with session auth to persist petitions in `requests`.                                                                                         | Implemented                            |
-| W14 | Delimit multi-segment schedule strings with `•` for internal schedule storage. Accessibility features project as a clean string array (`string[]`) over the API rather than returning raw delimited strings to clients. | Implemented                            |
-| W15 | Add `cta_label` text column to `events`; exposed as `ctaLabel` on public event models and editable in admin EventForm.                                                                                                  | Implemented (migration 20261015150000) |
+| Ref | Decision                                                                                                                                                                                                                | Status / Impact                                                   |
+| --- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------- |
+| W1  | Customer NextAuth sign-in branch for role-less accounts.                                                                                                                                                                | Resolved (Option B) — prayer_user on signup; admin is staff-only. |
+| W2  | Donation payment model, currency list, preset amounts, and recurring fees.                                                                                                                                              | Open. Blocks WF4 (donations)                                      |
+| W3  | Stripe Connect onboarding flow, payout schedules, and redirect URLs.                                                                                                                                                    | Open. Blocks WF4 (checkout flow)                                  |
+| W4  | Prayer language filtering and launch translations.                                                                                                                                                                      | Open. Blocks WF3 (prayer feed)                                    |
+| W5  | Privacy policy and legal notices for customer accounts.                                                                                                                                                                 | Open. Blocks WF1 (registration)                                   |
+| W6  | Store church photos in `church_gallery_items`. Admin UI deferred; data populates via seeds or direct links.                                                                                                             | Implemented (migration 20261015120000)                            |
+| W7  | Limit public staff listings to name, pastoral role, and photo.                                                                                                                                                          | Implemented                                                       |
+| W8  | Omit announcement category columns; notice cards render title, body, and publish date with category badges from title prefixes.                                                                                         | Implemented                                                       |
+| W9  | Add nullable `sanctuary_hours` text column to `churches`; exposed as `sanctuaryHours` on public schemas.                                                                                                                | Implemented (migration 20261015120000)                            |
+| W10 | Expose parent deanery name as `deaneryName` from parent org nodes where `kind = 'DEANERY'`.                                                                                                                             | Implemented                                                       |
+| W11 | Add `diaconal_programs` JSON column to `churches`; exposed as `diaconalPrograms` on public schemas.                                                                                                                     | Implemented (migration 20261015140000)                            |
+| W12 | Add `GET /api/v1/site/churches/:churchId/prayers` using `listPublishedPrayers` for liturgy playlists and audio filters.                                                                                                 | Implemented                                                       |
+| W13 | Add `POST /api/v1/site/churches/:churchId/requests` using `submitRequest` with session auth to persist petitions in `requests`.                                                                                         | Implemented                                                       |
+| W14 | Delimit multi-segment schedule strings with `•` for internal schedule storage. Accessibility features project as a clean string array (`string[]`) over the API rather than returning raw delimited strings to clients. | Implemented                                                       |
+| W15 | Add `cta_label` text column to `events`; exposed as `ctaLabel` on public event models and editable in admin EventForm.                                                                                                  | Implemented (migration 20261015150000)                            |
 
 ## 14. References
 

@@ -1,5 +1,6 @@
 import { act, render, screen } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
+import { SITE_MESSAGES } from './messages'
 import { SiteI18nProvider, useSiteI18n } from './site-i18n'
 
 function Probe() {
@@ -9,7 +10,9 @@ function Probe() {
     <div>
       <span data-testid="locale">{locale}</span>
       <span data-testid="label">{t('signOut')}</span>
+      <span data-testid="fallback">{t('signInTitle')}</span>
       <span data-testid="missing">{t('nope' as never)}</span>
+      <span data-testid="vars">{t('nope {n} of {total}' as never, { n: 2, total: 3 })}</span>
       <button onClick={() => setLocale('sv')} type="button">
         switch
       </button>
@@ -27,6 +30,7 @@ describe('SiteI18nProvider', () => {
 
     expect(screen.getByTestId('label').textContent).toBe('Sign out')
     expect(screen.getByTestId('missing').textContent).toBe('nope')
+    expect(screen.getByTestId('vars').textContent).toBe('nope 2 of 3')
   })
 
   it('switches language and remembers it in a cookie', () => {
@@ -41,5 +45,6 @@ describe('SiteI18nProvider', () => {
     expect(screen.getByTestId('locale').textContent).toBe('sv')
     expect(screen.getByTestId('label').textContent).toBe('Logga ut')
     expect(document.cookie).toContain('site_locale=sv')
+    expect(screen.getByTestId('fallback').textContent).toBe(SITE_MESSAGES.sv.signInTitle)
   })
 })

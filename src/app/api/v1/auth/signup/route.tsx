@@ -5,7 +5,7 @@ import { NextRequest, NextResponse } from 'next/server'
 export async function POST(req: NextRequest) {
   const host = req.headers.get('host') || 'localhost:3000'
   const baseUrl = req.headers.get('origin') || `http://${host}`
-  const { full_name, email, password, confirm_password } = await req.json()
+  const { full_name, email, password, confirm_password, locale, main_church_id } = await req.json()
 
   try {
     if (password !== confirm_password) {
@@ -21,6 +21,8 @@ export async function POST(req: NextRequest) {
       full_name: full_name,
       email: email,
       password: password,
+      locale: locale,
+      main_church_id: main_church_id,
       baseUrl: baseUrl,
     })
 

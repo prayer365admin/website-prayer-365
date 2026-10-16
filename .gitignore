@@ -47,3 +47,7 @@ next-env.d.ts
 # Agent
 .hermes
 .codex
+# local-only working files (not pushed)
+/.claude/
+/docs/website/design/
+/docs/website/REPORT/

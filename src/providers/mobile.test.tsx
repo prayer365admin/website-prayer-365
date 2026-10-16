@@ -31,9 +31,9 @@ import {
   UPDATE_ME_PROFILE,
   GET_HOME,
   GET_PUBLIC_CHURCH,
-  LIST_PUBLIC_CHURCHES,
   GET_PUBLISHED_PRAYER,
   LIST_MY_CHURCHES,
+  LIST_PUBLIC_CHURCHES,
   LIST_PUBLIC_ANNOUNCEMENTS,
   LIST_PUBLIC_EVENTS,
   LIST_PUBLISHED_PRAYERS,
@@ -116,10 +116,59 @@ describe('CREATE_CHECKIN — D7 dedupe (one user/church/local-day)', () => {
 
 describe('UPDATE_ME_PROFILE — main-church is exactly one row', () => {
   const tx = {
-    user: { update: vi.fn() },
+    user: { update: vi.fn(), updateMany: vi.fn() },
     church: { findFirst: vi.fn() },
     userChurch: { updateMany: vi.fn(), upsert: vi.fn() },
   }
+
+  it('records the onboarding parish step once when a church is chosen', async () => {
+    vi.clearAllMocks()
+    db.$transaction.mockImplementation(async (fn) => fn(tx))
+    tx.church.findFirst.mockResolvedValue({ id: 'c2' })
+
+    await UPDATE_ME_PROFILE({ userId: 'u1', mainChurchId: 'c2' })
+
+    expect(tx.user.updateMany).toHaveBeenCalledWith({
+      where: { id: 'u1', church_setup_completed_at: null },
+      data: { church_setup_completed_at: expect.any(Date) },
+    })
+  })
+
+  it('a skipped parish (null) leaves the parish step unfilled', async () => {
+    vi.clearAllMocks()
+    db.$transaction.mockImplementation(async (fn) => fn(tx))
+
+    await UPDATE_ME_PROFILE({ userId: 'u1', mainChurchId: null })
+
+    expect(tx.user.updateMany).not.toHaveBeenCalledWith(
+      expect.objectContaining({ data: { church_setup_completed_at: expect.any(Date) } }),
+    )
+  })
+
+  it('records the language step once when a locale is chosen, not when skipped', async () => {
+    vi.clearAllMocks()
+    db.$transaction.mockImplementation(async (fn) => fn(tx))
+
+    await UPDATE_ME_PROFILE({ userId: 'u1', locale: 'fi' })
+    expect(tx.user.updateMany).toHaveBeenCalledWith({
+      where: { id: 'u1', locale_setup_completed_at: null },
+      data: { locale_setup_completed_at: expect.any(Date) },
+    })
+
+    vi.clearAllMocks()
+    db.$transaction.mockImplementation(async (fn) => fn(tx))
+    await UPDATE_ME_PROFILE({ userId: 'u1', locale: 'en', localeChosen: false })
+    expect(tx.user.updateMany).not.toHaveBeenCalled()
+  })
+
+  it('does not touch the parish step when the main church is not in the patch', async () => {
+    vi.clearAllMocks()
+    db.$transaction.mockImplementation(async (fn) => fn(tx))
+
+    await UPDATE_ME_PROFILE({ userId: 'u1', name: 'Maria' })
+
+    expect(tx.user.updateMany).not.toHaveBeenCalled()
+  })
 
   it('clears prior is_main flags then sets the new main church inside one transaction', async () => {
     db.$transaction.mockImplementation(async (fn) => fn(tx))
@@ -502,6 +551,7 @@ describe('LIST_PUBLIC_CHURCHES — discovery search by name or city', () => {
           city: 'Tallinn',
           coverAssetId: null,
           coverUrl: null,
+          coordinates: null,
           distanceKm: null,
           latitude: null,
           longitude: null,
@@ -1296,5 +1346,78 @@ describe('GET_HOME — MB-10 typed projection', () => {
     expect(res.latestPrayers[0].version.title).toBe('Prayer')
     expect(res.latestEvents).toEqual([])
     expect(res.latestAnnouncements).toEqual([])
+  })
+})
+
+describe('MB-11 — church summary coordinates', () => {
+  const summaryRow = (over: Record<string, unknown> = {}) => ({
+    id: 'c1',
+    name: 'Grace',
+    denomination: null,
+    address: { city: 'Tallinn' },
+    cover_asset_id: null,
+    latitude: 59.437,
+    longitude: 24.7536,
+    ...over,
+  })
+
+  const mockList = (rows: unknown[]) => {
+    db.$transaction.mockImplementationOnce(async (arg: unknown) =>
+      Array.isArray(arg) ? Promise.all(arg) : arg,
+    )
+    db.church.count.mockResolvedValueOnce(rows.length)
+    db.church.findMany.mockResolvedValueOnce(rows)
+  }
+
+  it('serves coordinates when the church has a lat/lng pair', async () => {
+    mockList([summaryRow()])
+
+    const { result } = await LIST_PUBLIC_CHURCHES({ query: { page: 1, limit: 25 } })
+
+    expect(result[0].coordinates).toEqual({ latitude: 59.437, longitude: 24.7536 })
+  })
+
+  it('serves coordinates: null when the church has none (both-or-neither rule)', async () => {
+    mockList([
+      summaryRow({ id: 'coords', latitude: 59.437, longitude: 24.7536 }),
+      summaryRow({ id: 'no-coords', latitude: null, longitude: null }),
+    ])
+
+    const { result } = await LIST_PUBLIC_CHURCHES({ query: { page: 1, limit: 25 } })
+
+    // the key is always present; the value is the honest state
+    expect(result.every((c) => 'coordinates' in c)).toBe(true)
+    expect(result.find((c) => c.id === 'no-coords')?.coordinates).toBeNull()
+    expect(result.find((c) => c.id === 'coords')?.coordinates).toEqual({
+      latitude: 59.437,
+      longitude: 24.7536,
+    })
+  })
+
+  it('home followed churches carry the same coordinates field', async () => {
+    db.userChurch.findMany.mockResolvedValueOnce([
+      { is_main: false, is_followed: true, church_id: 'c2' },
+    ])
+    // followed-only fixture: GET_HOME's main row falls back to approved[0]
+    db.church.findFirst.mockResolvedValueOnce(null)
+    db.church.findMany.mockResolvedValueOnce([
+      {
+        id: 'c2',
+        name: 'Two',
+        denomination: null,
+        address: null,
+        cover_asset_id: null,
+        latitude: 58.3776,
+        longitude: 26.729,
+      },
+    ])
+
+    const home = await GET_HOME({ userId: 'u1' })
+
+    expect(home.followedChurches.every((c) => 'coordinates' in c)).toBe(true)
+    expect(home.followedChurches[0].coordinates).toEqual({
+      latitude: 58.3776,
+      longitude: 26.729,
+    })
   })
 })

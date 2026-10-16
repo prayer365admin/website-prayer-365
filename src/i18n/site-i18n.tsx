@@ -6,19 +6,19 @@ import {
   SiteLocale,
   isSiteLocale,
 } from '@/config/site-locale'
-import { SITE_MESSAGES, SiteMessageKey } from './messages'
+import { SiteMessageKey, translate } from './messages'
 import { createContext, ReactNode, useCallback, useContext, useMemo, useState } from 'react'
 
 type SiteI18n = {
   locale: SiteLocale
   setLocale: (locale: SiteLocale) => void
-  t: (key: SiteMessageKey | (string & {})) => string
+  t: (key: SiteMessageKey | (string & {}), vars?: Record<string, string | number>) => string
 }
 
 const SiteI18nContext = createContext<SiteI18n>({
   locale: DEFAULT_SITE_LOCALE,
   setLocale: () => {},
-  t: (key) => (SITE_MESSAGES[DEFAULT_SITE_LOCALE] as Record<string, string>)[key] ?? key,
+  t: (key, vars) => translate(DEFAULT_SITE_LOCALE, key as SiteMessageKey, vars),
 })
 
 export function SiteI18nProvider({
@@ -40,7 +40,7 @@ export function SiteI18nProvider({
     () => ({
       locale,
       setLocale,
-      t: (key) => (SITE_MESSAGES[locale] as Record<string, string>)[key] ?? key,
+      t: (key, vars) => translate(locale, key as SiteMessageKey, vars),
     }),
     [locale, setLocale],
   )

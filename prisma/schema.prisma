@@ -137,6 +137,11 @@ model User {
 
   locale          String?   @db.Char(10)
   locale_language Language? @relation(fields: [locale], references: [code])
+  /// Onboarding (WB-15): when the user first filled each setup step (a main
+  /// church chosen / a language chosen). Skipping sets neither, so every new
+  /// browser asks again until both are filled.
+  church_setup_completed_at DateTime?
+  locale_setup_completed_at DateTime?
 
   auth_token AuthToken[] @relation("user_auth_token")
 

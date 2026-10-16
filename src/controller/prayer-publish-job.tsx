@@ -1,5 +1,6 @@
 import crypto from 'node:crypto'
 import { CLAIM_PENDING_JOBS, GET_JOB, MARK_JOB_STATE } from '@/providers/outbox-job'
+import { logger } from '@/utils/logger'
 import {
   GET_PRAYER_FOR_PUBLISH_JOB,
   PUBLISH_PRAYER_BY_JOB,
@@ -102,7 +103,13 @@ export const processPrayerPublishJob = async (
 
     await MARK_JOB_STATE({ jobId, state: 'SUCCEEDED' })
     return 'succeeded'
-  } catch {
+  } catch (err) {
+    logger.error('prayer_publish_job_error', {
+      job_id: jobId,
+      error_code: 'INTERNAL_JOB_ERROR',
+      error_name: err instanceof Error ? err.name : typeof err,
+      error_message: err instanceof Error ? err.message : String(err),
+    })
     return requeueOrFail(job, 'INTERNAL_JOB_ERROR')
   }
 }

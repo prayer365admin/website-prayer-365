@@ -35,9 +35,16 @@ const region = () => process.env.AWS_REGION ?? process.env.S3_REGION ?? 'us-east
 const client = (): S3Client => {
   const accessKeyId = process.env.AWS_ACCESS_KEY_ID ?? process.env.S3_ACCESS_KEY_ID
   const secretAccessKey = process.env.AWS_SECRET_ACCESS_KEY ?? process.env.S3_SECRET_ACCESS_KEY
+  // On Lambda the runtime injects the execution role's TEMPORARY credentials as
+  // env vars, so the session token must travel with them — sending the key pair
+  // alone makes AWS answer "The AWS Access Key Id you provided does not exist in
+  // our records." Locally (static keys) the token is simply absent.
+  const sessionToken = process.env.AWS_SESSION_TOKEN ?? process.env.S3_SESSION_TOKEN
   return new S3Client({
     region: region(),
-    ...(accessKeyId && secretAccessKey ? { credentials: { accessKeyId, secretAccessKey } } : {}),
+    ...(accessKeyId && secretAccessKey
+      ? { credentials: { accessKeyId, secretAccessKey, ...(sessionToken ? { sessionToken } : {}) } }
+      : {}),
   })
 }
 

@@ -308,6 +308,8 @@ describe('FormChurchProfileTabs', () => {
     )
 
     await userEvent.click(screen.getByText('Service Times'))
+    const panel = screen.getByRole('tabpanel')
+    await userEvent.click(within(panel).getAllByText('Edit')[0])
 
     // Edit label of the existing service time
     const labelInput = await screen.findByDisplayValue('Sunday Service')
@@ -348,6 +350,8 @@ describe('FormChurchProfileTabs', () => {
     )
 
     await userEvent.click(screen.getByText('Service Times'))
+    const panel = screen.getByRole('tabpanel')
+    await userEvent.click(within(panel).getAllByText('Edit')[0])
 
     const labelInput = await screen.findByDisplayValue('Sunday Service')
     await userEvent.clear(labelInput)

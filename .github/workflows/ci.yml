@@ -1,0 +1,50 @@
+name: ci
+
+on:
+  pull_request:
+  push:
+    branches: ['release/*']
+
+jobs:
+  app:
+    name: app (typecheck, lint, test)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+      - run: bun install --frozen-lockfile
+      - run: bun run typecheck
+      - run: bun run lint
+      # Vitest runs ALONE: two concurrent `vitest run`s in this repo starve the
+      # CPU and produce false 15s timeouts.
+      - run: bun run test
+      # NOTE: `bun run build` is intentionally not here. It runs
+      # `prisma migrate deploy` and `next build`, which need a real database and
+      # the app secrets. That check belongs to the Vercel preview deployment.
+
+  infra:
+    name: infra (cdk typecheck, tests, synth)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: infra
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+      - run: bun install --frozen-lockfile
+      - run: bunx tsc --noEmit
+      - run: bunx vitest run
+      # Only the catatia environment is synthesized here: the client example
+      # creates a VPC + NAT instance, whose AMI lookup needs credentials for that
+      # account (see docs/admin/INFRA-DEPLOY.md).
+      - run: bunx cdk synth -c env=catatia --quiet
+      - name: fail if a secret value leaked into a template
+        run: |
+          if grep -rE "postgresql://|sk_live|sk_test|AWS_SECRET_ACCESS_KEY" cdk.out/*.template.json; then
+            echo "::error::a secret-looking value is present in the synthesized templates"
+            exit 1
+          fi

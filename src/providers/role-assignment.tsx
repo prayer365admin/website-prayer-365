@@ -13,7 +13,7 @@ export const GET_ROLE_BY_KEY = async ({ roleKey }: { roleKey: string }) =>
 export const GET_USER_BY_ID = async ({ userId }: { userId: string }) =>
   db.user.findUnique({
     where: { id: userId },
-    select: { id: true, email: true, name: true },
+    select: { id: true, email: true, name: true, role: { select: { name: true } } },
   })
 
 export const GET_ORG_NODE_BY_ID = async ({ orgNodeId }: { orgNodeId: string }) =>

@@ -1,5 +1,6 @@
 import { TtsError, ELEVENLABS, isElevenLabsEnabled } from '@/providers/elevenlabs'
 import { CLAIM_PENDING_JOBS, GET_JOB, MARK_JOB_STATE } from '@/providers/outbox-job'
+import { logger } from '@/utils/logger'
 import {
   GET_AUDIO_FOR_JOB,
   SET_AUDIO_GENERATING,
@@ -144,6 +145,17 @@ export const processAudioGenerateJob = async (
   } catch (err) {
     // Transient TTS + any infra hiccup (S3 put, asset create, finalize) share the
     // retryable path; a retry re-proves the guards, so re-entry stays idempotent.
+    //
+    // Logged with `error_message` on purpose: a field literally named `message`
+    // is redacted by the logger (it guards private request bodies), which would
+    // hide the only clue about an unexpected failure.
+    logger.error('audio_generate_job_error', {
+      job_id: jobId,
+      audio_id: resource.id,
+      error_code: err instanceof TtsError ? err.errorCode : 'INTERNAL_JOB_ERROR',
+      error_name: err instanceof Error ? err.name : typeof err,
+      error_message: err instanceof Error ? err.message : String(err),
+    })
     if (err instanceof TtsError && err.errorCode === 'TTS_VOICE_NOT_FOUND') {
       // Clone gone at ElevenLabs: flag the voice for a manual re-create (F4VO V8).
       await FINALIZE_AUDIO_VOICE_MISSING({

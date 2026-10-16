@@ -86,6 +86,14 @@ const staffImageUrlFor = (
   if (!key) return null
   return S3_PUBLIC_URL({ key })
 }
+/** MB-11 — `coordinates` is a pair or null (same rule as the admin DTO). Prisma `Decimal` → number. */
+const toCoordinates = (
+  latitude: unknown,
+  longitude: unknown,
+): { latitude: number; longitude: number } | null =>
+  latitude !== null && longitude !== null
+    ? { latitude: Number(latitude), longitude: Number(longitude) }
+    : null
 const toSummary = (
   c: {
     id: string
@@ -117,6 +125,7 @@ const toSummary = (
     city,
     coverAssetId: c.cover_asset_id,
     distanceKm,
+    coordinates: toCoordinates(c.latitude, c.longitude),
     latitude: c.latitude !== null && c.longitude !== null ? Number(c.latitude) : null,
     longitude: c.latitude !== null && c.longitude !== null ? Number(c.longitude) : null,
   }
@@ -300,10 +309,7 @@ const mapPublicChurch = (
       postalCode: addr.postalCode ?? null,
       countryCode: addr.countryCode ?? '',
     },
-    coordinates:
-      latitude !== null && longitude !== null
-        ? { latitude: Number(latitude), longitude: Number(longitude) }
-        : null,
+    coordinates: toCoordinates(latitude, longitude),
     contacts: { email: contacts.email ?? null, phone: contacts.phone ?? null },
     website: c.website,
     socialLinks: Array.isArray(c.social_links)
@@ -535,10 +541,20 @@ export const GET_ME_PROFILE = async ({
   profilePicture: string | null
   mainChurchId: string | null
   mainChurchName: string | null
+  churchSetupCompletedAt: Date | null
+  localeSetupCompletedAt: Date | null
 } | null> => {
   const user = await db.user.findUnique({
     where: { id: userId },
-    select: { id: true, email: true, name: true, locale: true, profile_picture: true },
+    select: {
+      id: true,
+      email: true,
+      name: true,
+      locale: true,
+      profile_picture: true,
+      church_setup_completed_at: true,
+      locale_setup_completed_at: true,
+    },
   })
   if (!user) return null
   const main = await db.userChurch.findFirst({
@@ -553,6 +569,8 @@ export const GET_ME_PROFILE = async ({
     profilePicture: user.profile_picture,
     mainChurchId: main?.church.id ?? null,
     mainChurchName: main?.church.name ?? null,
+    churchSetupCompletedAt: user.church_setup_completed_at,
+    localeSetupCompletedAt: user.locale_setup_completed_at,
   }
 }
 
@@ -561,12 +579,14 @@ export const UPDATE_ME_PROFILE = async ({
   userId,
   name,
   locale,
+  localeChosen = true,
   mainChurchId,
   profilePicture,
 }: {
   userId: string
   name?: string
   locale?: string | null
+  localeChosen?: boolean
   mainChurchId?: string | null
   profilePicture?: string | null
 }): Promise<MobileChurchSummary['id']> => {
@@ -580,6 +600,14 @@ export const UPDATE_ME_PROFILE = async ({
         profile_picture: profilePicture === undefined ? undefined : profilePicture,
       },
     })
+    // Onboarding (WB-15): a chosen language / church fills its setup step
+    // (first time only). A skipped step stays unfilled.
+    if (locale && localeChosen) {
+      await tx.user.updateMany({
+        where: { id: userId, locale_setup_completed_at: null },
+        data: { locale_setup_completed_at: new Date() },
+      })
+    }
     if (mainChurchId === undefined) return
     if (mainChurchId) {
       const church = await tx.church.findFirst({
@@ -587,6 +615,10 @@ export const UPDATE_ME_PROFILE = async ({
         select: { id: true },
       })
       if (!church) throw notFoundChurch()
+      await tx.user.updateMany({
+        where: { id: userId, church_setup_completed_at: null },
+        data: { church_setup_completed_at: new Date() },
+      })
       await tx.userChurch.updateMany({ where: { user_id: userId }, data: { is_main: false } })
       await tx.userChurch.upsert({
         where: { user_id_church_id: { user_id: userId, church_id: mainChurchId } },

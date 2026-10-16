@@ -4,9 +4,81 @@
 @tailwind components;
 @tailwind utilities;
 
+/**
+ * Design color tokens (WB1). Mapped into Tailwind in tailwind.config.ts, so use
+ * them as classes (bg-primary-500, text-neutral-600, border-neutral-200, ...).
+ * They override only these shades of Tailwind's palette. Hex values cannot take
+ * Tailwind opacity modifiers (bg-primary-300/30): add a solid token instead.
+ */
+:root {
+  --color-gray-100: #f9fafb;
+  --color-blue-200: #b9d8f8;
+  --color-blue-800: #0b4497; /* same value as NEXT_PUBLIC_ACCENT_COLOR_2 */
+  --color-primary-100: #f5f7ff; /* primary-300 at 30% on white */
+  --color-primary-300: #77b4f2; /* same value as NEXT_PUBLIC_SECONDARY_COLOR */
+  --color-primary-500: #2f7ad2; /* same value as NEXT_PUBLIC_PRIMARY_COLOR */
+  --color-primary-600: #005fff; /* solid button border */
+  --color-primary-700: #204b92;
+  --color-primary-900: #0e203e;
+  --color-primary-950: #031530; /* same value as NEXT_PUBLIC_ACCENT_COLOR_1 */
+  --color-blue-50: #eef4fb;
+  --color-blue-100: #f5f7ff;
+  --color-neutral-50: #f7f9fc;
+  --color-neutral-100: #f9fafb; /* dividers */
+  --color-neutral-200: #dde0e4;
+  --color-neutral-400: #8f96a3;
+  --color-neutral-500: #6b7280;
+  --color-neutral-700: #393e46;
+  --color-danger-50: #fef2f2;
+  --color-danger-200: #fecaca;
+  --color-danger-500: #ef4444;
+  --color-danger-700: #b91c1c;
+  --color-warning-500: #f59e0b;
+  --color-success-500: #22c55e;
+  /* Used inside gradients only (no Tailwind class). */
+  --color-overlay-navy: #080d44a6; /* banner tint, 65% */
+  --color-blue-tint: rgb(194 217 255 / 40%); /* card gradient start */
+  --color-glow-start: rgb(213 227 255 / 30%); /* auth page glow */
+  --color-glow-mid: rgb(208 228 255 / 20%);
+  --color-dot-blue: #83c0ff33; /* register background dot, 20% */
+  --color-neutral-600: #5c6370;
+}
+
 body {
   margin: 0px;
   min-height: 100vh;
+}
+
+/**
+ * Website form fields (WB1 design), on the antd <Form>. Sizes and gaps come
+ * from siteFormTheme (src/config/antdTheme.ts); only the uneven input padding
+ * (8px left, 16px right) has no antd token, so it lives here.
+ */
+.site-form {
+  .ant-input-affix-wrapper,
+  .ant-input-outlined:not(.ant-input-affix-wrapper .ant-input) {
+    @apply pl-2 pr-4 py-[13.5px];
+  }
+
+  .ant-input-prefix > .anticon {
+    @apply size-[25px] flex justify-center items-center;
+  }
+
+  // Size and color come from siteFormTheme (labelFontSize / labelColor);
+  // antd sets no font-weight on labels, so the weight can live here.
+  .ant-form-item-label > label {
+    @apply font-medium;
+  }
+
+  // Field validation message. antd sizes its wrapper (.ant-form-item-explain)
+  // and the message only inherits it, so a rule on the message itself wins.
+  .ant-form-item-explain-error {
+    @apply text-xs md:text-sm;
+  }
+}
+
+p {
+  @apply mb-0 mt-0 text-[16px];
 }
 
 /**
@@ -53,6 +125,10 @@ body {
 
   h5,
   h6 {
+    @apply text-base;
+  }
+
+  p {
     @apply text-base;
   }
 
