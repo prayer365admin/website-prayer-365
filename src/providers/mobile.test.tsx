@@ -651,8 +651,8 @@ describe('LIST_PUBLIC_CHURCHES — directory filters (WB-25)', () => {
     ...overrides,
   })
 
-  it('filters by denomination via case-insensitive equals (DB path)', async () => {
-    db.$transaction.mockResolvedValueOnce([1, [summaryRow({ denomination: 'Lutheran' })]])
+  it('filters by denomination via case-insensitive contains (DB path)', async () => {
+    db.$transaction.mockResolvedValueOnce([1, [summaryRow({ denomination: 'Lutheran (EELK)' })]])
 
     const res = await LIST_PUBLIC_CHURCHES({
       query: { denomination: 'lutheran', page: 1, limit: 10 },
@@ -660,7 +660,7 @@ describe('LIST_PUBLIC_CHURCHES — directory filters (WB-25)', () => {
 
     const expectedWhere = {
       status: 'APPROVED',
-      denomination: { equals: 'lutheran', mode: 'insensitive' },
+      denomination: { contains: 'lutheran', mode: 'insensitive' },
     }
     expect(db.church.count).toHaveBeenCalledWith({ where: expectedWhere })
     expect(db.church.findMany).toHaveBeenCalledWith(
@@ -887,7 +887,7 @@ describe('LIST_PUBLIC_CHURCHES — directory filters (WB-25)', () => {
         { name: { contains: 'grace', mode: 'insensitive' } },
         { address: { path: ['city'], string_contains: 'grace' } },
       ],
-      denomination: { equals: 'Lutheran', mode: 'insensitive' },
+      denomination: { contains: 'Lutheran', mode: 'insensitive' },
       churchLanguages: { some: { language_code: 'et' } },
       sunday_live_stream: true,
     }
@@ -903,6 +903,25 @@ describe('LIST_PUBLIC_CHURCHES — directory filters (WB-25)', () => {
     expect(res.result[0].id).toBe('c-match')
   })
 
+  // Regression guard (WB2 B1): seeds store qualified values like "Lutheran (EELK)".
+  // If this ever flips back to `equals`, a bare "Lutheran" filter silently drops
+  // every seeded church; keep contains so the acronym matches.
+  it('denomination filter uses contains so qualified seed values still match', async () => {
+    db.$transaction.mockResolvedValueOnce([1, [summaryRow({ denomination: 'Lutheran (EELK)' })]])
+
+    const res = await LIST_PUBLIC_CHURCHES({
+      query: { denomination: 'Lutheran', page: 1, limit: 10 },
+    })
+
+    expect(db.church.count).toHaveBeenCalledWith({
+      where: {
+        status: 'APPROVED',
+        denomination: { contains: 'Lutheran', mode: 'insensitive' },
+      },
+    })
+    expect(res.total).toBe(1)
+  })
+
   it('returns empty result when filters match no churches (DB path)', async () => {
     db.$transaction.mockResolvedValueOnce([0, []])
 
@@ -912,7 +931,7 @@ describe('LIST_PUBLIC_CHURCHES — directory filters (WB-25)', () => {
 
     const expectedWhere = {
       status: 'APPROVED',
-      denomination: { equals: 'NonExistent', mode: 'insensitive' },
+      denomination: { contains: 'NonExistent', mode: 'insensitive' },
       churchLanguages: { some: { language_code: 'xx' } },
     }
     expect(db.church.count).toHaveBeenCalledWith({ where: expectedWhere })

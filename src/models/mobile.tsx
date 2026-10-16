@@ -70,6 +70,8 @@ export const MobileChurchSummarySchema = z.object({
   latitude: z.number().nullable().optional(),
   longitude: z.number().nullable().optional(),
   addressLine1: z.string().nullable().optional(),
+  /** Card subtitle right segment (e.g. "Old Town"); church address line2. */
+  district: z.string().nullable().optional(),
   description: z.string().nullable().optional(),
   pastorName: z.string().nullable().optional(),
   serviceTimes: z.string().nullable().optional(),

@@ -79,8 +79,10 @@ export default function ContentsSiteChurchDirectory() {
   const { data, total, loading, error, retry } = useSiteChurches({
     search,
     radius_km: radiusKm,
-    latitude: radiusKm !== undefined ? DEFAULT_COORDS.latitude : undefined,
-    longitude: radiusKm !== undefined ? DEFAULT_COORDS.longitude : undefined,
+    // Always send coordinates: each card shows "x.y km • <district>"; the
+    // provider only sorts nearest-first when no radius is set (SPEC §6.2).
+    latitude: DEFAULT_COORDS.latitude,
+    longitude: DEFAULT_COORDS.longitude,
     denomination,
     language,
     open_now: openNow,
@@ -151,7 +153,7 @@ export default function ContentsSiteChurchDirectory() {
           {/* Search row */}
           <div className="flex flex-col gap-2 pt-4 lg:flex-row">
             <Input
-              className="!h-12 min-h-[48px] flex-1 rounded-lg border-[#5C6370] bg-white px-3 text-sm text-[#393E46] hover:border-[#5C6370] focus:border-primary_color focus:shadow-none [&_.ant-input]:text-sm [&_.ant-input]:text-[#393E46]"
+              className="!h-12 !py-0 flex-1 rounded-lg border-[#5C6370] bg-white hover:border-[#5C6370] focus:border-primary_color focus:shadow-none [&_.ant-input]:text-sm [&_.ant-input]:text-[#393E46]"
               prefix={
                 <SearchOutlined className="mr-1 text-[16px] text-[#0E203E]" aria-hidden="true" />
               }
@@ -191,14 +193,20 @@ export default function ContentsSiteChurchDirectory() {
               className="h-12 w-full lg:w-[195px] [&_.ant-select-selector]:!h-12 [&_.ant-select-selector]:!rounded-lg [&_.ant-select-selector]:!border-[#5C6370] [&_.ant-select-selection-item]:text-sm [&_.ant-select-selection-item]:text-[#0E203E]"
             />
 
-            {/* Denomination select */}
+            {/* Denomination combo: presets + free-typed custom values (e.g.
+                "Lutheran (EELK)"). Tags mode takes an array value; the last
+                entry wins and an empty array clears the filter. */}
             <Select
               aria-label={t('allDenominations')}
-              value={denomination ?? ''}
-              onChange={(val) => {
-                setDenomination(val ? String(val) : undefined)
+              value={denomination ? [denomination] : []}
+              mode="tags"
+              maxCount={1}
+              onChange={(vals) => {
+                const list = vals as string[]
+                setDenomination(list[list.length - 1] || undefined)
                 setPage(1)
               }}
+              placeholder={denomination ? undefined : t('allDenominations')}
               prefix={<ChurchIcon className="text-[20px] text-[#0E203E]" />}
               options={denominationOptions}
               className="h-12 w-full lg:w-[231px] [&_.ant-select-selector]:!h-12 [&_.ant-select-selector]:!rounded-lg [&_.ant-select-selector]:!border-[#5C6370] [&_.ant-select-selection-item]:text-sm [&_.ant-select-selection-item]:text-[#0E203E]"

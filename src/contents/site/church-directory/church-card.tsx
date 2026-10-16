@@ -1,15 +1,32 @@
-import { DirectionIcon } from '@/components/icon/direction'
 import { useSiteI18n } from '@/i18n/site-i18n'
 import { MobileChurchSummary } from '@/models/mobile'
 import { formatDenomination } from '@/utils/denomination'
-import {
-  ArrowRightOutlined,
-  CheckCircleFilled,
-  FileTextOutlined,
-  UserOutlined,
-} from '@ant-design/icons'
+import { CalendarOutlined, CheckCircleFilled, RightOutlined, UserOutlined } from '@ant-design/icons'
 import Image from 'next/image'
 import Link from 'next/link'
+
+/** Latest closing time in `sanctuaryHours` (e.g. "10:00–18:30 daily" → "18:30"). */
+function closingTime(hours: string): string | null {
+  const closings: string[] = []
+  const re = /\b(\d{1,2}:\d{2})\s*[–-]\s*(\d{1,2}:\d{2})\b/g
+  let m = re.exec(hours)
+  while (m) {
+    closings.push(m[2])
+    m = re.exec(hours)
+  }
+  if (closings.length === 0) return null
+  return closings.sort((a, b) => b.localeCompare(a))[0]
+}
+
+/** Small "✓ EELK" chip overlaid on the thumbnail, per FIGMA ChurchArticle body. */
+function ThumbnailDenominationBadge({ label }: { label: string }) {
+  return (
+    <div className="absolute bottom-1.5 left-1.5 flex items-center gap-1 rounded-xl bg-white px-2 py-1 shadow-sm">
+      <CheckCircleFilled className="text-[10px] text-primary_color" aria-hidden="true" />
+      <span className="text-[10px] font-semibold leading-none text-primary_color">{label}</span>
+    </div>
+  )
+}
 
 export default function ChurchCard({
   church,
@@ -22,18 +39,17 @@ export default function ChurchCard({
 
   const displayName = church.name
 
-  const subtitle =
-    church.addressLine1 && church.city
-      ? `${church.addressLine1} • ${church.city}`
-      : church.city || null
+  // FIGMA: subtitle row = native name • street address, split by a small dot.
+  const subtitleLeft = church.addressLine1 ?? null
+  const subtitleRight = church.city ?? null
 
-  const quote =
-    church.description || (featured && church.name === 'Grace' ? t('scriptureQuote') : null)
-
+  // FIGMA: header pill right segments = distance • district (address line2).
   const distanceText = church.distanceKm != null ? `${church.distanceKm} km` : null
-  const locationText = church.city ?? null
+  const districtText = church.district ?? null
   const denomination = formatDenomination(church.denomination)
-  const primaryAccessibility = church.accessibility?.[0] ?? null
+  const accessibilityText = church.accessibility?.[0] ?? null
+  const quote = church.description || null
+
   return (
     <article
       className={`flex flex-col rounded-2xl bg-white ${
@@ -42,7 +58,7 @@ export default function ChurchCard({
           : 'shadow-[0_1px_2px_rgba(0,0,0,0.05)]'
       }`}
     >
-      {/* Header */}
+      {/* Header: left pill (Primary Parish / category), right distance • district */}
       <div className="flex items-center justify-between gap-2 p-4">
         {denomination && (
           <div
@@ -53,20 +69,20 @@ export default function ChurchCard({
             {featured ? (
               <>
                 <CheckCircleFilled className="text-[12px]" aria-hidden="true" />
-                <span>Primary {denomination}</span>
+                <span>{t('primaryParish')}</span>
               </>
             ) : (
               <span>{denomination}</span>
             )}
           </div>
         )}
-        {(distanceText || locationText) && (
-          <div className="flex ml-auto items-center gap-1 text-xs text-[#5B6370]">
+        {(distanceText || districtText) && (
+          <div className="flex ml-auto items-center gap-2 text-xs text-[#5B6370]">
             {distanceText && <span>{distanceText}</span>}
-            {distanceText && locationText && (
+            {distanceText && districtText && (
               <span className="h-[3px] w-[3px] rounded-full bg-[#B0B5BE]" />
             )}
-            {locationText && <span>{locationText}</span>}
+            {districtText && <span>{districtText}</span>}
           </div>
         )}
       </div>
@@ -83,32 +99,12 @@ export default function ChurchCard({
                 className="object-cover"
                 unoptimized
               />
-              {denomination && (
-                <div className="absolute bottom-1.5 left-1.5 flex items-center gap-1 rounded-xl bg-white px-2 py-1 shadow-sm">
-                  <CheckCircleFilled
-                    className="text-[10px] text-primary_color"
-                    aria-hidden="true"
-                  />
-                  <span className="text-[10px] font-semibold leading-none text-primary_color">
-                    {denomination}
-                  </span>
-                </div>
-              )}
+              {denomination && <ThumbnailDenominationBadge label={denomination} />}
             </>
           ) : (
             <div className="relative flex h-full w-full items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 text-3xl font-bold text-primary_color">
               {displayName.charAt(0)}
-              {denomination && (
-                <div className="absolute bottom-1.5 left-1.5 flex items-center gap-1 rounded-xl bg-white px-2 py-1 shadow-sm">
-                  <CheckCircleFilled
-                    className="text-[10px] text-primary_color"
-                    aria-hidden="true"
-                  />
-                  <span className="text-[10px] font-semibold leading-none text-primary_color">
-                    {denomination}
-                  </span>
-                </div>
-              )}
+              {denomination && <ThumbnailDenominationBadge label={denomination} />}
             </div>
           )}
         </div>
@@ -116,7 +112,15 @@ export default function ChurchCard({
         <div className="flex flex-1 flex-col justify-between self-stretch gap-1">
           <div>
             <h3 className="text-base font-semibold leading-[140%] text-[#0D203E]">{displayName}</h3>
-            {subtitle && <p className="text-xs text-[#5B6370]">{subtitle}</p>}
+            {(subtitleLeft || subtitleRight) && (
+              <p className="flex items-center gap-2 text-xs text-[#5B6370]">
+                {subtitleLeft && <span>{subtitleLeft}</span>}
+                {subtitleLeft && subtitleRight && (
+                  <span className="h-[3px] w-[3px] rounded-full bg-[#B0B5BE]" />
+                )}
+                {subtitleRight && <span>{subtitleRight}</span>}
+              </p>
+            )}
           </div>
 
           <div className="flex flex-col gap-1 pt-1">
@@ -127,65 +131,80 @@ export default function ChurchCard({
               </div>
             )}
             {church.serviceTimes && (
-              <p className="text-xs font-medium text-[#005CAD]">{church.serviceTimes}</p>
+              <div className="flex items-center gap-1.5 text-xs text-[#005CAD]">
+                <CalendarOutlined aria-hidden="true" />
+                <p className="font-semibold">{church.serviceTimes}</p>
+              </div>
             )}
           </div>
         </div>
       </div>
 
-      {/* Footer Content */}
+      {/* Footer: accessibility + View details; featured card adds quote and
+          Directions / Details & bulletin / Open until rows (FIGMA 2032:2942);
+          regular card stops after the View-details line (FIGMA 2032:2992). */}
       <div className="flex flex-col gap-3 p-4">
-        {/* Quote / Description banner */}
-        {quote && (
+        {featured && quote && (
           <div className="flex items-start gap-2 rounded-lg bg-[#FAFAFB] p-3.5">
             <span className="font-serif text-xl leading-none text-primary_color">”</span>
             <p className="font-font_quote italic text-sm leading-[130%] text-[#0B4497]">{quote}</p>
           </div>
         )}
 
-        {/* Accessibility & View Details line */}
-        <div className="flex items-center justify-between gap-4 pt-1">
-          <span className="text-xs text-[#5B6370]">{primaryAccessibility}</span>
+        <div className="flex items-center justify-between gap-4">
+          {accessibilityText && <span className="text-xs text-[#5B6370]">{accessibilityText}</span>}
           <Link
             href={`/churches/${church.id}`}
-            className="flex shrink-0 items-center gap-1 text-sm font-semibold text-primary_color hover:underline whitespace-nowrap"
+            className={`flex shrink-0 items-center gap-1 text-sm font-semibold text-primary_color hover:underline whitespace-nowrap ${
+              accessibilityText ? '' : 'ml-auto'
+            }`}
           >
             <span className="whitespace-nowrap">{t('viewDetails')}</span>
-            <ArrowRightOutlined aria-hidden="true" className="text-xs shrink-0" />
+            <RightOutlined aria-hidden="true" className="text-xs shrink-0" />
           </Link>
         </div>
 
-        {/* Action Buttons Row */}
-        <div className="flex flex-col gap-3 pt-1 sm:flex-row sm:items-center sm:justify-between">
-          <div className="grid grid-cols-2 gap-2 sm:flex sm:items-center">
-            <Link
-              href={`/churches/${church.id}`}
-              className="flex h-10 items-center justify-center gap-2 rounded-xl bg-primary_color px-3 text-xs font-semibold text-white shadow-sm transition hover:opacity-90 whitespace-nowrap sm:px-4 sm:text-sm"
-            >
-              <DirectionIcon aria-hidden="true" className="text-base shrink-0" />
-              <span>{t('directions')}</span>
-            </Link>
-            <Link
-              href={`/churches/${church.id}`}
-              className="flex h-10 items-center justify-center gap-1.5 rounded-xl border border-primary_color bg-white px-2.5 text-xs font-semibold text-primary_color transition hover:bg-gray-50 whitespace-nowrap sm:gap-2 sm:px-3.5 sm:text-sm"
-            >
-              <FileTextOutlined aria-hidden="true" className="shrink-0" />
-              <span>{t('detailsAndBulletin')}</span>
-            </Link>
+        {featured && (
+          <div className="flex flex-col gap-3 pt-1 sm:flex-row sm:items-center sm:justify-between">
+            <div className="grid grid-cols-2 gap-2 sm:flex sm:items-center">
+              <Link
+                href={`/churches/${church.id}`}
+                className="flex h-10 items-center justify-center gap-2 rounded-xl bg-primary_color px-4 text-sm font-semibold text-white shadow-sm transition hover:opacity-90 whitespace-nowrap"
+              >
+                <span aria-hidden="true" className="text-xs">
+                  ◈
+                </span>
+                <span className="whitespace-nowrap">{t('directions')}</span>
+              </Link>
+              <Link
+                href={`/churches/${church.id}`}
+                className="flex h-10 items-center justify-center gap-2 rounded-xl border border-primary_color bg-white px-4 text-sm font-semibold text-primary_color transition hover:bg-gray-50 whitespace-nowrap"
+              >
+                <span aria-hidden="true" className="text-xs">
+                  ◈
+                </span>
+                <span className="whitespace-nowrap">{t('detailsAndBulletin')}</span>
+              </Link>
 
-            {/* Test compatibility anchor */}
-            {featured && (
+              {/* Test compatibility anchor */}
               <Link href={`/churches/${church.id}/prayers`} className="sr-only focus:not-sr-only">
                 <span>{t('viewPrayers')}</span>
               </Link>
-            )}
-          </div>
+            </div>
 
-          <div className="flex items-center justify-between sm:flex-col sm:items-end">
-            <span className="text-[11px] leading-tight text-[#067958]">{t('openUntil')}</span>
-            <span className="text-sm font-bold leading-tight text-[#067958]">18:30</span>
+            {/* FIGMA "Open until" block: hidden when the church has no hours. */}
+            {(() => {
+              const closing = church.sanctuaryHours ? closingTime(church.sanctuaryHours) : null
+              if (!closing) return null
+              return (
+                <div className="flex flex-col text-right">
+                  <span className="text-xs leading-tight text-[#067958]">{t('openUntil')}</span>
+                  <span className="text-sm font-bold leading-tight text-[#067958]">{closing}</span>
+                </div>
+              )
+            })()}
           </div>
-        </div>
+        )}
       </div>
     </article>
   )

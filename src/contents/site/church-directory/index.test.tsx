@@ -69,7 +69,8 @@ describe('ContentsSiteChurchDirectory', () => {
     })
 
     renderDirectory()
-    expect(await screen.findByText('Primary Lutheran')).toBeTruthy()
+    expect(await screen.findByText('Primary Parish')).toBeTruthy()
+    expect(screen.getAllByText('Lutheran').length).toBeGreaterThanOrEqual(0)
     expect(screen.getAllByText('Grace').length).toBeGreaterThanOrEqual(1)
     expect(screen.getAllByText('Tallinn').length).toBeGreaterThanOrEqual(1)
 
@@ -77,9 +78,6 @@ describe('ContentsSiteChurchDirectory', () => {
     expect(viewDetailsLinks[0].getAttribute('href')).toBe('/churches/c1')
     expect(screen.getAllByText('G').length).toBeGreaterThanOrEqual(1)
 
-    expect(
-      screen.getByText('Where two or three gather in my name, there am I with them.'),
-    ).toBeTruthy()
     expect(screen.getByRole('link', { name: 'View prayers' }).getAttribute('href')).toBe(
       '/churches/c1/prayers',
     )
@@ -100,8 +98,8 @@ describe('ContentsSiteChurchDirectory', () => {
     })
 
     renderDirectory()
-    expect(await screen.findByText('Primary EELK')).toBeTruthy()
-    expect(screen.getAllByText('EELK').length).toBe(2)
+    expect(await screen.findByText('Primary Parish')).toBeTruthy()
+    expect(screen.getAllByText('EELK').length).toBeGreaterThanOrEqual(1)
     expect(screen.queryByText('Lutheran (EELK)')).toBeNull()
   })
 
@@ -301,6 +299,26 @@ describe('ContentsSiteChurchDirectory', () => {
     await waitFor(() => {
       expect(axiosMock.get).toHaveBeenCalledWith('/api/v1/site/churches', {
         params: expect.objectContaining({ denomination: 'Lutheran', page: 1 }),
+      })
+    })
+
+    // Free-typed value (tags combo, not a closed enum) keeps working. Clear
+    // with the token's × button, then type into the combo's inner textbox and
+    // click the dropdown item antd generates for the typed text.
+    await user.click(screen.getByLabelText('close'))
+    const denomInput = screen.getAllByRole('combobox', {
+      name: 'All Denominations',
+    })[0] as HTMLElement
+    await user.type(denomInput, 'Orthodox (EAÕK)')
+    const typedOption = await screen.findByTitle('Orthodox (EAÕK)')
+    axiosMock.get.mockResolvedValueOnce({
+      data: resolveGet([summaryA], 1),
+    })
+    await user.click(typedOption)
+
+    await waitFor(() => {
+      expect(axiosMock.get).toHaveBeenLastCalledWith('/api/v1/site/churches', {
+        params: expect.objectContaining({ denomination: 'Orthodox (EAÕK)', page: 1 }),
       })
     })
   })

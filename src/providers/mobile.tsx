@@ -112,7 +112,7 @@ const toSummary = (
   lat?: number,
   lng?: number,
 ): Omit<MobileChurchSummary, 'coverUrl'> => {
-  const addr = c.address as { city?: string; line1?: string } | null
+  const addr = c.address as { city?: string; line1?: string; line2?: string | null } | null
   const city = addr?.city ?? null
   let distanceKm: number | null = null
   if (lat !== undefined && lng !== undefined && c.latitude !== null && c.longitude !== null) {
@@ -130,6 +130,7 @@ const toSummary = (
     longitude: c.latitude !== null && c.longitude !== null ? Number(c.longitude) : null,
   }
   if (addr?.line1) summary.addressLine1 = addr.line1
+  if (addr?.line2) summary.district = addr.line2
   if (c.description) summary.description = c.description
   if (c.accessibility) {
     summary.accessibility = Array.isArray(c.accessibility)
@@ -235,8 +236,10 @@ const churchListWhere = (query: MobileChurchListQuery): Prisma.ChurchWhereInput 
         ],
       }
     : {}),
+  // Seed and user-entered values carry a qualifier ("Lutheran (EELK)"), so the
+  // filter matches the acronym, not the exact string.
   ...(query.denomination
-    ? { denomination: { equals: query.denomination, mode: 'insensitive' } }
+    ? { denomination: { contains: query.denomination, mode: 'insensitive' } }
     : {}),
   ...(query.language ? { churchLanguages: { some: { language_code: query.language } } } : {}),
   ...(query.sunday_live_stream === true ? { sunday_live_stream: true } : {}),
