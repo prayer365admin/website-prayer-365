@@ -19,7 +19,7 @@ Prepared: 12 October 2026. Source docs:
   userId scope.
 - Do NOT build deferred items. Do NOT commit/push — user handles all git.
 
-Legend: ✔ done · ☐ pending · 🔒 blocked on shared backend MB-##/DO-## (admin TASK)
+Legend: ✔ done · ◐ partial · ☐ pending · 🔒 blocked on shared backend MB-##/DO-## (admin TASK)
 
 ---
 
@@ -71,9 +71,9 @@ DESIGN W06, W09–W10 | SPEC §7.3 | FEATURE WF3
 | ----- | ------------------------------------------------------------------------------------------------------------------------------------------ | ------ |
 | WB-31 | Home (W06): `getHome` projection → main + followed churches, latest published prayers; greeting; empty state → Go to directory.            | ☐      |
 | WB-32 | Prayer list/archive (W09): `/churches/:churchId/prayers` + `/prayers` via `listPublishedPrayers`; pagination per list contract.            | ☐      |
-| WB-33 | Prayer detail (W10): title, church + pastor attribution, introduction, full body, text width/accessibility controls.                       | ☐      |
-| WB-34 | Audio player: build playback URL from the approved audio asset via `S3_PUBLIC_URL` (public bucket, D13); text-only when no approved audio. | ☐      |
-| WB-35 | Tests: draft/unapproved prayer never appears; approved-audio shows player, no-audio shows text-only; public URL plays without auth header. | ☐      |
+| WB-33 | Prayer detail (W10): title, church + pastor attribution, introduction, full body. Partial: no text width/size controls (not in design).    | ◐      |
+| WB-34 | Audio player: build playback URL from the approved audio asset via `S3_PUBLIC_URL` (public bucket, D13); text-only when no approved audio. | ✔     |
+| WB-35 | Tests: draft/unapproved prayer never appears; approved-audio shows player, no-audio shows text-only; public URL plays without auth header. | ✔     |
 
 ## WB4 — Donations (website UI)
 

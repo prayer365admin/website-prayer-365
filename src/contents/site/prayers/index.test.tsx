@@ -133,4 +133,20 @@ describe('PrayerArchive', () => {
 
     expect(pushMock).toHaveBeenCalledWith('/prayers?churchId=church-1')
   })
+
+  it('renders text-only prayers without any audio player', () => {
+    renderArchive({
+      result: [prayer('grid-1', false)],
+      featured: null,
+      total: 1,
+      page: 1,
+      limit: 6,
+      totalPages: 1,
+      churches: [{ value: 'church-1', label: 'Hope Church' }],
+      languages: ['en'],
+    })
+
+    expect(screen.queryByText(/Audio player/)).toBeNull()
+    expect(screen.getAllByText(/Text prayer/).length).toBeGreaterThan(0)
+  })
 })
