@@ -2,8 +2,8 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const db = vi.hoisted(() => ({
   userChurch: { findMany: vi.fn() },
-  church: { findFirst: vi.fn() },
-  prayer: { findMany: vi.fn() },
+  church: { findFirst: vi.fn(), findUnique: vi.fn() },
+  prayer: { findMany: vi.fn(), findFirst: vi.fn() },
   prayerVersion: { findMany: vi.fn() },
   churchPastor: { findMany: vi.fn() },
 }))
@@ -12,7 +12,7 @@ const s3 = vi.hoisted(() => ({ S3_PUBLIC_URL: vi.fn() }))
 vi.mock('@/utils/db-connection', () => ({ db }))
 vi.mock('@/providers/s3', () => ({ S3_PUBLIC_URL: s3.S3_PUBLIC_URL }))
 
-import { GET_SITE_PRAYER_ARCHIVE } from './site-prayer'
+import { GET_SITE_PRAYER_ARCHIVE, GET_SITE_PRAYER_DETAIL } from './site-prayer'
 
 const query = {
   page: 1,
@@ -161,5 +161,48 @@ describe('GET_SITE_PRAYER_ARCHIVE', () => {
     expect(db.prayer.findMany).toHaveBeenCalledWith(
       expect.objectContaining({ where: expect.objectContaining({ church_id: { in: ['c3'] } }) }),
     )
+  })
+})
+
+describe('GET_SITE_PRAYER_DETAIL', () => {
+  it('returns only a published prayer of an approved church, with church and siblings', async () => {
+    db.prayer.findFirst.mockResolvedValue({
+      id: 'p1',
+      church_id: 'c1',
+      church: { name: 'Hope Church' },
+      published_at: new Date('2026-10-15T08:00:00Z'),
+      published_version_id: 'v1',
+    })
+    db.church.findUnique.mockResolvedValue({
+      id: 'c1',
+      name: 'Hope Church',
+      address: { city: 'Tallinn' },
+    })
+    db.prayer.findMany.mockResolvedValue([])
+
+    const detail = await GET_SITE_PRAYER_DETAIL({ prayerId: 'p1' })
+
+    expect(db.prayer.findFirst.mock.calls[0][0].where).toEqual({
+      id: 'p1',
+      church: { status: 'APPROVED' },
+      published_version_id: { not: null },
+      published_at: { not: null },
+    })
+    expect(db.prayer.findMany.mock.calls[0][0].where).toMatchObject({
+      church_id: 'c1',
+      id: { not: 'p1' },
+    })
+    expect(detail?.prayer.body).toBe('Be still and know.')
+    expect(detail?.prayer.audio?.url).toBe('https://cdn.test/audio.mp3')
+    expect(detail?.church).toEqual({
+      id: 'c1',
+      name: 'Hope Church',
+      city: 'Tallinn',
+    })
+  })
+
+  it('returns null for a missing, draft, or unapproved-church prayer', async () => {
+    db.prayer.findFirst.mockResolvedValue(null)
+    expect(await GET_SITE_PRAYER_DETAIL({ prayerId: 'nope' })).toBeNull()
   })
 })

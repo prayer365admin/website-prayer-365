@@ -36,9 +36,12 @@ const squareButton =
 export default function DevotionalAudioPlayer({
   prayerId,
   src,
+  showTranscript = true,
 }: {
   prayerId: string
   src: string
+  /** Off on the prayer detail page, where the full text is already shown. */
+  showTranscript?: boolean
 }) {
   const audioRef = useRef<HTMLAudioElement>(null)
   const [playing, setPlaying] = useState(false)
@@ -125,14 +128,14 @@ export default function DevotionalAudioPlayer({
           {wave.map((height, index) => (
             <span
               className={
-                (index + 1) / wave.length <= progress ? 'bg-primary-500' : 'bg-neutral-200'
+                (index + 1) / wave.length <= progress ? 'bg-primary-500' : 'bg-[#00000026]'
               }
               key={`${height}-${index}`}
               style={{ height, width: 1 }}
             />
           ))}
         </div>
-        <div aria-hidden="true" className="mt-1 h-1 overflow-hidden rounded-full bg-neutral-200">
+        <div aria-hidden="true" className="mt-1 h-1 overflow-hidden rounded-full bg-[#00000026]">
           <div
             className="h-full bg-primary-500"
             data-testid="audio-progress"
@@ -206,13 +209,15 @@ export default function DevotionalAudioPlayer({
           <a aria-label="Download prayer audio" className={squareButton} download href={src}>
             {icon('/icons/icon-download.svg', 18)}
           </a>
-          <Link
-            className="ml-auto inline-flex h-8 items-center gap-2 rounded-full border border-neutral-200 bg-white px-3 text-xs sm:ml-0 font-semibold text-blue-800 transition hover:border-primary-300"
-            href={`/prayers/${prayerId}`}
-          >
-            {icon('/icons/Icon-align-left.svg', 16)}
-            Read transcript
-          </Link>
+          {showTranscript && (
+            <Link
+              className="ml-auto inline-flex h-8 items-center gap-2 rounded-full border border-neutral-200 bg-white px-3 text-xs sm:ml-0 font-semibold text-blue-800 transition hover:border-primary-300"
+              href={`/prayers/${prayerId}`}
+            >
+              {icon('/icons/Icon-align-left.svg', 16)}
+              Read transcript
+            </Link>
+          )}
         </div>
       </div>
     </div>

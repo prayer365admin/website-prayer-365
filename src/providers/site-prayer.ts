@@ -5,6 +5,7 @@ import {
   SitePrayerArchive,
   SitePrayerArchiveItem,
   SitePrayerArchiveQuery,
+  SitePrayerDetail,
 } from '@/models/site-prayer'
 
 const APPROVED = 'APPROVED'
@@ -19,6 +20,88 @@ type PublishedRow = {
 
 const includes = (value: string | null, search: string) =>
   Boolean(value?.toLocaleLowerCase().includes(search))
+
+const publishedSelect = {
+  id: true,
+  church_id: true,
+  church: { select: { name: true } },
+  published_at: true,
+  published_version_id: true,
+} as const
+
+const publishedWhere = {
+  church: { status: APPROVED },
+  published_version_id: { not: null },
+  published_at: { not: null },
+} as const
+
+/** Maps published prayers to reader items in three batched queries (no per-prayer lookups). */
+const toItems = async (prayers: PublishedRow[]): Promise<SitePrayerArchiveItem[]> => {
+  const churchIds = Array.from(new Set(prayers.map((prayer) => prayer.church_id)))
+  const versionIds = prayers
+    .map((prayer) => prayer.published_version_id)
+    .filter((id): id is string => Boolean(id))
+  const versions = versionIds.length
+    ? await db.prayerVersion.findMany({
+        where: { id: { in: versionIds } },
+        include: {
+          pastor: { include: { image_asset: { select: { object_key: true } } } },
+          selected_audio: { include: { asset: { select: { object_key: true } } } },
+        },
+      })
+    : []
+  const pastorIds = Array.from(new Set(versions.map((version) => version.pastor_id)))
+  const churchPastors = pastorIds.length
+    ? await db.churchPastor.findMany({
+        where: { church_id: { in: churchIds }, pastor_id: { in: pastorIds } },
+        include: { image_asset: { select: { object_key: true } } },
+      })
+    : []
+  const versionById = new Map(versions.map((version) => [version.id, version]))
+  const churchPastorByKey = new Map(
+    churchPastors.map((row) => [`${row.church_id}:${row.pastor_id}`, row]),
+  )
+
+  const all = prayers.flatMap<SitePrayerArchiveItem>((prayer) => {
+    const version = prayer.published_version_id
+      ? versionById.get(prayer.published_version_id)
+      : null
+    if (!version || !prayer.published_at) return []
+    const assignment = churchPastorByKey.get(`${prayer.church_id}:${version.pastor_id}`)
+    const imageKey = assignment?.image_asset?.object_key ?? version.pastor.image_asset?.object_key
+    const selectedAudio = version.selected_audio
+    const audioUrl =
+      selectedAudio?.status === 'APPROVED' && selectedAudio.asset
+        ? S3_PUBLIC_URL({ key: selectedAudio.asset.object_key })
+        : null
+    return [
+      {
+        id: prayer.id,
+        churchId: prayer.church_id,
+        churchName: prayer.church.name,
+        publishedAt: prayer.published_at.toISOString(),
+        pastorId: version.pastor_id,
+        pastorName: version.pastor.name,
+        pastorBio: version.pastor.introduction,
+        pastorRole: assignment?.pastoral_role ?? null,
+        pastorImageUrl: imageKey ? S3_PUBLIC_URL({ key: imageKey }) : null,
+        title: stripAudioTags(version.title),
+        introduction: version.introduction && stripAudioTags(version.introduction),
+        body: stripAudioTags(version.body),
+        languageCode: version.language_code,
+        audio:
+          selectedAudio?.status === 'APPROVED' && audioUrl
+            ? {
+                prayerAudioId: selectedAudio.id,
+                url: audioUrl,
+                approvedAt: selectedAudio.approved_at?.toISOString() ?? '',
+              }
+            : null,
+      },
+    ]
+  })
+  return all
+}
 
 export const GET_SITE_PRAYER_ARCHIVE = async ({
   userId,
@@ -74,83 +157,12 @@ export const GET_SITE_PRAYER_ARCHIVE = async ({
   }
 
   const prayers = (await db.prayer.findMany({
-    where: {
-      church_id: { in: churchIds },
-      church: { status: APPROVED },
-      published_version_id: { not: null },
-      published_at: { not: null },
-    },
+    where: { church_id: { in: churchIds }, ...publishedWhere },
     orderBy: [{ published_at: 'desc' }, { id: 'asc' }],
-    select: {
-      id: true,
-      church_id: true,
-      church: { select: { name: true } },
-      published_at: true,
-      published_version_id: true,
-    },
+    select: publishedSelect,
   })) as PublishedRow[]
 
-  const versionIds = prayers
-    .map((prayer) => prayer.published_version_id)
-    .filter((id): id is string => Boolean(id))
-  const versions = versionIds.length
-    ? await db.prayerVersion.findMany({
-        where: { id: { in: versionIds } },
-        include: {
-          pastor: { include: { image_asset: { select: { object_key: true } } } },
-          selected_audio: { include: { asset: { select: { object_key: true } } } },
-        },
-      })
-    : []
-  const pastorIds = Array.from(new Set(versions.map((version) => version.pastor_id)))
-  const churchPastors = pastorIds.length
-    ? await db.churchPastor.findMany({
-        where: { church_id: { in: churchIds }, pastor_id: { in: pastorIds } },
-        include: { image_asset: { select: { object_key: true } } },
-      })
-    : []
-  const versionById = new Map(versions.map((version) => [version.id, version]))
-  const churchPastorByKey = new Map(
-    churchPastors.map((row) => [`${row.church_id}:${row.pastor_id}`, row]),
-  )
-
-  const all = prayers.flatMap<SitePrayerArchiveItem>((prayer) => {
-    const version = prayer.published_version_id
-      ? versionById.get(prayer.published_version_id)
-      : null
-    if (!version || !prayer.published_at) return []
-    const assignment = churchPastorByKey.get(`${prayer.church_id}:${version.pastor_id}`)
-    const imageKey = assignment?.image_asset?.object_key ?? version.pastor.image_asset?.object_key
-    const selectedAudio = version.selected_audio
-    const audioUrl =
-      selectedAudio?.status === 'APPROVED' && selectedAudio.asset
-        ? S3_PUBLIC_URL({ key: selectedAudio.asset.object_key })
-        : null
-    return [
-      {
-        id: prayer.id,
-        churchId: prayer.church_id,
-        churchName: prayer.church.name,
-        publishedAt: prayer.published_at.toISOString(),
-        pastorId: version.pastor_id,
-        pastorName: version.pastor.name,
-        pastorRole: assignment?.pastoral_role ?? null,
-        pastorImageUrl: imageKey ? S3_PUBLIC_URL({ key: imageKey }) : null,
-        title: stripAudioTags(version.title),
-        introduction: version.introduction && stripAudioTags(version.introduction),
-        body: stripAudioTags(version.body),
-        languageCode: version.language_code,
-        audio:
-          selectedAudio?.status === 'APPROVED' && audioUrl
-            ? {
-                prayerAudioId: selectedAudio.id,
-                url: audioUrl,
-                approvedAt: selectedAudio.approved_at?.toISOString() ?? '',
-              }
-            : null,
-      },
-    ]
-  })
+  const all = await toItems(prayers)
 
   const languages = Array.from(new Set(all.map((prayer) => prayer.languageCode))).sort()
   const needle = query.search.toLocaleLowerCase()
@@ -184,5 +196,44 @@ export const GET_SITE_PRAYER_ARCHIVE = async ({
     totalPages,
     churches: scopedChurches,
     languages,
+  }
+}
+
+/** One published prayer for the reader (W10) with its church and up to three newer/older siblings. */
+export const GET_SITE_PRAYER_DETAIL = async ({
+  prayerId,
+}: {
+  prayerId: string
+}): Promise<SitePrayerDetail | null> => {
+  const row = (await db.prayer.findFirst({
+    where: { id: prayerId, ...publishedWhere },
+    select: publishedSelect,
+  })) as PublishedRow | null
+  if (!row) return null
+
+  const [[prayer], church, siblings] = await Promise.all([
+    toItems([row]),
+    db.church.findUnique({
+      where: { id: row.church_id },
+      select: { id: true, name: true, address: true },
+    }),
+    db.prayer.findMany({
+      where: { church_id: row.church_id, id: { not: row.id }, ...publishedWhere },
+      orderBy: [{ published_at: 'desc' }, { id: 'asc' }],
+      take: 3,
+      select: publishedSelect,
+    }) as Promise<PublishedRow[]>,
+  ])
+  if (!prayer || !church) return null
+
+  const address = church.address as { city?: string } | null
+  return {
+    prayer,
+    church: {
+      id: church.id,
+      name: church.name,
+      city: address?.city ?? null,
+    },
+    related: await toItems(siblings),
   }
 }

@@ -18,6 +18,7 @@ export type SitePrayerArchiveItem = {
   publishedAt: string
   pastorId: string
   pastorName: string
+  pastorBio: string | null
   pastorRole: string | null
   pastorImageUrl: string | null
   title: string
@@ -42,4 +43,10 @@ export type SitePrayerArchive = {
   totalPages: number
   churches: SitePrayerArchiveOption[]
   languages: string[]
+}
+
+export type SitePrayerDetail = {
+  prayer: SitePrayerArchiveItem
+  church: { id: string; name: string; city: string | null }
+  related: SitePrayerArchiveItem[]
 }

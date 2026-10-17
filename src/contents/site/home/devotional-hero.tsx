@@ -1,5 +1,6 @@
 'use client'
 
+import MaskIcon from '@/components/site/mask-icon'
 import DevotionalAudioPlayer from '@/components/site/prayer/devotional-audio-player'
 import PrayerQuotePanel from '@/components/site/prayer/prayer-quote-panel'
 import { useSiteI18n } from '@/i18n/site-i18n'
@@ -65,7 +66,7 @@ export default function DevotionalHero({
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
                 <p className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-primary-500 sm:tracking-[0.22em]">
-                  <Image alt="" aria-hidden height={14} src="/icons/Icon-sound.svg" width={14} />{' '}
+                  <MaskIcon className="bg-primary-500" size={14} src="/icons/icon-sound-wave.svg" />{' '}
                   {t('homeGuidedContemplation')}
                 </p>
                 <h2 className="mt-1 text-xl font-semibold sm:text-2xl tracking-[-0.035em] text-primary-900">
@@ -89,7 +90,7 @@ export default function DevotionalHero({
             <div className="mt-5 flex items-center gap-3">
               <span
                 aria-hidden="true"
-                className="flex size-10 items-center justify-center rounded-full bg-primary-700 text-sm font-semibold text-white"
+                className="flex size-10 items-center justify-center rounded-full bg-primary-500 text-sm font-semibold text-white"
               >
                 {prayer.version.pastorName.charAt(0).toUpperCase()}
               </span>

@@ -16,6 +16,7 @@ const prayer = (id: string, audio: boolean) => ({
   publishedAt: '2026-10-15T06:00:00.000Z',
   pastorId: 'pastor-1',
   pastorName: 'Pastor Daniel',
+  pastorBio: null,
   pastorRole: 'Lead pastor',
   pastorImageUrl: null,
   title: id === 'featured' ? 'Peace in uncertain times' : 'Morning gratitude',
