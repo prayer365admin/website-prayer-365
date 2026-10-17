@@ -296,9 +296,11 @@ describe('Task 43 / requests — idempotent ack', () => {
       }),
     ).rejects.toMatchObject({ code: 429, error_code: 'RATE_LIMITED' })
     expect(CREATE_USER_REQUEST).not.toHaveBeenCalled()
+    // Counted per user across churches: no church filter is passed.
     expect(COUNT_RECENT_USER_REQUESTS).toHaveBeenCalledWith(
-      expect.objectContaining({ churchId: 'c1', userId: 'u1' }),
+      expect.objectContaining({ userId: 'u1' }),
     )
+    expect(vi.mocked(COUNT_RECENT_USER_REQUESTS).mock.calls[0][0]).not.toHaveProperty('churchId')
   })
 
   it('honours REQUEST_SUBMIT_LIMIT from the environment', async () => {

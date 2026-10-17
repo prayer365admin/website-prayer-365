@@ -504,14 +504,12 @@ describe('LIST_PUBLIC_ANNOUNCEMENTS — only live published rows', () => {
 })
 
 describe('COUNT_RECENT_USER_REQUESTS — submission rate limit window', () => {
-  it("counts only this user's requests at this church since the window start", async () => {
+  it("counts this user's requests at every church since the window start", async () => {
     db.request.count.mockResolvedValue(3)
     const since = new Date('2026-01-01T00:00:00Z')
-    await expect(
-      COUNT_RECENT_USER_REQUESTS({ churchId: 'c1', userId: 'u1', since, tx: null }),
-    ).resolves.toBe(3)
+    await expect(COUNT_RECENT_USER_REQUESTS({ userId: 'u1', since, tx: null })).resolves.toBe(3)
     expect(db.request.count).toHaveBeenCalledWith({
-      where: { church_id: 'c1', user_id: 'u1', created_at: { gte: since } },
+      where: { user_id: 'u1', created_at: { gte: since } },
     })
   })
 })

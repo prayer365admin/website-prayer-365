@@ -4,7 +4,7 @@ import MaskIcon from '@/components/site/mask-icon'
 import { useSubmitRequest } from '@/hooks/data/site/request'
 import { useSiteI18n } from '@/i18n/site-i18n'
 import { MobilePublicChurch } from '@/models/mobile'
-import { SendOutlined } from '@ant-design/icons'
+import { LoadingOutlined, SendOutlined } from '@ant-design/icons'
 import axios from 'axios'
 import { FormEvent, useState } from 'react'
 import { PETITION_INTENTIONS, homeCardThinShadowClassName } from './data'
@@ -111,10 +111,16 @@ export default function PrayerPetition({ church }: { church: MobilePublicChurch 
 
           <button
             className="mt-5 flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-primary-500 font-semibold text-white transition hover:bg-primary-700 disabled:cursor-not-allowed disabled:opacity-60"
+            aria-busy={submitting}
             disabled={!message.trim()}
             type="submit"
           >
-            <SendOutlined className="-rotate-45" /> {t('homePetitionSend')}
+            {submitting ? (
+              <LoadingOutlined data-testid="petition-sending" />
+            ) : (
+              <SendOutlined className="-rotate-45" />
+            )}{' '}
+            {t('homePetitionSend')}
           </button>
         </fieldset>
 

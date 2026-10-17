@@ -200,9 +200,13 @@ describe('WB3 Home devotional hero', () => {
   })
 
   it('sends a confidential prayer petition to the main church', async () => {
-    axiosMock.post.mockResolvedValue({
-      data: { result: { id: 'r1', kind: 'prayer', createdAt: '' } },
-    })
+    let finish = () => {}
+    axiosMock.post.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          finish = () => resolve({ data: { result: { id: 'r1', kind: 'prayer', createdAt: '' } } })
+        }),
+    )
     renderHome({ ...home(), mainChurch })
 
     fireEvent.click(screen.getByRole('button', { name: 'Family & Peace' }))
@@ -211,10 +215,16 @@ describe('WB3 Home devotional hero', () => {
     })
     fireEvent.click(screen.getByLabelText('Keep confidential (Pastors only)'))
     fireEvent.click(screen.getByRole('button', { name: /Send to Prayer Team/ }))
+    expect(await screen.findByTestId('petition-sending')).toBeTruthy()
+    expect(
+      screen.getByRole('button', { name: /Send to Prayer Team/ }).getAttribute('aria-busy'),
+    ).toBe('true')
+    finish()
 
     await waitFor(() =>
       expect(screen.getByText('Your prayer request was sent to Hope Church.')).toBeTruthy(),
     )
+    expect(screen.queryByTestId('petition-sending')).toBeNull()
     const [url, body, config] = axiosMock.post.mock.calls[0]
     expect(url).toBe('/api/v1/site/churches/church-1/requests')
     expect(body).toEqual({

@@ -804,21 +804,22 @@ export const CREATE_USER_REQUEST = async ({
   return { id: created.id, kind: data.kind, createdAt: created.created_at.toISOString() }
 }
 
-/** User's submissions to one church since `since` (submission rate limit). */
+/**
+ * User's submissions to ANY church since `since` (submission rate limit). Per user, not per
+ * church, so posting to many churches cannot multiply the allowance.
+ */
 export const COUNT_RECENT_USER_REQUESTS = async ({
-  churchId,
   userId,
   since,
   tx,
 }: {
-  churchId: string
   userId: string
   since: Date
   tx: Prisma.TransactionClient | null
 }): Promise<number> => {
   const client: Prisma.TransactionClient = tx ?? (db as unknown as Prisma.TransactionClient)
   return client.request.count({
-    where: { church_id: churchId, user_id: userId, created_at: { gte: since } },
+    where: { user_id: userId, created_at: { gte: since } },
   })
 }
 
