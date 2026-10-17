@@ -3,7 +3,8 @@
 import { useSiteI18n } from '@/i18n/site-i18n'
 import { MobileChurchSummary, MobilePublicChurch } from '@/models/mobile'
 import Link from 'next/link'
-import { HOME_HABITS, homeCardThinShadowClassName } from './data'
+import { SiteHabits } from '@/models/site-habits'
+import { HOME_HABIT_GOALS, homeCardThinShadowClassName } from './data'
 
 const Ring = ({ value, goal, label }: { value: number; goal: number; label: string }) => {
   const radius = 28
@@ -43,9 +44,11 @@ const Ring = ({ value, goal, label }: { value: number; goal: number; label: stri
 
 /** Home section 3, right 1 (`home-3-right-1.png`): habit rings and followed churches. */
 export default function SpiritualHabits({
+  habits,
   mainChurch,
   followedChurches,
 }: {
+  habits: SiteHabits
   mainChurch: MobilePublicChurch | null
   followedChurches: MobileChurchSummary[]
 }) {
@@ -69,14 +72,14 @@ export default function SpiritualHabits({
       </div>
       <div className="mt-4 grid grid-cols-2 gap-4">
         <Ring
-          goal={HOME_HABITS.daysGoal}
+          goal={HOME_HABIT_GOALS.streakDays}
           label={t('homeHabitsDays')}
-          value={HOME_HABITS.daysInPrayer}
+          value={habits.streakDays}
         />
         <Ring
-          goal={HOME_HABITS.minutesGoal}
+          goal={HOME_HABIT_GOALS.minutesThisWeek}
           label={t('homeHabitsMinutes')}
-          value={HOME_HABITS.minutesThisWeek}
+          value={habits.minutesThisWeek}
         />
       </div>
 

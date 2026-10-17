@@ -240,4 +240,20 @@ describe('WB3 Home devotional hero', () => {
     )
     expect(screen.getByText('No active monthly gift yet.')).toBeTruthy()
   })
+
+  it('shows the real check-in streak and minutes listened this week', () => {
+    renderWithProviders(
+      <SiteI18nProvider initialLocale="en">
+        <ContentsSiteHome
+          habits={{ streakDays: 4, minutesThisWeek: 48 }}
+          home={home()}
+          name="Anna Example"
+          now="2026-10-15T08:00:00.000Z"
+        />
+      </SiteI18nProvider>,
+    )
+
+    expect(screen.getByText('Days in prayer').previousElementSibling?.textContent).toBe('4')
+    expect(screen.getByText('mins This week').previousElementSibling?.textContent).toBe('48')
+  })
 })

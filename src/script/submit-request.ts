@@ -7,6 +7,7 @@
  *   bun run request:submit --help
  */
 import { parseArgs } from 'node:util'
+import { login, mobileApi, out, resolveChurch } from './mobile-api'
 
 const HELP = `Submit prayer/pastoral/meeting requests through the mobile API.
 
@@ -71,56 +72,7 @@ const { values: opt } = parseArgs({
 
 type Body = Record<string, string>
 
-// Plain CLI output (the app logger writes JSON for services).
-const out = (line: string) => process.stdout.write(`${line}\n`)
-
-const fail = (msg: string): never => {
-  process.stderr.write(`✖ ${msg}\n`)
-  process.exit(1)
-}
-
-const api = async (path: string, init: RequestInit = {}, token?: string) => {
-  const res = await fetch(`${opt.base}${path}`, {
-    ...init,
-    headers: {
-      'Content-Type': 'application/json',
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      ...(init.headers as Record<string, string>),
-    },
-  }).catch(() => fail(`Cannot reach ${opt.base}. Is \`bun dev\` running?`))
-  const json = await res.json().catch(() => ({}))
-  return { status: res.status, json }
-}
-
-const login = async () => {
-  const { status, json } = await api('/mobile/auth/login', {
-    method: 'POST',
-    body: JSON.stringify({
-      email: opt.user,
-      password: opt.password,
-      installationId: 'submit-request-script',
-    }),
-  })
-  if (status !== 200) fail(`Login failed for ${opt.user} (${status}): ${json.details ?? ''}`)
-  return json.result.accessToken as string
-}
-
-const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
-
-const resolveChurch = async (token: string) => {
-  const church = opt.church!
-  if (UUID.test(church)) return { id: church, name: church }
-  const { status, json } = await api(
-    `/mobile/churches?search=${encodeURIComponent(church)}&limit=10`,
-    {},
-    token,
-  )
-  if (status !== 200) fail(`Church search failed (${status})`)
-  const list = json.result as { id: string; name: string }[]
-  const match = list.find((c) => c.name.toLowerCase() === church.toLowerCase()) ?? list[0]
-  if (!match) fail(`No approved church matches "${church}"`)
-  return match
-}
+const api = mobileApi(opt.base!)
 
 let sent = 0
 const submit = async (token: string, churchId: string, body: Body, key: string | null) => {
@@ -187,8 +139,9 @@ const SAMPLES: Body[] = [
 
 const main = async () => {
   if (opt.help) return out(HELP)
-  const token = await login()
-  const church = await resolveChurch(token)
+  const target = { base: opt.base!, user: opt.user!, password: opt.password! }
+  const token = await login(target, 'submit-request-script')
+  const church = await resolveChurch(opt.base!, token, opt.church!)
   out(`As ${opt.user} → ${church.name} (${church.id})\n`)
 
   if (opt.samples) {

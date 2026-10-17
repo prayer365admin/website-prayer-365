@@ -15,6 +15,7 @@
     "typecheck": "tsc --noEmit",
     "style-init": "tsx src/script/generate-sass-variable.ts",
     "request:submit": "bun src/script/submit-request.ts",
+    "checkin:create": "bun src/script/check-in.ts",
     "worker:audio-generate": "bun workers/audio-generate.ts",
     "worker:prayer-publish": "bun workers/prayer-publish.ts",
     "worker:payment-sync": "bun workers/payment-sync.ts",

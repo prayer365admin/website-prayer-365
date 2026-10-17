@@ -1,6 +1,7 @@
 'use client'
 
 import { PauseOutlined } from '@ant-design/icons'
+import axios from 'axios'
 import Image from 'next/image'
 import Link from 'next/link'
 import { useEffect, useRef, useState } from 'react'
@@ -44,6 +45,9 @@ export default function DevotionalAudioPlayer({
   showTranscript?: boolean
 }) {
   const audioRef = useRef<HTMLAudioElement>(null)
+  const listenReported = useRef(false)
+  // Wall-clock seconds actually played this page view, and minutes already reported.
+  const listened = useRef({ session: '', last: 0, seconds: 0, minutes: 0 })
   const [playing, setPlaying] = useState(false)
   const [muted, setMuted] = useState(false)
   const [current, setCurrent] = useState(0)
@@ -74,6 +78,40 @@ export default function DevotionalAudioPlayer({
     return () => cancelAnimationFrame(frame)
   }, [playing])
 
+  // Analytics must never block playback, so failures are ignored.
+  const track = (eventType: 'prayer_listen' | 'prayer_listen_minute', eventKey: string) =>
+    axios
+      .post('/api/v1/site/analytics-events', {
+        events: [
+          { eventKey, eventType, occurredAt: new Date().toISOString(), resourceId: prayerId },
+        ],
+      })
+      .catch(() => {})
+
+  const reportListen = () => {
+    if (listenReported.current) return
+    listenReported.current = true
+    track('prayer_listen', crypto.randomUUID())
+  }
+
+  /**
+   * Feeds Home "mins this week": one prayer_listen_minute per full minute played. Uses timeupdate
+   * (it keeps firing in background tabs, unlike animation frames) and wall-clock time, so 1.5× speed
+   * still counts real minutes. Jumps from seeking are not listening and are skipped.
+   */
+  const trackListening = (audio: HTMLAudioElement) => {
+    const state = listened.current
+    const delta = (audio.currentTime - state.last) / (audio.playbackRate || 1)
+    state.last = audio.currentTime
+    if (audio.paused || delta <= 0 || delta > 2) return
+    state.seconds += delta
+    if (!state.session) state.session = crypto.randomUUID()
+    while (state.seconds >= (state.minutes + 1) * 60) {
+      state.minutes++
+      track('prayer_listen_minute', `${state.session}:${state.minutes}`)
+    }
+  }
+
   const toggle = async () => {
     const audio = audioRef.current
     if (!audio) return
@@ -81,6 +119,7 @@ export default function DevotionalAudioPlayer({
       try {
         await audio.play()
         setPlaying(true)
+        reportListen()
       } catch {
         setPlaying(false)
       }
@@ -118,7 +157,10 @@ export default function DevotionalAudioPlayer({
         onLoadedMetadata={syncDuration}
         onPause={() => setPlaying(false)}
         onPlay={() => setPlaying(true)}
-        onTimeUpdate={(event) => setCurrent(event.currentTarget.currentTime)}
+        onTimeUpdate={(event) => {
+          setCurrent(event.currentTarget.currentTime)
+          trackListening(event.currentTarget)
+        }}
         preload="metadata"
         ref={audioRef}
         src={src}

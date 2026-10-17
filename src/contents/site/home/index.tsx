@@ -1,5 +1,6 @@
 import BoxContainer from '@/components/container/boxed'
 import { MyActiveGift } from '@/models/donation'
+import { SiteHabits } from '@/models/site-habits'
 import { MobileHome } from '@/models/mobile'
 import DevotionalHero from './devotional-hero'
 import UpcomingGatherings from './gatherings'
@@ -13,11 +14,13 @@ import { BrandQuote, Stewardship } from './stewardship'
 export default function ContentsSiteHome({
   home,
   gift = null,
+  habits = { streakDays: 0, minutesThisWeek: 0 },
   name,
   now,
 }: {
   home: MobileHome
   gift?: MyActiveGift | null
+  habits?: SiteHabits
   name?: string | null
   now: string
 }) {
@@ -32,7 +35,11 @@ export default function ContentsSiteHome({
           <ScriptureOfDay />
         </div>
         <div className="flex min-w-0 flex-col gap-6">
-          <SpiritualHabits followedChurches={home.followedChurches} mainChurch={home.mainChurch} />
+          <SpiritualHabits
+            followedChurches={home.followedChurches}
+            habits={habits}
+            mainChurch={home.mainChurch}
+          />
           <PrayerPetition church={home.mainChurch} />
           <Stewardship gift={gift} />
           <BrandQuote />

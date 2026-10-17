@@ -345,6 +345,8 @@ export const MOBILE_ANALYTICS_TYPES = [
   'church_view',
   'prayer_view',
   'prayer_listen',
+  // One per full minute of audio actually played (website Home "mins this week").
+  'prayer_listen_minute',
   'event_view',
   'announcement_view',
   'search',

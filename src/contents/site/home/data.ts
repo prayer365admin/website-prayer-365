@@ -63,8 +63,8 @@ export const homeCardClassName = 'rounded-2xl bg-white shadow-[0_8px_30px_rgba(2
 export const homeCardThinShadowClassName =
   'rounded-2xl bg-white shadow-[0_1px_2px_0px_rgba(24,74,140,0.08)]'
 
-// Spiritual Habits figures follow the design until prayer/listening tracking exists.
-export const HOME_HABITS = { daysInPrayer: 7, daysGoal: 7, minutesThisWeek: 48, minutesGoal: 60 }
+/** Ring targets: a full week of check-ins, an hour of prayer audio a week. */
+export const HOME_HABIT_GOALS = { streakDays: 7, minutesThisWeek: 60 }
 
 export const PETITION_INTENTIONS: SiteMessageKey[] = [
   'homeIntentionHealing',
