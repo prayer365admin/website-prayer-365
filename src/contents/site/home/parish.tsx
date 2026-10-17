@@ -6,7 +6,7 @@ import { MobilePublicChurch } from '@/models/mobile'
 import { CalendarOutlined, CompassOutlined } from '@ant-design/icons'
 import Image from 'next/image'
 import Link from 'next/link'
-import { homeCardClassName } from './data'
+import { homeCardClassName, homeCardThinShadowClassName } from './data'
 
 const directionsUrl = (church: MobilePublicChurch) => {
   const destination = church.coordinates
@@ -45,7 +45,10 @@ export default function PrimaryParish({ church }: { church: MobilePublicChurch |
   const services = church.serviceTimes.slice(0, 2)
 
   return (
-    <section aria-labelledby="home-parish-name" className={`p-4 sm:p-5 ${homeCardClassName}`}>
+    <section
+      aria-labelledby="home-parish-name"
+      className={`p-4 sm:p-5 ${homeCardThinShadowClassName}`}
+    >
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
         <div className="flex min-w-0 flex-1 items-center gap-4">
           <div className="relative size-[72px] shrink-0 overflow-hidden rounded-2xl bg-blue-50 sm:size-[90px]">
@@ -97,7 +100,7 @@ export default function PrimaryParish({ church }: { church: MobilePublicChurch |
       </div>
 
       {services.length > 0 && (
-        <ul className="mt-4 grid gap-3 rounded-xl bg-blue-50 p-3 sm:grid-cols-2">
+        <ul className="mt-4 grid gap-3 rounded-xl bg-blue-50 p-2 sm:grid-cols-2">
           {services.map((service, index) => (
             <li className="flex items-center gap-3" key={`${service.weekday}-${service.localTime}`}>
               <span className="flex size-[43px] shrink-0 items-center justify-center rounded-lg bg-primary-150">

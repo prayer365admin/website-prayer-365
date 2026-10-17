@@ -23,13 +23,7 @@ export default function ScriptureOfDay() {
   }
 
   return (
-    <section
-      className="rounded-2xl p-4 shadow-[0_1px_2px_0_#0000000D,-1px_-1px_2px_0_#FFFFFF] sm:h-[259px]"
-      style={{
-        background:
-          'linear-gradient(0deg, #FFFFFF, #FFFFFF), linear-gradient(135deg, rgba(194, 217, 255, 0.4) 0%, rgba(255, 255, 255, 0) 100%)',
-      }}
-    >
+    <section className="rounded-2xl p-4 shadow-[0_1px_2px_0_#0000000D,-1px_-1px_2px_0_#FFFFFF] sm:h-[259px] bg-[linear-gradient(135deg,rgba(194,217,255,0.4)_0%,rgba(255,255,255,0)_100%)]">
       <figure
         className="flex h-full flex-col gap-4 p-4"
         style={{ background: 'var(--Colors-Primary-100, #F5F7FF)' }}

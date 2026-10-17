@@ -3,7 +3,7 @@
 import { useSiteI18n } from '@/i18n/site-i18n'
 import { MobilePublicEvent } from '@/models/mobile'
 import { ArrowRightOutlined } from '@ant-design/icons'
-import { EVENT_CATEGORY_LABELS, homeCardClassName } from './data'
+import { EVENT_CATEGORY_LABELS, homeCardThinShadowClassName } from './data'
 
 const icsText = (value: string) => value.replace(/[\\;,]/g, (c) => `\\${c}`).replace(/\n/g, '\\n')
 const icsDate = (date: Date) =>
@@ -32,6 +32,20 @@ export const eventIcs = (event: MobilePublicEvent) => {
   ].join('\r\n')
 }
 
+/**
+ * Builds the .ics on click. Rendering it into an href would differ between server and browser
+ * (DTSTAMP is "now") and break hydration.
+ */
+const saveEvent = (event: MobilePublicEvent) => {
+  const url = URL.createObjectURL(new Blob([eventIcs(event)], { type: 'text/calendar' }))
+  const link = Object.assign(document.createElement('a'), {
+    href: url,
+    download: `${event.title}.ics`,
+  })
+  link.click()
+  URL.revokeObjectURL(url)
+}
+
 const pill = 'inline-flex h-[22px] items-center rounded-full px-2.5 text-xs leading-none'
 
 /** Home section 3, left 2 (`home-3-left-2.png`): next events of the main church. */
@@ -49,7 +63,7 @@ export default function UpcomingGatherings({
     new Intl.DisplayNames([locale], { type: 'language' }).of(code) ?? code.toUpperCase()
 
   return (
-    <section aria-labelledby="home-gatherings-title" className={homeCardClassName}>
+    <section aria-labelledby="home-gatherings-title" className={homeCardThinShadowClassName}>
       <div className="flex min-h-[90px] flex-wrap items-center justify-between gap-3 p-4">
         <div>
           <h2
@@ -115,13 +129,13 @@ export default function UpcomingGatherings({
                 </div>
               </div>
               <div className="flex gap-2 sm:shrink-0">
-                <a
+                <button
                   className="inline-flex h-8 flex-1 items-center justify-center rounded-lg bg-blue-50 px-3.5 text-xs font-semibold text-primary-900 transition hover:bg-primary-300/30 sm:flex-none"
-                  download={`${event.title}.ics`}
-                  href={`data:text/calendar;charset=utf-8,${encodeURIComponent(eventIcs(event))}`}
+                  onClick={() => saveEvent(event)}
+                  type="button"
                 >
                   {t('homeGatheringsSaveDate')}
-                </a>
+                </button>
                 {event.registrationUrl && (
                   <a
                     className="inline-flex h-8 flex-1 items-center justify-center rounded-lg bg-primary-500 px-3.5 text-xs font-semibold text-white transition hover:bg-primary-700 sm:flex-none"

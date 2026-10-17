@@ -3,7 +3,7 @@
 import { useSiteI18n } from '@/i18n/site-i18n'
 import { MobileChurchSummary, MobilePublicChurch } from '@/models/mobile'
 import Link from 'next/link'
-import { HOME_HABITS, homeCardClassName } from './data'
+import { HOME_HABITS, homeCardThinShadowClassName } from './data'
 
 const Ring = ({ value, goal, label }: { value: number; goal: number; label: string }) => {
   const radius = 28
@@ -58,7 +58,7 @@ export default function SpiritualHabits({
   ]
 
   return (
-    <section aria-labelledby="home-habits-title" className={`p-4 ${homeCardClassName}`}>
+    <section aria-labelledby="home-habits-title" className={`p-4 ${homeCardThinShadowClassName}`}>
       <div className="flex items-center justify-between gap-3">
         <h2 className="text-xl font-semibold text-primary-900" id="home-habits-title">
           {t('homeHabitsTitle')}

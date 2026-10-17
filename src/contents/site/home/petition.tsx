@@ -7,7 +7,7 @@ import { MobilePublicChurch } from '@/models/mobile'
 import { SendOutlined } from '@ant-design/icons'
 import axios from 'axios'
 import { FormEvent, useState } from 'react'
-import { PETITION_INTENTIONS, homeCardClassName } from './data'
+import { PETITION_INTENTIONS, homeCardThinShadowClassName } from './data'
 
 /** Home section 3, right 2 (`home-3-right-2.png`): prayer request to the main church. */
 export default function PrayerPetition({ church }: { church: MobilePublicChurch | null }) {
@@ -44,7 +44,7 @@ export default function PrayerPetition({ church }: { church: MobilePublicChurch 
   return (
     <section
       aria-labelledby="home-petition-title"
-      className={homeCardClassName}
+      className={homeCardThinShadowClassName}
       id="prayer-petition"
     >
       <div className="flex items-center gap-3 border-b border-neutral-200 p-4">

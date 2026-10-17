@@ -2,7 +2,7 @@ import { SiteI18nProvider } from '@/i18n/site-i18n'
 import { MobileHome } from '@/models/mobile'
 import { axiosMock, renderWithProviders } from '@/test/frontend/render'
 import { fireEvent, screen, waitFor } from '@testing-library/react'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import ContentsSiteHome from '.'
 import { eventIcs } from './gatherings'
 
@@ -169,11 +169,27 @@ describe('WB3 Home devotional hero', () => {
     expect(screen.getByRole('link', { name: 'RSVP' }).getAttribute('href')).toBe(
       event.registrationUrl,
     )
-    expect(screen.getByRole('link', { name: 'Save Date' }).getAttribute('download')).toBe(
-      `${event.title}.ics`,
-    )
+    expect(screen.getByRole('button', { name: 'Save Date' })).toBeTruthy()
     expect(screen.getByText('€10')).toBeTruthy()
     expect(screen.getByText('Beneficiary: Hope Church')).toBeTruthy()
+  })
+
+  it('downloads the event .ics only on click (nothing time-dependent in the SSR markup)', async () => {
+    const created: Blob[] = []
+    URL.createObjectURL = vi.fn((blob: Blob) => {
+      created.push(blob)
+      return 'blob:event'
+    })
+    URL.revokeObjectURL = vi.fn()
+    const click = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {})
+    renderHome({ ...home(), mainChurch, latestEvents: [event] })
+
+    fireEvent.click(screen.getByRole('button', { name: 'Save Date' }))
+
+    expect(click).toHaveBeenCalledTimes(1)
+    expect(await created[0].text()).toContain('SUMMARY:Trinity Sunday Festival Worship')
+    expect(URL.revokeObjectURL).toHaveBeenCalledWith('blob:event')
+    click.mockRestore()
   })
 
   it('escapes calendar text and assumes a one-hour slot', () => {

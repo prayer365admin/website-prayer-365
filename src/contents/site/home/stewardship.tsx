@@ -5,14 +5,14 @@ import MaskIcon from '@/components/site/mask-icon'
 import { useSiteI18n } from '@/i18n/site-i18n'
 import { MyActiveGift } from '@/models/donation'
 import { ExportOutlined } from '@ant-design/icons'
-import { homeCardClassName } from './data'
+import { homeCardThinShadowClassName } from './data'
 
 /** Home section 3, right 3 (`home-3-right-3.png`): the customer's own active monthly gift. */
 export function Stewardship({ gift }: { gift: MyActiveGift | null }) {
   const { locale, t } = useSiteI18n()
 
   return (
-    <section aria-labelledby="home-stewardship-title" className={homeCardClassName}>
+    <section aria-labelledby="home-stewardship-title" className={homeCardThinShadowClassName}>
       <div className="flex items-center gap-3 border-b border-neutral-200 p-4">
         <span className="flex size-12 shrink-0 items-center justify-center rounded-xl bg-blue-50">
           <MaskIcon className="bg-primary-500" size={20} src="/icons/icon-prayer-love.svg" />

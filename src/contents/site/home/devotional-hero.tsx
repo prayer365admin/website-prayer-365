@@ -5,7 +5,6 @@ import DevotionalAudioPlayer from '@/components/site/prayer/devotional-audio-pla
 import PrayerQuotePanel from '@/components/site/prayer/prayer-quote-panel'
 import { useSiteI18n } from '@/i18n/site-i18n'
 import { MobilePublishedPrayer } from '@/models/mobile'
-import { StarFilled } from '@ant-design/icons'
 import Image from 'next/image'
 import Link from 'next/link'
 
@@ -41,7 +40,8 @@ export default function DevotionalHero({
       <div className="bg-[linear-gradient(135deg,rgba(194,217,255,0.4)_0%,rgba(255,255,255,0)_100%)] p-5 sm:p-8">
         <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2 text-xs font-medium text-blue-800">
           <span className="inline-flex items-center gap-1.5 rounded-full bg-white px-3 py-1.5 text-blue-800 sm:px-4 sm:py-2 shadow-sm">
-            <StarFilled className="text-primary-500" /> {t('homeLiturgicalFocus')}
+            <MaskIcon className="bg-primary-500" size={12} src="/icons/icon-stars.svg" />
+            {t('homeLiturgicalFocus')}
           </span>
           <time className="text-blue-800" dateTime={date.toISOString()}>
             {formattedDate}
