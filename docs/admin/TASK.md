@@ -125,7 +125,7 @@ F7RQ notes (2026-10-08, plan `.codex/tasks/F7RQ-requests.md`):
   private grant), queries use the exact route church, `?kind=` takes a comma list, request
   and overview responses are `Cache-Control: private, no-store`, duplicate submission
   returns the original ack, idempotency keys are church-scoped, submissions are limited to
-  5 per user per church per 10 minutes (`REQUEST_SUBMIT_LIMIT`,
+  5 per user (across all churches) per 10 minutes (`REQUEST_SUBMIT_LIMIT`,
   `REQUEST_SUBMIT_WINDOW_MINUTES`). `prayer_private_request_reader` now includes
   `prayer_request:read`.
 - RQ-08: only view and external contact are built. F6 "manage" is **not** complete; it stays

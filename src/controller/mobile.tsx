@@ -223,7 +223,7 @@ export const listPublicAnnouncements = async ({
 // Task 43 — requests / check-ins / analytics intake
 // ---------------------------------------------------------------------------
 
-// Submission rate limit (F7RQ R6): per user per church in a rolling window.
+// Submission rate limit (F7RQ R6): per user across all churches in a rolling window.
 const getRequestLimit = () => Number(process.env.REQUEST_SUBMIT_LIMIT) || 5
 const getRequestWindowMinutes = () => Number(process.env.REQUEST_SUBMIT_WINDOW_MINUTES) || 10
 
@@ -267,7 +267,7 @@ export const submitRequest = async ({
       // ponytail: count-then-insert can let a parallel burst slip one past the
       // limit; move to a shared limiter if that ever matters.
       const since = new Date(Date.now() - getRequestWindowMinutes() * 60 * 1000)
-      const recent = await COUNT_RECENT_USER_REQUESTS({ churchId, userId, since, tx })
+      const recent = await COUNT_RECENT_USER_REQUESTS({ userId, since, tx })
       if (recent >= getRequestLimit()) throw rateLimited()
       const created = await CREATE_USER_REQUEST({
         churchId,

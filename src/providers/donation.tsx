@@ -8,6 +8,7 @@ import {
   DonationSubscriptionRow,
   DonationSummary,
   DonationSummaryRow,
+  MyActiveGift,
 } from '@/models/donation'
 
 /*
@@ -229,5 +230,29 @@ export const ENSURE_CHURCH_DONATION_ELIGIBLE = async ({
   return {
     churchId: church.id,
     churchName: church.name,
+  }
+}
+
+/** The user's newest active monthly gift, or null. Subject-only: filtered by the caller's own user_id. */
+export const GET_MY_ACTIVE_GIFT = async ({
+  userId,
+}: {
+  userId: string
+}): Promise<MyActiveGift | null> => {
+  const row = await db.donationSubscription.findFirst({
+    where: { user_id: userId, provider_status: 'active' },
+    orderBy: [{ created_at: 'desc' }, { id: 'desc' }],
+    select: {
+      amount_minor: true,
+      currency: true,
+      church: { select: { id: true, name: true } },
+    },
+  })
+  if (!row) return null
+  return {
+    amountMinor: Number(row.amount_minor),
+    currency: row.currency.toUpperCase(),
+    churchId: row.church.id,
+    churchName: row.church.name,
   }
 }

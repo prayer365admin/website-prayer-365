@@ -243,11 +243,13 @@ export type MobilePublishedAudio = z.infer<typeof MobilePublishedAudioSchema>
 export const MobilePublishedPrayerSchema = z.object({
   id: z.string(),
   churchId: z.string(),
+  churchName: z.string(),
   publishedAt: z.string(),
   version: z.object({
     prayerVersionId: z.string(),
     versionNumber: z.number(),
     pastorId: z.string(),
+    pastorName: z.string(),
     title: z.string(),
     introduction: z.string().nullable(),
     body: z.string(),
@@ -259,11 +261,13 @@ export const MobilePublishedPrayerSchema = z.object({
 export type MobilePublishedPrayer = {
   id: string
   churchId: string
+  churchName: string
   publishedAt: string
   version: {
     prayerVersionId: string
     versionNumber: number
     pastorId: string
+    pastorName: string
     title: string
     introduction: string | null
     body: string
@@ -411,6 +415,8 @@ export const MOBILE_ANALYTICS_TYPES = [
   'church_view',
   'prayer_view',
   'prayer_listen',
+  // One per full minute of audio actually played (website Home "mins this week").
+  'prayer_listen_minute',
   'event_view',
   'announcement_view',
   'search',

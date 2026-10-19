@@ -158,3 +158,11 @@ export type DonationSubscriptionListQuery = {
   order_direction: 'asc' | 'desc'
   currency?: string
 }
+
+/** The signed-in customer's own active monthly gift (website Home stewardship card). */
+export type MyActiveGift = {
+  amountMinor: number
+  currency: string
+  churchId: string
+  churchName: string
+}

@@ -991,6 +991,7 @@ describe('mapPublishedPrayer (via GET_PUBLISHED_PRAYER)', () => {
     db.prayer.findFirst.mockResolvedValueOnce({
       id: 'p1',
       church_id: 'c1',
+      church: { name: 'Hope Church' },
       published_at: new Date(),
       published_version_id: 'v1',
     })
@@ -1006,7 +1007,7 @@ describe('mapPublishedPrayer (via GET_PUBLISHED_PRAYER)', () => {
       },
       pastor: {
         id: 'pa1',
-        display_name: 'Pastor',
+        name: 'Pastor',
       },
     })
 
@@ -1019,6 +1020,7 @@ describe('mapPublishedPrayer (via GET_PUBLISHED_PRAYER)', () => {
     db.prayer.findFirst.mockResolvedValueOnce({
       id: 'p1',
       church_id: 'c1',
+      church: { name: 'Hope Church' },
       published_at: new Date(),
       published_version_id: 'v1',
     })
@@ -1034,7 +1036,7 @@ describe('mapPublishedPrayer (via GET_PUBLISHED_PRAYER)', () => {
       },
       pastor: {
         id: 'pa1',
-        display_name: 'Pastor',
+        name: 'Pastor',
       },
     })
 
@@ -1047,6 +1049,7 @@ describe('mapPublishedPrayer (via GET_PUBLISHED_PRAYER)', () => {
     db.prayer.findFirst.mockResolvedValueOnce({
       id: 'p1',
       church_id: 'c1',
+      church: { name: 'Hope Church' },
       published_at: new Date(),
       published_version_id: 'v1',
     })
@@ -1063,7 +1066,7 @@ describe('mapPublishedPrayer (via GET_PUBLISHED_PRAYER)', () => {
       },
       pastor: {
         id: 'pa1',
-        display_name: 'Pastor',
+        name: 'Pastor',
       },
     })
 
@@ -1085,6 +1088,7 @@ describe('LIST_PUBLISHED_PRAYERS — historical pastor attribution', () => {
       {
         id: 'prayer-1',
         church_id: 'church-1',
+        church: { name: 'Hope Church' },
         published_at: new Date('2026-09-30T12:00:00.000Z'),
         published_version_id: 'version-1',
       },
@@ -1099,6 +1103,7 @@ describe('LIST_PUBLISHED_PRAYERS — historical pastor attribution', () => {
         introduction: null,
         body: 'Prayer body',
         language_code: 'en',
+        pastor: { name: 'Pastor' },
         selected_audio: null,
       },
     ])
@@ -1182,14 +1187,12 @@ describe('LIST_PUBLIC_ANNOUNCEMENTS — only live published rows', () => {
 })
 
 describe('COUNT_RECENT_USER_REQUESTS — submission rate limit window', () => {
-  it("counts only this user's requests at this church since the window start", async () => {
+  it("counts this user's requests at every church since the window start", async () => {
     db.request.count.mockResolvedValue(3)
     const since = new Date('2026-01-01T00:00:00Z')
-    await expect(
-      COUNT_RECENT_USER_REQUESTS({ churchId: 'c1', userId: 'u1', since, tx: null }),
-    ).resolves.toBe(3)
+    await expect(COUNT_RECENT_USER_REQUESTS({ userId: 'u1', since, tx: null })).resolves.toBe(3)
     expect(db.request.count).toHaveBeenCalledWith({
-      where: { church_id: 'c1', user_id: 'u1', created_at: { gte: since } },
+      where: { user_id: 'u1', created_at: { gte: since } },
     })
   })
 })
@@ -1351,7 +1354,13 @@ describe('GET_HOME — MB-10 typed projection', () => {
     )
     db.prayer.count.mockResolvedValueOnce(1)
     db.prayer.findMany.mockResolvedValueOnce([
-      { id: 'p1', church_id: 'c1', published_at: new Date(), published_version_id: 'v1' },
+      {
+        id: 'p1',
+        church_id: 'c1',
+        church: { name: 'Main' },
+        published_at: new Date(),
+        published_version_id: 'v1',
+      },
     ])
     db.prayerVersion.findMany.mockResolvedValueOnce([
       {
@@ -1360,7 +1369,7 @@ describe('GET_HOME — MB-10 typed projection', () => {
         body: 'Amen',
         language_code: 'en',
         selected_audio: null,
-        pastor: { id: 'pa1', display_name: 'Pastor' },
+        pastor: { id: 'pa1', name: 'Pastor' },
       },
     ])
     db.event.count.mockResolvedValueOnce(0)
@@ -1395,6 +1404,59 @@ describe('GET_HOME — MB-10 typed projection', () => {
     expect(res.latestPrayers[0].version.title).toBe('Prayer')
     expect(res.latestEvents).toEqual([])
     expect(res.latestAnnouncements).toEqual([])
+  })
+
+  it('keeps mainChurch null for follows-only users and loads followed prayers', async () => {
+    db.userChurch.findMany.mockResolvedValueOnce([
+      { is_main: false, is_followed: true, church_id: 'c2' },
+    ])
+    db.prayer.findMany.mockResolvedValueOnce([
+      {
+        id: 'p2',
+        church_id: 'c2',
+        church: { name: 'Followed Church' },
+        published_at: new Date('2026-10-15T06:00:00.000Z'),
+        published_version_id: 'v2',
+      },
+    ])
+    db.prayerVersion.findMany.mockResolvedValueOnce([
+      {
+        id: 'v2',
+        version_number: 1,
+        pastor_id: 'pa2',
+        title: 'Followed prayer',
+        introduction: null,
+        body: 'Amen',
+        language_code: 'et',
+        pastor: { name: 'Pastor Two' },
+        selected_audio: null,
+      },
+    ])
+    db.church.findMany.mockResolvedValueOnce([
+      {
+        id: 'c2',
+        name: 'Followed Church',
+        denomination: null,
+        address: null,
+        cover_asset_id: null,
+        latitude: null,
+        longitude: null,
+      },
+    ])
+
+    const res = await GET_HOME({ userId: 'u2' })
+
+    expect(res.mainChurch).toBeNull()
+    expect(res.latestPrayers[0]).toMatchObject({
+      churchId: 'c2',
+      churchName: 'Followed Church',
+      version: { pastorName: 'Pastor Two' },
+    })
+    expect(db.prayer.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({ church_id: { in: ['c2'] } }),
+      }),
+    )
   })
 })
 
@@ -1447,8 +1509,8 @@ describe('MB-11 — church summary coordinates', () => {
     db.userChurch.findMany.mockResolvedValueOnce([
       { is_main: false, is_followed: true, church_id: 'c2' },
     ])
-    // followed-only fixture: GET_HOME's main row falls back to approved[0]
-    db.church.findFirst.mockResolvedValueOnce(null)
+    // follows-only fixture: mainChurch stays null and the prayer feed reads followed churches
+    db.prayer.findMany.mockResolvedValueOnce([])
     db.church.findMany.mockResolvedValueOnce([
       {
         id: 'c2',

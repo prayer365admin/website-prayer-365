@@ -7,7 +7,7 @@ import SiteTopBar from './top-bar'
 
 export default function SiteShell({ children }: { children: ReactNode }) {
   return (
-    <Layout className="!min-h-screen !bg-white_color">
+    <Layout className="!min-h-screen !bg-[#F7F9FB]">
       <SiteTopBar />
       <div className="min-h-[60vh]">{children}</div>
       <SiteFooter />

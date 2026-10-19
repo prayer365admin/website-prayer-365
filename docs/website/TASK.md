@@ -19,7 +19,7 @@ Prepared: 12 October 2026. Source docs:
   userId scope.
 - Do not build deferred items. Do not commit or push. User handles all git.
 
-## Legend: ✔ done · ☐ pending · 🔒 blocked on shared backend MB-##/DO-## in admin docs
+## Legend: ✔ done · ◐ partial · ☐ pending · 🔒 blocked on shared backend MB-##/DO-## in admin docs
 
 ## WB-FND. Website foundation, do first
 
@@ -77,11 +77,11 @@ DESIGN W06, W09–W10 | SPEC §7.3 | FEATURE WF3
 
 | ID    | Task                                                                                                                                                  | Status |
 | ----- | ----------------------------------------------------------------------------------------------------------------------------------------------------- | ------ |
-| WB-31 | Home W06: `getHome` projection returns main and followed churches with latest published prayers, greeting, and empty state linking to directory.      | ☐      |
-| WB-32 | Prayer list and archive W09: `/churches/:churchId/prayers` and `/prayers` via `listPublishedPrayers` using pagination contract.                       | ☐      |
-| WB-33 | Prayer detail W10: title, church and pastor attribution, introduction, full body, text width, and accessibility controls.                             | ☐      |
-| WB-34 | Audio player: build playback URL from approved audio asset via `S3_PUBLIC_URL` using public bucket D13. Show text only when no approved audio exists. | ☐      |
-| WB-35 | Tests: draft or unapproved prayer never appears. Approved audio shows player. Missing audio shows text only. Public URL plays without auth header.    | ☐      |
+| WB-31 | Home W06: `getHome` projection returns main and followed churches with latest published prayers, greeting, and empty state linking to directory.      | ✔      |
+| WB-32 | Prayer list and archive W09: `/churches/:churchId/prayers` and `/prayers` via `listPublishedPrayers` using pagination contract.                       | ✔      |
+| WB-33 | Prayer detail W10: title, church and pastor attribution, introduction, full body. Partial: no text width/size controls (not in design).               | ◐      |
+| WB-34 | Audio player: build playback URL from approved audio asset via `S3_PUBLIC_URL` using public bucket D13. Show text only when no approved audio exists. | ✔      |
+| WB-35 | Tests: draft or unapproved prayer never appears. Approved audio shows player. Missing audio shows text only. Public URL plays without auth header.    | ✔      |
 
 ## WB4. Donations, website UI
 

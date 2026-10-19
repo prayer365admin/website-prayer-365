@@ -4,7 +4,8 @@ import { OutlinedLogoIcon } from '@/components/icon/outlined-logo'
 import { SoundWaveIcon } from '@/components/icon/sound-wave'
 import { SunIcon } from '@/components/icon/sun'
 import { SiteT } from '@/i18n/messages'
-import { CaretRightFilled, UserOutlined } from '@/components/icon/antd-icons'
+import { CaretRightFilled } from '@/components/icon/antd-icons'
+import AvatarStack from '@/components/site/avatar-stack'
 import Pill from './pill'
 
 /*
@@ -64,17 +65,8 @@ export default function SignInAside({ t }: { t: SiteT }) {
         </div>
         <p className="mt-4 text-sm text-neutral-600">{t('bellBody')}</p>
         <div className="mt-4 flex items-center gap-3 text-sm text-neutral-700">
-          {/* 24px circles, 8px overlap, 2px white ring (placeholder pastor photos, REPORT R-05). */}
-          <span aria-hidden className="flex">
-            {[0, 1, 2].map((i) => (
-              <span
-                key={i}
-                className="flex h-6 w-6 items-center justify-center rounded-full bg-blue-800 text-xs text-white shadow-[0px_0px_0px_2px_#FFFFFF] [&:not(:first-child)]:-ms-2"
-              >
-                <UserOutlined />
-              </span>
-            ))}
-          </span>
+          {/* Placeholder pastor photos (REPORT R-05). */}
+          <AvatarStack />
           <span className="text-sm font-medium text-primary-950">{t('bellPastors')}</span>
         </div>
       </section>
