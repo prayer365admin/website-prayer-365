@@ -32,7 +32,7 @@ const home = (audioUrl: string | null = null): MobileHome => ({
             prayerAudioId: 'audio-1',
             assetId: 'asset-1',
             assetKey: 'audio/prayer.mp3',
-            url: audioUrl,
+            assetUrl: audioUrl,
             approvedAt: '2026-10-15T05:00:00.000Z',
           }
         : null,
