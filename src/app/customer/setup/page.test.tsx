@@ -16,6 +16,12 @@ vi.mock('next/navigation', () => ({ redirect: m.redirect }))
 vi.mock('@/controller/mobile', () => ({ getMe: m.getMe }))
 vi.mock('@/controller/site', () => ({ getSetupProgress: m.getSetupProgress }))
 vi.mock('@/utils/site-locale', () => ({ getSiteLocale: () => 'en' }))
+vi.mock('@/components/site/session-access-guard', () => ({ default: () => null }))
+vi.mock('@/components/site', () => ({
+  default: ({ children }: { children: React.ReactNode }) => (
+    <div data-testid="site-shell">{children}</div>
+  ),
+}))
 vi.mock('@/contents/site/setup', () => ({
   default: ({ initialStep }: { initialStep: number }) => <div>Setup step {initialStep}</div>,
 }))

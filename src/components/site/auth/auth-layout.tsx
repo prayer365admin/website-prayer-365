@@ -30,7 +30,7 @@ export default function AuthLayout({
 }) {
   return (
     // overflow-hidden: the 720px glow must not cause sideways scroll on phones.
-    <main className="relative min-h-screen overflow-hidden bg-gradient-to-b from-blue-50 to-neutral-50 py-10 lg:py-16">
+    <main className="relative overflow-hidden bg-gradient-to-b from-blue-50 to-neutral-50 py-10 lg:py-16">
       <div aria-hidden className={s.glow} />
       {decoration}
       <BoxContainer

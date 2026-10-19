@@ -1,4 +1,6 @@
 import ContentsSiteSetup from '@/contents/site/setup'
+import SiteShell from '@/components/site'
+import SessionAccessGuard from '@/components/site/session-access-guard'
 import { getMe } from '@/controller/mobile'
 import { getSetupProgress } from '@/controller/site'
 import { SiteI18nProvider } from '@/i18n/site-i18n'
@@ -23,7 +25,10 @@ export default async function Page() {
   // Full-page setup: outside the (profile) customer shell, like /register.
   return (
     <SiteI18nProvider initialLocale={locale}>
-      <ContentsSiteSetup initialMe={me} initialStep={initialStep} locale={locale} />
+      <SessionAccessGuard access="protected" />
+      <SiteShell headerVariant="auth">
+        <ContentsSiteSetup initialMe={me} initialStep={initialStep} locale={locale} />
+      </SiteShell>
     </SiteI18nProvider>
   )
 }

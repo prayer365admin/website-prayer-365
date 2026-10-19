@@ -1,0 +1,216 @@
+.footer {
+  border-top: 1px solid var(--color-neutral-100);
+  background: white;
+  color: var(--color-neutral-600);
+  min-height: 290px;
+  padding: 24px 0;
+}
+
+.inner {
+  display: grid;
+  grid-template-columns: 528px 232px 264px;
+  gap: 39px 64px;
+  width: calc(100% - 80px);
+  max-width: 1152px;
+  height: 242px;
+  margin: 0 auto;
+}
+
+.brandLine {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.logo {
+  border-radius: 7px;
+}
+
+.brandLine strong {
+  color: #0067b8;
+  font-size: 20px;
+}
+
+.brandLine span {
+  font-size: 12px;
+}
+
+.identity blockquote {
+  width: 100%;
+  max-width: 512px;
+  margin: 14px 0 12px;
+  color: #191c1e;
+  font-family: var(--font-quote);
+  font-size: 32px;
+  font-style: italic;
+  line-height: 1.15;
+}
+
+.reference,
+.hotline span,
+.legal {
+  font-size: 12px;
+}
+
+.parishNetwork,
+.support {
+  padding-top: 1px;
+}
+
+.parishNetwork h2,
+.support h2 {
+  margin: 0 0 12px;
+  color: #191c1e;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+}
+
+.parishNetwork a {
+  display: block;
+  width: fit-content;
+  margin: 0 0 8px;
+  color: var(--color-neutral-600);
+  font-size: 14px;
+}
+
+.parishNetwork a:hover,
+.legal a:hover {
+  color: var(--color-primary-500);
+}
+
+.hotline {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  padding: 12px;
+  border-radius: 11px;
+  background: #f9fafa;
+}
+
+.hotline a {
+  color: var(--color-primary-500, #2f7ad2);
+  font-size: 20px;
+  font-weight: 600;
+}
+
+.legal {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  align-self: end;
+  justify-content: space-between;
+  gap: 24px;
+}
+
+.legal p,
+.legal nav {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.legal p {
+  align-items: flex-start;
+  gap: 7px;
+  margin: 0;
+  font-size: 12px;
+  line-height: 18px;
+}
+
+.legal p :global(.anticon) {
+  flex: 0 0 auto;
+  color: #0067b8;
+  font-size: 14px;
+}
+
+.legal nav {
+  gap: 28px;
+  white-space: nowrap;
+}
+
+.legal a {
+  color: #20252c;
+}
+
+.legalOnly {
+  min-height: auto;
+}
+
+.legalOnly .inner {
+  display: block;
+  height: auto;
+  min-height: 0;
+}
+
+.legalOnly .identity,
+.legalOnly .parishNetwork,
+.legalOnly .support {
+  display: none;
+}
+
+.legalOnly .legal {
+  min-height: 32px;
+}
+
+@media (max-width: 1280px) {
+  .inner {
+    width: calc(100% - 80px);
+  }
+}
+
+@media (max-width: 1231px) {
+  .inner {
+    grid-template-columns: minmax(0, 1.9fr) minmax(190px, 0.9fr) minmax(230px, 0.9fr);
+  }
+}
+
+@media (max-width: 900px) {
+  .inner {
+    grid-template-columns: 1.5fr 1fr;
+    height: auto;
+    min-height: 242px;
+  }
+
+  .support {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (max-width: 640px) {
+  .inner {
+    grid-template-columns: 1fr;
+    gap: 28px;
+    width: 100%;
+    height: auto;
+  }
+
+  .footer {
+    padding: 24px 20px;
+  }
+
+  .support,
+  .legal {
+    grid-column: auto;
+  }
+
+  .identity blockquote {
+    font-size: 27px;
+  }
+
+  .legal,
+  .legal nav {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .legal nav {
+    gap: 12px;
+    order: 1;
+  }
+
+  .legal p {
+    order: 2;
+  }
+}

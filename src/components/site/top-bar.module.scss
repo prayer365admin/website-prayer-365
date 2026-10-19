@@ -1,0 +1,266 @@
+.header {
+  position: relative;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  height: 80px;
+  border-bottom: 1px solid var(--color-neutral-100);
+  background: white;
+}
+
+.inner {
+  display: grid;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  align-items: center;
+  gap: 24px;
+  width: calc(100% - 48px);
+  max-width: 1248px;
+  height: 32px;
+  margin: 0 auto;
+}
+
+.brandGroup,
+.actions,
+.authNavigation,
+.generalNavigation,
+.generalContent {
+  display: flex;
+  align-items: center;
+}
+
+.brandGroup {
+  grid-column: 1;
+}
+
+.authInner .brandGroup,
+.generalInner .brandGroup {
+  gap: 8px;
+}
+
+.authNavigation {
+  grid-column: 5 / span 4;
+}
+
+.generalContent {
+  grid-column: 2 / span 9;
+  min-width: 0;
+  height: 32px;
+  justify-content: space-between;
+}
+
+.authInner .actions {
+  grid-column: 11 / -1;
+}
+
+.generalInner .actions {
+  grid-column: 11 / -1;
+}
+
+.logoLink,
+.logo {
+  display: block;
+  border-radius: 8px;
+}
+
+.logoLink {
+  width: 32px;
+  height: 32px;
+  flex: 0 0 32px;
+}
+
+.iconButton {
+  display: inline-flex;
+  width: 32px;
+  height: 32px;
+  flex: 0 0 32px;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: 8px;
+  background: var(--color-primary-100);
+  color: var(--color-primary-700);
+  font-size: 17px;
+  cursor: pointer;
+  transition:
+    background-color 160ms ease,
+    color 160ms ease;
+}
+
+.iconButton:hover {
+  background: var(--color-blue-200);
+  color: var(--color-blue-800);
+}
+
+.homeButton,
+.accountButton {
+  background: var(--color-primary-500);
+  color: white;
+}
+
+.authNavigation {
+  justify-content: center;
+  gap: 12px;
+}
+
+.generalNavigation {
+  width: 631px;
+  height: 32px;
+  justify-content: space-between;
+  gap: 0;
+  padding-left: 12px;
+}
+
+.navigationLink,
+.primaryLink {
+  white-space: nowrap;
+  border-radius: 8px;
+  color: #16191f;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 32px;
+}
+
+.navigationLink {
+  padding: 0 4px;
+}
+
+.navigationLink:hover {
+  color: var(--color-primary-500);
+}
+
+.primaryLink {
+  padding: 0 18px;
+  background: var(--color-primary-500);
+  color: white;
+}
+
+.actions {
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.churchPill {
+  display: inline-flex;
+  min-width: 0;
+  width: 185px;
+  max-width: 185px;
+  height: 32px;
+  align-items: center;
+  gap: 6px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--color-blue-200);
+  color: var(--color-primary-700);
+  font-family: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.churchPill span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.churchChevron {
+  font-size: 9px;
+}
+
+.locale {
+  display: inline-flex;
+  width: 52px;
+  height: 26px;
+  align-items: center;
+  gap: 2px;
+  padding: 0 3px;
+  border-radius: 999px;
+  background: var(--color-neutral-50);
+  color: var(--color-neutral-600);
+  font-size: 13px;
+}
+
+.languageSelect {
+  width: 30px;
+  min-width: 30px;
+  height: 26px;
+  flex: 0 0 30px;
+  padding: 0 !important;
+  font-size: 13px;
+}
+
+.languageSelect :global(.ant-select-content) {
+  width: 30px;
+  height: 26px !important;
+  color: inherit !important;
+  font-size: 13px !important;
+  line-height: 26px !important;
+}
+
+.notificationButton {
+  position: relative;
+}
+
+.notificationDot {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 8px;
+  height: 8px;
+  border: 0;
+  border-radius: 50%;
+  background: var(--color-danger-500);
+}
+
+@media (max-width: 1120px) {
+  .header {
+    height: 70px;
+  }
+
+  .inner {
+    display: flex;
+    width: 100%;
+    height: 32px;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 0 20px;
+  }
+
+  .logo {
+    width: 32px;
+    height: 32px;
+  }
+
+  .homeButton,
+  .authNavigation,
+  .generalNavigation,
+  .desktopLocale,
+  .searchButton {
+    display: none;
+  }
+
+  .generalContent {
+    flex: 1;
+    height: 34px;
+  }
+
+  .actions {
+    flex: 0 0 auto;
+    margin-left: auto;
+  }
+
+  .churchPill {
+    width: auto;
+    max-width: min(190px, calc(100vw - 148px));
+    border: 1px solid var(--color-neutral-200);
+    background: white;
+    font-size: 11px;
+    height: 34px;
+  }
+}
+
+@media (min-width: 1121px) {
+  .inner {
+    transform: translateY(-1px);
+  }
+}
