@@ -61,6 +61,22 @@ describe('ContentsSiteChurchDirectory', () => {
       data: { user: { user_id: 'u1' } },
       status: 'authenticated',
     })
+    // The page also loads the home projection to know the user's main church.
+    axiosMock.get.mockImplementation((url: string) =>
+      Promise.resolve({
+        data: url.includes('/site/home')
+          ? {
+              result: {
+                mainChurch: { id: 'c1' },
+                followedChurches: [],
+                latestPrayers: [],
+                latestEvents: [],
+                latestAnnouncements: [],
+              },
+            }
+          : resolveGet([], 0),
+      }),
+    )
   })
 
   it('renders cards with name, city, denomination, link, and placeholder initial', async () => {
@@ -77,19 +93,34 @@ describe('ContentsSiteChurchDirectory', () => {
     const viewDetailsLinks = screen.getAllByRole('link', { name: 'View details' })
     expect(viewDetailsLinks[0].getAttribute('href')).toBe('/churches/c1')
     expect(screen.getAllByText('G').length).toBeGreaterThanOrEqual(1)
-
-    expect(screen.getByRole('link', { name: 'View prayers' }).getAttribute('href')).toBe(
-      '/churches/c1/prayers',
-    )
     expect(screen.getByText('2 welcoming congregations listed')).toBeTruthy()
 
     expect(screen.getAllByText('Hope').length).toBeGreaterThanOrEqual(1)
     expect(screen.getAllByText('Tartu').length).toBeGreaterThanOrEqual(1)
-    expect(screen.getAllByText('Baptist').length).toBe(2)
+    // Thumbnail denomination badge only (the style pill no longer repeats it).
+    expect(screen.getAllByText('Baptist').length).toBeGreaterThanOrEqual(1)
   })
-  it('shows the church style pill with denomination fallback on non-featured cards', async () => {
-    // Index 0 renders as the featured (Primary Parish) card, so the style /
-    // fallback pills belong to the second card.
+
+  it('marks only the user main church as Primary Parish', async () => {
+    axiosMock.get.mockImplementation((url: string) =>
+      Promise.resolve({
+        data: url.includes('/site/home')
+          ? { result: { mainChurch: { id: 'c2' }, followedChurches: [], latestPrayers: [] } }
+          : resolveGet([summaryA, summaryB], 2),
+      }),
+    )
+
+    renderDirectory()
+    expect(await screen.findByText('Primary Parish')).toBeTruthy()
+    // Exactly one featured card, and it belongs to c2.
+    const cards = screen.getAllByText('Primary Parish')
+    expect(cards).toHaveLength(1)
+    expect(screen.getAllByRole('link', { name: 'Directions' })).toHaveLength(1)
+  })
+
+  it('shows the church style pill and keeps the denomination badge separate', async () => {
+    // No main church in the list -> no featured card; the style pill belongs to
+    // whichever card has a churchStyle.
     const summaryFallback = {
       ...summaryA,
       id: 'c-fallback',
@@ -101,14 +132,20 @@ describe('ContentsSiteChurchDirectory', () => {
       denomination: 'Baptist (EEKBKL)',
       churchStyle: 'Youth & Student Parish',
     }
-    axiosMock.get.mockResolvedValueOnce({
-      data: resolveGet([summaryFallback, summaryStyle], 2),
-    })
+    axiosMock.get.mockImplementation((url: string) =>
+      Promise.resolve({
+        data: url.includes('/site/home')
+          ? { result: { mainChurch: null, followedChurches: [], latestPrayers: [] } }
+          : resolveGet([summaryFallback, summaryStyle], 2),
+      }),
+    )
 
     renderDirectory()
     expect(await screen.findByText('Youth & Student Parish')).toBeTruthy()
-    // Falls back to the denomination acronym when churchStyle is missing.
+    // The pill no longer duplicates the acronym; the acronym comes from the
+    // thumbnail badge (and the map preview card).
     expect(screen.getAllByText('EELK').length).toBeGreaterThanOrEqual(1)
+    expect(screen.queryByText('Primary Parish')).toBeNull()
   })
 
   it('formats denomination to show only text inside parentheses when present (e.g. Lutheran (EELK) => EELK)', async () => {
@@ -122,7 +159,7 @@ describe('ContentsSiteChurchDirectory', () => {
     })
 
     renderDirectory()
-    expect(await screen.findByText('Primary Parish')).toBeTruthy()
+    expect((await screen.findAllByText('Grace')).length).toBeGreaterThanOrEqual(1)
     expect(screen.getAllByText('EELK').length).toBeGreaterThanOrEqual(1)
     expect(screen.queryByText('Lutheran (EELK)')).toBeNull()
   })

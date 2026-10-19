@@ -4,6 +4,7 @@ import { GeneralError } from '@/utils/general-error'
 import { auditPayload } from '@/utils/audit'
 import { fromKind } from '@/providers/request'
 import { S3_PUBLIC_URL } from '@/providers/s3'
+import { sanctuaryRangesFor } from '@/utils/sanctuary-hours'
 import {
   MobileAnnouncementListQuery,
   MobileCheckInAck,
@@ -175,61 +176,67 @@ const WEEKDAY_MAP: Record<string, number> = {
   Sun: 7,
 }
 
-export function isOpenNow(
+/** Wall-clock weekday (1–7) and minute-of-day in the church timezone (UTC fallback). */
+export function churchClock(
   timezone: string,
-  serviceTimes: Array<{ weekday: number; local_time: Date }>,
   now: Date,
-): boolean {
-  if (!serviceTimes || serviceTimes.length === 0) return false
-
+): { weekday: number; minutes: number } | null {
+  const format = (tz: string) =>
+    new Intl.DateTimeFormat('en-CA', {
+      timeZone: tz,
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false,
+      weekday: 'short',
+    })
   let parts: Intl.DateTimeFormatPart[]
   try {
-    const fmt = new Intl.DateTimeFormat('en-CA', {
-      timeZone: timezone,
-      hour: '2-digit',
-      minute: '2-digit',
-      hour12: false,
-      weekday: 'short',
-    })
-    parts = fmt.formatToParts(now)
+    parts = format(timezone).formatToParts(now)
   } catch {
-    const fmt = new Intl.DateTimeFormat('en-CA', {
-      timeZone: 'UTC',
-      hour: '2-digit',
-      minute: '2-digit',
-      hour12: false,
-      weekday: 'short',
-    })
-    parts = fmt.formatToParts(now)
+    parts = format('UTC').formatToParts(now)
   }
 
   const weekdayStr = parts.find((p) => p.type === 'weekday')?.value?.replace('.', '')
-  const currentWeekday = weekdayStr ? WEEKDAY_MAP[weekdayStr] : undefined
-  if (!currentWeekday) return false
+  const weekday = weekdayStr ? WEEKDAY_MAP[weekdayStr] : undefined
+  if (!weekday) return null
 
   const rawHour = Number(parts.find((p) => p.type === 'hour')?.value ?? 0)
   const hour = rawHour === 24 ? 0 : rawHour
   const minute = Number(parts.find((p) => p.type === 'minute')?.value ?? 0)
-  const nowMinutes = hour * 60 + minute
+  return { weekday, minutes: hour * 60 + minute }
+}
 
-  for (const st of serviceTimes) {
-    if (st.weekday !== currentWeekday) continue
-    const dObj = st.local_time instanceof Date ? st.local_time : new Date(st.local_time)
-    if (isNaN(dObj.getTime())) continue
-    const timeStr = dObj.toISOString().slice(11, 16)
-    const [stH, stM] = timeStr.split(':').map(Number)
-    if (isNaN(stH) || isNaN(stM)) continue
-    const stMinutes = (stH === 24 ? 0 : stH) * 60 + stM
-    const diff = Math.abs(nowMinutes - stMinutes)
-    const circularDiff = Math.min(diff, 1440 - diff)
-    if (circularDiff <= 120) return true
+/**
+ * `open_now` (website SPEC §5.3 / §6.2): true when the current church-local time
+ * falls inside a `sanctuary_hours` window. No schedule → closed.
+ */
+export function isOpenNow(
+  timezone: string,
+  sanctuaryHours: string | null | undefined,
+  now: Date,
+): boolean {
+  const clock = churchClock(timezone, now)
+  if (!clock) return false
+  return sanctuaryRangesFor(sanctuaryHours, clock.weekday).some(
+    (r) => clock.minutes >= r.start && clock.minutes <= r.end,
+  )
+}
+
+/** Approximate lat/lng box for a radius, so the DB is not scanned in full. */
+const radiusBox = (query: MobileChurchListQuery): Prisma.ChurchWhereInput => {
+  if (query.radius_km === undefined) return {}
+  if (query.latitude === undefined || query.longitude === undefined) return {}
+  const dLat = query.radius_km / 111
+  const dLng = dLat / Math.max(Math.cos((query.latitude * Math.PI) / 180), 0.01)
+  return {
+    latitude: { gte: query.latitude - dLat, lte: query.latitude + dLat },
+    longitude: { gte: query.longitude - dLng, lte: query.longitude + dLng },
   }
-
-  return false
 }
 
 const churchListWhere = (query: MobileChurchListQuery): Prisma.ChurchWhereInput => ({
   status: APPROVED,
+  ...radiusBox(query),
   ...(query.search
     ? {
         OR: [
@@ -411,9 +418,15 @@ export const LIST_PUBLIC_CHURCHES = async ({
     }
   }
 
+  // Filtering by distance / open-now cannot be expressed in Prisma, so those
+  // queries load rows and filter in JS.
+  // ponytail: hard cap at 2000 rows — fine for a national directory. Move to
+  // PostGIS / earthdistance (or a geohash column) when a region exceeds it.
+  const MAX_FILTER_ROWS = 2000
   const rows = await db.church.findMany({
     where,
     orderBy: [{ name: 'asc' }, { id: 'asc' }],
+    take: MAX_FILTER_ROWS,
     select: {
       id: true,
       name: true,
@@ -455,7 +468,7 @@ export const LIST_PUBLIC_CHURCHES = async ({
   if (query.open_now === true) {
     const now = new Date()
     pairs = pairs.filter((p) =>
-      isOpenNow((p.row as { timezone?: string }).timezone ?? 'UTC', p.row.serviceTimes ?? [], now),
+      isOpenNow(p.row.timezone ?? 'UTC', p.row.sanctuary_hours ?? null, now),
     )
   }
 
@@ -817,6 +830,7 @@ const mapPublishedPrayer = (p: {
           prayerAudioId: audio.id,
           assetId: audio.asset!.id,
           assetKey: audio.asset!.object_key,
+          assetUrl: S3_PUBLIC_URL({ key: audio.asset!.object_key }),
           approvedAt: toIso(audio.approved_at) ?? '',
         }
       : null,

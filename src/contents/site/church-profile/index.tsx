@@ -16,7 +16,6 @@ import { useSiteHome } from '@/hooks/data/site/home'
 import { useSiteI18n } from '@/i18n/site-i18n'
 import type { MobilePublishedPrayer } from '@/models/mobile'
 import {
-  ArrowRightOutlined,
   CaretRightFilled,
   EnvironmentOutlined,
   MailOutlined,
@@ -29,12 +28,15 @@ import dayjs from 'dayjs'
 import timezone from 'dayjs/plugin/timezone'
 import utc from 'dayjs/plugin/utc'
 import Image from 'next/image'
-import Link from 'next/link'
 import { Hero } from './hero'
 import { GoogleMapPins } from '@/components/common/google-map'
 import { IntercessionHub } from './intercession-hub'
 import { SectionCard } from './section-card'
 import { Stewardship } from './stewardship'
+import { parseSanctuaryHours } from '@/utils/sanctuary-hours'
+import { DownloadIcon } from '@/components/icon/download'
+import { TranscriptIcon } from '@/components/icon/transcript'
+import { BookmarkPlusIcon } from '@/components/icon/bookmark-plus'
 
 const WEEKDAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
 dayjs.extend(utc)
@@ -51,87 +53,6 @@ interface PrayerAudioRowProps {
   onToggleSave: () => void
 }
 
-function DownloadIcon({ className }: { className?: string }) {
-  return (
-    <svg
-      width="16"
-      height="16"
-      viewBox="0 0 16 16"
-      fill="none"
-      xmlns="http://www.w3.org/2000/svg"
-      className={className}
-      aria-hidden="true"
-    >
-      <path
-        d="M2.5 10.5V12.5C2.5 13.0523 2.94772 13.5 3.5 13.5H12.5C13.0523 13.5 13.5 13.0523 13.5 12.5V10.5"
-        stroke="currentColor"
-        strokeWidth="1.6"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-      <path
-        d="M8 2.5V10.5M8 10.5L4.75 7.25M8 10.5L11.25 7.25"
-        stroke="currentColor"
-        strokeWidth="1.6"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
-  )
-}
-
-function TranscriptIcon({ className }: { className?: string }) {
-  return (
-    <svg
-      width="16"
-      height="16"
-      viewBox="0 0 16 16"
-      fill="none"
-      xmlns="http://www.w3.org/2000/svg"
-      className={className}
-      aria-hidden="true"
-    >
-      <path
-        d="M3 3.75H9M3 7.25H13M3 10.75H8.5M3 14.25H13"
-        stroke="currentColor"
-        strokeWidth="1.6"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
-  )
-}
-
-function BookmarkPlusIcon({ className, filled }: { className?: string; filled?: boolean }) {
-  return (
-    <svg
-      width="16"
-      height="16"
-      viewBox="0 0 16 16"
-      fill="none"
-      xmlns="http://www.w3.org/2000/svg"
-      className={className}
-      aria-hidden="true"
-    >
-      <path
-        d="M3.75 2.5C3.75 1.94772 4.19772 1.5 4.75 1.5H11.25C11.8023 1.5 12.25 1.94772 12.25 2.5V14.5L8 11.75L3.75 14.5V2.5Z"
-        stroke="currentColor"
-        strokeWidth="1.6"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        fill={filled ? 'currentColor' : 'none'}
-      />
-      <path
-        d="M8 4.75V8.25M6.25 6.5H9.75"
-        stroke={filled ? '#FFFFFF' : 'currentColor'}
-        strokeWidth="1.6"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
-  )
-}
-
 function PrayerAudioRow({
   prayer,
   isActive,
@@ -142,20 +63,22 @@ function PrayerAudioRow({
   isSaved,
   onToggleSave,
 }: PrayerAudioRowProps) {
+  const { t } = useSiteI18n()
   const audioRef = useRef<HTMLAudioElement | null>(null)
   const [currentTime, setCurrentTime] = useState<number>(0)
   const [duration, setDuration] = useState<number>(60)
 
-  const audioSrc = prayer.audio?.assetKey || '/audio/peace-in-uncertain-times.mp3'
+  // No approved audio → no playback. Never substitute a sample file.
+  const audioSrc = prayer.audio?.assetUrl ?? null
 
   useEffect(() => {
     if (!audioRef.current) return
-    if (isActive) {
+    if (isActive && audioSrc) {
       audioRef.current.play().catch(() => {})
     } else {
       audioRef.current.pause()
     }
-  }, [isActive])
+  }, [isActive, audioSrc])
 
   const formatAudioTime = (sec: number) => {
     if (!Number.isFinite(sec) || isNaN(sec)) return '0:00'
@@ -176,51 +99,54 @@ function PrayerAudioRow({
 
   return (
     <div className="p-5 transition-colors hover:bg-[#FAFAFB]">
-      <audio
-        ref={audioRef}
-        src={audioSrc}
-        preload="metadata"
-        onTimeUpdate={() => {
-          if (audioRef.current) {
-            setCurrentTime(audioRef.current.currentTime)
-          }
-        }}
-        onLoadedMetadata={() => {
-          if (
-            audioRef.current &&
-            Number.isFinite(audioRef.current.duration) &&
-            audioRef.current.duration > 0
-          ) {
-            setDuration(audioRef.current.duration)
-          }
-        }}
-        onDurationChange={() => {
-          if (
-            audioRef.current &&
-            Number.isFinite(audioRef.current.duration) &&
-            audioRef.current.duration > 0
-          ) {
-            setDuration(audioRef.current.duration)
-          }
-        }}
-        onEnded={() => {
-          if (isActive) {
-            onTogglePlay()
-          }
-          setCurrentTime(0)
-        }}
-      />
+      {audioSrc && (
+        <audio
+          ref={audioRef}
+          src={audioSrc}
+          preload="metadata"
+          onTimeUpdate={() => {
+            if (audioRef.current) {
+              setCurrentTime(audioRef.current.currentTime)
+            }
+          }}
+          onLoadedMetadata={() => {
+            if (
+              audioRef.current &&
+              Number.isFinite(audioRef.current.duration) &&
+              audioRef.current.duration > 0
+            ) {
+              setDuration(audioRef.current.duration)
+            }
+          }}
+          onDurationChange={() => {
+            if (
+              audioRef.current &&
+              Number.isFinite(audioRef.current.duration) &&
+              audioRef.current.duration > 0
+            ) {
+              setDuration(audioRef.current.duration)
+            }
+          }}
+          onEnded={() => {
+            if (isActive) {
+              onTogglePlay()
+            }
+            setCurrentTime(0)
+          }}
+        />
+      )}
       <div className="mb-2 flex items-center gap-1.5 text-[11px] font-bold tracking-wider text-[#2F7AD2] uppercase">
         <WaveformIcon className="text-sm text-[#2F7AD2]" />
-        <span>GUIDED CONTEMPLATION</span>
+        <span>{t('guidedContemplation')}</span>
       </div>
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-start gap-4 flex-1 min-w-0">
           <button
             type="button"
             onClick={onTogglePlay}
-            aria-label={isActive ? 'Pause' : 'Play'}
-            className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-[#2F7AD2] text-white shadow-sm transition-transform hover:scale-105 active:scale-95"
+            disabled={!audioSrc}
+            aria-label={!audioSrc ? t('noAudioAvailable') : isActive ? 'Pause' : 'Play'}
+            className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-[#2F7AD2] text-white shadow-sm transition-transform hover:scale-105 active:scale-95 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:scale-100"
           >
             {isActive ? (
               <PauseOutlined className="text-lg" />
@@ -265,30 +191,32 @@ function PrayerAudioRow({
           </div>
         </div>
         <div className="flex items-center gap-2 self-end sm:self-center">
-          <a
-            href={audioSrc}
-            download={`${prayer.version.title}.mp3`}
-            target="_blank"
-            rel="noopener noreferrer"
-            title="Download Audio"
-            aria-label="Download Audio"
-            className="flex h-9 w-9 items-center justify-center rounded-xl border border-[#DDE0E4] bg-white text-[#2F7AD2] transition-colors hover:bg-[#F4F7FC] hover:border-[#2F7AD2]"
-          >
-            <DownloadIcon />
-          </a>
+          {audioSrc && (
+            <a
+              href={audioSrc}
+              download={`${prayer.version.title}.mp3`}
+              target="_blank"
+              rel="noopener noreferrer"
+              title={t('downloadAudio')}
+              aria-label={t('downloadAudio')}
+              className="flex h-9 w-9 items-center justify-center rounded-xl border border-[#DDE0E4] bg-white text-[#2F7AD2] transition-colors hover:bg-[#F4F7FC] hover:border-[#2F7AD2]"
+            >
+              <DownloadIcon className="h-4 w-4" />
+            </a>
+          )}
           <button
             type="button"
-            title="View Transcript"
-            aria-label="View Transcript"
+            title={t('viewTranscript')}
+            aria-label={t('viewTranscript')}
             onClick={() => onOpenTranscript(prayer.version.title, prayer.version.body)}
             className="flex h-9 w-9 items-center justify-center rounded-xl border border-[#DDE0E4] bg-white text-[#2F7AD2] transition-colors hover:bg-[#F4F7FC] hover:border-[#2F7AD2]"
           >
-            <TranscriptIcon />
+            <TranscriptIcon className="h-4 w-4" />
           </button>
           <button
             type="button"
-            title={isSaved ? 'Saved' : 'Save'}
-            aria-label={isSaved ? 'Saved' : 'Save'}
+            title={isSaved ? t('saved') : t('save')}
+            aria-label={isSaved ? t('saved') : t('save')}
             onClick={onToggleSave}
             className={`flex h-9 w-9 items-center justify-center rounded-xl border transition-colors ${
               isSaved
@@ -395,59 +323,6 @@ function FacilityIcon({ index }: { index: number }) {
         </svg>
       )
   }
-}
-function parseSanctuaryHours(
-  hours: string,
-): Array<{ title: string; time: string; description: string }> {
-  const trimmed = hours.trim()
-  if (trimmed.startsWith('[') && trimmed.endsWith(']')) {
-    try {
-      const parsed: unknown = JSON.parse(trimmed)
-      if (Array.isArray(parsed) && parsed.length > 0) {
-        return parsed.map((item: Record<string, unknown>) => ({
-          title: String(item.title || ''),
-          time: String(item.time || ''),
-          description: String(item.description || ''),
-        }))
-      }
-    } catch {
-      // Fall through to string parsing
-    }
-  }
-
-  if (trimmed.includes(' • ')) {
-    return trimmed.split(' • ').map((part) => {
-      const p = part.trim()
-      const match = p.match(/^([A-Za-z\u2013\u2014\-’'\s]+)\s+([\d:–\- ]+)$/)
-      if (match) {
-        let title = match[1].trim()
-        if (title === 'Mon–Fri' || title === 'Mon-Fri') title = 'Monday - Friday'
-        else if (title === 'Sat') title = 'Saturday'
-        else if (title === 'Sun') title = 'LORD’S Day (Sunday)'
-        let description =
-          'Altar steps & Nave open. Votive candles and prayer request scrolls provided.'
-        if (title === 'Saturday') {
-          description = 'Organ rehearsals in progress. Meditative listening encouraged.'
-        } else if (title === 'LORD’S Day (Sunday)') {
-          description = 'Continuous worship, Eucharist, fellowship coffee, and choral vespers.'
-        }
-        return { title, time: match[2].trim(), description }
-      }
-      return {
-        title: p,
-        time: '',
-        description: 'Altar steps & Nave open for quiet prayer and devotion.',
-      }
-    })
-  }
-
-  return [
-    {
-      title: 'Daily Sanctuary Hours',
-      time: trimmed,
-      description: 'Altar steps & Nave open for quiet prayer, contemplation, and devotion.',
-    },
-  ]
 }
 function GalleryImage({
   src,
@@ -615,7 +490,7 @@ export default function ContentsSiteChurchProfile({ churchId }: { churchId: stri
                 data.sanctuaryHours ? (
                   <span className="inline-flex items-center gap-1.5 rounded-full bg-[#B9D8F8] px-3 py-1 text-xs font-semibold text-[#0B4497]">
                     <span className="h-1.5 w-1.5 rounded-full bg-[#2F7AD2]" />
-                    <span>Sanctuary Keepers on Duty</span>
+                    <span>{t('keepersOnDuty')}</span>
                   </span>
                 ) : (
                   <span className="inline-flex items-center rounded-full bg-[#F0F2F5] px-3 py-1 text-xs font-medium text-[#5C6370]">
@@ -672,7 +547,7 @@ export default function ContentsSiteChurchProfile({ churchId }: { churchId: stri
             {/* Worship Services / Prayer Lists card */}
             <SectionCard
               title={t('worshipServices')}
-              subtitle={prayers.length > 0 ? 'Prayer Lists' : t('serviceTimes')}
+              subtitle={prayers.length > 0 ? t('prayerLists') : t('serviceTimes')}
               action={
                 prayers.length > 0 ? (
                   <div className="flex items-center gap-1 rounded-full bg-[#F0F2F5] p-1">
@@ -702,7 +577,7 @@ export default function ContentsSiteChurchProfile({ churchId }: { churchId: stri
               ) : prayers.length > 0 ? (
                 filteredPrayers.length === 0 ? (
                   <div className="m-4 rounded-xl border border-dashed border-[#DDE0E4] bg-[#FAFAFB] p-6 text-center text-sm text-[#5C6370]">
-                    No prayers found under {prayerFilter}.
+                    {t('noPrayersFound', { filter: prayerFilter })}
                   </div>
                 ) : (
                   filteredPrayers.map((prayer) => (
@@ -734,7 +609,8 @@ export default function ContentsSiteChurchProfile({ churchId }: { churchId: stri
                 </div>
               ) : (
                 worshipServices.map((st, i) => {
-                  const serviceTitle = st.label || WEEKDAYS[st.weekday - 1]
+                  const weekdayName = WEEKDAYS[(st.weekday - 1 + 7) % 7] ?? 'Sunday'
+                  const serviceTitle = st.label || weekdayName
                   return (
                     <div
                       key={i}
@@ -746,7 +622,7 @@ export default function ContentsSiteChurchProfile({ churchId }: { churchId: stri
                         </div>
                         <div>
                           <div className="text-[11px] font-semibold tracking-wider text-[#2F7AD2]">
-                            {WEEKDAYS[st.weekday - 1].toUpperCase()}
+                            {weekdayName.toUpperCase()}
                           </div>
                           <div className="text-base font-semibold text-[#0E203E]">
                             {serviceTitle}
@@ -774,15 +650,6 @@ export default function ContentsSiteChurchProfile({ churchId }: { churchId: stri
             <SectionCard
               title={t('upcomingGatherings')}
               subtitle={t('gatheringFellowship')}
-              action={
-                <Link
-                  href={`/churches/${churchId}/prayers`}
-                  className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#2F7AD2] hover:underline"
-                >
-                  <span>{t('fullCalendar')}</span>
-                  <ArrowRightOutlined />
-                </Link>
-              }
               bodyClassName="p-4 sm:p-6"
             >
               {events.length === 0 || eventsLoading ? (
@@ -816,31 +683,19 @@ export default function ContentsSiteChurchProfile({ churchId }: { churchId: stri
                             {ev.description || t('noDescription')}
                           </p>
                         </div>
-                        <div className="mt-5">
-                          {regUrl ? (
+                        {regUrl && (
+                          <div className="mt-5">
                             <a
                               href={regUrl}
                               target="_blank"
                               rel="noreferrer"
-                              aria-label={
-                                ev.ctaLabel?.trim()
-                                  ? `${buttonLabel} - ${t('joinService')}`
-                                  : t('joinService')
-                              }
+                              aria-label={buttonLabel}
                               className="block w-full rounded-xl border border-[#2F7AD2] bg-white py-2 text-center text-xs font-semibold text-[#2F7AD2] transition-colors hover:bg-[#E6EDFB]"
                             >
                               {buttonLabel}
                             </a>
-                          ) : (
-                            <button
-                              type="button"
-                              disabled
-                              className="block w-full rounded-xl border border-[#DDE0E4] bg-[#F0F2F5] py-2 text-center text-xs font-semibold text-[#8C93A0] cursor-not-allowed"
-                            >
-                              {buttonLabel}
-                            </button>
-                          )}
-                        </div>
+                          </div>
+                        )}
                       </div>
                     )
                   })}
@@ -1086,14 +941,13 @@ export default function ContentsSiteChurchProfile({ churchId }: { churchId: stri
                   <div className="flex items-center gap-2">
                     <PhoneOutlined className="text-xs text-[#2F7AD2]" />
                     <span>
-                      Parish Secretary:{' '}
+                      {t('parishSecretary')}:{' '}
                       <a
                         href={`tel:${data.contacts.phone}`}
                         className="text-[#5C6370] hover:underline"
                       >
                         {data.contacts.phone}
-                      </a>{' '}
-                      (Mon–Thu 09–15)
+                      </a>
                     </span>
                   </div>
                 )}
@@ -1121,7 +975,7 @@ export default function ContentsSiteChurchProfile({ churchId }: { churchId: stri
             </section>
 
             {/* Parish Stewardship widget */}
-            <Stewardship churchName={data.name} denomination={data.denomination || undefined} />
+            <Stewardship churchName={data.name} />
 
             {/* Sanctuary Facilities & Access card */}
             <section className="rounded-2xl border border-[#DDE0E4] bg-white p-5 shadow-[0_1px_2px_rgba(0,0,0,0.05)]">
@@ -1166,21 +1020,22 @@ export default function ContentsSiteChurchProfile({ churchId }: { churchId: stri
               ) : (
                 <div className="space-y-2">
                   {announcements.slice(0, 2).map((item, idx) => {
-                    const colonIdx = item.body.indexOf(':')
-                    const category =
-                      colonIdx > 0 && colonIdx < 35 ? item.body.slice(0, colonIdx).trim() : null
-                    const bodyText =
-                      colonIdx > 0 && colonIdx < 35
-                        ? item.body.slice(colonIdx + 1).trim()
-                        : item.body
+                    // Category comes from a title prefix — `[Category] Title` or `Category: Title`
+                    // (website SPEC §5 / decision W8). The body is shown as-is.
+                    const titleMatch = item.title.match(/^\s*\[([^\]]{1,30})\]\s*(.*)$/)
+                    const colonMatch = titleMatch
+                      ? null
+                      : item.title.match(/^\s*([^:]{1,30}):\s+(.+)$/)
+                    const category = titleMatch?.[1] ?? colonMatch?.[1] ?? null
+                    const titleText = titleMatch?.[2] ?? colonMatch?.[2] ?? item.title
 
                     return (
                       <div key={item.id || idx} className="space-y-1 rounded-xl bg-[#FAFAFB] p-3.5">
                         {category && <div className="text-xs text-[#005CAD]">{category}</div>}
-                        <h3 className="text-sm font-semibold text-[#191C1E]">{item.title}</h3>
-                        <p className="text-xs leading-relaxed text-[#5C6370]">{bodyText}</p>
+                        <h3 className="text-sm font-semibold text-[#191C1E]">{titleText}</h3>
+                        <p className="text-xs leading-relaxed text-[#5C6370]">{item.body}</p>
                         {item.publishedAt && (
-                          <span className="sr-only">
+                          <span className="block text-[11px] text-[#8C93A0]">
                             {dayjs.utc(item.publishedAt).format('D MMM YYYY')}
                           </span>
                         )}
@@ -1190,10 +1045,6 @@ export default function ContentsSiteChurchProfile({ churchId }: { churchId: stri
                 </div>
               )}
             </section>
-            {/* Accessible prayer library link */}
-            <Link href={`/churches/${churchId}/prayers`} className="sr-only">
-              {t('viewPrayers')}
-            </Link>
           </div>
         </div>
       </div>
@@ -1209,7 +1060,7 @@ export default function ContentsSiteChurchProfile({ churchId }: { churchId: stri
               &ldquo;{t('scriptureQuote')}&rdquo;
             </blockquote>
             <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[#5C6370]">
-              {t('scriptureRef')} • IN FELLOWSHIP WITH EELK TALLINN DEANERY
+              {data.deaneryName ? `${t('scriptureRef')} • ${data.deaneryName}` : t('scriptureRef')}
             </p>
           </div>
         </section>

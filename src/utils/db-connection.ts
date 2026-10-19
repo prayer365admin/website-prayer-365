@@ -16,7 +16,9 @@ let rawUrl: URL
 try {
   rawUrl = new URL(connectionString)
 } catch {
-  rawUrl = new URL('postgres://localhost')
+  throw new Error(
+    'DATABASE_URL is malformed — expected postgres://user:password@host:port/database',
+  )
 }
 rawUrl.searchParams.delete('sslmode')
 

@@ -12,13 +12,13 @@ import { createContext, ReactNode, useCallback, useContext, useMemo, useState } 
 type SiteI18n = {
   locale: SiteLocale
   setLocale: (locale: SiteLocale) => void
-  t: (key: SiteMessageKey | (string & {}), vars?: Record<string, string | number>) => string
+  t: (key: SiteMessageKey, vars?: Record<string, string | number>) => string
 }
 
 const SiteI18nContext = createContext<SiteI18n>({
   locale: DEFAULT_SITE_LOCALE,
   setLocale: () => {},
-  t: (key, vars) => translate(DEFAULT_SITE_LOCALE, key as SiteMessageKey, vars),
+  t: (key, vars) => translate(DEFAULT_SITE_LOCALE, key, vars),
 })
 
 export function SiteI18nProvider({
@@ -40,7 +40,7 @@ export function SiteI18nProvider({
     () => ({
       locale,
       setLocale,
-      t: (key, vars) => translate(locale, key as SiteMessageKey, vars),
+      t: (key, vars) => translate(locale, key, vars),
     }),
     [locale, setLocale],
   )

@@ -612,62 +612,41 @@ describe('LIST_PUBLIC_CHURCHES — discovery search by name or city', () => {
   })
 })
 
-describe('isOpenNow', () => {
-  it('returns true when current time is on the same weekday inside the 120-min window', () => {
-    const now = new Date('2026-10-11T10:00:00Z') // UTC Sunday 10:00
-    const serviceTimes = [
-      { weekday: 7, local_time: new Date('1970-01-01T11:00:00Z') }, // 60 min away
-    ]
-    expect(isOpenNow('UTC', serviceTimes, now)).toBe(true)
+describe('isOpenNow (sanctuary_hours windows)', () => {
+  it('returns true when the church-local time is inside a daily window', () => {
+    const now = new Date('2026-10-11T10:00:00Z') // Sunday 10:00 UTC
+    expect(isOpenNow('UTC', '10:00–18:30 daily', now)).toBe(true)
   })
 
-  it('returns true when service is exactly at the 120-min boundary (inclusive)', () => {
-    const now = new Date('2026-10-11T10:00:00Z') // UTC Sunday 10:00
-    const serviceTimes = [
-      { weekday: 7, local_time: new Date('1970-01-01T12:00:00Z') }, // 120 min away
-    ]
-    expect(isOpenNow('UTC', serviceTimes, now)).toBe(true)
+  it('returns false outside the window', () => {
+    const now = new Date('2026-10-11T20:00:00Z') // Sunday 20:00 UTC
+    expect(isOpenNow('UTC', '10:00–18:30 daily', now)).toBe(false)
   })
 
-  it('returns false when service is 121 minutes away', () => {
-    const now = new Date('2026-10-11T10:00:00Z') // UTC Sunday 10:00
-    const serviceTimes = [
-      { weekday: 7, local_time: new Date('1970-01-01T12:01:00Z') }, // 121 min away
-    ]
-    expect(isOpenNow('UTC', serviceTimes, now)).toBe(false)
-  })
-
-  it('returns true for midnight wrap when service is at 23:30 and now is 00:30 on same local date', () => {
-    const now = new Date('2026-10-11T00:30:00Z') // UTC Sunday 00:30
-    const serviceTimes = [
-      { weekday: 7, local_time: new Date('1970-01-01T23:30:00Z') }, // 60 min circular diff
-    ]
-    expect(isOpenNow('UTC', serviceTimes, now)).toBe(true)
-  })
-
-  it('returns false when service is on a different weekday', () => {
-    const now = new Date('2026-10-11T10:00:00Z') // UTC Sunday (7)
-    const serviceTimes = [
-      { weekday: 1, local_time: new Date('1970-01-01T10:00:00Z') }, // Monday
-    ]
-    expect(isOpenNow('UTC', serviceTimes, now)).toBe(false)
-  })
-
-  it('handles church wall-clock time correctly with Europe/Tallinn vs UTC', () => {
-    // 2026-10-11 is EEST (UTC+3). Instant 08:00 UTC = 11:00 Tallinn
-    const now = new Date('2026-10-11T08:00:00Z')
-    const serviceTimes = [
-      { weekday: 7, local_time: new Date('1970-01-01T10:30:00Z') }, // 10:30 church wall clock
-    ]
-    // In Europe/Tallinn, local time is 11:00, diff to 10:30 is 30 min -> open
-    expect(isOpenNow('Europe/Tallinn', serviceTimes, now)).toBe(true)
-    // In UTC, local time is 08:00, diff to 10:30 is 150 min -> closed
-    expect(isOpenNow('UTC', serviceTimes, now)).toBe(false)
-  })
-
-  it('returns false when serviceTimes array is empty', () => {
+  it('returns false when the church has no sanctuary hours', () => {
     const now = new Date('2026-10-11T10:00:00Z')
-    expect(isOpenNow('UTC', [], now)).toBe(false)
+    expect(isOpenNow('UTC', null, now)).toBe(false)
+    expect(isOpenNow('UTC', '', now)).toBe(false)
+  })
+
+  it('applies weekday labels from a multi-segment schedule', () => {
+    const hours = 'Mon–Fri 10:00–18:30 • Sat 11:00–16:00 • Sun 09:00–19:00'
+    // 2026-10-10 is Saturday, 2026-10-11 is Sunday
+    expect(isOpenNow('UTC', hours, new Date('2026-10-10T10:00:00Z'))).toBe(false) // before Sat 11:00
+    expect(isOpenNow('UTC', hours, new Date('2026-10-10T12:00:00Z'))).toBe(true) // inside Sat
+    expect(isOpenNow('UTC', hours, new Date('2026-10-11T20:00:00Z'))).toBe(false) // after Sun 19:00
+  })
+
+  it('uses the church wall clock, not UTC', () => {
+    // 2026-10-11 is EEST (UTC+3): 08:00 UTC = 11:00 Tallinn
+    const now = new Date('2026-10-11T08:00:00Z')
+    expect(isOpenNow('Europe/Tallinn', '10:00–18:30 daily', now)).toBe(true)
+    expect(isOpenNow('UTC', '10:00–18:30 daily', now)).toBe(false)
+  })
+
+  it('falls back to UTC for an unknown timezone', () => {
+    const now = new Date('2026-10-11T10:00:00Z')
+    expect(isOpenNow('Not/AZone', '10:00–18:30 daily', now)).toBe(true)
   })
 })
 
@@ -787,13 +766,18 @@ describe('LIST_PUBLIC_CHURCHES — directory filters (WB-25)', () => {
 
     const expectedWhere = { status: 'APPROVED' }
     expect(db.church.count).not.toHaveBeenCalled()
-    expect(db.church.findMany).toHaveBeenCalledWith({
-      where: expectedWhere,
-      orderBy: [{ name: 'asc' }, { id: 'asc' }],
-      select: expect.any(Object),
-    })
+    expect(db.church.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining(expectedWhere),
+        orderBy: [{ name: 'asc' }, { id: 'asc' }],
+        select: expect.any(Object),
+      }),
+    )
     const callArgs = db.church.findMany.mock.calls[0][0]
-    expect(callArgs.take).toBeUndefined()
+    // Bounded by the SQL radius box before the exact haversine filter.
+    expect(callArgs.where.latitude).toBeDefined()
+    expect(callArgs.where.longitude).toBeDefined()
+    expect(callArgs.take).toBe(2000)
     expect(callArgs.skip).toBeUndefined()
 
     expect(res.total).toBe(1)
@@ -837,36 +821,32 @@ describe('LIST_PUBLIC_CHURCHES — directory filters (WB-25)', () => {
     expect(res.result[2].distanceKm).toBeNull()
   })
 
-  it('filters by open_now in-memory using church wall-clock and serviceTimes ±2h window', async () => {
+  it('filters by open_now in-memory using the sanctuary_hours windows', async () => {
     try {
       vi.useFakeTimers()
       // Sunday 11:00 in Europe/Tallinn (UTC+3) -> instant is 08:00 UTC
       vi.setSystemTime(new Date('2026-10-11T08:00:00Z'))
 
-      // Row 1: Sunday service at 10:00 wall clock -> open now (1h diff <= 2h)
+      // Row 1: open 10:00–18:30 -> open now (11:00 local)
       const rowInside = summaryRow({
         id: 'c-open',
         timezone: 'Europe/Tallinn',
-        serviceTimes: [
-          { weekday: 7, local_time: new Date('1970-01-01T10:00:00Z'), label: 'Sunday Service' },
-        ],
+        sanctuary_hours: '10:00–18:30 daily',
       })
-      // Row 2: No service times -> closed
-      const rowNoServices = summaryRow({
+      // Row 2: no sanctuary hours -> closed
+      const rowNoHours = summaryRow({
         id: 'c-empty',
         timezone: 'Europe/Tallinn',
-        serviceTimes: [],
+        sanctuary_hours: null,
       })
-      // Row 3: Sunday service at 15:00 wall clock -> closed (4h diff > 2h)
+      // Row 3: Sat-only schedule -> closed on Sunday
       const rowOutside = summaryRow({
         id: 'c-closed',
         timezone: 'Europe/Tallinn',
-        serviceTimes: [
-          { weekday: 7, local_time: new Date('1970-01-01T15:00:00Z'), label: 'Evening Service' },
-        ],
+        sanctuary_hours: 'Sat 11:00–16:00',
       })
 
-      db.church.findMany.mockResolvedValueOnce([rowInside, rowNoServices, rowOutside])
+      db.church.findMany.mockResolvedValueOnce([rowInside, rowNoHours, rowOutside])
 
       const res = await LIST_PUBLIC_CHURCHES({
         query: { open_now: true, page: 1, limit: 10 },
@@ -927,7 +907,7 @@ describe('LIST_PUBLIC_CHURCHES — directory filters (WB-25)', () => {
     expect(db.church.count).not.toHaveBeenCalled()
     expect(db.church.findMany).toHaveBeenCalledWith(
       expect.objectContaining({
-        where: expectedWhere,
+        where: expect.objectContaining(expectedWhere),
       }),
     )
     expect(res.total).toBe(1)
@@ -1093,6 +1073,7 @@ describe('mapPublishedPrayer (via GET_PUBLISHED_PRAYER)', () => {
       prayerAudioId: 'a1',
       assetId: 'asset1',
       assetKey: 'media/asset1',
+      assetUrl: 'https://cdn.test/media/asset1',
       approvedAt: '2026-01-01T00:00:00.000Z',
     })
   })

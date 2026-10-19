@@ -121,7 +121,7 @@ export function IntercessionHub({ churchId, churchName }: IntercessionHubProps) 
             className="flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-[#2F7AD2] px-4 text-base font-semibold text-white shadow-sm transition-colors hover:bg-[#2568B8] disabled:opacity-70"
           >
             <SendOutlined className="text-base" />
-            <span>{submitting ? 'Submitting...' : t('offerPrayer')}</span>
+            <span>{submitting ? t('submittingPrayer') : t('offerPrayer')}</span>
           </button>
         </form>
       </div>

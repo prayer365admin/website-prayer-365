@@ -9,10 +9,9 @@ import { useSiteI18n } from '@/i18n/site-i18n'
 const PRESET_AMOUNTS = [10, 50, 100, 25]
 interface StewardshipProps {
   churchName?: string
-  denomination?: string
 }
 
-export function Stewardship({ churchName, denomination }: StewardshipProps) {
+export function Stewardship({ churchName }: StewardshipProps) {
   const { t } = useSiteI18n()
   const [selectedAmount, setSelectedAmount] = useState<number | null>(10)
   const [customAmount, setCustomAmount] = useState('')
@@ -96,15 +95,13 @@ export function Stewardship({ churchName, denomination }: StewardshipProps) {
             <SendOutlined className="text-base text-[#0E203E]" />
             <span>{t('giveViaBanklink')}</span>
           </button>
-          <span className="sr-only">{t('donationsNotReady')}</span>
         </div>
 
         {/* Footer legal */}
-        <p className="mt-4 text-center text-xs leading-relaxed text-[#D0E4FF]/75">
-          {denomination
-            ? `${denomination} is an accredited non-profit. Tax-deductible in EU/EEA.`
-            : 'Estonian Evangelical Lutheran Church (EELK) is an accredited non-profit. Tax-deductible in EU/EEA.'}
-        </p>
+        <div className="mt-4 space-y-1 text-center text-xs leading-relaxed text-[#D0E4FF]/75">
+          <p>{t('taxNoticePending')}</p>
+          <p className="text-[11px] text-white/70">{t('donationsNotReady')}</p>
+        </div>
       </div>
     </div>
   )

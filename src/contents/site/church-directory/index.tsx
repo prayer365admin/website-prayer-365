@@ -18,6 +18,7 @@ import { YouthMinistryIcon } from '@/components/icon/youth-ministry'
 import { FirstTimeVisitingIcon } from '@/components/icon/first-time-visiting'
 import { useSiteI18n } from '@/i18n/site-i18n'
 import { useSiteChurches } from '@/hooks/data/site/churches'
+import { useSiteHome } from '@/hooks/data/site/home'
 import { MobileChurchSummary } from '@/models/mobile'
 import ChurchCard from './church-card'
 import { GoogleMapPins } from '@/components/common/google-map'
@@ -91,6 +92,9 @@ export default function ContentsSiteChurchDirectory() {
     youth_ministry: youthMinistry,
     page,
   })
+
+  const { data: homeData } = useSiteHome()
+  const mainChurchId = homeData?.mainChurch?.id
 
   const radiusOptions = useMemo(
     () => [{ value: '', label: t('withinDistance') }, ...RADIUS_OPTIONS],
@@ -342,8 +346,8 @@ export default function ContentsSiteChurchDirectory() {
             {!loading && !isDebouncing && !error && data && data.length > 0 && (
               <>
                 <div className="flex flex-col gap-4">
-                  {data.map((c: MobileChurchSummary, i: number) => (
-                    <ChurchCard key={c.id} church={c} featured={i === 0} />
+                  {data.map((c: MobileChurchSummary) => (
+                    <ChurchCard key={c.id} church={c} featured={c.id === mainChurchId} />
                   ))}
                 </div>
 

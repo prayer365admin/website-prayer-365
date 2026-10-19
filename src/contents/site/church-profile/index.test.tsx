@@ -371,7 +371,7 @@ describe('ContentsSiteChurchProfile', () => {
     })
   })
 
-  it('renders Donate (disabled with not-ready note) and View prayers link', async () => {
+  it('renders Donate disabled with the not-ready note', async () => {
     axiosMock.get.mockResolvedValueOnce({ data: resolveGet(church) })
 
     renderProfile()
@@ -381,9 +381,6 @@ describe('ContentsSiteChurchProfile', () => {
     const donate = screen.getByRole('button', { name: 'Donate' }) as HTMLButtonElement
     expect(donate.disabled).toBe(true)
     expect(screen.getByText('Donations not ready yet')).toBeTruthy()
-
-    const prayersLink = screen.getByRole('link', { name: 'View prayers' })
-    expect(prayersLink.getAttribute('href')).toBe('/churches/c1/prayers')
   })
 
   it('renders sanctuary hours badge with real hours string when present', async () => {
@@ -692,7 +689,8 @@ describe('ContentsSiteChurchProfile', () => {
         audio: {
           prayerAudioId: 'a1',
           assetId: 'm1',
-          assetKey: '/audio/peace.mp3',
+          assetKey: 'media/c1/prayer/peace.mp3',
+          assetUrl: 'https://cdn.test/media/c1/prayer/peace.mp3',
           approvedAt: '2026-10-15T00:00:00Z',
         },
       },
@@ -748,6 +746,44 @@ describe('ContentsSiteChurchProfile', () => {
     await user.click(transcriptBtn)
     expect(await screen.findByText('Do not be anxious about anything...')).toBeTruthy()
   })
+
+  it('disables playback and hides the download link when a prayer has no approved audio', async () => {
+    const noAudioPrayer = [
+      {
+        id: 'p2',
+        churchId: 'c1',
+        publishedAt: '2026-10-15T00:00:00Z',
+        version: {
+          prayerVersionId: 'pv2',
+          versionNumber: 1,
+          pastorId: 'pas1',
+          title: 'Text Only Prayer',
+          introduction: 'Read only',
+          body: 'Lord, hear us.',
+          languageCode: 'et',
+        },
+        audio: null,
+      },
+    ]
+
+    axiosMock.get.mockImplementation(async (url: string) => {
+      if (url.includes('/prayers')) return { data: resolveGet(noAudioPrayer, 1) }
+      if (url.includes('/events')) return { data: resolveGet([], 0) }
+      if (url.includes('/announcements')) return { data: resolveGet([], 0) }
+      if (url.includes('/home')) return { data: resolveGet({ mainChurch: null }) }
+      return { data: resolveGet(church) }
+    })
+
+    renderProfile()
+
+    expect(await screen.findByText('Text Only Prayer')).toBeTruthy()
+    const playBtn = screen.getByRole('button', { name: 'Audio not available' }) as HTMLButtonElement
+    expect(playBtn.disabled).toBe(true)
+    expect(screen.queryByRole('link', { name: 'Download Audio' })).toBeNull()
+    // No sample file is substituted.
+    expect(document.querySelector('audio')).toBeNull()
+  })
+
   it('renders 5-tile gallery layout with architect attribution when 5+ images exist', async () => {
     const mock5Gallery = [
       {

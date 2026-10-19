@@ -156,7 +156,7 @@ export const DENOMINATION_OPTIONS = [
 export const LANGUAGE_OPTIONS = [
   { value: 'et', label: 'Eesti (ET)' },
   { value: 'en', label: 'English (EN)' },
-  { value: 'ru', label: 'Русский (RU)' },
+  { value: 'sv', label: 'Svenska (SV)' },
   { value: 'fi', label: 'Suomi (FI)' },
 ] as const
 

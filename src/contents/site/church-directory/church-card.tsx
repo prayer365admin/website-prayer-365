@@ -4,19 +4,7 @@ import { formatDenomination } from '@/utils/denomination'
 import { CalendarOutlined, CheckCircleFilled, RightOutlined, UserOutlined } from '@ant-design/icons'
 import Image from 'next/image'
 import Link from 'next/link'
-
-/** Latest closing time in `sanctuaryHours` (e.g. "10:00–18:30 daily" → "18:30"). */
-function closingTime(hours: string): string | null {
-  const closings: string[] = []
-  const re = /\b(\d{1,2}:\d{2})\s*[–-]\s*(\d{1,2}:\d{2})\b/g
-  let m = re.exec(hours)
-  while (m) {
-    closings.push(m[2])
-    m = re.exec(hours)
-  }
-  if (closings.length === 0) return null
-  return closings.sort((a, b) => b.localeCompare(a))[0]
-}
+import { closingTime } from '@/utils/sanctuary-hours'
 
 /** Small "✓ EELK" chip overlaid on the thumbnail, per FIGMA ChurchArticle body. */
 function ThumbnailDenominationBadge({ label }: { label: string }) {
@@ -47,9 +35,9 @@ export default function ChurchCard({
   const distanceText = church.distanceKm != null ? `${church.distanceKm} km` : null
   const districtText = church.district ?? null
   // FIGMA pill slot: worship-style/highlight per church ("Contemporary
-  // Ecumenical", "Youth & Student Parish"); falls back to the denomination
-  // acronym ("EELK") when the admin has not set a style.
-  const churchStyle = church.churchStyle ?? formatDenomination(church.denomination)
+  // Ecumenical", "Youth & Student Parish"). Hidden when the admin has not set
+  // one — the thumbnail badge already shows the denomination acronym.
+  const churchStyle = church.churchStyle ?? null
   const denomination = formatDenomination(church.denomination)
   const accessibilityText = church.accessibility?.[0] ?? null
   const quote = church.description || null
@@ -188,11 +176,6 @@ export default function ChurchCard({
                   ◈
                 </span>
                 <span className="whitespace-nowrap">{t('detailsAndBulletin')}</span>
-              </Link>
-
-              {/* Test compatibility anchor */}
-              <Link href={`/churches/${church.id}/prayers`} className="sr-only focus:not-sr-only">
-                <span>{t('viewPrayers')}</span>
               </Link>
             </div>
 

@@ -9,6 +9,8 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ chur
   try {
     await requiredWebAuth()
     const { churchId } = await params
+    // The detail route carries no list filters, but the query model supplies the
+    // optional coordinates used to compute `distanceKm` on the profile hero.
     const query = validate(
       MobileChurchListQuerySchema,
       Object.fromEntries(req.nextUrl.searchParams),

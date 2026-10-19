@@ -75,62 +75,10 @@ const toPayload = (
       ...(r.languageCode ? { languageCode: r.languageCode } : {}),
     }))
 
-export type SanctuaryScheduleItem = {
-  title: string
-  time: string
-  description: string
-}
+import { parseSanctuaryHours, serializeSanctuaryHours } from '@/utils/sanctuary-hours'
+import type { SanctuaryScheduleItem } from '@/utils/sanctuary-hours'
 
-export function parseInitialSanctuaryHours(
-  raw: string | null | undefined,
-): SanctuaryScheduleItem[] {
-  if (!raw || !raw.trim()) return []
-  const trimmed = raw.trim()
-  if (trimmed.startsWith('[') && trimmed.endsWith(']')) {
-    try {
-      const parsed: unknown = JSON.parse(trimmed)
-      if (Array.isArray(parsed) && parsed.length > 0) {
-        return parsed.map((item: Record<string, unknown>) => ({
-          title: String(item.title || ''),
-          time: String(item.time || ''),
-          description: String(item.description || ''),
-        }))
-      }
-    } catch {
-      // Fall through to string parsing
-    }
-  }
-
-  if (trimmed.includes(' • ')) {
-    return trimmed.split(' • ').map((part) => {
-      const p = part.trim()
-      const match = p.match(/^([A-Za-z\u2013\u2014\-’'\s]+)\s+([\d:–\- ]+)$/)
-      if (match) {
-        let title = match[1].trim()
-        if (title === 'Mon–Fri' || title === 'Mon-Fri') title = 'Monday - Friday'
-        else if (title === 'Sat') title = 'Saturday'
-        else if (title === 'Sun') title = 'LORD’S Day (Sunday)'
-        let description =
-          'Altar steps & Nave open. Votive candles and prayer request scrolls provided.'
-        if (title === 'Saturday') {
-          description = 'Organ rehearsals in progress. Meditative listening encouraged.'
-        } else if (title === 'LORD’S Day (Sunday)') {
-          description = 'Continuous worship, Eucharist, fellowship coffee, and choral vespers.'
-        }
-        return { title, time: match[2].trim(), description }
-      }
-      return { title: p, time: '', description: '' }
-    })
-  }
-
-  return [
-    {
-      title: 'Daily Sanctuary Hours',
-      time: trimmed,
-      description: 'Altar steps & Nave open for quiet prayer, contemplation, and devotion.',
-    },
-  ]
-}
+export type { SanctuaryScheduleItem }
 
 export default function FormChurchProfileTabs({
   initialValues,
@@ -205,7 +153,7 @@ export default function FormChurchProfileTabs({
         .map((s) => s.trim())
         .filter(Boolean)
     : []
-  const sanctuarySchedule = parseInitialSanctuaryHours(initialValues.sanctuaryHours)
+  const sanctuarySchedule = parseSanctuaryHours(initialValues.sanctuaryHours)
 
   const handleSubmit = async () => {
     // @ts-expect-error schedule is part of the form values but not the profile input type
@@ -247,23 +195,11 @@ export default function FormChurchProfileTabs({
           ? values.accessibility.trim()
           : null
 
-    const scheduleBlocks: SanctuaryScheduleItem[] = (values.sanctuarySchedule ?? [])
-      .filter((b: SanctuaryScheduleItem) => b && (b.title?.trim() || b.time?.trim()))
-      .map((b: SanctuaryScheduleItem) => ({
-        title: b.title?.trim() || '',
-        time: b.time?.trim() || '',
-        description: b.description?.trim() || '',
-      }))
     const sanctuaryHours =
-      scheduleBlocks.length === 1 &&
-      scheduleBlocks[0].title === 'Daily Sanctuary Hours' &&
-      scheduleBlocks[0].time
-        ? scheduleBlocks[0].time
-        : scheduleBlocks.length > 0
-          ? JSON.stringify(scheduleBlocks)
-          : typeof values.sanctuaryHours === 'string' && values.sanctuaryHours.trim()
-            ? values.sanctuaryHours.trim()
-            : null
+      serializeSanctuaryHours(values.sanctuarySchedule ?? []) ??
+      (typeof values.sanctuaryHours === 'string' && values.sanctuaryHours.trim()
+        ? values.sanctuaryHours.trim()
+        : null)
 
     const {
       accessibilityList: _al,

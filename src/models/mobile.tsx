@@ -233,6 +233,8 @@ export const MobilePublishedAudioSchema = z.object({
   prayerAudioId: z.string(),
   assetId: z.string().nullable(),
   assetKey: z.string().nullable(),
+  /** Public read URL (website SPEC §5.2). `assetKey` stays for the mobile client. */
+  assetUrl: z.string().nullable().optional(),
   approvedAt: z.string(),
 })
 
