@@ -12,7 +12,14 @@ if (!connectionString) {
 // sslmode=require on managed Postgres (self-signed) is treated by the pg
 // adapter as verify-full and fails. Strip the param and set ssl explicitly
 // to preserve the historical "encrypt, don't pin CA" behavior.
-const rawUrl = new URL(connectionString)
+let rawUrl: URL
+try {
+  rawUrl = new URL(connectionString)
+} catch {
+  throw new Error(
+    'DATABASE_URL is malformed — expected postgres://user:password@host:port/database',
+  )
+}
 rawUrl.searchParams.delete('sslmode')
 
 const isLocal = ['localhost', '127.0.0.1', '::1'].includes(rawUrl.hostname)

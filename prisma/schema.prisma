@@ -279,6 +279,8 @@ model Church {
   timezone         String
   description      String?
   denomination     String?
+  /** Worship-style / highlight on the directory card pill (free text; admin-defined). */
+  church_style     String?
   cover_asset_id   String?
   cover_asset      MediaAsset?  @relation("ChurchCover", fields: [cover_asset_id], references: [id])
   address          Json
@@ -288,6 +290,11 @@ model Church {
   website          String?
   social_links     Json
   accessibility    String?
+  sunday_live_stream Boolean?
+  taize_chants       Boolean?
+  youth_ministry     Boolean?
+  sanctuary_hours    String?
+  diaconal_programs  Json?
   approved_by      String?
   approved_by_user User?        @relation("ChurchApprovedBy", fields: [approved_by], references: [id])
   approved_at      DateTime?
@@ -301,6 +308,7 @@ model Church {
   announcements   Announcement[]
   requests        Request[]
   mediaAssets     MediaAsset[]
+  galleryItems    ChurchGalleryItem[]
   donations             Donation[]
   donationSubscriptions DonationSubscription[]
   checkIns        CheckIn[]
@@ -578,12 +586,27 @@ model MediaAsset {
   voiceSamples    VoiceProfileSample[]
   consentEvidence Consent[]            @relation("ConsentEvidence")
   audioAssets     PrayerAudio[]        @relation("AudioAsset")
+  galleryItems    ChurchGalleryItem[]
 
   created_at DateTime  @default(now())
   updated_at DateTime? @updatedAt
 
   @@index([church_id])
   @@map("media_assets")
+}
+
+model ChurchGalleryItem {
+  id            String     @id @default(uuid(7))
+  church_id     String
+  church        Church     @relation(fields: [church_id], references: [id], onDelete: Cascade)
+  media_asset_id String
+  media_asset   MediaAsset @relation(fields: [media_asset_id], references: [id])
+  caption       String?
+  order_index   Int
+  created_at    DateTime   @default(now())
+
+  @@index([church_id, order_index])
+  @@map("church_gallery_items")
 }
 
 model Event {
@@ -597,6 +620,7 @@ model Event {
   location         String
   registration_url String?
   language_code    String?
+  cta_label        String?
 
   created_at DateTime  @default(now())
   updated_at DateTime? @updatedAt

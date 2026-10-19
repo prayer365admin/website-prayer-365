@@ -1,5 +1,5 @@
 import { renderWithProviders, sessionMock, axiosMock } from '@/test/frontend/render'
-import { screen, waitFor } from '@testing-library/react'
+import { screen, waitFor, within } from '@testing-library/react'
 import { beforeEach, afterEach, describe, it, expect, vi } from 'vitest'
 import userEvent from '@testing-library/user-event'
 import ContentsChurchProfile from './index'
@@ -354,8 +354,9 @@ describe('Church Profile Screen', () => {
       await screen.findByText('Details')
 
       await userEvent.click(screen.getByText('Service Times'))
+      const panel = screen.getByRole('tabpanel')
+      await userEvent.click(within(panel).getAllByText('Edit')[0])
       await screen.findByDisplayValue('Sunday Service')
-
       const labelInput = screen.getByDisplayValue('Sunday Service')
       await userEvent.clear(labelInput)
       await userEvent.type(labelInput, 'Sunday Worship')
@@ -407,8 +408,9 @@ describe('Church Profile Screen', () => {
       await screen.findByText('Details')
 
       await userEvent.click(screen.getByText('Service Times'))
+      const panel = screen.getByRole('tabpanel')
+      await userEvent.click(within(panel).getAllByText('Edit')[0])
       await screen.findByDisplayValue('Sunday Service')
-
       const labelInput = screen.getByDisplayValue('Sunday Service')
       await userEvent.clear(labelInput)
       await userEvent.type(labelInput, 'Sunday Worship')

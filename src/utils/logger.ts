@@ -31,12 +31,7 @@ const REDACT_KEYS = new Set([
 
 /** A JSON-ish node of a log line's metadata after redaction. */
 type RedactedNode =
-  | string
-  | number
-  | boolean
-  | null
-  | RedactedNode[]
-  | { [key: string]: RedactedNode }
+  string | number | boolean | null | RedactedNode[] | { [key: string]: RedactedNode }
 
 const redactNode = (value: unknown): RedactedNode => {
   if (Array.isArray(value)) return value.map(redactNode)

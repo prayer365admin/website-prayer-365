@@ -293,4 +293,50 @@ describe('patchChurchProfile', () => {
     expect(payload.latitude).toBeNull()
     expect(payload.longitude).toBeNull()
   })
+
+  it('throws 422 when a gallery asset does not belong to this church or is not ready', async () => {
+    vi.mocked(GET_CHURCH_VERSION).mockResolvedValue(3 as never)
+    vi.mocked(GET_AVAILABLE_LANGUAGE_CODES).mockResolvedValue(new Set(['en']) as never)
+    vi.mocked(GET_CHURCH_READY_IMAGE).mockResolvedValue(null)
+
+    await expect(
+      patchChurchProfile({
+        userId: 'u1',
+        churchId: 'c1',
+        churchIds: scope,
+        input: {
+          ...input,
+          galleryItems: [{ mediaAssetId: '00000000-0000-0000-0000-000000000000', orderIndex: 0 }],
+        },
+        requestId: 'r',
+      }),
+    ).rejects.toMatchObject({ code: 422, error_code: 'INVALID_GALLERY_ASSET' })
+  })
+
+  it('passes galleryItems and sanctuary_hours through to UPDATE_CHURCH_PROFILE', async () => {
+    vi.mocked(GET_CHURCH_VERSION).mockResolvedValue(3 as never)
+    vi.mocked(GET_AVAILABLE_LANGUAGE_CODES).mockResolvedValue(new Set(['en']) as never)
+    vi.mocked(GET_CHURCH_READY_IMAGE).mockResolvedValue({ id: 'm1' } as never)
+    vi.mocked(UPDATE_CHURCH_PROFILE).mockResolvedValue({ ...profile, version: 4 } as never)
+
+    await patchChurchProfile({
+      userId: 'u1',
+      churchId: 'c1',
+      churchIds: scope,
+      input: {
+        ...input,
+        sanctuaryHours: '10:00–18:30 daily',
+        galleryItems: [{ mediaAssetId: 'm1', caption: 'Altar', orderIndex: 0 }],
+      },
+      requestId: 'r',
+    })
+
+    expect(UPDATE_CHURCH_PROFILE).toHaveBeenCalledWith(
+      expect.objectContaining({
+        galleryItems: [{ mediaAssetId: 'm1', caption: 'Altar', orderIndex: 0 }],
+      }),
+    )
+    const payload = vi.mocked(UPDATE_CHURCH_PROFILE).mock.calls[0][0].payload
+    expect(payload.sanctuary_hours).toBe('10:00–18:30 daily')
+  })
 })

@@ -92,4 +92,18 @@ describe('EventEditor', () => {
     expect(payload.startsAt).toBe('2026-02-15T18:00:00+02:00')
     expect('version' in payload).toBe(false)
   })
+
+  it('submits edit with custom ctaLabel', async () => {
+    const onSubmit = setup({ event: { ...stored, ctaLabel: 'RSVP Fellowship' } })
+    expect(screen.getByDisplayValue('RSVP Fellowship')).toBeTruthy()
+    const ctaInput = screen.getByLabelText(/Action button label/i)
+    const user = userEvent.setup()
+    await user.clear(ctaInput)
+    await user.type(ctaInput, 'Volunteer Care')
+    await user.click(screen.getByRole('button', { name: 'Save changes' }))
+    await waitFor(() => expect(onSubmit).toHaveBeenCalled())
+    expect(onSubmit.mock.calls[0][0]).toMatchObject({
+      ctaLabel: 'Volunteer Care',
+    })
+  })
 })

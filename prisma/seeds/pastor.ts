@@ -29,7 +29,16 @@ export const seedPastors = async () => {
   })
   if (!link) {
     await db.churchPastor.create({
-      data: { church_id: church.id, pastor_id: pastor.id, pastoral_role: 'Senior Pastor' },
+      data: {
+        church_id: church.id,
+        pastor_id: pastor.id,
+        pastoral_role: 'Lead Pastor & Deanery Provost',
+      },
+    })
+  } else {
+    await db.churchPastor.update({
+      where: { church_id_pastor_id: { church_id: church.id, pastor_id: pastor.id } },
+      data: { pastoral_role: 'Lead Pastor & Deanery Provost' },
     })
   }
 }

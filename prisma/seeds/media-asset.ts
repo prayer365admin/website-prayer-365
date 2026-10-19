@@ -15,7 +15,7 @@ export const seedMediaAssets = async () => {
   if (!church || !actor) throw new Error('seedMediaAssets: demo church/admin missing')
 
   const defs: Record<string, AssetDef> = {
-    cover: { purpose: 'IMAGE', mime_type: 'image/jpeg', byte_size: 102400 },
+    cover: { purpose: 'IMAGE', mime_type: 'image/jpeg', byte_size: 50388 },
     sample: { purpose: 'VOICE_SAMPLE', mime_type: 'audio/wav', byte_size: 2051200 },
     evidence: { purpose: 'CONSENT_EVIDENCE', mime_type: 'application/pdf', byte_size: 51200 },
     audio: { purpose: 'GENERATED_AUDIO', mime_type: 'audio/mpeg', byte_size: 307200 },
@@ -23,7 +23,7 @@ export const seedMediaAssets = async () => {
 
   const created: Record<string, string> = {}
   for (const [key, def] of Object.entries(defs)) {
-    const object_key = `demo/${DEMO_CHURCH_NAME}-${key}`
+    const object_key = key === 'cover' ? '/images/church.jpeg' : `demo/${DEMO_CHURCH_NAME}-${key}`
     let asset = await db.mediaAsset.findUnique({ where: { object_key } })
     if (!asset) {
       asset = await db.mediaAsset.create({
@@ -31,13 +31,19 @@ export const seedMediaAssets = async () => {
           church_id: church.id,
           object_key,
           status: 'READY',
-          checksum: `demo-checksum-${key}`,
+          checksum: key === 'cover' ? '41e8f23b32cba394ab67f8326d218667' : `demo-checksum-${key}`,
           uploaded_by: actor.id,
           ...def,
         },
       })
     }
     created[key] = asset.id
+  }
+  if (created.cover) {
+    await db.church.update({
+      where: { id: church.id },
+      data: { cover_asset_id: created.cover },
+    })
   }
   return created
 }

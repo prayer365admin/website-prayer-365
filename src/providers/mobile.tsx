@@ -4,6 +4,7 @@ import { GeneralError } from '@/utils/general-error'
 import { auditPayload } from '@/utils/audit'
 import { fromKind } from '@/providers/request'
 import { S3_PUBLIC_URL } from '@/providers/s3'
+import { sanctuaryRangesFor } from '@/utils/sanctuary-hours'
 import {
   MobileAnnouncementListQuery,
   MobileCheckInAck,
@@ -13,6 +14,7 @@ import {
   MobileHome,
   MobileMyChurch,
   MobilePrayerListQuery,
+  MobileDiaconalProgram,
   MobilePublicAnnouncement,
   MobilePublicChurch,
   MobilePublicEvent,
@@ -72,32 +74,87 @@ const withCover = async <T extends { coverAssetId: string | null }>(
   coverUrl: await coverUrlFor(row.coverAssetId),
 })
 
+const galleryUrlFor = (asset: { object_key: string | null } | null | undefined): string | null => {
+  if (!asset?.object_key) return null
+  return S3_PUBLIC_URL({ key: asset.object_key })
+}
+
+const staffImageUrlFor = (
+  churchOverride: string | null | undefined,
+  canonicalFallback: string | null | undefined,
+): string | null => {
+  const key = churchOverride || canonicalFallback
+  if (!key) return null
+  return S3_PUBLIC_URL({ key })
+}
+/** MB-11 — `coordinates` is a pair or null (same rule as the admin DTO). Prisma `Decimal` → number. */
+const toCoordinates = (
+  latitude: unknown,
+  longitude: unknown,
+): { latitude: number; longitude: number } | null =>
+  latitude !== null && longitude !== null
+    ? { latitude: Number(latitude), longitude: Number(longitude) }
+    : null
 const toSummary = (
   c: {
     id: string
     name: string
     denomination: string | null
+    church_style?: string | null
     address: unknown
     cover_asset_id: string | null
     latitude: unknown
     longitude: unknown
+    description?: string | null
+    accessibility?: string | string[] | null
+    sanctuary_hours?: string | null
+    pastors?: Array<{ pastor: { name: string } }>
+    serviceTimes?: Array<{ weekday: number; local_time: Date; label: string | null }>
   },
   lat?: number,
   lng?: number,
 ): Omit<MobileChurchSummary, 'coverUrl'> => {
-  const city = (c.address as { city?: string } | null)?.city ?? null
+  const addr = c.address as { city?: string; line1?: string; line2?: string | null } | null
+  const city = addr?.city ?? null
   let distanceKm: number | null = null
   if (lat !== undefined && lng !== undefined && c.latitude !== null && c.longitude !== null) {
     distanceKm = haversineKm(Number(c.latitude), Number(c.longitude), lat, lng)
   }
-  return {
+  const summary: Omit<MobileChurchSummary, 'coverUrl'> = {
     id: c.id,
     name: c.name,
     denomination: c.denomination,
     city,
     coverAssetId: c.cover_asset_id,
     distanceKm,
+    coordinates: toCoordinates(c.latitude, c.longitude),
+    latitude: c.latitude !== null && c.longitude !== null ? Number(c.latitude) : null,
+    longitude: c.latitude !== null && c.longitude !== null ? Number(c.longitude) : null,
   }
+  if (addr?.line1) summary.addressLine1 = addr.line1
+  if (addr?.line2) summary.district = addr.line2
+  if (c.church_style) summary.churchStyle = c.church_style
+  if (c.description) summary.description = c.description
+  if (c.accessibility) {
+    summary.accessibility = Array.isArray(c.accessibility)
+      ? c.accessibility
+      : c.accessibility
+          .split(' • ')
+          .map((s) => s.trim())
+          .filter(Boolean)
+  }
+  if (c.sanctuary_hours) summary.sanctuaryHours = c.sanctuary_hours
+  if (c.pastors?.[0]?.pastor?.name) summary.pastorName = c.pastors[0].pastor.name
+  if (c.serviceTimes?.length) {
+    summary.serviceTimes = c.serviceTimes
+      .map((st) => {
+        const time = st.local_time instanceof Date ? st.local_time.toISOString().slice(11, 16) : ''
+        return st.label ? `${st.label} ${time}`.trim() : time
+      })
+      .filter(Boolean)
+      .join(' • ')
+  }
+  return summary
 }
 
 export function haversineKm(lat1: number, lng1: number, lat2: number, lng2: number): number {
@@ -109,6 +166,95 @@ export function haversineKm(lat1: number, lng1: number, lat2: number, lng2: numb
     Math.sin(dLat / 2) ** 2 + Math.cos(rad(lat1)) * Math.cos(rad(lat2)) * Math.sin(dLng / 2) ** 2
   return Math.round(R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a)) * 10) / 10
 }
+const WEEKDAY_MAP: Record<string, number> = {
+  Mon: 1,
+  Tue: 2,
+  Wed: 3,
+  Thu: 4,
+  Fri: 5,
+  Sat: 6,
+  Sun: 7,
+}
+
+/** Wall-clock weekday (1–7) and minute-of-day in the church timezone (UTC fallback). */
+export function churchClock(
+  timezone: string,
+  now: Date,
+): { weekday: number; minutes: number } | null {
+  const format = (tz: string) =>
+    new Intl.DateTimeFormat('en-CA', {
+      timeZone: tz,
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false,
+      weekday: 'short',
+    })
+  let parts: Intl.DateTimeFormatPart[]
+  try {
+    parts = format(timezone).formatToParts(now)
+  } catch {
+    parts = format('UTC').formatToParts(now)
+  }
+
+  const weekdayStr = parts.find((p) => p.type === 'weekday')?.value?.replace('.', '')
+  const weekday = weekdayStr ? WEEKDAY_MAP[weekdayStr] : undefined
+  if (!weekday) return null
+
+  const rawHour = Number(parts.find((p) => p.type === 'hour')?.value ?? 0)
+  const hour = rawHour === 24 ? 0 : rawHour
+  const minute = Number(parts.find((p) => p.type === 'minute')?.value ?? 0)
+  return { weekday, minutes: hour * 60 + minute }
+}
+
+/**
+ * `open_now` (website SPEC §5.3 / §6.2): true when the current church-local time
+ * falls inside a `sanctuary_hours` window. No schedule → closed.
+ */
+export function isOpenNow(
+  timezone: string,
+  sanctuaryHours: string | null | undefined,
+  now: Date,
+): boolean {
+  const clock = churchClock(timezone, now)
+  if (!clock) return false
+  return sanctuaryRangesFor(sanctuaryHours, clock.weekday).some(
+    (r) => clock.minutes >= r.start && clock.minutes <= r.end,
+  )
+}
+
+/** Approximate lat/lng box for a radius, so the DB is not scanned in full. */
+const radiusBox = (query: MobileChurchListQuery): Prisma.ChurchWhereInput => {
+  if (query.radius_km === undefined) return {}
+  if (query.latitude === undefined || query.longitude === undefined) return {}
+  const dLat = query.radius_km / 111
+  const dLng = dLat / Math.max(Math.cos((query.latitude * Math.PI) / 180), 0.01)
+  return {
+    latitude: { gte: query.latitude - dLat, lte: query.latitude + dLat },
+    longitude: { gte: query.longitude - dLng, lte: query.longitude + dLng },
+  }
+}
+
+const churchListWhere = (query: MobileChurchListQuery): Prisma.ChurchWhereInput => ({
+  status: APPROVED,
+  ...radiusBox(query),
+  ...(query.search
+    ? {
+        OR: [
+          { name: { contains: query.search, mode: 'insensitive' } },
+          { address: { path: ['city'], string_contains: query.search } },
+        ],
+      }
+    : {}),
+  // Seed and user-entered values carry a qualifier ("Lutheran (EELK)"), so the
+  // filter matches the acronym, not the exact string.
+  ...(query.denomination
+    ? { denomination: { contains: query.denomination, mode: 'insensitive' } }
+    : {}),
+  ...(query.language ? { churchLanguages: { some: { language_code: query.language } } } : {}),
+  ...(query.sunday_live_stream === true ? { sunday_live_stream: true } : {}),
+  ...(query.taize_chants === true ? { taize_chants: true } : {}),
+  ...(query.youth_ministry === true ? { youth_ministry: true } : {}),
+})
 
 const mapPublicChurch = (
   c: {
@@ -132,6 +278,25 @@ const mapPublicChurch = (
       label: string | null
       language_code: string | null
     }[]
+    sanctuary_hours?: string | null
+    pastors?: Array<{
+      pastoral_role: string
+      image_asset?: { object_key: string | null } | null
+      pastor: {
+        name: string
+        image_asset?: { object_key: string | null } | null
+      }
+    }>
+    galleryItems?: Array<{
+      caption: string | null
+      order_index: number
+      media_asset: { id: string; object_key: string | null } | null
+    }>
+    org_node?: {
+      parent: { kind: string; name: string } | null
+    } | null
+    church_style?: string | null
+    diaconal_programs?: unknown
   },
   lat?: number,
   lng?: number,
@@ -157,10 +322,7 @@ const mapPublicChurch = (
       postalCode: addr.postalCode ?? null,
       countryCode: addr.countryCode ?? '',
     },
-    coordinates:
-      latitude !== null && longitude !== null
-        ? { latitude: Number(latitude), longitude: Number(longitude) }
-        : null,
+    coordinates: toCoordinates(latitude, longitude),
     contacts: { email: contacts.email ?? null, phone: contacts.phone ?? null },
     website: c.website,
     socialLinks: Array.isArray(c.social_links)
@@ -177,6 +339,28 @@ const mapPublicChurch = (
       languageCode: s.language_code,
     })),
     distanceKm,
+    pastorName: c.pastors?.[0]?.pastor?.name ?? null,
+    pastorRole: c.pastors?.[0]?.pastoral_role ?? null,
+    sanctuaryHours: c.sanctuary_hours ?? null,
+    gallery: (c.galleryItems ?? []).map((g) => ({
+      assetId: g.media_asset?.id ?? '',
+      url: galleryUrlFor(g.media_asset),
+      caption: g.caption,
+      orderIndex: g.order_index,
+    })),
+    staff: (c.pastors ?? []).map((p) => ({
+      name: p.pastor.name,
+      pastoralRole: p.pastoral_role,
+      imageUrl: staffImageUrlFor(
+        p.image_asset?.object_key ?? null,
+        p.pastor.image_asset?.object_key ?? null,
+      ),
+    })),
+    deaneryName: c.org_node?.parent?.kind === 'DEANERY' ? c.org_node.parent.name : null,
+    churchStyle: c.church_style ?? null,
+    diaconalPrograms: Array.isArray(c.diaconal_programs)
+      ? (c.diaconal_programs as MobileDiaconalProgram[])
+      : [],
   }
 }
 
@@ -189,34 +373,118 @@ export const LIST_PUBLIC_CHURCHES = async ({
 }: {
   query: MobileChurchListQuery
 }): Promise<{ result: MobileChurchSummary[]; total: number }> => {
-  const where: Prisma.ChurchWhereInput = {
-    status: APPROVED,
-    ...(query.search ? { name: { contains: query.search, mode: 'insensitive' } } : {}),
+  const where = churchListWhere(query)
+  const inMemory =
+    query.radius_km !== undefined ||
+    query.open_now === true ||
+    (query.latitude !== undefined && query.longitude !== undefined)
+
+  if (!inMemory) {
+    const [total, rows] = await db.$transaction([
+      db.church.count({ where }),
+      db.church.findMany({
+        where,
+        take: query.limit,
+        skip: (query.page - 1) * query.limit,
+        orderBy: [{ name: 'asc' }, { id: 'asc' }],
+        select: {
+          id: true,
+          name: true,
+          denomination: true,
+          church_style: true,
+          address: true,
+          cover_asset_id: true,
+          latitude: true,
+          longitude: true,
+          description: true,
+          accessibility: true,
+          sanctuary_hours: true,
+          pastors: {
+            include: { pastor: { select: { name: true } } },
+            take: 1,
+          },
+          serviceTimes: {
+            select: { weekday: true, local_time: true, label: true },
+            take: 2,
+          },
+        },
+      }),
+    ])
+    return {
+      result: await Promise.all(
+        rows.map((r) => withCover(toSummary(r, query.latitude, query.longitude))),
+      ),
+      total,
+    }
   }
-  const [total, rows] = await db.$transaction([
-    db.church.count({ where }),
-    db.church.findMany({
-      where,
-      take: query.limit,
-      skip: (query.page - 1) * query.limit,
-      orderBy: [{ name: 'asc' }, { id: 'asc' }],
-      select: {
-        id: true,
-        name: true,
-        denomination: true,
-        address: true,
-        cover_asset_id: true,
-        latitude: true,
-        longitude: true,
+
+  // Filtering by distance / open-now cannot be expressed in Prisma, so those
+  // queries load rows and filter in JS.
+  // ponytail: hard cap at 2000 rows — fine for a national directory. Move to
+  // PostGIS / earthdistance (or a geohash column) when a region exceeds it.
+  const MAX_FILTER_ROWS = 2000
+  const rows = await db.church.findMany({
+    where,
+    orderBy: [{ name: 'asc' }, { id: 'asc' }],
+    take: MAX_FILTER_ROWS,
+    select: {
+      id: true,
+      name: true,
+      denomination: true,
+      church_style: true,
+      address: true,
+      cover_asset_id: true,
+      latitude: true,
+      longitude: true,
+      description: true,
+      accessibility: true,
+      sanctuary_hours: true,
+      timezone: true,
+      pastors: {
+        include: { pastor: { select: { name: true } } },
+        take: 1,
       },
-    }),
-  ])
-  return {
-    result: await Promise.all(
-      rows.map((r) => withCover(toSummary(r, query.latitude, query.longitude))),
+      serviceTimes: {
+        select: { weekday: true, local_time: true, label: true },
+      },
+    },
+  })
+
+  let pairs = rows.map((r) => ({
+    row: r,
+    summary: toSummary(
+      { ...r, serviceTimes: r.serviceTimes?.slice(0, 2) },
+      query.latitude,
+      query.longitude,
     ),
-    total,
+  }))
+
+  if (query.radius_km !== undefined) {
+    pairs = pairs.filter(
+      (p) => p.summary.distanceKm !== null && p.summary.distanceKm <= query.radius_km!,
+    )
   }
+
+  if (query.open_now === true) {
+    const now = new Date()
+    pairs = pairs.filter((p) =>
+      isOpenNow(p.row.timezone ?? 'UTC', p.row.sanctuary_hours ?? null, now),
+    )
+  }
+
+  if (query.latitude !== undefined && query.longitude !== undefined) {
+    pairs.sort((a, b) => {
+      const distA = a.summary.distanceKm ?? Number.POSITIVE_INFINITY
+      const distB = b.summary.distanceKm ?? Number.POSITIVE_INFINITY
+      return distA - distB
+    })
+  }
+
+  const total = pairs.length
+  const paged = pairs.slice((query.page - 1) * query.limit, query.page * query.limit)
+  const result = await Promise.all(paged.map((p) => withCover(p.summary)))
+
+  return { result, total }
 }
 
 export const GET_PUBLIC_CHURCH = async ({
@@ -234,6 +502,44 @@ export const GET_PUBLIC_CHURCH = async ({
       churchLanguages: { select: { language_code: true } },
       serviceTimes: {
         orderBy: [{ weekday: 'asc' } as const],
+      },
+      pastors: {
+        where: { pastor: { deleted_at: null } },
+        include: {
+          pastor: {
+            select: {
+              name: true,
+              image_asset: { select: { object_key: true } },
+            },
+          },
+          image_asset: { select: { object_key: true } },
+        },
+      },
+      galleryItems: {
+        where: {
+          media_asset: {
+            status: 'READY' as const,
+            purpose: 'IMAGE' as const,
+          },
+        },
+        orderBy: [{ order_index: 'asc' } as const],
+        select: {
+          caption: true,
+          order_index: true,
+          media_asset: {
+            select: { id: true, object_key: true },
+          },
+        },
+      },
+      org_node: {
+        select: {
+          parent: {
+            select: {
+              kind: true,
+              name: true,
+            },
+          },
+        },
       },
     },
   })
@@ -456,10 +762,12 @@ export const GET_HOME = async ({ userId }: { userId: string }): Promise<MobileHo
           id: true,
           name: true,
           denomination: true,
+          church_style: true,
           address: true,
           cover_asset_id: true,
           latitude: true,
           longitude: true,
+          sanctuary_hours: true,
         },
       })
     : []
@@ -529,7 +837,7 @@ const mapPublishedPrayer = (p: {
           prayerAudioId: audio.id,
           assetId: audio.asset!.id,
           assetKey: audio.asset!.object_key,
-          url: S3_PUBLIC_URL({ key: audio.asset!.object_key }),
+          assetUrl: S3_PUBLIC_URL({ key: audio.asset!.object_key }),
           approvedAt: toIso(audio.approved_at) ?? '',
         }
       : null,
@@ -710,6 +1018,7 @@ export const LIST_PUBLIC_EVENTS = async ({
       location: e.location,
       registrationUrl: e.registration_url,
       languageCode: e.language_code,
+      ctaLabel: 'cta_label' in e && typeof e.cta_label === 'string' ? e.cta_label : null,
     })),
     total,
   }

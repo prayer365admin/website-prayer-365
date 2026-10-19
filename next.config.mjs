@@ -8,6 +8,9 @@ const __dirname = dirname(__filename)
 /** @type {import('next').NextConfig} */
 
 const nextConfig = {
+  env: {
+    NEXT_PUBLIC_GOOGLE_MAPS_API: process.env.GOOGLE_MAPS_API,
+  },
   sassOptions: {
     includePaths: [path.join(__dirname, 'styles')],
   },

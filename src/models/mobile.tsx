@@ -61,19 +61,62 @@ export const MobileChurchSummarySchema = z.object({
   id: z.string(),
   name: z.string(),
   denomination: z.string().nullable(),
+  /** Worship-style / highlight pill on directory cards; null hides the pill. */
+  churchStyle: z.string().nullable().optional(),
   city: z.string().nullable(),
   coverAssetId: z.string().nullable(),
   coverUrl: z.string().nullable(),
   distanceKm: z.number().nullable(),
+  /** MB-11 — marker position; null when the church has none (both lat+lng or neither). */
+  coordinates: MobileCoordinatesSchema.nullable(),
+  latitude: z.number().nullable().optional(),
+  longitude: z.number().nullable().optional(),
+  addressLine1: z.string().nullable().optional(),
+  /** Card subtitle right segment (e.g. "Old Town"); church address line2. */
+  district: z.string().nullable().optional(),
+  description: z.string().nullable().optional(),
+  pastorName: z.string().nullable().optional(),
+  serviceTimes: z.string().nullable().optional(),
+  accessibility: z.array(z.string()).optional(),
+  sanctuaryHours: z.string().nullable().optional(),
 })
 
 export type MobileChurchSummary = z.infer<typeof MobileChurchSummarySchema>
+
+/** Public church profile — deliberately omits approved_by/at, status gates, payment. */
+export const MobileChurchGalleryItemSchema = z.object({
+  assetId: z.string(),
+  url: z.string().nullable(),
+  caption: z.string().nullable(),
+  orderIndex: z.number(),
+})
+
+export type MobileChurchGalleryItem = z.infer<typeof MobileChurchGalleryItemSchema>
+
+export const MobileChurchStaffSchema = z.object({
+  name: z.string(),
+  pastoralRole: z.string(),
+  imageUrl: z.string().nullable(),
+})
+
+export type MobileChurchStaff = z.infer<typeof MobileChurchStaffSchema>
+
+export const MobileDiaconalProgramSchema = z.object({
+  title: z.string(),
+  description: z.string(),
+  badgeText: z.string(),
+  metaText: z.string(),
+  icon: z.string().optional(),
+})
+
+export type MobileDiaconalProgram = z.infer<typeof MobileDiaconalProgramSchema>
 
 /** Public church profile — deliberately omits approved_by/at, status gates, payment. */
 export const MobilePublicChurchSchema = z.object({
   id: z.string(),
   name: z.string(),
   denomination: z.string().nullable(),
+  churchStyle: z.string().nullable().optional(),
   description: z.string().nullable(),
   timezone: z.string(),
   address: MobilePublicAddressSchema,
@@ -87,9 +130,26 @@ export const MobilePublicChurchSchema = z.object({
   languageCodes: z.array(z.string()),
   serviceTimes: z.array(MobileServiceTimeSchema),
   distanceKm: z.number().nullable(),
+  pastorName: z.string().nullable().optional(),
+  pastorRole: z.string().nullable().optional(),
+  sanctuaryHours: z.string().nullable().optional(),
+  gallery: z.array(MobileChurchGalleryItemSchema).optional(),
+  staff: z.array(MobileChurchStaffSchema).optional(),
+  deaneryName: z.string().nullable().optional(),
+  diaconalPrograms: z.array(MobileDiaconalProgramSchema).optional(),
 })
 
 export type MobilePublicChurch = z.infer<typeof MobilePublicChurchSchema>
+
+const booleanish = z.preprocess(
+  (v) =>
+    v === true || v === 'true' || v === '1'
+      ? true
+      : v === false || v === 'false' || v === '0'
+        ? false
+        : undefined,
+  z.boolean().optional(),
+)
 
 export const MobileChurchListQuerySchema = z.object({
   page: z.coerce.number().int().positive().default(1),
@@ -97,6 +157,13 @@ export const MobileChurchListQuerySchema = z.object({
   search: z.string().trim().max(200).optional(),
   latitude: z.coerce.number().min(-90).max(90).optional(),
   longitude: z.coerce.number().min(-180).max(180).optional(),
+  radius_km: z.coerce.number().positive().max(2000).optional(),
+  denomination: z.string().trim().max(100).optional(),
+  language: z.string().trim().min(2).max(10).optional(),
+  sunday_live_stream: booleanish.optional(),
+  open_now: booleanish.optional(),
+  taize_chants: booleanish.optional(),
+  youth_ministry: booleanish.optional(),
 })
 
 export type MobileChurchListQuery = z.infer<typeof MobileChurchListQuerySchema>
@@ -166,7 +233,8 @@ export const MobilePublishedAudioSchema = z.object({
   prayerAudioId: z.string(),
   assetId: z.string().nullable(),
   assetKey: z.string().nullable(),
-  url: z.string().nullable(),
+  /** Public read URL (website SPEC §5.2). `assetKey` stays for the mobile client. */
+  assetUrl: z.string().nullable().optional(),
   approvedAt: z.string(),
 })
 
@@ -225,6 +293,7 @@ export const MobilePublicEventSchema = z.object({
   location: z.string(),
   registrationUrl: z.string().nullable(),
   languageCode: z.string().nullable(),
+  ctaLabel: z.string().nullable().optional(),
 })
 
 export type MobilePublicEvent = {
@@ -237,6 +306,7 @@ export type MobilePublicEvent = {
   location: string
   registrationUrl: string | null
   languageCode: string | null
+  ctaLabel?: string | null
 }
 
 export const MobileEventListQuerySchema = z.object({
