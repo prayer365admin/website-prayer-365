@@ -78,6 +78,16 @@ export const EventColumns = ({
       ),
   },
   {
+    key: 'cta_label',
+    title: 'Button Label',
+    render: (_, event) =>
+      event.ctaLabel ? (
+        <Tag color="blue">{event.ctaLabel}</Tag>
+      ) : (
+        <span className="text-gray-400">Join Service (default)</span>
+      ),
+  },
+  {
     key: 'actions',
     title: 'Actions',
     render: (_, event) => (

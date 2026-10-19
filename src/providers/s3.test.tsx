@@ -118,6 +118,11 @@ describe('S3_HEAD_OBJECT / S3_GET_SIGNED_URL', () => {
     const url = await S3_GET_SIGNED_URL({ key: 'k', expiresIn: 3600 })
     expect(url).toBe('https://signed/url')
   })
+
+  it('get signed url returns local public path directly when key starts with / or images/', async () => {
+    expect(await S3_GET_SIGNED_URL({ key: '/images/church.jpeg' })).toBe('/images/church.jpeg')
+    expect(await S3_GET_SIGNED_URL({ key: 'images/church.jpeg' })).toBe('/images/church.jpeg')
+  })
 })
 
 describe('S3_PUBLIC_URL — stable public read URL (temporary public-read bucket)', () => {
@@ -141,6 +146,11 @@ describe('S3_PUBLIC_URL — stable public read URL (temporary public-read bucket
   it('returns null when no bucket is configured', () => {
     for (const k of S3_KEYS) delete process.env[k]
     expect(S3_PUBLIC_URL({ key: 'k' })).toBeNull()
+  })
+
+  it('returns local public path directly when key starts with / or images/', () => {
+    expect(S3_PUBLIC_URL({ key: '/images/church.jpeg' })).toBe('/images/church.jpeg')
+    expect(S3_PUBLIC_URL({ key: 'images/church.jpeg' })).toBe('/images/church.jpeg')
   })
 })
 

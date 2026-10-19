@@ -236,10 +236,25 @@ export const patchChurchProfile = async ({
     coverAssetId = input.coverAssetId
   }
 
+  if (input.galleryItems?.length) {
+    for (const item of input.galleryItems) {
+      const asset = await GET_CHURCH_READY_IMAGE({ churchIds, assetId: item.mediaAssetId })
+      if (!asset) {
+        throw new GeneralError({
+          code: 422,
+          error: 'VALIDATION_ERROR',
+          error_code: 'INVALID_GALLERY_ASSET',
+          details: `Gallery asset ${item.mediaAssetId} must be a ready image owned by this church.`,
+          fields: { galleryItems: 'Contains asset not owned by this church or not ready.' },
+        })
+      }
+    }
+  }
   const payload: Prisma.ChurchUncheckedUpdateInput = {
     name: input.name,
     description: input.description ?? null,
     denomination: input.denomination ?? null,
+    church_style: input.churchStyle ?? null,
     address: input.address,
     latitude: input.coordinates ? input.coordinates.latitude : null,
     longitude: input.coordinates ? input.coordinates.longitude : null,
@@ -248,6 +263,13 @@ export const patchChurchProfile = async ({
     website: input.website || null,
     social_links: input.socialLinks,
     accessibility: input.accessibility ?? null,
+    sanctuary_hours: input.sanctuaryHours ?? null,
+    diaconal_programs:
+      input.diaconalPrograms !== undefined
+        ? input.diaconalPrograms === null
+          ? Prisma.JsonNull
+          : (input.diaconalPrograms as unknown as Prisma.InputJsonValue)
+        : undefined,
     cover_asset_id: coverAssetId,
   }
 
@@ -257,6 +279,7 @@ export const patchChurchProfile = async ({
     expectedVersion: input.version,
     payload,
     languageCodes: input.languageCodes,
+    galleryItems: input.galleryItems,
     requestId,
     actorId: userId,
   })

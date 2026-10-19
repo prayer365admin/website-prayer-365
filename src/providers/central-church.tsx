@@ -87,20 +87,28 @@ export const CREATE_CHURCH = async (
     timezone,
     description,
     denomination,
+    church_style,
     address,
     contacts,
     latitude,
     longitude,
+    sunday_live_stream,
+    taize_chants,
+    youth_ministry,
   }: {
     orgNodeId: string
     name: string
     timezone: string
     description?: string | null
     denomination?: string | null
+    church_style?: string | null
     address?: unknown
     contacts?: unknown
     latitude?: number | null
     longitude?: number | null
+    sunday_live_stream?: boolean | null
+    taize_chants?: boolean | null
+    youth_ministry?: boolean | null
   },
   tx: Prisma.TransactionClient = db,
 ) => {
@@ -110,11 +118,15 @@ export const CREATE_CHURCH = async (
     timezone,
     description: description ?? null,
     denomination: denomination ?? null,
+    church_style: church_style ?? null,
     address: (address ?? {}) as Prisma.InputJsonValue,
     contacts: (contacts ?? {}) as Prisma.InputJsonValue,
     social_links: {} as Prisma.InputJsonValue,
     latitude: latitude ?? null,
     longitude: longitude ?? null,
+    sunday_live_stream: sunday_live_stream ?? null,
+    taize_chants: taize_chants ?? null,
+    youth_ministry: youth_ministry ?? null,
     status: 'PENDING',
   }
   return tx.church.create({ data })

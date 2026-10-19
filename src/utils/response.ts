@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { GeneralError } from './general-error'
+import { logger } from './logger'
 
 let counter = 0
 
@@ -44,6 +45,13 @@ export const httpError = (e: unknown) => {
     if (e.fields) body.fields = e.fields
     return NextResponse.json(body, { status: e.code })
   }
+  // 500s: keep one structured trace through the central logger (field name
+  // `error_message` — a bare `message` is redacted by utils/logger.ts).
+  logger.error({
+    event: 'http_error_500',
+    error_name: (e as Error)?.name,
+    error_message: (e as Error)?.message,
+  })
   return NextResponse.json(
     {
       code: 500,

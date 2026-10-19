@@ -22,15 +22,15 @@ DESIGN S02–S04 | SPEC §7 church URLs | FEATURE F1/F2/F3
 
 | ID    | Task                                                                                                                                                                                | Done |
 | ----- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---- |
-| CH-01 | DB: `churches`, `church_languages`, `org_nodes` models + seeds, migrations                                                                                                          | ✔   |
-| CH-02 | API: church provider/controller/models + `A/churches`, `C/overview`, `C/profile`, `C/pastors`, `C/service-times` routes + tests                                                     | ✔   |
-| CH-03 | Hooks: create `hooks/data/church.tsx` — my churches, detail, profile get/patch, overview, service-times get/put (spec §2.1 cache keys)                                              | ✔   |
-| CH-04 | Screen: S02 church selector (`/dashboard/churches`) — assigned churches only, skip when single                                                                                      | ✔   |
-| CH-05 | Screen: S03 church overview (`.../churches/:churchId`) — followers, today's prayer, upcoming events, recent requests (hidden without request access), donation activity, engagement | ✔   |
-| CH-06 | Screen: S04 profile editor (`.../profile`) — tabs: details/cover, location+contacts, assigned pastors, languages, accessibility                                                     | ✔   |
-| CH-07 | Screen: service schedule editor (S04 tab) — weekday/local time/label/language, transactional replace, stale-edit guard                                                              | ✔   |
-| CH-08 | Integration: S3 cover image upload (purpose allowlist + scope + completion check)                                                                                                   | ✔   |
-| CH-09 | Tests: unauthorized church edit denied, cross-church read denied, stale version conflict, profile reflected in mobile contract                                                      | ✔   |
+| CH-01 | DB: `churches`, `church_languages`, `org_nodes` models + seeds, migrations                                                                                                          | ✔    |
+| CH-02 | API: church provider/controller/models + `A/churches`, `C/overview`, `C/profile`, `C/pastors`, `C/service-times` routes + tests                                                     | ✔    |
+| CH-03 | Hooks: create `hooks/data/church.tsx` — my churches, detail, profile get/patch, overview, service-times get/put (spec §2.1 cache keys)                                              | ✔    |
+| CH-04 | Screen: S02 church selector (`/dashboard/churches`) — assigned churches only, skip when single                                                                                      | ✔    |
+| CH-05 | Screen: S03 church overview (`.../churches/:churchId`) — followers, today's prayer, upcoming events, recent requests (hidden without request access), donation activity, engagement | ✔    |
+| CH-06 | Screen: S04 profile editor (`.../profile`) — tabs: details/cover, location+contacts, assigned pastors, languages, accessibility                                                     | ✔    |
+| CH-07 | Screen: service schedule editor (S04 tab) — weekday/local time/label/language, transactional replace, stale-edit guard                                                              | ✔    |
+| CH-08 | Integration: S3 cover image upload (purpose allowlist + scope + completion check)                                                                                                   | ✔    |
+| CH-09 | Tests: unauthorized church edit denied, cross-church read denied, stale version conflict, profile reflected in mobile contract                                                      | ✔    |
 
 ## F2PA — Pastors (profiles, church assignments, attribution)
 
@@ -38,13 +38,13 @@ DESIGN S20 | SPEC §8.2/§8.3 pastor endpoints | FEATURE F3/F8
 
 | ID    | Task                                                                                                                                       | Done |
 | ----- | ------------------------------------------------------------------------------------------------------------------------------------------ | ---- |
-| PA-01 | DB: `pastors`, `church_pastors` models + seeds                                                                                             | ✔   |
-| PA-02 | API: pastor provider/controller/models + `A/central/pastors` CRUD, `PATCH C/pastors/:pastorId`, `PUT C/churches/:churchId/pastors` + tests | ✔   |
-| PA-03 | Hooks: `hooks/data/central.tsx` pastor queries/mutations + church pastor assignment hook                                                   | ✔   |
-| PA-04 | Screen: S20 pastor list + create/edit (`/dashboard/central/pastors`) — name, intro, optional linked user                                   | ✔   |
-| PA-05 | Screen: church pastors tab (S04) — assign pastors, church role, image; only church-specific fields                                         | ✔   |
-| PA-06 | Rule check: edit preserves historical prayer attribution; pastor biography never auto-grants staff access                                  | ✔   |
-| PA-07 | Tests: profile without login stays non-admin, assignment scoping, attribution preserved on change                                          | ✔   |
+| PA-01 | DB: `pastors`, `church_pastors` models + seeds                                                                                             | ✔    |
+| PA-02 | API: pastor provider/controller/models + `A/central/pastors` CRUD, `PATCH C/pastors/:pastorId`, `PUT C/churches/:churchId/pastors` + tests | ✔    |
+| PA-03 | Hooks: `hooks/data/central.tsx` pastor queries/mutations + church pastor assignment hook                                                   | ✔    |
+| PA-04 | Screen: S20 pastor list + create/edit (`/dashboard/central/pastors`) — name, intro, optional linked user                                   | ✔    |
+| PA-05 | Screen: church pastors tab (S04) — assign pastors, church role, image; only church-specific fields                                         | ✔    |
+| PA-06 | Rule check: edit preserves historical prayer attribution; pastor biography never auto-grants staff access                                  | ✔    |
+| PA-07 | Tests: profile without login stays non-admin, assignment scoping, attribution preserved on change                                          | ✔    |
 
 ## F3PR — Prayers (text, approval, audio, schedule, publish)
 
@@ -52,16 +52,16 @@ DESIGN S05–S07 | SPEC §9.3 | FEATURE F4
 
 | ID    | Task                                                                                                                                                                                 | Done |
 | ----- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ---- |
-| PR-01 | DB: `prayers`, `prayer_versions`, `prayer_audio` + seeds                                                                                                                             | ✔   |
-| PR-02 | API: prayer/prayer-audio providers + controllers + `C/prayers` CRUD, approve-text, audio create/status/approve, schedule, publish + tests                                            | ✔   |
-| PR-03 | Hooks: `hooks/data/prayer.tsx` — list, detail, create, patch (new text version), approve-text, audio actions, schedule, publish                                                      | ✔   |
-| PR-04 | Screen: S05 prayer list/archive (`.../prayers`) — current + published archive, publication info, create action                                                                       | ✔   |
-| PR-05 | Screen: S06 prayer editor (`.../prayers/new`, `.../prayers/:prayerId`) — title/intro/body, assigned-pastor picker, language, read-only review before audio                           | ✔   |
-| PR-06 | Screen: S07 audio review + publication (editor tab) — generate (blocked until reviewed text + ready voice), preview, approve audio, schedule, publish; disabled actions with reasons | ✔   |
-| PR-07 | Integration: `audio.generate` job — recheck approval/consent/voice readiness, ElevenLabs TTS, S3 storage (public-read for now — SPEC §10.4.1 / D13), mark ready                      | ✔   |
-| PR-08 | Integration: `prayer.publish` job — due-time revalidation, publish once, enqueue notification, survive retries/downtime                                                              | ✔   |
-| PR-09 | Rules: never inherit old audio approval on new text version; stale generation never attaches to another version                                                                      | ✔   |
-| PR-10 | Tests: approval tied to exact snapshot, audio private until approved, duplicate job safety, scheduled publish after restart                                                          | ✔   |
+| PR-01 | DB: `prayers`, `prayer_versions`, `prayer_audio` + seeds                                                                                                                             | ✔    |
+| PR-02 | API: prayer/prayer-audio providers + controllers + `C/prayers` CRUD, approve-text, audio create/status/approve, schedule, publish + tests                                            | ✔    |
+| PR-03 | Hooks: `hooks/data/prayer.tsx` — list, detail, create, patch (new text version), approve-text, audio actions, schedule, publish                                                      | ✔    |
+| PR-04 | Screen: S05 prayer list/archive (`.../prayers`) — current + published archive, publication info, create action                                                                       | ✔    |
+| PR-05 | Screen: S06 prayer editor (`.../prayers/new`, `.../prayers/:prayerId`) — title/intro/body, assigned-pastor picker, language, read-only review before audio                           | ✔    |
+| PR-06 | Screen: S07 audio review + publication (editor tab) — generate (blocked until reviewed text + ready voice), preview, approve audio, schedule, publish; disabled actions with reasons | ✔    |
+| PR-07 | Integration: `audio.generate` job — recheck approval/consent/voice readiness, ElevenLabs TTS, S3 storage (public-read for now — SPEC §10.4.1 / D13), mark ready                      | ✔    |
+| PR-08 | Integration: `prayer.publish` job — due-time revalidation, publish once, enqueue notification, survive retries/downtime                                                              | ✔    |
+| PR-09 | Rules: never inherit old audio approval on new text version; stale generation never attaches to another version                                                                      | ✔    |
+| PR-10 | Tests: approval tied to exact snapshot, audio private until approved, duplicate job safety, scheduled publish after restart                                                          | ✔    |
 
 ## F4VO — Voice Profiles (pastor submission, admin review, ElevenLabs IVC)
 
@@ -69,8 +69,8 @@ DESIGN S24/S27 | SPEC §9.3.1 | FEATURE F4/F8
 
 | ID    | Task                                                                                                                                                                                                                            | Done |
 | ----- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---- |
-| VO-01 | DB: `voice_profiles`, `consents`, `media_assets` + seeds                                                                                                                                                                        | ✔   |
-| VO-02 | API: voice/consent/media providers + controllers + `A/me/voice-*`, `A/central/voice-profiles/*`, media upload/complete/access routes + tests                                                                                    | ✔   |
+| VO-01 | DB: `voice_profiles`, `consents`, `media_assets` + seeds                                                                                                                                                                        | ✔    |
+| VO-02 | API: voice/consent/media providers + controllers + `A/me/voice-*`, `A/central/voice-profiles/*`, media upload/complete/access routes + tests                                                                                    | ✔    |
 | VO-03 | Hooks: `hooks/data/voice.tsx` — consents, submissions (create/update/submit), central review list/detail/approve/reject/disable                                                                                                 | ☐    |
 | VO-04 | Screen: S27 My Voice (`/dashboard/my-voice`) — sample upload + guidance (1–2 min), evidence upload/reference, Save draft, Submit; read-only after submit; rejection reason + revised submission                                 | ☐    |
 | VO-05 | Screen: S24 admin review (`/dashboard/central/voice-profiles`) — list (review_state + registration_state), preview player + evidence, Approve ("Approve and register") / Reject (reason) only when pending, disable ready voice | ☐    |
@@ -85,12 +85,12 @@ DESIGN S08 | SPEC §9.4 | FEATURE F5
 
 | ID    | Task                                                                                                                                           | Done |
 | ----- | ---------------------------------------------------------------------------------------------------------------------------------------------- | ---- |
-| EV-01 | DB: `events` model + seeds                                                                                                                     | ✔   |
-| EV-02 | API: event provider/controller/models + `GET/POST C/events`, `PATCH C/events/:eventId` + tests                                                 | ✔   |
-| EV-03 | Hooks: `hooks/data/event.tsx` — list, create, patch                                                                                            | ✔   |
-| EV-04 | Screen: S08 list + create/edit (`.../events`) — category, title, desc, startsAt (timezone shown), location, optional registrationUrl, language | ✔   |
-| EV-05 | Rules: local time converted to UTC with explicit offset; registration URL stored as link only; no internal booking/recurrence                  | ✔   |
-| EV-06 | Tests: DST/timezone cases, stale-version conflict, cross-church event rejected                                                                 | ✔   |
+| EV-01 | DB: `events` model + seeds                                                                                                                     | ✔    |
+| EV-02 | API: event provider/controller/models + `GET/POST C/events`, `PATCH C/events/:eventId` + tests                                                 | ✔    |
+| EV-03 | Hooks: `hooks/data/event.tsx` — list, create, patch                                                                                            | ✔    |
+| EV-04 | Screen: S08 list + create/edit (`.../events`) — category, title, desc, startsAt (timezone shown), location, optional registrationUrl, language | ✔    |
+| EV-05 | Rules: local time converted to UTC with explicit offset; registration URL stored as link only; no internal booking/recurrence                  | ✔    |
+| EV-06 | Tests: DST/timezone cases, stale-version conflict, cross-church event rejected                                                                 | ✔    |
 
 ## F6AN — Announcements
 
@@ -98,11 +98,11 @@ DESIGN S09 | SPEC §9.4 | FEATURE F5
 
 | ID    | Task                                                                                                                   | Done |
 | ----- | ---------------------------------------------------------------------------------------------------------------------- | ---- |
-| AN-01 | DB: `announcements` model + seeds                                                                                      | ✔   |
-| AN-02 | API: announcement provider/controller/models + `GET/POST C/announcements`, `PATCH .../:id`, `POST .../publish` + tests | ✔   |
-| AN-03 | Hooks: `hooks/data/announcement.tsx` — list, create, patch, publish                                                    | ✔   |
-| AN-04 | Screen: S09 list + create/edit + publish (`.../announcements`) — minimal fields (title/body), immediate publish        | ✔   |
-| AN-05 | Tests: publish permission enforced, no duplicate reminders on edit                                                     | ✔   |
+| AN-01 | DB: `announcements` model + seeds                                                                                      | ✔    |
+| AN-02 | API: announcement provider/controller/models + `GET/POST C/announcements`, `PATCH .../:id`, `POST .../publish` + tests | ✔    |
+| AN-03 | Hooks: `hooks/data/announcement.tsx` — list, create, patch, publish                                                    | ✔    |
+| AN-04 | Screen: S09 list + create/edit + publish (`.../announcements`) — minimal fields (title/body), immediate publish        | ✔    |
+| AN-05 | Tests: publish permission enforced, no duplicate reminders on edit                                                     | ✔    |
 
 ## F7RQ — Requests (prayer/pastoral/meeting)
 
@@ -110,14 +110,14 @@ DESIGN S10–S11 | SPEC §9.5 | FEATURE F6
 
 | ID    | Task                                                                                                                                                                      | Done |
 | ----- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---- |
-| RQ-01 | DB: `requests` model + seeds                                                                                                                                              | ✔   |
-| RQ-02 | API: request provider/controller/models + `GET C/requests` (filtered before pagination), `GET C/requests/:requestId`, mobile `POST M/churches/:churchId/requests` + tests | ✔   |
-| RQ-03 | Hooks: `hooks/data/request.tsx` — list (allowed kinds), detail                                                                                                            | ✔   |
-| RQ-04 | Screen: S10 request list (`.../requests`) — authorized kinds only, no content to unauthorized staff                                                                       | ✔   |
-| RQ-05 | Screen: S11 request detail (`.../requests/:requestId`) — message + preferred contact method, external phone/email action, sensitive-data guard                            | ✔   |
-| RQ-06 | Security: private rows filtered before count/pagination, logs/notifications never carry message/contact/classification, submission rate-limited + idempotent              | ✔   |
-| RQ-07 | Tests: unauthorized detail returns nothing, duplicate submission same result, scope bypass attempts fail                                                                  | ✔   |
-| RQ-08 | Note: D3 blocks anything beyond view/contact — do not invent status/assignment UI                                                                                         | ✔   |
+| RQ-01 | DB: `requests` model + seeds                                                                                                                                              | ✔    |
+| RQ-02 | API: request provider/controller/models + `GET C/requests` (filtered before pagination), `GET C/requests/:requestId`, mobile `POST M/churches/:churchId/requests` + tests | ✔    |
+| RQ-03 | Hooks: `hooks/data/request.tsx` — list (allowed kinds), detail                                                                                                            | ✔    |
+| RQ-04 | Screen: S10 request list (`.../requests`) — authorized kinds only, no content to unauthorized staff                                                                       | ✔    |
+| RQ-05 | Screen: S11 request detail (`.../requests/:requestId`) — message + preferred contact method, external phone/email action, sensitive-data guard                            | ✔    |
+| RQ-06 | Security: private rows filtered before count/pagination, logs/notifications never carry message/contact/classification, submission rate-limited + idempotent              | ✔    |
+| RQ-07 | Tests: unauthorized detail returns nothing, duplicate submission same result, scope bypass attempts fail                                                                  | ✔    |
+| RQ-08 | Note: D3 blocks anything beyond view/contact — do not invent status/assignment UI                                                                                         | ✔    |
 
 F7RQ notes (2026-10-08, plan `.codex/tasks/F7RQ-requests.md`):
 
@@ -136,10 +136,10 @@ F7RQ notes (2026-10-08, plan `.codex/tasks/F7RQ-requests.md`):
 
 DESIGN S12 | SPEC §9.6 | FEATURE F7
 
-| ID    | Task                                                                                                                                                                                                                                                                                                                                                                                                         | Done                |
-| ----- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------- |
+| ID    | Task                                                                                                                                                                                                                                                                                                                                                                                                         | Done               |
+| ----- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------ |
 | DO-01 | DB: rework `donations`/`donation_subscriptions` to church-scoped rows under one PRAYER Stripe account — drop `payment_accounts`, add `church_id` FK + unique `provider_payment_id`/`provider_subscription_id`, migrations + seeds                                                                                                                                                                            | ✔                  |
-| DO-02 | API: donation/stripe providers + controllers + `C/donations`, `C/donation-subscriptions`, `C/donation-summary`, webhook route + tests (admin ✔). **Mobile `POST M/churches/:churchId/donations` NOT built** → see Mobile contract backlog §X-MOB. **rework pending:** per-church account resolution replaced by single platform-account flow (see DO-10)                                                    | ✔ admin · ☐ mobile |
+| DO-02 | API: donation/stripe providers + controllers + `C/donations`, `C/donation-subscriptions`, `C/donation-summary`, webhook route + tests (admin ✔). **Mobile `POST M/churches/:churchId/donations` NOT built** → see Mobile contract backlog §X-MOB. **rework pending:** per-church account resolution replaced by single platform-account flow (see DO-10)                                                     | ✔ admin · ☐ mobile |
 | DO-03 | Hooks: `hooks/data/donation.tsx` — transactions, recurring, monthly summary                                                                                                                                                                                                                                                                                                                                  | ✔                  |
 | DO-04 | Screen: S12 reporting (`.../donations`) — tabs: transactions, recurring, monthly summary; currencies kept separate, pending/failed states accurate                                                                                                                                                                                                                                                           | ✔                  |
 | DO-05 | Integration: Stripe webhook — raw-body signature verify against the one platform-account signing secret, receipt + outbox in transaction, ack after durable accept (SPEC §8.5)                                                                                                                                                                                                                               | ✔                  |
@@ -155,8 +155,8 @@ DESIGN S13/S26 | SPEC §9.7 | FEATURE F9/F10
 
 | ID     | Task                                                                                                                                                                      | Done |
 | ------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---- |
-| ANL-01 | DB: `check_ins`, `analytics_events` + seeds                                                                                                                               | ✔   |
-| ANL-02 | API: analytics provider/controller + `C/analytics`, `C/attendance-summary`, `A/regions/:regionId/summary`, mobile check-in + analytics-events + tests                     | ✔   |
+| ANL-01 | DB: `check_ins`, `analytics_events` + seeds                                                                                                                               | ✔    |
+| ANL-02 | API: analytics provider/controller + `C/analytics`, `C/attendance-summary`, `A/regions/:regionId/summary`, mobile check-in + analytics-events + tests                     | ✔    |
 | ANL-03 | Hooks: `hooks/data/analytics.tsx` + `hooks/data/region.tsx`                                                                                                               | ☐    |
 | ANL-04 | Screen: S13 church analytics (`.../analytics`) — trend chart placeholder, count-based aggregates, bounded date range, no named attendance                                 | ☐    |
 | ANL-05 | Screen: S26 regional dashboard (`/dashboard/regions/:regionId`) — one layout for country/diocese/deanery; aggregate church/user/engagement/attendance/donation stats only | ☐    |
@@ -167,17 +167,17 @@ DESIGN S13/S26 | SPEC §9.7 | FEATURE F9/F10
 
 DESIGN S25 | SPEC §9.8 | FEATURE F11
 
-| ID    | Task                                                                                                                                                                                                                                                                     | Done                |
-| ----- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------- |
-| NO-01 | DB: `notification_rules`, `notification_preferences`, `notification_deliveries`, `device_tokens` + seeds                                                                                                                                                                 | ✔                  |
+| ID    | Task                                                                                                                                                                                                                                                                    | Done               |
+| ----- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------ |
+| NO-01 | DB: `notification_rules`, `notification_preferences`, `notification_deliveries`, `device_tokens` + seeds                                                                                                                                                                | ✔                  |
 | NO-02 | API: notification provider/controller + `A/central/notification-rules` GET/PUT + tests (admin ✔). **Mobile preferences (`GET/PUT M/me/notification-preferences`) + devices (`PUT/DELETE M/me/devices/:installationId`) NOT built** → see Mobile contract backlog §X-MOB | ✔ admin · ☐ mobile |
-| NO-03 | Hooks: `hooks/data/notification.tsx` — rules get/put                                                                                                                                                                                                                     | ☐                   |
-| NO-04 | Screen: S25 central settings (`/dashboard/central/notifications`) — enabled switches for required types + approved timing values only; no audience/campaign UI                                                                                                           | ☐                   |
-| NO-05 | Integration: `notification.send` job — recheck rule + content visibility, resolve audience, check current preferences (donation opt-in default false), dedupe event/user/device, FCM/APNs push, delivery record                                                          | ☐                   |
-| NO-06 | Integration: transactional email via template Nodemailer/Handlebars with verified TLS transport                                                                                                                                                                          | ☐                   |
-| NO-07 | Rules: payload never contains private request/message text; invalid tokens retired; opt-out between enqueue/send honored                                                                                                                                                 | ☐                   |
-| NO-08 | Tests: opt-out respected, no duplicate sends, obsolete event reminders skipped, dedupe by event/user/device                                                                                                                                                              | ☐                   |
-| NO-09 | Note: trigger timing/recipients = D9                                                                                                                                                                                                                                     | ☐                   |
+| NO-03 | Hooks: `hooks/data/notification.tsx` — rules get/put                                                                                                                                                                                                                    | ☐                  |
+| NO-04 | Screen: S25 central settings (`/dashboard/central/notifications`) — enabled switches for required types + approved timing values only; no audience/campaign UI                                                                                                          | ☐                  |
+| NO-05 | Integration: `notification.send` job — recheck rule + content visibility, resolve audience, check current preferences (donation opt-in default false), dedupe event/user/device, FCM/APNs push, delivery record                                                         | ☐                  |
+| NO-06 | Integration: transactional email via template Nodemailer/Handlebars with verified TLS transport                                                                                                                                                                         | ☐                  |
+| NO-07 | Rules: payload never contains private request/message text; invalid tokens retired; opt-out between enqueue/send honored                                                                                                                                                | ☐                  |
+| NO-08 | Tests: opt-out respected, no duplicate sends, obsolete event reminders skipped, dedupe by event/user/device                                                                                                                                                             | ☐                  |
+| NO-09 | Note: trigger timing/recipients = D9                                                                                                                                                                                                                                    | ☐                  |
 
 ## F11ORG — Central Organization (hierarchy, countries, languages)
 
@@ -185,14 +185,14 @@ DESIGN S21–S23 | SPEC §8.3 | FEATURE F8
 
 | ID    | Task                                                                                                                                                       | Done |
 | ----- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- | ---- |
-| OR-01 | DB: `org_nodes`, `countries`, `languages`, `role_assignments` + seeds                                                                                      | ✔   |
-| OR-02 | API: hierarchy/country/language/role-assignment providers + controllers + routes + tests                                                                   | ✔   |
-| OR-03 | Hooks: extend `hooks/data/central.tsx` — hierarchy tree/node, countries, languages, role-assignments                                                       | ✔   |
-| OR-04 | Screen: S21 hierarchy (`/dashboard/central/hierarchy`) — tree view, new-node panel (kind/name/parent), invalid-parent + cycle rejection, move confirmation | ✔   |
-| OR-05 | Screen: S22 countries (`/dashboard/central/countries`) — list + create/edit/enable; no destructive removal of referenced countries                         | ✔   |
-| OR-06 | Screen: S23 languages (`/dashboard/central/languages`) — list + edit/enable; block enable until translations ready                                         | ✔   |
-| OR-07 | Screen: role-assignment management — grant/revoke staff church/region scope (tenancy layer), escalation guard                                              | ✔   |
-| OR-08 | Tests: hierarchy cycles rejected, reassignment reporting (D8), country-role powers bounded, revoke loses access                                            | ✔   |
+| OR-01 | DB: `org_nodes`, `countries`, `languages`, `role_assignments` + seeds                                                                                      | ✔    |
+| OR-02 | API: hierarchy/country/language/role-assignment providers + controllers + routes + tests                                                                   | ✔    |
+| OR-03 | Hooks: extend `hooks/data/central.tsx` — hierarchy tree/node, countries, languages, role-assignments                                                       | ✔    |
+| OR-04 | Screen: S21 hierarchy (`/dashboard/central/hierarchy`) — tree view, new-node panel (kind/name/parent), invalid-parent + cycle rejection, move confirmation | ✔    |
+| OR-05 | Screen: S22 countries (`/dashboard/central/countries`) — list + create/edit/enable; no destructive removal of referenced countries                         | ✔    |
+| OR-06 | Screen: S23 languages (`/dashboard/central/languages`) — list + edit/enable; block enable until translations ready                                         | ✔    |
+| OR-07 | Screen: role-assignment management — grant/revoke staff church/region scope (tenancy layer), escalation guard                                              | ✔    |
+| OR-08 | Tests: hierarchy cycles rejected, reassignment reporting (D8), country-role powers bounded, revoke loses access                                            | ✔    |
 
 ## F12ST — Staff, Roles, Permissions
 
@@ -200,8 +200,8 @@ DESIGN S17–S19 | SPEC §3, §14 | FEATURE F1/F8
 
 | ID    | Task                                                                                                                                                                                         | Done |
 | ----- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---- |
-| ST-01 | Foundation: template user/role/permission UI migrated to hybrid RBAC (single role_id + role_assignments tenancy), prayer role templates + full CRUD×OWN/ANY catalogue seeded                 | ✔   |
-| ST-02 | API: hardened users/roles/permissions contracts — safe DTOs, no password, grant-ceiling validation, permission cache invalidation                                                            | ✔   |
+| ST-01 | Foundation: template user/role/permission UI migrated to hybrid RBAC (single role_id + role_assignments tenancy), prayer role templates + full CRUD×OWN/ANY catalogue seeded                 | ✔    |
+| ST-02 | API: hardened users/roles/permissions contracts — safe DTOs, no password, grant-ceiling validation, permission cache invalidation                                                            | ✔    |
 | ST-03 | Audit + fix: template adoption checks (SPEC §14) — own-profile role_id escalation blocked, deleted_at filters, safe error envelopes, bypass paths (uploads/mail/PDF/role hard-delete) closed | ☐    |
 | ST-04 | Screen polish: staff create/edit binds single role + assignments; password never shown; role detail shows permission editor, protects SYSTEM roles + last admin                              | ☐    |
 | ST-05 | Tests: RBAC acceptance cases (SPEC §14.1) — Church A edit vs Church B read, escalation attempts fail, revoked grants lose access, caches never preserve auth                                 | ☐    |
@@ -214,19 +214,19 @@ Covered by Churches (overview/selector) and Regional dashboards. No separate mod
 
 Not feature-bound; unblocks everything.
 
-| ID   | Task                                                                                                                                                                                                                                                                                            | Done |
-| ---- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---- |
-| X-01 | Auth hardening (SPEC §3.1): auth_version revocation compare, active-user checks incl. Server Actions, generic login failures + rate limit, handler base-path verified                                                                                                                           | ☐    |
-| X-02 | Client data layer plumbing: stable QueryClient, scope-aware keys + invalidation, logout cache clear (SPEC §2.1)                                                                                                                                                                                 | ☐    |
-| X-03 | Sidebar wiring: scope-aware menu for all new routes, permission-driven visibility (useAccessPermission), hide non-feature demo entries                                                                                                                                                          | ☐    |
-| X-04 | Media flow (SPEC §10.4): signing hardened (purpose allowlist, size/type limits, completion validation), unattached-upload cleanup job, short-lived access URLs                                                                                                                                  | ☐    |
-| X-05 | Outbox dispatcher: claim ready rows, durable delivery, lease/retry/dead-letter; external worker entry (`workers/`) reusing controllers                                                                                                                                                          | ☐    |
-| X-06 | i18n scaffold: en/et/fi, UI language independent of church country; extract strings from feature screens (English first)                                                                                                                                                                        | ☐    |
-| X-07 | D1 mobile token contract: issue/refresh/revocation spec for RN client; never reuse admin session JWT as bearer (`/api/v1/mobile/auth/{login,refresh,logout}` + required-auth `auth_version`/active check). Done plan 002.                                                                       | ✓    |
-| X-08 | E2E admin flow tests: login → scope → CRUD → permission-hidden actions against staging DB                                                                                                                                                                                                       | ☐    |
+| ID   | Task                                                                                                                                                                                                                                                                                           | Done |
+| ---- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---- |
+| X-01 | Auth hardening (SPEC §3.1): auth_version revocation compare, active-user checks incl. Server Actions, generic login failures + rate limit, handler base-path verified                                                                                                                          | ☐    |
+| X-02 | Client data layer plumbing: stable QueryClient, scope-aware keys + invalidation, logout cache clear (SPEC §2.1)                                                                                                                                                                                | ☐    |
+| X-03 | Sidebar wiring: scope-aware menu for all new routes, permission-driven visibility (useAccessPermission), hide non-feature demo entries                                                                                                                                                         | ☐    |
+| X-04 | Media flow (SPEC §10.4): signing hardened (purpose allowlist, size/type limits, completion validation), unattached-upload cleanup job, short-lived access URLs                                                                                                                                 | ☐    |
+| X-05 | Outbox dispatcher: claim ready rows, durable delivery, lease/retry/dead-letter; external worker entry (`workers/`) reusing controllers                                                                                                                                                         | ☐    |
+| X-06 | i18n scaffold: en/et/fi, UI language independent of church country; extract strings from feature screens (English first)                                                                                                                                                                       | ☐    |
+| X-07 | D1 mobile token contract: issue/refresh/revocation spec for RN client; never reuse admin session JWT as bearer (`/api/v1/mobile/auth/{login,refresh,logout}` + required-auth `auth_version`/active check). Done plan 002.                                                                      | ✓    |
+| X-08 | E2E admin flow tests: login → scope → CRUD → permission-hidden actions against staging DB                                                                                                                                                                                                      | ☐    |
 | X-09 | Deploy/infra (D11): Vercel↔PostgreSQL connectivity, public-read S3 (temporary — SPEC §10.4.1 / D13; revert to private before production), SQS/DLQ + EventBridge, Secrets Manager, CloudWatch alerts (job-lag, payment-sync), controlled migrations, backup/restore, production email transport | ☐    |
-| X-10 | Cleanup: remove stub pages + demo master-data (brand/color) + dead endpoints; full verify pass; accessibility basics (labels, keyboard focus, no color-only meaning, timezone on date inputs)                                                                                                   | ☐    |
-| X-11 | Handover package: schema, API docs, deployment/runbook, service inventory, env names (SPEC §11.3)                                                                                                                                                                                               | ☐    |
+| X-10 | Cleanup: remove stub pages + demo master-data (brand/color) + dead endpoints; full verify pass; accessibility basics (labels, keyboard focus, no color-only meaning, timezone on date inputs)                                                                                                  | ☐    |
+| X-11 | Handover package: schema, API docs, deployment/runbook, service inventory, env names (SPEC §11.3)                                                                                                                                                                                              | ☐    |
 
 ## X-MOB — Mobile Contract Backlog (backend owns these)
 
