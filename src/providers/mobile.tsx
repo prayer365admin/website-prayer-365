@@ -15,6 +15,7 @@ import {
   MobileMyChurch,
   MobilePrayerListQuery,
   MobileDiaconalProgram,
+  MobileDonationOptionsSchema,
   MobilePublicAnnouncement,
   MobilePublicChurch,
   MobilePublicEvent,
@@ -306,6 +307,7 @@ const mapPublicChurch = (
     } | null
     church_style?: string | null
     diaconal_programs?: unknown
+    donation_options?: unknown
   },
   lat?: number,
   lng?: number,
@@ -370,6 +372,9 @@ const mapPublicChurch = (
     diaconalPrograms: Array.isArray(c.diaconal_programs)
       ? (c.diaconal_programs as MobileDiaconalProgram[])
       : [],
+    // Admin-entered JSON: an unparsable legacy blob must degrade to "no options"
+    // so the website falls back to its documented defaults rather than crashing.
+    donationOptions: MobileDonationOptionsSchema.safeParse(c.donation_options).data,
   }
 }
 

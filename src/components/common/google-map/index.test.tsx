@@ -12,11 +12,13 @@ vi.mock('@vis.gl/react-google-maps', () => ({
     onClick,
     defaultCenter,
     defaultZoom,
+    mapId: _mapId,
   }: {
     children?: React.ReactNode
     onClick?: (e: unknown) => void
     defaultCenter?: { lat: number; lng: number }
     defaultZoom?: number
+    mapId?: string
   }) => (
     <div
       data-testid="google-map"
@@ -27,14 +29,16 @@ vi.mock('@vis.gl/react-google-maps', () => ({
       {children}
     </div>
   ),
-  Marker: ({
+  AdvancedMarker: ({
     position,
     title,
     onClick,
+    children,
   }: {
     position?: { lat: number; lng: number }
     title?: string
     onClick?: () => void
+    children?: React.ReactNode
   }) => (
     <button
       type="button"
@@ -44,14 +48,23 @@ vi.mock('@vis.gl/react-google-maps', () => ({
       onClick={onClick}
     >
       {title ?? 'Marker'}
+      {children}
     </button>
   ),
+  Pin: () => <span data-testid="pin" />,
   useMap: () => ({
     panTo: vi.fn(),
   }),
 }))
 
-import { GoogleMapPins, GoogleMapPicker, getGoogleMapsApiKey, GOOGLE_MAPS_API_KEY } from './index'
+import {
+  GoogleMapPins,
+  GoogleMapPicker,
+  getGoogleMapsApiKey,
+  GOOGLE_MAPS_API_KEY,
+  getGoogleMapsMapId,
+  GOOGLE_MAPS_MAP_ID,
+} from './index'
 
 describe('google-map shared components', () => {
   const originalFetch = global.fetch
@@ -68,6 +81,13 @@ describe('google-map shared components', () => {
     it('returns the configured API key string', () => {
       expect(typeof getGoogleMapsApiKey()).toBe('string')
       expect(getGoogleMapsApiKey()).toBe(GOOGLE_MAPS_API_KEY)
+    })
+  })
+
+  describe('getGoogleMapsMapId', () => {
+    it('returns the configured Map ID string', () => {
+      expect(typeof getGoogleMapsMapId()).toBe('string')
+      expect(getGoogleMapsMapId()).toBe(GOOGLE_MAPS_MAP_ID)
     })
   })
 

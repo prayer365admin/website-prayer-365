@@ -520,12 +520,42 @@ describe('GET_PUBLIC_CHURCH — admin profile reflected in mobile contract', () 
     expect(parsed.success).toBe(true)
   })
 
+  it('projects MB-03 donation options and degrades an unusable blob to absent', async () => {
+    const base = {
+      id: 'c1',
+      name: 'Grace',
+      timezone: 'UTC',
+      churchLanguages: [],
+      serviceTimes: [],
+    }
+
+    db.church.findFirst.mockResolvedValueOnce({
+      ...base,
+      donation_options: { currency: 'EUR', presetsMinor: [1000, 2500], monthlyEnabled: true },
+    })
+    const configured = await GET_PUBLIC_CHURCH({ churchId: 'c1' })
+    expect(configured?.donationOptions).toEqual({
+      currency: 'EUR',
+      presetsMinor: [1000, 2500],
+      monthlyEnabled: true,
+    })
+
+    db.church.findFirst.mockResolvedValueOnce({
+      ...base,
+      // Legacy/hand-edited JSON: the website must fall back to its defaults, not crash.
+      donation_options: { currency: 'EURO', presetsMinor: ['ten'] },
+    })
+    const corrupt = await GET_PUBLIC_CHURCH({ churchId: 'c1' })
+    expect(corrupt?.donationOptions).toBeUndefined()
+  })
+
   it('includes only fields and relations that exist in generated Prisma.dmmf', () => {
     const churchModel = Prisma.dmmf.datamodel.models.find((m) => m.name === 'Church')
     expect(churchModel).toBeDefined()
     const fieldNames = (churchModel?.fields ?? []).map((f) => f.name)
 
     expect(fieldNames.includes('sanctuary_hours')).toBe(true)
+    expect(fieldNames.includes('donation_options')).toBe(true)
     expect(fieldNames.includes('galleryItems')).toBe(true)
     expect(fieldNames.includes('pastors')).toBe(true)
     expect(fieldNames.includes('serviceTimes')).toBe(true)

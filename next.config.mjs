@@ -10,6 +10,7 @@ const __dirname = dirname(__filename)
 const nextConfig = {
   env: {
     NEXT_PUBLIC_GOOGLE_MAPS_API: process.env.GOOGLE_MAPS_API,
+    NEXT_PUBLIC_GOOGLE_MAPS_MAP_ID: process.env.GOOGLE_MAPS_MAP_ID,
   },
   sassOptions: {
     includePaths: [path.join(__dirname, 'styles')],

@@ -16,7 +16,13 @@ import crypto from 'node:crypto'
  */
 const tx = vi.hoisted(() => ({
   donation: { findUnique: vi.fn(), create: vi.fn(), update: vi.fn() },
-  donationSubscription: { findUnique: vi.fn(), create: vi.fn(), update: vi.fn() },
+  donationSubscription: {
+    findUnique: vi.fn(),
+    create: vi.fn(),
+    update: vi.fn(),
+    findMany: vi.fn(),
+    updateMany: vi.fn(),
+  },
   webhookReceipt: { findUnique: vi.fn(), create: vi.fn(), update: vi.fn() },
   outboxJob: { create: vi.fn(), update: vi.fn(), findFirst: vi.fn() },
 }))
@@ -149,6 +155,40 @@ describe('payment-sync provider', () => {
       expect(tx.donationSubscription.update).toHaveBeenCalledWith({
         where: { id: 's_fresh' },
         data: expect.objectContaining({ provider_status: 'active', church_id: churchId }),
+      })
+    })
+
+    it('cancels older active subscriptions for the same user and church when new active subscription is saved', async () => {
+      const subId = `sub_new_${crypto.randomUUID()}`
+      tx.donationSubscription.findUnique.mockResolvedValueOnce(null)
+      tx.donationSubscription.findMany.mockResolvedValueOnce([
+        { id: 's_old_1', provider_subscription_id: 'sub_old_1' },
+      ])
+      tx.donationSubscription.updateMany.mockResolvedValueOnce({ count: 1 })
+      tx.donationSubscription.create.mockResolvedValueOnce({
+        id: 's_new',
+        church_id: churchId,
+        provider_subscription_id: subId,
+        amount_minor: BigInt(2500),
+        currency: 'eur',
+        provider_status: 'active',
+        user_id: 'u1',
+      })
+
+      const sub = await UPSERT_DONATION_SUBSCRIPTION({
+        churchId,
+        providerSubscriptionId: subId,
+        amountMinor: 2500,
+        currency: 'eur',
+        providerStatus: 'active',
+        eventCreated: Math.floor(Date.now() / 1000),
+        userId: 'u1',
+      })
+
+      expect(sub.provider_status).toBe('active')
+      expect(tx.donationSubscription.updateMany).toHaveBeenCalledWith({
+        where: { id: { in: ['s_old_1'] } },
+        data: { provider_status: 'canceled' },
       })
     })
   })

@@ -111,6 +111,19 @@ export const MobileDiaconalProgramSchema = z.object({
 
 export type MobileDiaconalProgram = z.infer<typeof MobileDiaconalProgramSchema>
 
+/**
+ * MB-03 `DonationOptions`: the preset amounts and cadence a church accepts.
+ * Stored as the church's `donation_options` JSON column; presets stay in minor
+ * units so no rounding is introduced until display.
+ */
+export const MobileDonationOptionsSchema = z.object({
+  currency: z.string().trim().length(3),
+  presetsMinor: z.array(z.number().int().positive()),
+  monthlyEnabled: z.boolean(),
+})
+
+export type MobileDonationOptions = z.infer<typeof MobileDonationOptionsSchema>
+
 /** Public church profile — deliberately omits approved_by/at, status gates, payment. */
 export const MobilePublicChurchSchema = z.object({
   id: z.string(),
@@ -137,6 +150,7 @@ export const MobilePublicChurchSchema = z.object({
   staff: z.array(MobileChurchStaffSchema).optional(),
   deaneryName: z.string().nullable().optional(),
   diaconalPrograms: z.array(MobileDiaconalProgramSchema).optional(),
+  donationOptions: MobileDonationOptionsSchema.optional(),
 })
 
 export type MobilePublicChurch = z.infer<typeof MobilePublicChurchSchema>

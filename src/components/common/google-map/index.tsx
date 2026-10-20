@@ -1,11 +1,14 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
-import { APIProvider, Map, Marker, useMap } from '@vis.gl/react-google-maps'
+import { APIProvider, Map, AdvancedMarker, Pin, useMap } from '@vis.gl/react-google-maps'
 import { Button, Input, Typography } from 'antd'
 
 export const GOOGLE_MAPS_API_KEY = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API ?? ''
 export const getGoogleMapsApiKey = () => GOOGLE_MAPS_API_KEY
+
+export const GOOGLE_MAPS_MAP_ID = process.env.NEXT_PUBLIC_GOOGLE_MAPS_MAP_ID ?? 'DEMO_MAP_ID'
+export const getGoogleMapsMapId = () => GOOGLE_MAPS_MAP_ID
 
 export type GoogleMapPoint = {
   id: string
@@ -35,16 +38,6 @@ function PanToLocation({ center }: { center?: { lat: number; lng: number } | nul
     }
   }, [map, lat, lng])
   return null
-}
-
-const SELECTED_ICON = {
-  path: 'M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z',
-  fillColor: '#005CAD',
-  fillOpacity: 1,
-  strokeColor: '#FFFFFF',
-  strokeWeight: 1.5,
-  scale: 1.6,
-  anchor: { x: 12, y: 22 } as google.maps.Point,
 }
 
 export function GoogleMapPins({
@@ -88,8 +81,9 @@ export function GoogleMapPins({
 
   return (
     <div className={`overflow-hidden rounded-2xl ${className ?? 'h-[360px] w-full'}`}>
-      <APIProvider apiKey={GOOGLE_MAPS_API_KEY} libraries={['geocoding']}>
+      <APIProvider apiKey={GOOGLE_MAPS_API_KEY} libraries={['geocoding', 'marker']}>
         <Map
+          mapId={GOOGLE_MAPS_MAP_ID}
           style={{ width: '100%', height: '100%' }}
           defaultCenter={center}
           defaultZoom={zoom}
@@ -102,14 +96,22 @@ export function GoogleMapPins({
           {validPoints.map((p) => {
             const isSelected = p.id === activeId
             return (
-              <Marker
+              <AdvancedMarker
                 key={p.id}
                 position={{ lat: p.latitude, lng: p.longitude }}
                 title={p.label}
-                icon={isSelected ? SELECTED_ICON : undefined}
                 zIndex={isSelected ? 100 : 1}
                 onClick={onSelect ? () => onSelect(p.id) : undefined}
-              />
+              >
+                {isSelected && (
+                  <Pin
+                    background="#005CAD"
+                    borderColor="#FFFFFF"
+                    glyphColor="#FFFFFF"
+                    scale={1.6}
+                  />
+                )}
+              </AdvancedMarker>
             )
           })}
         </Map>
@@ -197,8 +199,9 @@ export function GoogleMapPicker({
           className="h-[284px] w-full overflow-hidden rounded border border-[#ECEEF0]"
           aria-label={label}
         >
-          <APIProvider apiKey={GOOGLE_MAPS_API_KEY} libraries={['geocoding']}>
+          <APIProvider apiKey={GOOGLE_MAPS_API_KEY} libraries={['geocoding', 'marker']}>
             <Map
+              mapId={GOOGLE_MAPS_MAP_ID}
               style={{ width: '100%', height: '100%' }}
               defaultCenter={currentCenter}
               defaultZoom={hasCoords ? 14 : 11}
@@ -221,7 +224,7 @@ export function GoogleMapPicker({
               {hasCoords && (
                 <>
                   <PanToLocation center={currentCenter} />
-                  <Marker position={currentCenter} />
+                  <AdvancedMarker position={currentCenter} />
                 </>
               )}
             </Map>

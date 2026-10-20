@@ -256,3 +256,83 @@ export const GET_MY_ACTIVE_GIFT = async ({
     churchName: row.church.name,
   }
 }
+
+/** Church label for a donation receipt; does NOT require APPROVED (a paid gift keeps its name). */
+export const GET_CHURCH_LABEL = async ({ churchId }: { churchId: string }) => {
+  return db.church.findUnique({
+    where: { id: churchId },
+    select: { id: true, name: true },
+  })
+}
+
+/**
+ * The giver's own paid donations in a window. Subject-only: every row is
+ * filtered by the caller's own user_id, so no other giver's giving can leak.
+ */
+export const GET_MY_PAID_DONATIONS = async ({
+  userId,
+  from,
+  to,
+}: {
+  userId: string
+  from: Date
+  to: Date
+}) => {
+  const rows = await db.donation.findMany({
+    where: { user_id: userId, status: 'PAID', paid_at: { gte: from, lt: to } },
+    select: { currency: true, amount_minor: true, paid_at: true, church_id: true },
+    orderBy: [{ paid_at: 'desc' }, { id: 'desc' }],
+  })
+  return rows.map((row) => ({
+    currency: row.currency.toUpperCase(),
+    amountMinor: Number(row.amount_minor),
+    paidAt: row.paid_at,
+    churchId: row.church_id,
+  }))
+}
+
+/**
+ * The giver's newest donation row for an attempt shape. An attempt is matched by
+ * (church, amount, currency, cadence) inside a short window: the Stripe checkout
+ * session id is never a payment id, so this is the strongest subject-scoped join
+ * available without guessing.
+ */
+export const GET_MY_DONATION_ATTEMPT = async ({
+  userId,
+  churchId,
+  amountMinor,
+  currency,
+  frequency,
+  since,
+}: {
+  userId: string
+  churchId: string
+  amountMinor: number
+  currency: string
+  frequency: 'one_time' | 'monthly'
+  since: Date
+}) => {
+  const row = await db.donation.findFirst({
+    where: {
+      user_id: userId,
+      church_id: churchId,
+      amount_minor: BigInt(amountMinor),
+      currency: currency.toLowerCase(),
+      // A monthly pledge always carries a subscription; a one-time gift never does.
+      subscription_id: frequency === 'monthly' ? { not: null } : null,
+      created_at: { gte: since },
+    },
+    orderBy: [{ created_at: 'desc' }, { id: 'desc' }],
+    select: { status: true, paid_at: true },
+  })
+  return row ? { status: row.status, paidAt: row.paid_at } : null
+}
+
+/** Durable webhook evidence that Stripe reported the checkout session complete. */
+export const GET_CHECKOUT_RECEIPT = async ({ sessionId }: { sessionId: string }) => {
+  return db.webhookReceipt.findFirst({
+    where: { provider: 'stripe', object_id: sessionId },
+    orderBy: [{ received_at: 'desc' }, { id: 'desc' }],
+    select: { event_type: true, state: true, received_at: true },
+  })
+}

@@ -140,8 +140,12 @@ main and followed churches.
 > Note: The backend Stripe integration is **already planned in the admin docs**
 > (`docs/TASK.md` F8DO + X-MOB: DO-02/05/06/08, MB-02/03) and is not rebuilt
 > for the website. The website only builds the donate/result UI on top of the
-> shared donation controller. WF4 is blocked until those shared backend items
-> land — see `SPEC.md` section 6.2 and `docs/website/TASK.md` WB-40..WB-44.
+> shared donation controller. WB4 (WB-40…WB-44) is implemented: checkout
+> creation/retrieval are wired to the Stripe SDK and the webhook → `payment.sync`
+> path writes donation rows. Still open on the shared side: Stripe Connect
+> per-church accounts (`PaymentAccount`), the currency list and recurring-fee
+> treatment (decisions W2/W3) and the admin DO-05/06/08 items — see
+> `SPEC.md` section 6.3 and `docs/website/TASK.md` WB-40..WB-44.
 
 ## Shared technical and delivery requirements
 
@@ -171,5 +175,6 @@ future addition against a confirmed business need.
 The website has four features: User Onboarding, Church Directory, Prayer, and
 Donations. Onboarding, directory, and Prayer reuse existing backend
 controllers. Donations are website UI only — they reuse the Stripe backend
-already planned in the admin TASK (DO-02/05/06, MB-02/03); WF4 is testable only
-once that shared backend lands.
+already planned in the admin TASK (DO-02/05/06, MB-02/03); the WB4 UI, routes,
+hooks and tests are implemented, while per-church Stripe Connect accounts, the
+currency list and fee treatment (decisions W2/W3) stay open on the shared side.

@@ -975,7 +975,7 @@ export default function ContentsSiteChurchProfile({ churchId }: { churchId: stri
             </section>
 
             {/* Parish Stewardship widget */}
-            <Stewardship churchName={data.name} />
+            <Stewardship churchId={data.id} churchName={data.name} />
 
             {/* Sanctuary Facilities & Access card */}
             <section className="rounded-2xl border border-[#DDE0E4] bg-white p-5 shadow-[0_1px_2px_rgba(0,0,0,0.05)]">

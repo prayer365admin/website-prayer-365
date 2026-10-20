@@ -4,6 +4,7 @@ import { logger } from '@/utils/logger'
 import { CLAIM_PENDING_JOBS, GET_JOB, MARK_JOB_STATE } from '@/providers/outbox-job'
 import {
   GET_PAYMENT_SYNC_CONTEXT,
+  GET_DONATION_SUBSCRIPTION_OWNER,
   UPSERT_DONATION_SUBSCRIPTION,
   UPSERT_DONATION_PAYMENT,
   APPLY_DONATION_REFUND,
@@ -97,15 +98,110 @@ export const processPaymentSyncJob = async (
 
     if (!obj) return requeueOrFail(job, 'MISSING_EVENT_OBJECT')
 
-    const metadata =
-      obj &&
-      typeof obj === 'object' &&
-      'metadata' in obj &&
-      typeof obj.metadata === 'object' &&
-      obj.metadata !== null
-        ? (obj.metadata as Record<string, unknown>)
-        : null
-    const churchId = metadata && typeof metadata.churchId === 'string' ? metadata.churchId : ''
+    // Helper to safely extract metadata across Stripe object shapes
+    const metadata = (() => {
+      if (!obj || typeof obj !== 'object') return null
+      const o = obj as Record<string, unknown>
+      if (o.metadata && typeof o.metadata === 'object' && Object.keys(o.metadata).length > 0) {
+        return o.metadata as Record<string, unknown>
+      }
+      const parent =
+        o.parent && typeof o.parent === 'object' ? (o.parent as Record<string, unknown>) : null
+      const parentSub =
+        parent?.subscription_details && typeof parent.subscription_details === 'object'
+          ? (parent.subscription_details as Record<string, unknown>)
+          : null
+      if (
+        parentSub?.metadata &&
+        typeof parentSub.metadata === 'object' &&
+        Object.keys(parentSub.metadata).length > 0
+      ) {
+        return parentSub.metadata as Record<string, unknown>
+      }
+      const subDetails =
+        o.subscription_details && typeof o.subscription_details === 'object'
+          ? (o.subscription_details as Record<string, unknown>)
+          : null
+      if (
+        subDetails?.metadata &&
+        typeof subDetails.metadata === 'object' &&
+        Object.keys(subDetails.metadata).length > 0
+      ) {
+        return subDetails.metadata as Record<string, unknown>
+      }
+      const lines =
+        o.lines && typeof o.lines === 'object' ? (o.lines as Record<string, unknown>) : null
+      const firstLine =
+        Array.isArray(lines?.data) && typeof lines.data[0] === 'object'
+          ? (lines.data[0] as Record<string, unknown>)
+          : null
+      if (
+        firstLine?.metadata &&
+        typeof firstLine.metadata === 'object' &&
+        Object.keys(firstLine.metadata).length > 0
+      ) {
+        return firstLine.metadata as Record<string, unknown>
+      }
+      return null
+    })()
+
+    let churchId = metadata && typeof metadata.churchId === 'string' ? metadata.churchId : ''
+    let payerUserId = metadata && typeof metadata.userId === 'string' ? metadata.userId : undefined
+
+    const extractSubscriptionId = (raw: unknown): string | undefined => {
+      if (!raw || typeof raw !== 'object') return undefined
+      const o = raw as Record<string, unknown>
+      if (typeof o.subscription === 'string') return o.subscription
+      const parent =
+        o.parent && typeof o.parent === 'object' ? (o.parent as Record<string, unknown>) : null
+      const parentSub =
+        parent?.subscription_details && typeof parent.subscription_details === 'object'
+          ? (parent.subscription_details as Record<string, unknown>)
+          : null
+      if (typeof parentSub?.subscription === 'string') {
+        return parentSub.subscription
+      }
+      const subDetails =
+        o.subscription_details && typeof o.subscription_details === 'object'
+          ? (o.subscription_details as Record<string, unknown>)
+          : null
+      if (typeof subDetails?.subscription === 'string') {
+        return subDetails.subscription
+      }
+      const lines =
+        o.lines && typeof o.lines === 'object' ? (o.lines as Record<string, unknown>) : null
+      const firstLine =
+        Array.isArray(lines?.data) && typeof lines.data[0] === 'object'
+          ? (lines.data[0] as Record<string, unknown>)
+          : null
+      if (typeof firstLine?.subscription === 'string') {
+        return firstLine.subscription
+      }
+      const lineParent =
+        firstLine?.parent && typeof firstLine.parent === 'object'
+          ? (firstLine.parent as Record<string, unknown>)
+          : null
+      const lineSubItem =
+        lineParent?.subscription_item_details &&
+        typeof lineParent.subscription_item_details === 'object'
+          ? (lineParent.subscription_item_details as Record<string, unknown>)
+          : null
+      if (typeof lineSubItem?.subscription === 'string') {
+        return lineSubItem.subscription
+      }
+      return undefined
+    }
+
+    const subscriptionRef = extractSubscriptionId(obj)
+    if (!churchId && typeof subscriptionRef === 'string') {
+      const owner = await GET_DONATION_SUBSCRIPTION_OWNER({
+        providerSubscriptionId: subscriptionRef,
+      })
+      if (owner) {
+        churchId = owner.church_id
+        payerUserId ??= owner.user_id ?? undefined
+      }
+    }
 
     if (!churchId) {
       await FINALIZE_PAYMENT_SYNC_JOB({
@@ -131,6 +227,7 @@ export const processPaymentSyncJob = async (
         (pi.metadata && pi.metadata.subscription_id)
       await UPSERT_DONATION_PAYMENT({
         churchId,
+        userId: payerUserId,
         providerPaymentId: String(pi.id),
         amountMinor: Number(pi.amount),
         currency: String(pi.currency),
@@ -143,6 +240,7 @@ export const processPaymentSyncJob = async (
       const pi = obj as any
       await UPSERT_DONATION_PAYMENT({
         churchId,
+        userId: payerUserId,
         providerPaymentId: String(pi.id),
         amountMinor: Number(pi.amount),
         currency: String(pi.currency),
@@ -154,6 +252,7 @@ export const processPaymentSyncJob = async (
       const ch = obj as any
       await UPSERT_DONATION_PAYMENT({
         churchId,
+        userId: payerUserId,
         providerPaymentId:
           typeof ch.payment_intent === 'string'
             ? ch.payment_intent
@@ -171,6 +270,7 @@ export const processPaymentSyncJob = async (
           typeof ch.payment_intent === 'string' ? ch.payment_intent : ch.payment_intent?.id || ch.id
         await UPSERT_DONATION_PAYMENT({
           churchId,
+          userId: payerUserId,
           providerPaymentId: String(providerPaymentId),
           amountMinor: Number(ch.amount ?? 0),
           currency: String(ch.currency ?? 'usd'),
@@ -199,6 +299,7 @@ export const processPaymentSyncJob = async (
       const currency = String(sub.plan?.currency ?? sub.items?.data?.[0]?.price?.currency ?? 'usd')
       await UPSERT_DONATION_SUBSCRIPTION({
         churchId,
+        userId: payerUserId,
         providerSubscriptionId: String(sub.id),
         amountMinor: amount,
         currency: currency,
@@ -212,6 +313,7 @@ export const processPaymentSyncJob = async (
       const currency = String(sub.plan?.currency ?? sub.items?.data?.[0]?.price?.currency ?? 'usd')
       await UPSERT_DONATION_SUBSCRIPTION({
         churchId,
+        userId: payerUserId,
         providerSubscriptionId: String(sub.id),
         amountMinor: amount,
         currency: currency,
@@ -227,12 +329,13 @@ export const processPaymentSyncJob = async (
       const paymentId = typeof pi === 'string' ? pi : pi?.id || inv.id
       await UPSERT_DONATION_PAYMENT({
         churchId,
+        userId: payerUserId,
         providerPaymentId: String(paymentId),
         amountMinor: Number(inv.amount_paid ?? inv.total ?? 0),
         currency: String(inv.currency ?? 'usd'),
         status: 'PAID',
         paidAt: providerPaidAt,
-        providerSubscriptionId: inv.subscription ? String(inv.subscription) : undefined,
+        providerSubscriptionId: extractSubscriptionId(inv),
       })
     } else if (payload.eventType === 'invoice.payment_failed') {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -243,12 +346,13 @@ export const processPaymentSyncJob = async (
           : inv.payment_intent?.id || inv.id
       await UPSERT_DONATION_PAYMENT({
         churchId,
+        userId: payerUserId,
         providerPaymentId: String(paymentId),
         amountMinor: Number(inv.amount_due ?? inv.total ?? 0),
         currency: String(inv.currency ?? 'usd'),
         status: 'FAILED',
         paidAt: null,
-        providerSubscriptionId: inv.subscription ? String(inv.subscription) : undefined,
+        providerSubscriptionId: extractSubscriptionId(inv),
       })
     }
 

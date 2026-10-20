@@ -1,5 +1,7 @@
 import { db } from '@/utils/db-connection'
 import { GeneralError } from '@/utils/general-error'
+import { STRIPE, isStripeEnabled } from '@/providers/stripe'
+import { logger } from '@/utils/logger'
 
 export async function GET_PAYMENT_SYNC_CONTEXT({ receiptId }: { receiptId?: string }) {
   const receipt = receiptId
@@ -7,6 +9,22 @@ export async function GET_PAYMENT_SYNC_CONTEXT({ receiptId }: { receiptId?: stri
     : null
 
   return { receipt }
+}
+
+/**
+ * Recurring invoice events carry no checkout metadata (only the first payment
+ * does), so church/giver attribution for a renewal falls back to the stored
+ * subscription row created by `customer.subscription.*`.
+ */
+export async function GET_DONATION_SUBSCRIPTION_OWNER({
+  providerSubscriptionId,
+}: {
+  providerSubscriptionId: string
+}) {
+  return db.donationSubscription.findUnique({
+    where: { provider_subscription_id: providerSubscriptionId },
+    select: { church_id: true, user_id: true },
+  })
 }
 
 export async function UPSERT_DONATION_SUBSCRIPTION({
@@ -26,12 +44,34 @@ export async function UPSERT_DONATION_SUBSCRIPTION({
   eventCreated: number
   userId?: string | null
 }) {
-  return await db.$transaction(async (tx) => {
+  let priorToCancel: string[] = []
+
+  const result = await db.$transaction(async (tx) => {
     const existing = await tx.donationSubscription.findUnique({
       where: {
         provider_subscription_id: providerSubscriptionId,
       },
     })
+
+    const effectiveUserId = userId || existing?.user_id
+    if (providerStatus === 'active' && effectiveUserId && churchId) {
+      const priorActive = await tx.donationSubscription.findMany({
+        where: {
+          user_id: effectiveUserId,
+          church_id: churchId,
+          provider_status: 'active',
+          provider_subscription_id: { not: providerSubscriptionId },
+        },
+        select: { id: true, provider_subscription_id: true },
+      })
+      if (priorActive.length > 0) {
+        await tx.donationSubscription.updateMany({
+          where: { id: { in: priorActive.map((s) => s.id) } },
+          data: { provider_status: 'canceled' },
+        })
+        priorToCancel = priorActive.map((s) => s.provider_subscription_id)
+      }
+    }
 
     if (existing) {
       const isCanceled = existing.provider_status === 'canceled'
@@ -41,13 +81,6 @@ export async function UPSERT_DONATION_SUBSCRIPTION({
         : existing.created_at.getTime()
       const isStale = eventCreated * 1000 < existingTime
 
-      /*
-       * State machine stale-event guard:
-       * Terminal 'canceled' status is preserved against older non-terminal events
-       * (e.g. an out-of-order 'active' or 'past_due' created before the cancellation).
-       * Note on asymmetry: non-terminal transitions (such as 'past_due' vs 'active')
-       * overwrite in incoming event order pending final D6 subscription lifecycle resolution.
-       */
       if (isCanceled && isIncomingNonTerminal && isStale) {
         return existing
       }
@@ -59,7 +92,7 @@ export async function UPSERT_DONATION_SUBSCRIPTION({
           amount_minor: amountMinor,
           currency: currency.toLowerCase(),
           provider_status: providerStatus,
-          user_id: userId || existing.user_id,
+          user_id: effectiveUserId,
         },
       })
     }
@@ -71,10 +104,23 @@ export async function UPSERT_DONATION_SUBSCRIPTION({
         amount_minor: amountMinor,
         currency: currency.toLowerCase(),
         provider_status: providerStatus,
-        user_id: userId || null,
+        user_id: effectiveUserId || null,
       },
     })
   })
+
+  if (isStripeEnabled() && priorToCancel.length > 0) {
+    for (const subId of priorToCancel) {
+      await STRIPE.cancelSubscription(subId).catch((err) => {
+        logger.warn('failed_to_cancel_prior_subscription_in_stripe', {
+          subscription_id: subId,
+          error: err instanceof Error ? err.message : String(err),
+        })
+      })
+    }
+  }
+
+  return result
 }
 
 export async function UPSERT_DONATION_PAYMENT({
@@ -96,7 +142,9 @@ export async function UPSERT_DONATION_PAYMENT({
   providerSubscriptionId?: string
   userId?: string | null
 }) {
-  return await db.$transaction(async (tx) => {
+  let priorToCancel: string[] = []
+
+  const result = await db.$transaction(async (tx) => {
     let subscriptionId: string | null = null
 
     if (providerSubscriptionId) {
@@ -113,14 +161,40 @@ export async function UPSERT_DONATION_PAYMENT({
             amount_minor: 0, // Placeholder
             currency: currency.toLowerCase(),
             provider_status: 'active', // Placeholder
+            user_id: userId || null,
           },
         })
-      } else if (sub.church_id !== churchId) {
-        sub = await tx.donationSubscription.update({
-          where: { id: sub.id },
-          data: { church_id: churchId },
-        })
+      } else {
+        const updateData: { church_id?: string; user_id?: string } = {}
+        if (sub.church_id !== churchId) updateData.church_id = churchId
+        if (!sub.user_id && userId) updateData.user_id = userId
+        if (Object.keys(updateData).length > 0) {
+          sub = await tx.donationSubscription.update({
+            where: { id: sub.id },
+            data: updateData,
+          })
+        }
       }
+
+      if (userId && sub.provider_status === 'active') {
+        const priorActive = await tx.donationSubscription.findMany({
+          where: {
+            user_id: userId,
+            church_id: churchId,
+            provider_status: 'active',
+            id: { not: sub.id },
+          },
+          select: { id: true, provider_subscription_id: true },
+        })
+        if (priorActive.length > 0) {
+          await tx.donationSubscription.updateMany({
+            where: { id: { in: priorActive.map((s) => s.id) } },
+            data: { provider_status: 'canceled' },
+          })
+          priorToCancel = priorActive.map((s) => s.provider_subscription_id)
+        }
+      }
+
       subscriptionId = sub.id
     }
 
@@ -187,6 +261,19 @@ export async function UPSERT_DONATION_PAYMENT({
       },
     })
   })
+
+  if (isStripeEnabled() && priorToCancel.length > 0) {
+    for (const subId of priorToCancel) {
+      await STRIPE.cancelSubscription(subId).catch((err) => {
+        logger.warn('failed_to_cancel_prior_subscription_in_stripe', {
+          subscription_id: subId,
+          error: err instanceof Error ? err.message : String(err),
+        })
+      })
+    }
+  }
+
+  return result
 }
 
 export async function APPLY_DONATION_REFUND({

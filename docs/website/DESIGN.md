@@ -33,9 +33,11 @@ account pages (`/login`, `/register`, `/verify-*`, `/forgot-password`,
 | Footer (account pages)  | Legal row only                                                                                                                       |
 
 Primary navigation links: `/churches`, `/events`, `/giving`, `/prayers`; the search
-and notification icons point at `/search` and `/notifications`. Those four feature
-pages are not built yet (WB-23 ○, WB-40/WB-41 blocked on the donation backend), so
-the links are live and 404 until the pages ship — accepted, tracked in TASK.md.
+and notification icons point at `/search` and `/notifications`. `/giving` and the
+donation pages (`/donate`, `/donate/:churchId`, `/donate/result`) ship with WB4, so
+that link resolves. `/events`, `/search`, `/notifications` and the footer
+`/privacy`, `/terms`, `/support` links are still unbuilt (WB-23 ○) and return 404
+until those pages ship — accepted, tracked in TASK.md.
 
 Footer supports links: `/privacy`, `/terms`, `/support` (same status as above). The
 Pastoral Care panel only shows a phone number once a real, verified number is set in
@@ -155,8 +157,9 @@ separate login at `/admin/login` (not shared; see SPEC §4 note).
 - Header: cover, church name, denomination, city, service times (local wall
   clock).
 - Blocks: description, address, contacts, website, languages, accessibility.
-- Primary action: **Donate** (W11) — today the profile renders a **disabled** Donate button with a
-  not-ready note until the shared donation backend (MB-02/MB-03) lands.
+- Primary action: **Donate** (W11) — the parish Stewardship card links to that church's live donate page
+  (`/donate/:churchId`, WB-41). The donate page itself disables the pay button with a not-ready note while
+  `STRIPE_ENABLED !== 'true'`; there is no disabled CTA on the profile any more.
 - Secondary: "View prayers" (W09) — not built as a link: the profile renders its prayer list inline in
   the "Prayer Lists" card with its own filter; the `/churches/:churchId/prayers` route exists but has no
   entry point yet (WB-23 ◐).
