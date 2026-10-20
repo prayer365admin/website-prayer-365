@@ -83,8 +83,7 @@ const submit = async (token: string, churchId: string, body: Body, key: string |
   )
   sent++
   const label = `#${sent} ${body.kind}${body.subject ? ` "${body.subject}"` : ''} key=${key ?? '(none)'}`
-  if (status === 200)
-    out(`✔ ${status} ${label} → id=${json.result.id} at ${json.result.createdAt}`)
+  if (status === 200) out(`✔ ${status} ${label} → id=${json.result.id} at ${json.result.createdAt}`)
   else out(`✖ ${status} ${label} → ${json.error_code ?? json.error}: ${json.details ?? ''}`)
   return status
 }

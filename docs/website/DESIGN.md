@@ -18,15 +18,28 @@ screens only.
 ## Shared layout
 
 Website pages in the `(site)` route group share a top navigation bar and footer.
-The navigation bar shows the PRAYER brand, a language selector, and the signed-in
-account menu. `/customer` is intentionally outside that group and has its own
-dashboard-style header/content/footer layout without the admin sidebar.
+The navigation bar shows the PRAYER brand, the primary navigation, the church
+picker, a language selector, and the signed-in account menu. `/customer` uses the
+same website chrome through its own `(profile)` layout (no admin sidebar); the
+account pages (`/login`, `/register`, `/verify-*`, `/forgot-password`,
+`/reset-password`, `/customer/setup`) use the shorter account-flow header.
 
-| Element   | Content                                                                |
-| --------- | ---------------------------------------------------------------------- |
-| Top bar   | PRAYER brand · language switch (en/et/sv/fi) · account menu / sign out |
-| Main area | Page content per screen below                                          |
-| Footer    | About, contact, privacy note, platform credit                          |
+| Element                 | Content                                                                                                                              |
+| ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
+| Top bar                 | PRAYER brand + home · primary nav · church picker · language switch (en/et/sv/fi) · search · notifications · account menu / sign out |
+| Top bar (account pages) | PRAYER brand + home · Sign In · Begin Fellowship · Spiritual Walk · language · account menu                                          |
+| Main area               | Page content per screen below                                                                                                        |
+| Footer                  | Prayer 365 identity + verse · Parish Network · Pastoral Care & Support · legal links + copyright                                     |
+| Footer (account pages)  | Legal row only                                                                                                                       |
+
+Primary navigation links: `/churches`, `/events`, `/giving`, `/prayers`; the search
+and notification icons point at `/search` and `/notifications`. Those four feature
+pages are not built yet (WB-23 ○, WB-40/WB-41 blocked on the donation backend), so
+the links are live and 404 until the pages ship — accepted, tracked in TASK.md.
+
+Footer supports links: `/privacy`, `/terms`, `/support` (same status as above). The
+Pastoral Care panel only shows a phone number once a real, verified number is set in
+`src/components/site/support-hotline.ts`; until then it links to `/churches`.
 
 Do not show admin menus to customers. Everything is behind sign-in; the
 website never renders content pages to unauthenticated visitors (they go to

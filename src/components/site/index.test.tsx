@@ -1,10 +1,15 @@
 import { SiteI18nProvider } from '@/i18n/site-i18n'
-import { renderWithProviders } from '@/test/frontend/render'
+import { SITE_MESSAGES } from '@/i18n/messages'
+import { renderWithProviders, sessionMock } from '@/test/frontend/render'
 import { screen } from '@testing-library/react'
-import { describe, expect, it } from 'vitest'
+import { beforeEach, describe, expect, it } from 'vitest'
 import SiteShell from '.'
 
 describe('SiteShell', () => {
+  beforeEach(() => {
+    sessionMock.mockReturnValue({ data: { user: { user_id: 'u1' } }, status: 'authenticated' })
+  })
+
   it('wraps website content with the customer header and footer', () => {
     renderWithProviders(
       <SiteI18nProvider initialLocale="en">
@@ -13,8 +18,38 @@ describe('SiteShell', () => {
     )
 
     expect(screen.getByRole('banner')).toBeTruthy()
-    expect(screen.getByRole('link', { name: 'Account' }).getAttribute('href')).toBe('/customer')
+    expect(screen.getByRole('button', { name: SITE_MESSAGES.en.account })).toBeTruthy()
+    expect(screen.getByRole('navigation', { name: SITE_MESSAGES.en.headerPrimaryNav })).toBeTruthy()
     expect(screen.getByText('Customer profile')).toBeTruthy()
     expect(screen.getByRole('contentinfo')).toBeTruthy()
+    expect(screen.getByRole('heading', { name: SITE_MESSAGES.en.footerParishHeading })).toBeTruthy()
+    expect(
+      screen.getByRole('heading', { name: SITE_MESSAGES.en.footerSupportHeading }),
+    ).toBeTruthy()
+  })
+
+  it('never renders a phone number while no verified hotline exists', () => {
+    renderWithProviders(
+      <SiteI18nProvider initialLocale="en">
+        <SiteShell>Customer profile</SiteShell>
+      </SiteI18nProvider>,
+    )
+
+    expect(document.querySelector('a[href^="tel:"]')).toBeNull()
+    expect(
+      screen.getByRole('link', { name: SITE_MESSAGES.en.contactPastoralCare }).getAttribute('href'),
+    ).toBe('/churches')
+  })
+
+  // The shell is a client component, so the language switch must reach the footer copy.
+  it('renders the chrome in the provider language', () => {
+    renderWithProviders(
+      <SiteI18nProvider initialLocale="et">
+        <SiteShell>Customer profile</SiteShell>
+      </SiteI18nProvider>,
+    )
+
+    expect(screen.getByText(SITE_MESSAGES.et.footerParishHeading)).toBeTruthy()
+    expect(screen.getByRole('link', { name: SITE_MESSAGES.et.headerDiscoverChurches })).toBeTruthy()
   })
 })

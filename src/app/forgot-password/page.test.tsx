@@ -4,8 +4,14 @@ import { screen } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 import Page from './page'
 
-const cookies = vi.hoisted(() => vi.fn())
+const { cookies, redirectAuthenticatedCustomer } = vi.hoisted(() => ({
+  cookies: vi.fn(),
+  redirectAuthenticatedCustomer: vi.fn(),
+}))
 vi.mock('next/headers', () => ({ cookies }))
+vi.mock('@/utils/redirect-authenticated-customer', () => ({
+  default: redirectAuthenticatedCustomer,
+}))
 
 describe('Forgot password route page', () => {
   it('renders the forgot-password card in the cookie language', async () => {
@@ -13,6 +19,7 @@ describe('Forgot password route page', () => {
 
     renderWithProviders(await Page())
 
+    expect(redirectAuthenticatedCustomer).toHaveBeenCalledOnce()
     expect(
       screen.getByRole('heading', { level: 1, name: SITE_MESSAGES.sv.forgotTitle }),
     ).toBeTruthy()
