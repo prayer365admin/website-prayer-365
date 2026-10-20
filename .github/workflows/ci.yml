@@ -15,6 +15,12 @@ jobs:
         with:
           bun-version: latest
       - run: bun install --frozen-lockfile
+      # Prisma Client is GENERATED output inside node_modules — a fresh install
+      # has none, so `tsc` sees an empty @prisma/client (38 errors: "has no
+      # exported member 'PrismaClient'/'OrgNodeKind'/…" plus cascading implicit
+      # anys). Prisma 7 no longer auto-generates on install, and `prisma generate`
+      # needs no database, only the schema.
+      - run: bunx prisma generate
       - run: bun run typecheck
       - run: bun run lint
       # Vitest runs ALONE: two concurrent `vitest run`s in this repo starve the
@@ -35,6 +41,16 @@ jobs:
       - uses: oven-sh/setup-bun@v2
         with:
           bun-version: latest
+      # The CDK Lambda bundles are built from the REPO ROOT (src/lambda/*), so
+      # esbuild needs the app's dependencies too: without them `cdk synth` dies
+      # with "Could not resolve bcryptjs / @prisma/client". Prisma Client is
+      # generated output as well, so both steps are required here.
+      - name: install app dependencies (bundled into the Lambdas)
+        working-directory: ${{ github.workspace }}
+        run: bun install --frozen-lockfile
+      - name: generate the Prisma client (imported by the bundles)
+        working-directory: ${{ github.workspace }}
+        run: bunx prisma generate
       - run: bun install --frozen-lockfile
       - run: bunx tsc --noEmit
       - run: bunx vitest run
