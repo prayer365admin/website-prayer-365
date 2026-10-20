@@ -4,11 +4,13 @@ import { screen } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 import Page from './page'
 
-const { cookies, redirectAuthenticatedCustomer } = vi.hoisted(() => ({
+const { cookies, getRegionalSanctuaryStats, redirectAuthenticatedCustomer } = vi.hoisted(() => ({
   cookies: vi.fn(),
+  getRegionalSanctuaryStats: vi.fn(),
   redirectAuthenticatedCustomer: vi.fn(),
 }))
 vi.mock('next/headers', () => ({ cookies }))
+vi.mock('@/controller/regional-sanctuary-stats', () => ({ getRegionalSanctuaryStats }))
 vi.mock('@/utils/redirect-authenticated-customer', () => ({
   default: redirectAuthenticatedCustomer,
 }))
@@ -16,6 +18,7 @@ vi.mock('@/utils/redirect-authenticated-customer', () => ({
 describe('Register route page', () => {
   it('renders the customer sign-up wizard in the cookie language', async () => {
     cookies.mockResolvedValue({ get: () => ({ value: 'fi' }) })
+    getRegionalSanctuaryStats.mockResolvedValue({ approvedChurches: 12, dioceses: 3 })
 
     renderWithProviders(await Page())
 
@@ -24,5 +27,6 @@ describe('Register route page', () => {
       screen.getByRole('heading', { level: 1, name: SITE_MESSAGES.fi.signUpTitle }),
     ).toBeTruthy()
     expect(screen.getByLabelText(SITE_MESSAGES.fi.signUpNameLabel)).toBeTruthy()
+    expect(screen.getByText('12 seurakuntaa')).toBeTruthy()
   })
 })

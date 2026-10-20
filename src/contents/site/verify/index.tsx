@@ -35,7 +35,7 @@ export default function ContentsSiteVerify({
           <Suspense fallback={null}>
             {mode === 'confirm' ? <ConfirmEmail /> : <PendingVerification />}
           </Suspense>
-          <AuthCardSection className="border-t border-neutral-200 text-sm">
+          <AuthCardSection className="border-t border-neutral-200 text-center text-sm">
             <Link className="font-semibold text-primary-500" href="/login">
               {t('signUpSuccessAction')}
             </Link>

@@ -3,6 +3,7 @@ import AuthLayout from '@/components/site/auth/auth-layout'
 import SignUpAside from '@/components/site/auth/sign-up-aside'
 import { SiteLocale } from '@/config/site-locale'
 import { siteT } from '@/i18n/messages'
+import { RegionalSanctuaryStats } from '@/models/regional-sanctuary-stats'
 import Link from 'next/link'
 import SignUpForm from './form'
 
@@ -11,12 +12,18 @@ import SignUpForm from './form'
  * the card footer render as HTML; only <SignUpForm /> (header with the step
  * counter + the steps) hydrates.
  */
-export default function ContentsSiteSignUp({ locale }: { locale: SiteLocale }) {
+export default function ContentsSiteSignUp({
+  locale,
+  regionalStats = null,
+}: {
+  locale: SiteLocale
+  regionalStats?: RegionalSanctuaryStats | null
+}) {
   const t = siteT(locale)
 
   return (
     <AuthLayout
-      aside={<SignUpAside t={t} />}
+      aside={<SignUpAside locale={locale} stats={regionalStats} t={t} />}
       asideFirst
       // Design: aside 466px + 24px gap + form 662px = 1152px container.
       containerClassName="lg:grid-cols-[minmax(0,466fr)_minmax(0,662fr)] lg:gap-6"
@@ -32,7 +39,7 @@ export default function ContentsSiteSignUp({ locale }: { locale: SiteLocale }) {
         <AuthCard>
           <SignUpForm />
           <AuthCardSection className="border-t border-neutral-200">
-            <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
+            <div className="flex flex-col items-center justify-center gap-2 text-center text-sm md:flex-row md:flex-wrap md:justify-between md:text-left">
               <span className="text-neutral-600">{t('signUpHaveAccount')}</span>
               <Link className="font-semibold text-primary-500" href="/login">
                 {t('signUpSignIn')}

@@ -3,8 +3,9 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 const tx = vi.hoisted(() => ({
   role: { findUnique: vi.fn() },
   church: { findFirst: vi.fn() },
-  user: { create: vi.fn() },
+  user: { create: vi.fn(), findUnique: vi.fn(), update: vi.fn() },
   userChurch: { create: vi.fn() },
+  oAuthAccount: { create: vi.fn(), findUnique: vi.fn() },
 }))
 const db = vi.hoisted(() => ({
   $transaction: vi.fn(),
@@ -13,7 +14,7 @@ const db = vi.hoisted(() => ({
 
 vi.mock('@/utils/db-connection', () => ({ db }))
 
-import { CREATE_CUSTOMER, GET_CUSTOMERS, GET_USERS } from './user'
+import { CREATE_CUSTOMER, FIND_OR_CREATE_OAUTH_CUSTOMER, GET_CUSTOMERS, GET_USERS } from './user'
 
 const payload = {
   email: 'maria@example.com',
@@ -114,5 +115,90 @@ describe('staff vs customer lists (R-01/R-02)', () => {
       OR: [{ role_id: null }, { role: { is: { name: 'prayer_user' } } }],
     })
     expect(where.AND[1].OR.length).toBeGreaterThan(0)
+  })
+})
+
+describe('FIND_OR_CREATE_OAUTH_CUSTOMER', () => {
+  const input = {
+    provider: 'google',
+    providerAccountId: 'google-123',
+    email: 'maria@example.com',
+    name: 'Maria',
+    profilePicture: 'https://example.com/maria.png',
+  }
+
+  beforeEach(() => {
+    vi.clearAllMocks()
+    db.$transaction.mockImplementation(async (fn: (t: typeof tx) => unknown) => fn(tx))
+    tx.oAuthAccount.findUnique.mockResolvedValue(null)
+    tx.role.findUnique.mockResolvedValue({ id: 'r-user' })
+  })
+
+  it('creates a verified customer and links the Google subject', async () => {
+    tx.user.findUnique.mockResolvedValue(null)
+    tx.user.create.mockResolvedValue({
+      id: 'u1',
+      ...input,
+      role: { id: 'r-user', name: 'prayer_user', permission: [] },
+      status: 'active',
+      auth_version: 1,
+    })
+
+    const result = await FIND_OR_CREATE_OAUTH_CUSTOMER(input)
+
+    expect(tx.user.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          email: input.email,
+          password: null,
+          email_verified_at: expect.any(Date),
+          role_id: 'r-user',
+        }),
+      }),
+    )
+    expect(tx.oAuthAccount.create).toHaveBeenCalledWith({
+      data: {
+        user_id: 'u1',
+        provider: 'google',
+        provider_account_id: 'google-123',
+      },
+    })
+    expect(result?.id).toBe('u1')
+  })
+
+  it('links an existing customer with the same verified email', async () => {
+    const existing = {
+      id: 'u1',
+      email: input.email,
+      name: 'Maria',
+      status: 'active',
+      role: null,
+      email_verified_at: null,
+      profile_picture: null,
+    }
+    tx.user.findUnique.mockResolvedValue(existing)
+    tx.user.update.mockResolvedValue({ ...existing, email_verified_at: new Date() })
+
+    await FIND_OR_CREATE_OAUTH_CUSTOMER(input)
+
+    expect(tx.user.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: 'u1' },
+        data: expect.objectContaining({ email_verified_at: expect.any(Date) }),
+      }),
+    )
+    expect(tx.oAuthAccount.create).toHaveBeenCalled()
+  })
+
+  it('does not link a staff account through customer Google login', async () => {
+    tx.user.findUnique.mockResolvedValue({
+      id: 'staff-1',
+      email: input.email,
+      status: 'active',
+      role: { name: 'prayer_administrator' },
+    })
+
+    expect(await FIND_OR_CREATE_OAUTH_CUSTOMER(input)).toBeNull()
+    expect(tx.oAuthAccount.create).not.toHaveBeenCalled()
   })
 })

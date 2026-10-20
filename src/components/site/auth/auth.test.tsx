@@ -62,7 +62,7 @@ describe('StepHeader', () => {
   })
 })
 
-describe('auth asides (hardcoded, F2)', () => {
+describe('auth asides', () => {
   it('sign-in aside renders the stream, reminder and seal cards', () => {
     renderEn(<SignInAside t={siteT('en')} />)
 
@@ -74,11 +74,15 @@ describe('auth asides (hardcoded, F2)', () => {
   })
 
   it('sign-up aside renders the journey, stats and church photo', () => {
-    renderEn(<SignUpAside t={siteT('en')} />)
+    renderEn(
+      <SignUpAside locale="en" stats={{ approvedChurches: 12, dioceses: 3 }} t={siteT('en')} />,
+    )
 
     expect(screen.getByText(en.journeyTitle)).toBeTruthy()
     expect(screen.getByText(en.signUpQuote)).toBeTruthy()
-    expect(screen.getByText(en.vespersValue)).toBeTruthy()
+    expect(screen.getByText('12 Parishes')).toBeTruthy()
+    expect(screen.getByText('3')).toBeTruthy()
+    expect(screen.queryByText(en.vespersLabel)).toBeNull()
     expect(screen.getByAltText(en.photoCaption)).toBeTruthy()
   })
 })

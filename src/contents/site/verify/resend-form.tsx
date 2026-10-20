@@ -17,7 +17,13 @@ type Notice = 'sent' | 'alreadyVerified' | null
  * server cooldown. The success text is soft on purpose: the backend answers
  * the same for unknown emails (no account enumeration).
  */
-export default function ResendForm({ initialEmail = '' }: { initialEmail?: string }) {
+export default function ResendForm({
+  centered = false,
+  initialEmail = '',
+}: {
+  centered?: boolean
+  initialEmail?: string
+}) {
   const { t } = useSiteI18n()
   const [form] = Form.useForm<{ email: string }>()
   const { onResend, sending } = useResendVerification()
@@ -51,7 +57,11 @@ export default function ResendForm({ initialEmail = '' }: { initialEmail?: strin
 
   return (
     <Form
-      className="site-form"
+      className={`site-form ${
+        centered
+          ? '[&_.ant-form-item-explain]:text-center [&_.ant-form-item-label]:text-center'
+          : ''
+      }`}
       disabled={sending}
       form={form}
       initialValues={{ email: initialEmail }}

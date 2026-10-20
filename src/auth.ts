@@ -1,5 +1,6 @@
 import NextAuth from 'next-auth'
 import Credentials from 'next-auth/providers/credentials'
+import Google, { type GoogleProfile } from 'next-auth/providers/google'
 
 declare module 'next-auth' {
   /**
@@ -27,9 +28,9 @@ declare module 'next-auth' {
 }
 
 // The `JWT` interface can be found in the `next-auth/jwt` submodule
-import { User } from 'next-auth'
+import type { Account, Profile, User } from 'next-auth'
 import { JWT } from 'next-auth/jwt'
-import { loginUser } from './controller/authentication'
+import { getOAuthUser, loginGoogleCustomer, loginUser } from './controller/authentication'
 import { getUserByEmail } from './controller/user'
 
 declare module 'next-auth/jwt' {
@@ -66,9 +67,27 @@ export const customerAuthorize = async (credentials: Record<string, unknown>) =>
 }
 
 export const authCallbacks = {
-  jwt: async ({ token }: { token: JWT }) => {
-    const email = token.email as string
-    const result = await getUserByEmail({ email })
+  signIn: async ({ account, profile }: { account?: Account | null; profile?: Profile }) => {
+    if (account?.provider !== 'google') return true
+    const googleProfile = profile as GoogleProfile | undefined
+    if (!googleProfile?.email_verified || !googleProfile.email || !account.providerAccountId)
+      return false
+
+    const customer = await loginGoogleCustomer({
+      providerAccountId: account.providerAccountId,
+      email: googleProfile.email,
+      name: googleProfile.name || googleProfile.email.split('@')[0],
+      profilePicture: googleProfile.picture || null,
+    })
+    return !!customer
+  },
+  jwt: async ({ token, account }: { token: JWT; account?: Account | null }) => {
+    const result = account?.providerAccountId
+      ? await getOAuthUser({
+          provider: account.provider,
+          providerAccountId: account.providerAccountId,
+        })
+      : await getUserByEmail({ email: token.email as string })
 
     // Unknown/deleted user ends the session. A role-less customer keeps theirs.
     if (!result) {
@@ -77,6 +96,8 @@ export const authCallbacks = {
 
     return {
       ...token,
+      email: result.email,
+      name: result.name,
       user: {
         role: result.role ? { id: result.role.id, name: result.role.name } : null,
         user_id: result.id,
@@ -104,6 +125,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
     }),
   },
   providers: [
+    Google,
     Credentials({
       credentials: {
         name: {},

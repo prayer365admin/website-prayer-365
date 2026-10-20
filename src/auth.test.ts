@@ -1,8 +1,17 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-const m = vi.hoisted(() => ({ loginUser: vi.fn(), getUserByEmail: vi.fn() }))
+const m = vi.hoisted(() => ({
+  loginUser: vi.fn(),
+  loginGoogleCustomer: vi.fn(),
+  getOAuthUser: vi.fn(),
+  getUserByEmail: vi.fn(),
+}))
 
-vi.mock('@/controller/authentication', () => ({ loginUser: m.loginUser }))
+vi.mock('@/controller/authentication', () => ({
+  loginUser: m.loginUser,
+  loginGoogleCustomer: m.loginGoogleCustomer,
+  getOAuthUser: m.getOAuthUser,
+}))
 vi.mock('@/controller/user', () => ({ getUserByEmail: m.getUserByEmail }))
 
 // The real NextAuth init pulls in `next/server`, which vitest (jsdom) cannot
@@ -14,6 +23,10 @@ vi.mock('next-auth', () => ({
 vi.mock('next-auth/providers/credentials', () => ({
   __esModule: true,
   default: () => ({}),
+}))
+vi.mock('next-auth/providers/google', () => ({
+  __esModule: true,
+  default: {},
 }))
 
 import { authCallbacks, customerAuthorize } from './auth'
@@ -65,5 +78,52 @@ describe('customer sign-in branch', () => {
     const token = await authCallbacks.jwt({ token: { email: 'gone@example.com' } as never })
 
     expect(token).toBeNull()
+  })
+
+  it('creates or links a customer for a verified Google profile', async () => {
+    m.loginGoogleCustomer.mockResolvedValue(customer)
+
+    const allowed = await authCallbacks.signIn({
+      account: { provider: 'google', providerAccountId: 'google-123' } as never,
+      profile: {
+        email: 'customer@example.com',
+        email_verified: true,
+        name: 'Customer',
+        picture: 'https://example.com/avatar.png',
+      },
+    })
+
+    expect(allowed).toBe(true)
+    expect(m.loginGoogleCustomer).toHaveBeenCalledWith({
+      providerAccountId: 'google-123',
+      email: 'customer@example.com',
+      name: 'Customer',
+      profilePicture: 'https://example.com/avatar.png',
+    })
+  })
+
+  it('rejects an unverified Google email', async () => {
+    const allowed = await authCallbacks.signIn({
+      account: { provider: 'google', providerAccountId: 'google-123' } as never,
+      profile: { email: 'customer@example.com', email_verified: false },
+    })
+
+    expect(allowed).toBe(false)
+    expect(m.loginGoogleCustomer).not.toHaveBeenCalled()
+  })
+
+  it('hydrates the initial Google JWT from the linked provider account', async () => {
+    m.getOAuthUser.mockResolvedValue(customer)
+
+    const token = await authCallbacks.jwt({
+      token: { email: 'customer@example.com' } as never,
+      account: { provider: 'google', providerAccountId: 'google-123' } as never,
+    })
+
+    expect(m.getOAuthUser).toHaveBeenCalledWith({
+      provider: 'google',
+      providerAccountId: 'google-123',
+    })
+    expect(token?.user).toMatchObject({ user_id: 'c1', role: null })
   })
 })
