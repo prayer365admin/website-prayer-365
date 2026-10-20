@@ -1,0 +1,22 @@
+'use client'
+
+import Icon from '@ant-design/icons'
+import type { GetProps } from 'antd'
+
+type CustomIconComponentProps = GetProps<typeof Icon>
+
+// Source: public/icons/icon-right-log.svg.
+const IconSvg = () => (
+  <svg width="1em" height="1em" viewBox="0 0 25 25" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <path
+      d="M10 7H6.25V18H10.75V19.5H4.75V5.5H10.75V7H10ZM20.5312 13.0312L16.2812 17.2812L15.75 17.8125L14.7188 16.75L15.25 16.2188L18.2188 13.25H9.75V11.75H18.2188L15.25 8.78125L14.7188 8.25L15.75 7.1875L16.2812 7.71875L20.5312 11.9688L21.0625 12.5L20.5312 13.0312Z"
+      fill="currentColor"
+    />
+  </svg>
+)
+
+const CustomIcon = (props: Partial<CustomIconComponentProps>) => (
+  <Icon component={IconSvg} {...props} />
+)
+
+export { CustomIcon as RightLogIcon }

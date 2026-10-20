@@ -2,19 +2,23 @@ import ContentsSiteSignUp from '@/contents/site/sign-up'
 import SiteShell from '@/components/site'
 import SessionAccessGuard from '@/components/site/session-access-guard'
 import { SiteI18nProvider } from '@/i18n/site-i18n'
+import { getRegionalSanctuaryStats } from '@/controller/regional-sanctuary-stats'
 import redirectAuthenticatedCustomer from '@/utils/redirect-authenticated-customer'
 import { getSiteLocale } from '@/utils/site-locale'
 
 // Customer sign-up (W02), 3 steps.
 export default async function Page() {
   await redirectAuthenticatedCustomer()
-  const locale = await getSiteLocale()
+  const [locale, regionalStats] = await Promise.all([
+    getSiteLocale(),
+    getRegionalSanctuaryStats().catch(() => null),
+  ])
 
   return (
     <SiteI18nProvider initialLocale={locale}>
       <SessionAccessGuard access="guest" />
       <SiteShell footerVariant="legal-only" headerVariant="auth">
-        <ContentsSiteSignUp locale={locale} />
+        <ContentsSiteSignUp locale={locale} regionalStats={regionalStats} />
       </SiteShell>
     </SiteI18nProvider>
   )

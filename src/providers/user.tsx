@@ -5,7 +5,7 @@ import { RoleType } from '@prisma/client'
 import { db } from '@/utils/db-connection'
 import keywordSearch from '@/utils/keyword-search'
 import { Prisma } from '@prisma/client'
-import { CUSTOMER_ROLE } from '@/utils/customer-role'
+import { CUSTOMER_ROLE, isCustomerRole } from '@/utils/customer-role'
 
 const data = 'user'
 
@@ -112,6 +112,121 @@ export const GET_USER_BY_EMAIL = async ({ email }: { email: string }) => {
   })
   return result
 }
+
+export const GET_USER_BY_OAUTH_ACCOUNT = async ({
+  provider,
+  providerAccountId,
+}: {
+  provider: string
+  providerAccountId: string
+}) => {
+  const account = await db.oAuthAccount.findUnique({
+    where: {
+      provider_provider_account_id: {
+        provider,
+        provider_account_id: providerAccountId,
+      },
+    },
+    select: {
+      user: {
+        omit: SAFE,
+        include: { role: { include: { permission: true } } },
+      },
+    },
+  })
+  return account?.user ?? null
+}
+
+/**
+ * Link a verified OAuth identity to an existing customer, or create a new
+ * customer with no password. Staff identities are never linked through the
+ * customer sign-in page.
+ */
+export const FIND_OR_CREATE_OAUTH_CUSTOMER = async ({
+  provider,
+  providerAccountId,
+  email,
+  name,
+  profilePicture,
+}: {
+  provider: string
+  providerAccountId: string
+  email: string
+  name: string
+  profilePicture: string | null
+}) =>
+  db.$transaction(async (tx) => {
+    const linked = await tx.oAuthAccount.findUnique({
+      where: {
+        provider_provider_account_id: {
+          provider,
+          provider_account_id: providerAccountId,
+        },
+      },
+      select: {
+        user: {
+          omit: SAFE,
+          include: { role: { include: { permission: true } } },
+        },
+      },
+    })
+
+    if (linked) {
+      return linked.user.status === 'active' && isCustomerRole(linked.user.role)
+        ? linked.user
+        : null
+    }
+
+    let user = await tx.user.findUnique({
+      where: { email },
+      omit: SAFE,
+      include: { role: { include: { permission: true } } },
+    })
+
+    if (user && (user.status !== 'active' || !isCustomerRole(user.role))) return null
+
+    if (user) {
+      user = await tx.user.update({
+        where: { id: user.id },
+        data: {
+          email_verified_at: user.email_verified_at ?? new Date(),
+          profile_picture: user.profile_picture ?? profilePicture ?? undefined,
+        },
+        omit: SAFE,
+        include: { role: { include: { permission: true } } },
+      })
+    } else {
+      const role = await tx.role.findUnique({
+        where: { name: CUSTOMER_ROLE },
+        select: { id: true },
+      })
+      if (!role) return null
+
+      user = await tx.user.create({
+        data: {
+          email,
+          name,
+          password: null,
+          email_verified_at: new Date(),
+          profile_picture: profilePicture,
+          locale: null,
+          role_id: role.id,
+        },
+        omit: SAFE,
+        include: { role: { include: { permission: true } } },
+      })
+    }
+
+    await tx.oAuthAccount.create({
+      data: {
+        user_id: user.id,
+        provider,
+        provider_account_id: providerAccountId,
+      },
+    })
+
+    return user
+  })
 
 export const CREATE_USER = async (payload: {
   email: string

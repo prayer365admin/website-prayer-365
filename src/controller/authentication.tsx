@@ -1,4 +1,8 @@
-import { GET_USER_BY_EMAIL } from '@/providers/user'
+import {
+  FIND_OR_CREATE_OAUTH_CUSTOMER,
+  GET_USER_BY_EMAIL,
+  GET_USER_BY_OAUTH_ACCOUNT,
+} from '@/providers/user'
 import { verifySecret } from '@/utils/hash'
 import { CredentialsSignin } from 'next-auth'
 
@@ -38,3 +42,30 @@ export const loginUser = async ({ email, password }: { email: string; password: 
 
   return result
 }
+
+export const loginGoogleCustomer = ({
+  providerAccountId,
+  email,
+  name,
+  profilePicture,
+}: {
+  providerAccountId: string
+  email: string
+  name: string
+  profilePicture: string | null
+}) =>
+  FIND_OR_CREATE_OAUTH_CUSTOMER({
+    provider: 'google',
+    providerAccountId,
+    email: email.trim().toLowerCase(),
+    name: name.trim(),
+    profilePicture,
+  })
+
+export const getOAuthUser = ({
+  provider,
+  providerAccountId,
+}: {
+  provider: string
+  providerAccountId: string
+}) => GET_USER_BY_OAUTH_ACCOUNT({ provider, providerAccountId })

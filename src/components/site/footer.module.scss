@@ -134,13 +134,15 @@
   color: #20252c;
 }
 
-.legalOnly {
-  min-height: auto;
+.footer.legalOnly {
+  height: 66px;
+  min-height: 66px;
+  padding: 0;
 }
 
 .legalOnly .inner {
   display: block;
-  height: auto;
+  height: 100%;
   min-height: 0;
 }
 
@@ -151,7 +153,8 @@
 }
 
 .legalOnly .legal {
-  min-height: 32px;
+  height: 100%;
+  min-height: 0;
 }
 
 @media (max-width: 1280px) {
@@ -188,6 +191,17 @@
 
   .footer {
     padding: 24px 20px;
+  }
+
+  .footer.legalOnly {
+    height: auto;
+    min-height: 66px;
+    padding: 12px 20px;
+  }
+
+  .legalOnly .inner,
+  .legalOnly .legal {
+    height: auto;
   }
 
   .support,

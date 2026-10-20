@@ -226,6 +226,7 @@ export const MobileMyChurchSchema = z.object({
   churchId: z.string(),
   churchName: z.string(),
   city: z.string().nullable(),
+  address: z.string().nullable(),
   coverAssetId: z.string().nullable(),
   coverUrl: z.string().nullable(),
   isMain: z.boolean(),

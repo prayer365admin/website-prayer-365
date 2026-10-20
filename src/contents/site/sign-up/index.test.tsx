@@ -1,6 +1,6 @@
 import { SITE_MESSAGES } from '@/i18n/messages'
 import { SiteI18nProvider } from '@/i18n/site-i18n'
-import { axiosMock, pushMock, renderWithProviders } from '@/test/frontend/render'
+import { axiosMock, pushMock, renderWithProviders, signInMock } from '@/test/frontend/render'
 import { screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
@@ -36,6 +36,7 @@ describe('Customer sign-up (W02)', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     axiosMock.post.mockReset()
+    signInMock.mockResolvedValue({ error: undefined, code: undefined })
   })
 
   it('shows the identity form with the aside and footer', () => {
@@ -55,6 +56,15 @@ describe('Customer sign-up (W02)', () => {
 
     expect(await screen.findByText(en.signUpErrorName)).toBeTruthy()
     expect(axiosMock.post).not.toHaveBeenCalled()
+  })
+
+  it('keeps Apple unavailable and starts Google registration into customer setup', async () => {
+    renderPage()
+
+    expect(screen.getByRole('button', { name: en.signUpApple })).toHaveProperty('disabled', true)
+    await userEvent.click(screen.getByRole('button', { name: en.signUpGoogle }))
+
+    expect(signInMock).toHaveBeenCalledWith('google', { redirectTo: '/customer/setup' })
   })
 
   it('rejects a password shorter than 8 characters', async () => {

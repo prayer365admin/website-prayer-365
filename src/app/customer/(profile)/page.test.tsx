@@ -8,18 +8,24 @@ const m = vi.hoisted(() => ({
     throw new Error(`REDIRECT ${url}`)
   }),
   getMe: vi.fn(),
-  listMyChurches: vi.fn(),
 }))
 
 vi.mock('@/utils/required-webauth', () => ({ default: m.requiredWebAuth }))
 vi.mock('next/navigation', () => ({ redirect: m.redirect }))
 vi.mock('@/controller/mobile', () => ({
   getMe: m.getMe,
-  listMyChurches: m.listMyChurches,
 }))
-vi.mock('@/contents/site/profile', () => ({
-  default: ({ initialMe }: { initialMe: { name: string } }) => (
-    <div>Server profile: {initialMe.name}</div>
+vi.mock('./_components/personal-profile', () => ({
+  default: ({
+    emailVerified,
+    initialMe,
+  }: {
+    emailVerified: boolean
+    initialMe: { name: string }
+  }) => (
+    <div>
+      Server profile: {initialMe.name}; verified: {String(emailVerified)}
+    </div>
   ),
 }))
 
@@ -33,18 +39,18 @@ describe('/customer page server guard', () => {
 
     await expect(Page()).rejects.toThrow('REDIRECT /login')
     expect(m.getMe).not.toHaveBeenCalled()
-    expect(m.listMyChurches).not.toHaveBeenCalled()
   })
 
   it('passes server-loaded customer data to the client profile', async () => {
-    m.requiredWebAuth.mockResolvedValue({ session: { user: { user_id: 'u1' } } })
+    m.requiredWebAuth.mockResolvedValue({
+      session: { user: { user_id: 'u1' } },
+      user: { email_verified_at: new Date('2024-10-01T00:00:00.000Z') },
+    })
     m.getMe.mockResolvedValue({ id: 'u1', name: 'Maria', locale: 'en', mainChurchId: 'c1' })
-    m.listMyChurches.mockResolvedValue([{ churchId: 'c1' }])
 
     render(await Page())
 
-    expect(screen.getByText('Server profile: Maria')).toBeTruthy()
+    expect(screen.getByText('Server profile: Maria; verified: true')).toBeTruthy()
     expect(m.getMe).toHaveBeenCalledWith({ userId: 'u1' })
-    expect(m.listMyChurches).toHaveBeenCalledWith({ userId: 'u1' })
   })
 })

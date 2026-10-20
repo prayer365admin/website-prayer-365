@@ -1,18 +1,20 @@
 import { ChurchIcon } from '@/components/icon/church'
 import { GuardIcon } from '@/components/icon/guard'
-import { IntercedingIcon } from '@/components/icon/interceding'
 import { LocationIcon } from '@/components/icon/location'
 import { SanctuaryIcon } from '@/components/icon/sanctuary'
 import { VerifyIcon } from '@/components/icon/verify'
 import { SiteT } from '@/i18n/messages'
+import { RegionalSanctuaryStats } from '@/models/regional-sanctuary-stats'
+import { SiteLocale } from '@/config/site-locale'
 import Image from 'next/image'
 import { ReactNode } from 'react'
 import Pill from './pill'
 import ScriptureQuote from './scripture-quote'
 
 /*
- * Sign-up side panels (WB1 design). Stats are HARDCODED for now (decision F2,
- * REPORT R-05); they are not live counts.
+ * Sign-up side panels (WB1 design). Public network totals are queried from the
+ * current database by the registration page. Unsupported activity estimates
+ * are intentionally not shown.
  *
  * Server component (no client JS): the page passes `t` from siteT(locale).
  */
@@ -38,7 +40,17 @@ const Stat = ({
   </div>
 )
 
-export default function SignUpAside({ t }: { t: SiteT }) {
+export default function SignUpAside({
+  locale = 'en',
+  stats = null,
+  t,
+}: {
+  locale?: SiteLocale
+  stats?: RegionalSanctuaryStats | null
+  t: SiteT
+}) {
+  const number = new Intl.NumberFormat(locale)
+
   return (
     <>
       <section className="flex flex-col items-center rounded-xl bg-gradient-to-b from-blue-50 to-white p-4 text-center shadow-[0_8px_30px_rgba(15,40,80,0.06)]">
@@ -63,22 +75,22 @@ export default function SignUpAside({ t }: { t: SiteT }) {
             <SanctuaryIcon aria-hidden className="!text-primary-500" style={{ fontSize: 24 }} />
             {t('sanctuariesTitle')}
           </h3>
-          <span className="text-xs text-primary-500">{t('sanctuariesCount')}</span>
+          {stats && (
+            <span className="text-xs text-primary-500">
+              {t('sanctuariesCount', { count: number.format(stats.approvedChurches) })}
+            </span>
+          )}
         </div>
-        <div className="mt-4 grid grid-cols-2 gap-2">
-          <Stat
-            hint={t('vespersHint')}
-            icon={<IntercedingIcon aria-hidden />}
-            label={t('vespersLabel')}
-            value={t('vespersValue')}
-          />
-          <Stat
-            hint={t('diocesesHint')}
-            icon={<LocationIcon aria-hidden />}
-            label={t('diocesesLabel')}
-            value={t('diocesesValue')}
-          />
-        </div>
+        {stats && (
+          <div className="mt-4">
+            <Stat
+              hint={t('diocesesHint')}
+              icon={<LocationIcon aria-hidden />}
+              label={t('diocesesLabel')}
+              value={number.format(stats.dioceses)}
+            />
+          </div>
+        )}
         <figure className="relative mt-4 h-32 overflow-hidden rounded-xl">
           <Image
             alt={t('photoCaption')}

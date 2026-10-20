@@ -45,6 +45,18 @@ describe('SessionAccessGuard', () => {
     useSessionMock.mockReset()
   })
 
+  it('leaves normal page loads to the server guard, even when the client session disagrees', () => {
+    useSessionMock.mockReturnValue({ data: session(null), status: 'authenticated' })
+    const replace = vi.fn()
+    vi.stubGlobal('location', { ...window.location, replace })
+
+    render(<SessionAccessGuard access="guest" />)
+
+    expect(replace).not.toHaveBeenCalled()
+    expect(document.documentElement.style.visibility).not.toBe('hidden')
+    vi.unstubAllGlobals()
+  })
+
   it('reveals the page when the session check fails after a back/forward-cache restore', async () => {
     useSessionMock.mockReturnValue({ data: { user: { user_id: 'u1' } }, status: 'authenticated' })
     getSessionMock.mockRejectedValue(new Error('offline'))

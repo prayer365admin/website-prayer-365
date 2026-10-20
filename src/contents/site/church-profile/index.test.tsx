@@ -369,7 +369,7 @@ describe('ContentsSiteChurchProfile', () => {
     })
   })
 
-  it('renders Donate disabled with the not-ready note', async () => {
+  it('links to the church donate page', async () => {
     axiosMock.get.mockResolvedValueOnce({ data: resolveGet(church) })
 
     renderProfile()

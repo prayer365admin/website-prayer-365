@@ -91,6 +91,44 @@ describe('SiteTopBar', () => {
     )
 
     expect(link(SITE_MESSAGES.en.headerSignIn).getAttribute('aria-current')).toBe('page')
+    expect(link(SITE_MESSAGES.en.signInBeginFellowship).getAttribute('aria-current')).toBeNull()
+  })
+
+  it('marks Begin Fellowship active only on the registration page', () => {
+    pathnameMock.mockReturnValue('/register')
+
+    const { unmount } = renderWithProviders(
+      <SiteI18nProvider initialLocale="en">
+        <SiteTopBar variant="auth" />
+      </SiteI18nProvider>,
+    )
+
+    expect(link(SITE_MESSAGES.en.signInBeginFellowship).getAttribute('aria-current')).toBe('page')
+    expect(link(SITE_MESSAGES.en.headerSignIn).getAttribute('aria-current')).toBeNull()
+
+    unmount()
+    pathnameMock.mockReturnValue('/forgot-password')
+    renderWithProviders(
+      <SiteI18nProvider initialLocale="en">
+        <SiteTopBar variant="auth" />
+      </SiteI18nProvider>,
+    )
+
+    expect(link(SITE_MESSAGES.en.headerSignIn).getAttribute('aria-current')).toBeNull()
+    expect(link(SITE_MESSAGES.en.signInBeginFellowship).getAttribute('aria-current')).toBeNull()
+  })
+
+  it('keeps Begin Fellowship active during customer setup', () => {
+    pathnameMock.mockReturnValue('/customer/setup')
+
+    renderWithProviders(
+      <SiteI18nProvider initialLocale="en">
+        <SiteTopBar variant="auth" />
+      </SiteI18nProvider>,
+    )
+
+    expect(link(SITE_MESSAGES.en.signInBeginFellowship).getAttribute('aria-current')).toBe('page')
+    expect(link(SITE_MESSAGES.en.headerSignIn).getAttribute('aria-current')).toBeNull()
   })
 
   it('marks the home button active only on the home page', () => {

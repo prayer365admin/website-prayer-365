@@ -144,6 +144,7 @@ model User {
   locale_setup_completed_at DateTime?
 
   auth_token AuthToken[] @relation("user_auth_token")
+  oauthAccounts OAuthAccount[]
 
   // Mind/Added Prayer relations
   roleAssignments         RoleAssignment[]         @relation("GrantedTo")
@@ -175,6 +176,22 @@ model User {
   deleted_at DateTime?
 
   @@map("user")
+}
+
+model OAuthAccount {
+  id                  String @id @default(uuid(7))
+  user_id             String
+  user                User   @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  provider            String
+  provider_account_id String
+
+  created_at DateTime  @default(now())
+  updated_at DateTime? @updatedAt
+
+  @@unique([provider, provider_account_id])
+  @@unique([user_id, provider])
+  @@index([user_id])
+  @@map("oauth_accounts")
 }
 
 model Role {
