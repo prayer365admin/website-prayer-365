@@ -2,8 +2,15 @@ import { Prisma } from '@prisma/client'
 import { db } from '@/utils/db-connection'
 import { GeneralError } from '@/utils/general-error'
 import { AuditInput, auditPayload } from '@/utils/audit'
-import { ChurchListQuery, ChurchOverview, ChurchProfileOutput } from '@/models/church'
+import {
+  ChurchGalleryItemInput,
+  ChurchListQuery,
+  ChurchOverview,
+  ChurchProfileOutput,
+} from '@/models/church'
 import { fromClassification, fromKind, requestVisibilityWhere } from '@/providers/request'
+import { S3_PUBLIC_URL } from '@/providers/s3'
+import type { MobileDiaconalProgram } from '@/models/mobile'
 
 /*
  * Church data adapter (Tasks 12/13). UPPER_SNAKE_CASE, single-responsibility.
@@ -57,6 +64,12 @@ export const GET_CHURCH_PROFILE = async ({
     where: { AND: [{ id: churchId }, { id: { in: ids } }] },
     include: {
       churchLanguages: { where: { language: { enabled: true } }, select: { language_code: true } },
+      galleryItems: {
+        orderBy: [{ order_index: 'asc' }],
+        include: {
+          media_asset: { select: { id: true, object_key: true } },
+        },
+      },
     },
   })
   if (!row) return null
@@ -74,6 +87,7 @@ const mapProfile = (
     timezone: string
     description: string | null
     denomination: string | null
+    church_style?: string | null
     address: unknown
     latitude: unknown
     longitude: unknown
@@ -81,8 +95,17 @@ const mapProfile = (
     website: string | null
     social_links: unknown
     accessibility: string | null
+    sanctuary_hours?: string | null
     cover_asset_id: string | null
+    diaconal_programs?: unknown
     version: number
+    galleryItems?: Array<{
+      id: string
+      media_asset_id: string
+      caption: string | null
+      order_index: number
+      media_asset?: { id: string; object_key: string | null } | null
+    }>
   },
   languageCodes: string[],
 ): ChurchProfileOutput => {
@@ -94,6 +117,7 @@ const mapProfile = (
     status: row.status,
     description: row.description,
     denomination: row.denomination,
+    churchStyle: row.church_style ?? null,
     address: row.address,
     coordinates:
       lat !== null && lng !== null ? { latitude: Number(lat), longitude: Number(lng) } : null,
@@ -102,7 +126,18 @@ const mapProfile = (
     website: row.website,
     socialLinks: row.social_links,
     accessibility: row.accessibility,
+    sanctuaryHours: row.sanctuary_hours ?? null,
+    diaconalPrograms: Array.isArray(row.diaconal_programs)
+      ? (row.diaconal_programs as MobileDiaconalProgram[])
+      : [],
     coverAssetId: row.cover_asset_id,
+    galleryItems: (row.galleryItems ?? []).map((g) => ({
+      id: g.id,
+      mediaAssetId: g.media_asset_id,
+      caption: g.caption,
+      orderIndex: g.order_index,
+      url: g.media_asset?.object_key ? S3_PUBLIC_URL({ key: g.media_asset.object_key }) : null,
+    })),
     languageCodes,
     version: row.version,
   }
@@ -165,6 +200,7 @@ export const UPDATE_CHURCH_PROFILE = async ({
   expectedVersion,
   payload,
   languageCodes,
+  galleryItems,
   requestId,
   actorId,
 }: {
@@ -173,6 +209,7 @@ export const UPDATE_CHURCH_PROFILE = async ({
   expectedVersion: number
   payload: Prisma.ChurchUncheckedUpdateInput
   languageCodes: string[]
+  galleryItems?: ChurchGalleryItemInput[]
   requestId: string
   actorId?: string | null
 }): Promise<ChurchProfileOutput> => {
@@ -204,6 +241,19 @@ export const UPDATE_CHURCH_PROFILE = async ({
         data: languageCodes.map((language_code) => ({ church_id: churchId, language_code })),
       })
     }
+    if (galleryItems !== undefined) {
+      await tx.churchGalleryItem.deleteMany({ where: { church_id: churchId } })
+      if (galleryItems.length > 0) {
+        await tx.churchGalleryItem.createMany({
+          data: galleryItems.map((g, idx) => ({
+            church_id: churchId,
+            media_asset_id: g.mediaAssetId,
+            caption: g.caption ?? null,
+            order_index: g.orderIndex ?? idx,
+          })),
+        })
+      }
+    }
     await writeAuditTx(tx, {
       actorId,
       churchId,
@@ -220,6 +270,12 @@ export const UPDATE_CHURCH_PROFILE = async ({
         churchLanguages: {
           where: { language: { enabled: true } },
           select: { language_code: true },
+        },
+        galleryItems: {
+          orderBy: [{ order_index: 'asc' }],
+          include: {
+            media_asset: { select: { id: true, object_key: true } },
+          },
         },
       },
     })

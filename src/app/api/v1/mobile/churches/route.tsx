@@ -24,6 +24,13 @@ registerPath({
       { name: 'limit', in: 'query', required: false, schema: z.string() },
       { name: 'latitude', in: 'query', required: false, schema: z.string() },
       { name: 'longitude', in: 'query', required: false, schema: z.string() },
+      { name: 'radius_km', in: 'query', required: false, schema: z.string() },
+      { name: 'denomination', in: 'query', required: false, schema: z.string() },
+      { name: 'language', in: 'query', required: false, schema: z.string() },
+      { name: 'sunday_live_stream', in: 'query', required: false, schema: z.string() },
+      { name: 'open_now', in: 'query', required: false, schema: z.string() },
+      { name: 'taize_chants', in: 'query', required: false, schema: z.string() },
+      { name: 'youth_ministry', in: 'query', required: false, schema: z.string() },
     ],
   },
   responses: [

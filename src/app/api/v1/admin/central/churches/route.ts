@@ -34,6 +34,9 @@ registerPath({
       contacts: z.record(z.string(), z.unknown()).optional(),
       latitude: z.number().nullable().optional(),
       longitude: z.number().nullable().optional(),
+      sunday_live_stream: z.boolean().nullable().optional(),
+      taize_chants: z.boolean().nullable().optional(),
+      youth_ministry: z.boolean().nullable().optional(),
     }),
   },
   responses: [

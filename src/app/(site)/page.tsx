@@ -1,15 +1,38 @@
-import { auth } from '@/auth'
+import ContentsSiteHome from '@/contents/site/home'
+import { getMyActiveGift } from '@/controller/donation'
+import { getMyHabits } from '@/controller/site-habits'
+import { getHome } from '@/controller/mobile'
+import requiredWebAuth from '@/utils/required-webauth'
+import { stripAudioTags } from '@/utils/strip-audio-tags'
+import { redirect } from 'next/navigation'
 
-// Placeholder website home. WB-31 replaces the body with the getHome() prayer feed.
 export default async function Page() {
-  const session = await auth()
+  const web = await requiredWebAuth().catch(() => null)
+  if (!web) redirect('/login')
 
+  const userId = web.session.user.user_id
+  const [home, gift, habits] = await Promise.all([
+    getHome({ userId }),
+    getMyActiveGift({ userId }),
+    getMyHabits({ userId }),
+  ])
+  // ElevenLabs audio tags stay in the shared/mobile payload; the website never shows them.
+  const latestPrayers = home.latestPrayers.map((prayer) => ({
+    ...prayer,
+    version: {
+      ...prayer.version,
+      title: stripAudioTags(prayer.version.title),
+      introduction: prayer.version.introduction && stripAudioTags(prayer.version.introduction),
+      body: stripAudioTags(prayer.version.body),
+    },
+  }))
   return (
-    <div className="mx-auto max-w-4xl p-6">
-      <h1 className="text-2xl font-bold">PRAYER</h1>
-      <p className="mt-2">
-        Signed in as {session?.user?.name ?? session?.user?.email ?? 'customer'}.
-      </p>
-    </div>
+    <ContentsSiteHome
+      gift={gift}
+      habits={habits}
+      home={{ ...home, latestPrayers }}
+      name={web.session.user.name}
+      now={new Date().toISOString()}
+    />
   )
 }

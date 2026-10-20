@@ -32,3 +32,28 @@ export const siteFormTheme: ThemeConfig = {
     Select: { controlHeight: 48, borderRadius: 8 },
   },
 }
+
+/** Website archive filter dropdowns (W09 `prayer-2.png`): 40px, dark outline, blue selection. */
+export const siteFilterTheme: ThemeConfig = {
+  token: {
+    controlHeight: 40,
+    borderRadius: 8,
+    fontSize: 14,
+    colorText: '#393e46', // --color-neutral-700
+    colorBorder: '#6b7280', // --color-neutral-500
+    colorTextPlaceholder: '#393e46', // "All …" placeholders read as the default value
+    colorPrimary: '#2f7ad2', // --color-primary-500
+  },
+  components: {
+    Select: {
+      hoverBorderColor: '#2f7ad2',
+      activeBorderColor: '#2f7ad2',
+      optionHeight: 36,
+      optionPadding: '8px 12px',
+      optionActiveBg: '#f5f7ff', // --color-primary-100
+      optionSelectedBg: '#e6edfb', // --color-primary-150
+      optionSelectedColor: '#0b4497', // --color-blue-800
+      optionSelectedFontWeight: 600,
+    },
+  },
+}

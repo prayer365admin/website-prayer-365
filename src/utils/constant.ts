@@ -1,9 +1,11 @@
 import { EventCategory } from '@/models/event'
-import { AlignType } from '@rc-component/table/es/interface'
 
 export const ID_COLUMN_WIDTH = 80
 export const ACTION_COLUMN_WIDTH = 125
-export const ADDITIONAL_COLUMN_CONFIG: { align: AlignType; ellipsis: boolean } = {
+export const ADDITIONAL_COLUMN_CONFIG: {
+  align: 'center' | 'left' | 'right'
+  ellipsis: boolean
+} = {
   align: 'center',
   ellipsis: true,
 }
@@ -135,3 +137,33 @@ export const VOICE_TIMELINE_REGISTRATION_STEPS: Record<string, { title: string; 
   'voice.profile.disable': { title: 'Disabled', color: 'gray' },
   'voice.consent.revoke': { title: 'Consent revoked', color: 'red' },
 }
+
+export const RADIUS_OPTIONS = [
+  { value: 5, label: 'Within 5 km' },
+  { value: 10, label: 'Within 10 km' },
+  { value: 25, label: 'Within 25 km' },
+  { value: 50, label: 'Within 50 km' },
+] as const
+
+export const DENOMINATION_OPTIONS = [
+  { value: 'Lutheran', label: 'Lutheran' },
+  { value: 'Baptist', label: 'Baptist' },
+  { value: 'Methodist', label: 'Methodist' },
+  { value: 'Orthodox', label: 'Orthodox' },
+  { value: 'Catholic', label: 'Catholic' },
+] as const
+
+export const LANGUAGE_OPTIONS = [
+  { value: 'et', label: 'Eesti (ET)' },
+  { value: 'en', label: 'English (EN)' },
+  { value: 'sv', label: 'Svenska (SV)' },
+  { value: 'fi', label: 'Suomi (FI)' },
+] as const
+
+export const denominationOptions = DENOMINATION_OPTIONS
+export const radiusOptions = RADIUS_OPTIONS
+export const languageOptions = LANGUAGE_OPTIONS
+
+export type RadiusOption = (typeof RADIUS_OPTIONS)[number]
+export type DenominationOption = (typeof DENOMINATION_OPTIONS)[number]
+export type LanguageOption = (typeof LANGUAGE_OPTIONS)[number]

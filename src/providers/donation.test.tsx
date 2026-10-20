@@ -11,12 +11,18 @@ vi.mock('@/utils/db-connection', () => ({
     donationSubscription: {
       count: vi.fn(),
       findMany: vi.fn(),
+      findFirst: vi.fn(),
     },
   },
 }))
 
 import { db } from '@/utils/db-connection'
-import { GET_DONATIONS, GET_DONATION_SUBSCRIPTIONS, GET_DONATION_SUMMARY } from './donation'
+import {
+  GET_DONATIONS,
+  GET_DONATION_SUBSCRIPTIONS,
+  GET_DONATION_SUMMARY,
+  GET_MY_ACTIVE_GIFT,
+} from './donation'
 
 const scope = new Set(['c1'])
 
@@ -237,5 +243,33 @@ describe('GET_DONATION_SUBSCRIPTIONS', () => {
     const call = vi.mocked(db.donationSubscription.findMany).mock.calls[0]![0]!
     const where = call.where as { currency?: string }
     expect(where.currency).toBe('eur')
+  })
+})
+
+describe('GET_MY_ACTIVE_GIFT', () => {
+  it("reads only the caller's own active subscription and maps it for Home", async () => {
+    vi.mocked(db.donationSubscription.findFirst).mockResolvedValue({
+      amount_minor: BigInt(1000),
+      currency: 'eur',
+      church: { id: 'c1', name: 'Hope Church' },
+    } as never)
+
+    const gift = await GET_MY_ACTIVE_GIFT({ userId: 'u1' })
+
+    expect(vi.mocked(db.donationSubscription.findFirst).mock.calls[0][0]?.where).toEqual({
+      user_id: 'u1',
+      provider_status: 'active',
+    })
+    expect(gift).toEqual({
+      amountMinor: 1000,
+      currency: 'EUR',
+      churchId: 'c1',
+      churchName: 'Hope Church',
+    })
+  })
+
+  it('returns null without an active gift', async () => {
+    vi.mocked(db.donationSubscription.findFirst).mockResolvedValue(null)
+    expect(await GET_MY_ACTIVE_GIFT({ userId: 'u1' })).toBeNull()
   })
 })

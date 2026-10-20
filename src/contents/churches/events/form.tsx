@@ -24,6 +24,7 @@ type EventEditorValues = {
   startsAt: Dayjs
   location: string
   registrationUrl?: string
+  ctaLabel?: string
   languageCode?: string
 }
 
@@ -54,6 +55,7 @@ export default function EventForm({
         startsAt: eventInstantToChurchDateTime(event.startsAt, timezone),
         location: event.location,
         registrationUrl: event.registrationUrl ?? undefined,
+        ctaLabel: event.ctaLabel ?? undefined,
         languageCode: event.languageCode ?? undefined,
       }
     : { category: 'SERVICE' }
@@ -72,6 +74,7 @@ export default function EventForm({
       startsAt: converted.iso,
       location: values.location.trim(),
       registrationUrl: normalizeLink(values.registrationUrl),
+      ctaLabel: values.ctaLabel?.trim() || null,
       languageCode: values.languageCode || null,
     }
     const payload: EventCreateInput | EventUpdateInput = event
@@ -172,6 +175,15 @@ export default function EventForm({
         ]}
       >
         <Input placeholder="example.org/register" />
+      </Form.Item>
+
+      <Form.Item
+        label="Action button label (CTA)"
+        name="ctaLabel"
+        extra="Custom title for the event button on the public church profile (e.g. 'RSVP Fellowship', 'Submit Memorial Name', 'Volunteer Care'). Defaults to 'Join Service' when left empty."
+        rules={[{ max: 100, message: 'Use 100 characters or fewer.' }]}
+      >
+        <Input placeholder="e.g. RSVP Fellowship / Volunteer Care" />
       </Form.Item>
 
       <Form.Item label="Language" name="languageCode">

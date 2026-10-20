@@ -101,6 +101,7 @@ export const CREATE_EVENT = async ({
       starts_at: new Date(data.startsAt),
       location: data.location,
       registration_url: data.registrationUrl ?? null,
+      cta_label: data.ctaLabel ?? null,
       language_code: data.languageCode ?? null,
     },
   })
@@ -153,6 +154,7 @@ export const UPDATE_EVENT = async ({
         starts_at: new Date(data.startsAt),
         location: data.location,
         registration_url: data.registrationUrl ?? null,
+        cta_label: data.ctaLabel ?? null,
         language_code: data.languageCode ?? null,
         version: { increment: 1 },
         updated_at: new Date(),

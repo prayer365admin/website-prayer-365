@@ -1,4 +1,6 @@
+import { Prisma } from '@prisma/client'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { MobilePublicChurchSchema } from '@/models/mobile'
 
 const db = vi.hoisted(() => ({
   $transaction: vi.fn(),
@@ -24,6 +26,7 @@ vi.mock('@/providers/s3', () => ({ S3_PUBLIC_URL: s3.S3_PUBLIC_URL }))
 
 import {
   churchLocalDate,
+  isOpenNow,
   CREATE_CHECKIN,
   UPDATE_ME_PROFILE,
   GET_HOME,
@@ -304,6 +307,683 @@ describe('GET_PUBLIC_CHURCH — admin profile reflected in mobile contract', () 
     const result = await GET_PUBLIC_CHURCH({ churchId: 'c1' })
     expect(result).toBeNull()
   })
+
+  it('queries with status APPROVED and church id in where-clause', async () => {
+    db.church.findFirst.mockResolvedValueOnce(null)
+    await GET_PUBLIC_CHURCH({ churchId: 'c1' })
+    expect(db.church.findFirst).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          id: 'c1',
+          status: 'APPROVED',
+        }),
+      }),
+    )
+  })
+
+  it('reflects gallery items ordered, with image urls and null when asset is missing', async () => {
+    db.church.findFirst.mockResolvedValueOnce({
+      id: 'c1',
+      name: 'Grace',
+      timezone: 'UTC',
+      churchLanguages: [],
+      serviceTimes: [],
+      galleryItems: [
+        {
+          caption: 'Altar',
+          order_index: 0,
+          media_asset: { id: 'm1', object_key: 'churches/c1/altar.jpg' },
+        },
+        {
+          caption: 'Nave',
+          order_index: 1,
+          media_asset: null,
+        },
+      ],
+    })
+
+    const result = await GET_PUBLIC_CHURCH({ churchId: 'c1' })
+    expect(result?.gallery).toEqual([
+      {
+        assetId: 'm1',
+        url: 'https://cdn.test/churches/c1/altar.jpg',
+        caption: 'Altar',
+        orderIndex: 0,
+      },
+      {
+        assetId: '',
+        url: null,
+        caption: 'Nave',
+        orderIndex: 1,
+      },
+    ])
+  })
+
+  it('reflects staff items with church override image first, canonical pastor fallback, and null when neither', async () => {
+    db.church.findFirst.mockResolvedValueOnce({
+      id: 'c1',
+      name: 'Grace',
+      timezone: 'UTC',
+      churchLanguages: [],
+      serviceTimes: [],
+      pastors: [
+        {
+          pastoral_role: 'Senior Pastor',
+          image_asset: { object_key: 'churches/c1/override.jpg' },
+          pastor: {
+            name: 'Pastor John',
+            image_asset: { object_key: 'pastors/p1/canonical.jpg' },
+          },
+        },
+        {
+          pastoral_role: 'Associate Pastor',
+          image_asset: null,
+          pastor: {
+            name: 'Pastor Jane',
+            image_asset: { object_key: 'pastors/p2/canonical.jpg' },
+          },
+        },
+        {
+          pastoral_role: 'Youth Leader',
+          image_asset: null,
+          pastor: {
+            name: 'Leader Sam',
+            image_asset: null,
+          },
+        },
+      ],
+    })
+
+    const result = await GET_PUBLIC_CHURCH({ churchId: 'c1' })
+    expect(result?.staff).toEqual([
+      {
+        name: 'Pastor John',
+        pastoralRole: 'Senior Pastor',
+        imageUrl: 'https://cdn.test/churches/c1/override.jpg',
+      },
+      {
+        name: 'Pastor Jane',
+        pastoralRole: 'Associate Pastor',
+        imageUrl: 'https://cdn.test/pastors/p2/canonical.jpg',
+      },
+      {
+        name: 'Leader Sam',
+        pastoralRole: 'Youth Leader',
+        imageUrl: null,
+      },
+    ])
+    for (const member of result?.staff ?? []) {
+      expect(member).not.toHaveProperty('email')
+      expect(member).not.toHaveProperty('phone')
+      expect(member).not.toHaveProperty('contacts')
+    }
+  })
+
+  it('emits sanctuaryHours and resolves deaneryName when parent kind is DEANERY', async () => {
+    db.church.findFirst.mockResolvedValueOnce({
+      id: 'c1',
+      name: 'Grace',
+      timezone: 'UTC',
+      sanctuary_hours: '10:00–18:30 daily',
+      churchLanguages: [],
+      serviceTimes: [],
+      org_node: {
+        parent: {
+          kind: 'DEANERY',
+          name: 'Tallinn Deanery',
+        },
+      },
+    })
+
+    const result = await GET_PUBLIC_CHURCH({ churchId: 'c1' })
+    expect(result?.sanctuaryHours).toBe('10:00–18:30 daily')
+    expect(result?.deaneryName).toBe('Tallinn Deanery')
+  })
+
+  it('emits churchStyle from church.church_style and null when unset', async () => {
+    const row = {
+      id: 'c1',
+      name: 'Grace',
+      denomination: 'Lutheran (EELK)',
+      church_style: 'Contemporary Ecumenical',
+      description: null,
+      timezone: 'UTC',
+      latitude: null,
+      longitude: null,
+      address: { line1: '1 St', line2: null, city: 'Tallinn', postalCode: null, countryCode: 'EE' },
+      contacts: { email: null, phone: null },
+      website: null,
+      social_links: [],
+      accessibility: null,
+      cover_asset_id: null,
+      sanctuary_hours: null,
+      churchLanguages: [],
+      serviceTimes: [],
+      galleryItems: [],
+      pastors: [],
+    }
+    db.church.findFirst.mockResolvedValueOnce(row)
+
+    const withStyle = await GET_PUBLIC_CHURCH({ churchId: 'c1' })
+    expect(withStyle?.churchStyle).toBe('Contemporary Ecumenical')
+
+    db.church.findFirst.mockResolvedValueOnce({ ...row, church_style: null })
+    const withoutStyle = await GET_PUBLIC_CHURCH({ churchId: 'c1' })
+    expect(withoutStyle?.churchStyle).toBeNull()
+  })
+
+  it('emits null for deaneryName and sanctuaryHours when absent or parent is not DEANERY', async () => {
+    db.church.findFirst.mockResolvedValueOnce({
+      id: 'c1',
+      name: 'Grace',
+      timezone: 'UTC',
+      sanctuary_hours: null,
+      churchLanguages: [],
+      serviceTimes: [],
+      org_node: {
+        parent: {
+          kind: 'DIOCESE',
+          name: 'North Diocese',
+        },
+      },
+    })
+
+    const result = await GET_PUBLIC_CHURCH({ churchId: 'c1' })
+    expect(result?.sanctuaryHours).toBeNull()
+    expect(result?.deaneryName).toBeNull()
+  })
+
+  it('GET_PUBLIC_CHURCH result conforms to MobilePublicChurchSchema', async () => {
+    db.church.findFirst.mockResolvedValueOnce({
+      id: 'c1',
+      name: 'Grace',
+      denomination: null,
+      description: null,
+      timezone: 'UTC',
+      latitude: null,
+      longitude: null,
+      address: { line1: '1 St', line2: null, city: 'Tallinn', postalCode: null, countryCode: 'EE' },
+      contacts: { email: null, phone: null },
+      website: null,
+      social_links: [],
+      accessibility: null,
+      cover_asset_id: null,
+      sanctuary_hours: null,
+      churchLanguages: [],
+      serviceTimes: [],
+      galleryItems: [],
+      pastors: [],
+    })
+
+    const result = await GET_PUBLIC_CHURCH({ churchId: 'c1' })
+    const parsed = MobilePublicChurchSchema.safeParse(result)
+    expect(parsed.success).toBe(true)
+  })
+
+  it('includes only fields and relations that exist in generated Prisma.dmmf', () => {
+    const churchModel = Prisma.dmmf.datamodel.models.find((m) => m.name === 'Church')
+    expect(churchModel).toBeDefined()
+    const fieldNames = (churchModel?.fields ?? []).map((f) => f.name)
+
+    expect(fieldNames.includes('sanctuary_hours')).toBe(true)
+    expect(fieldNames.includes('galleryItems')).toBe(true)
+    expect(fieldNames.includes('pastors')).toBe(true)
+    expect(fieldNames.includes('serviceTimes')).toBe(true)
+    expect(fieldNames.includes('churchLanguages')).toBe(true)
+    expect(fieldNames.includes('org_node')).toBe(true)
+
+    const galleryModel = Prisma.dmmf.datamodel.models.find((m) => m.name === 'ChurchGalleryItem')
+    expect(galleryModel).toBeDefined()
+    const galleryFields = (galleryModel?.fields ?? []).map((f) => f.name)
+    expect(galleryFields.includes('caption')).toBe(true)
+    expect(galleryFields.includes('order_index')).toBe(true)
+    expect(galleryFields.includes('media_asset')).toBe(true)
+  })
+})
+describe('LIST_PUBLIC_CHURCHES — discovery search by name or city', () => {
+  it('searches by name or city (address.path) when search query is provided', async () => {
+    const summaryRow = {
+      id: 'c1',
+      name: 'Grace',
+      denomination: 'Lutheran',
+      address: { line1: 'Main St', city: 'Tallinn' },
+      cover_asset_id: null,
+      latitude: null,
+      longitude: null,
+    }
+    db.$transaction.mockResolvedValueOnce([1, [summaryRow]])
+
+    const res = await LIST_PUBLIC_CHURCHES({
+      query: { search: 'tal', page: 1, limit: 10 },
+    })
+
+    const expectedWhere = {
+      status: 'APPROVED',
+      OR: [
+        { name: { contains: 'tal', mode: 'insensitive' } },
+        { address: { path: ['city'], string_contains: 'tal' } },
+      ],
+    }
+
+    expect(db.church.count).toHaveBeenCalledWith({ where: expectedWhere })
+    expect(db.church.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expectedWhere,
+        take: 10,
+        skip: 0,
+      }),
+    )
+
+    expect(res).toEqual({
+      result: [
+        {
+          id: 'c1',
+          name: 'Grace',
+          denomination: 'Lutheran',
+          city: 'Tallinn',
+          coverAssetId: null,
+          coverUrl: null,
+          coordinates: null,
+          distanceKm: null,
+          latitude: null,
+          longitude: null,
+          addressLine1: 'Main St',
+        },
+      ],
+      total: 1,
+    })
+    expect(res.result[0].latitude).toBe(summaryRow.latitude)
+  })
+
+  it('omits OR search clause when search query is not provided', async () => {
+    db.$transaction.mockResolvedValueOnce([0, []])
+
+    await LIST_PUBLIC_CHURCHES({
+      query: { page: 1, limit: 10 },
+    })
+
+    const expectedWhere = { status: 'APPROVED' }
+    expect(db.church.count).toHaveBeenCalledWith({ where: expectedWhere })
+    expect(db.church.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expectedWhere,
+      }),
+    )
+  })
+})
+
+describe('isOpenNow (sanctuary_hours windows)', () => {
+  it('returns true when the church-local time is inside a daily window', () => {
+    const now = new Date('2026-10-11T10:00:00Z') // Sunday 10:00 UTC
+    expect(isOpenNow('UTC', '10:00–18:30 daily', now)).toBe(true)
+  })
+
+  it('returns false outside the window', () => {
+    const now = new Date('2026-10-11T20:00:00Z') // Sunday 20:00 UTC
+    expect(isOpenNow('UTC', '10:00–18:30 daily', now)).toBe(false)
+  })
+
+  it('returns false when the church has no sanctuary hours', () => {
+    const now = new Date('2026-10-11T10:00:00Z')
+    expect(isOpenNow('UTC', null, now)).toBe(false)
+    expect(isOpenNow('UTC', '', now)).toBe(false)
+  })
+
+  it('applies weekday labels from a multi-segment schedule', () => {
+    const hours = 'Mon–Fri 10:00–18:30 • Sat 11:00–16:00 • Sun 09:00–19:00'
+    // 2026-10-10 is Saturday, 2026-10-11 is Sunday
+    expect(isOpenNow('UTC', hours, new Date('2026-10-10T10:00:00Z'))).toBe(false) // before Sat 11:00
+    expect(isOpenNow('UTC', hours, new Date('2026-10-10T12:00:00Z'))).toBe(true) // inside Sat
+    expect(isOpenNow('UTC', hours, new Date('2026-10-11T20:00:00Z'))).toBe(false) // after Sun 19:00
+  })
+
+  it('uses the church wall clock, not UTC', () => {
+    // 2026-10-11 is EEST (UTC+3): 08:00 UTC = 11:00 Tallinn
+    const now = new Date('2026-10-11T08:00:00Z')
+    expect(isOpenNow('Europe/Tallinn', '10:00–18:30 daily', now)).toBe(true)
+    expect(isOpenNow('UTC', '10:00–18:30 daily', now)).toBe(false)
+  })
+
+  it('falls back to UTC for an unknown timezone', () => {
+    const now = new Date('2026-10-11T10:00:00Z')
+    expect(isOpenNow('Not/AZone', '10:00–18:30 daily', now)).toBe(true)
+  })
+})
+
+describe('LIST_PUBLIC_CHURCHES — directory filters (WB-25)', () => {
+  const summaryRow = (overrides = {}) => ({
+    id: 'c1',
+    name: 'Grace',
+    denomination: 'Lutheran',
+    address: { line1: 'Main St', city: 'Tallinn' },
+    cover_asset_id: null,
+    latitude: null,
+    longitude: null,
+    ...overrides,
+  })
+
+  it('filters by denomination via case-insensitive contains (DB path)', async () => {
+    db.$transaction.mockResolvedValueOnce([1, [summaryRow({ denomination: 'Lutheran (EELK)' })]])
+
+    const res = await LIST_PUBLIC_CHURCHES({
+      query: { denomination: 'lutheran', page: 1, limit: 10 },
+    })
+
+    const expectedWhere = {
+      status: 'APPROVED',
+      denomination: { contains: 'lutheran', mode: 'insensitive' },
+    }
+    expect(db.church.count).toHaveBeenCalledWith({ where: expectedWhere })
+    expect(db.church.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expectedWhere,
+        take: 10,
+        skip: 0,
+      }),
+    )
+    expect(res.total).toBe(1)
+  })
+
+  it('filters by language via churchLanguages relation (DB path)', async () => {
+    db.$transaction.mockResolvedValueOnce([1, [summaryRow()]])
+
+    const res = await LIST_PUBLIC_CHURCHES({
+      query: { language: 'et', page: 1, limit: 10 },
+    })
+
+    const expectedWhere = {
+      status: 'APPROVED',
+      churchLanguages: { some: { language_code: 'et' } },
+    }
+    expect(db.church.count).toHaveBeenCalledWith({ where: expectedWhere })
+    expect(db.church.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expectedWhere,
+        take: 10,
+        skip: 0,
+      }),
+    )
+    expect(res.total).toBe(1)
+  })
+
+  it('applies quick-filter flags individually when true and omits when false/absent', async () => {
+    // sunday_live_stream: true
+    db.$transaction.mockResolvedValueOnce([1, [summaryRow()]])
+    await LIST_PUBLIC_CHURCHES({
+      query: { sunday_live_stream: true, page: 1, limit: 10 },
+    })
+    expect(db.church.count).toHaveBeenLastCalledWith({
+      where: { status: 'APPROVED', sunday_live_stream: true },
+    })
+
+    // taize_chants: true
+    db.$transaction.mockResolvedValueOnce([1, [summaryRow()]])
+    await LIST_PUBLIC_CHURCHES({
+      query: { taize_chants: true, page: 1, limit: 10 },
+    })
+    expect(db.church.count).toHaveBeenLastCalledWith({
+      where: { status: 'APPROVED', taize_chants: true },
+    })
+
+    // youth_ministry: true
+    db.$transaction.mockResolvedValueOnce([1, [summaryRow()]])
+    await LIST_PUBLIC_CHURCHES({
+      query: { youth_ministry: true, page: 1, limit: 10 },
+    })
+    expect(db.church.count).toHaveBeenLastCalledWith({
+      where: { status: 'APPROVED', youth_ministry: true },
+    })
+
+    // sunday_live_stream: false -> omitted from where clause
+    db.$transaction.mockResolvedValueOnce([1, [summaryRow()]])
+    await LIST_PUBLIC_CHURCHES({
+      query: { sunday_live_stream: false, page: 1, limit: 10 },
+    })
+    expect(db.church.count).toHaveBeenLastCalledWith({
+      where: { status: 'APPROVED' },
+    })
+  })
+
+  it('filters by radius in-memory, excluding churches outside radius and with null coordinates', async () => {
+    // Tallinn center: 59.437, 24.754
+    // Row A: within radius (Tallinn: dist 0 km)
+    const rowA = summaryRow({
+      id: 'c1',
+      name: 'Tallinn Church',
+      latitude: 59.437,
+      longitude: 24.754,
+    })
+    // Row B: outside radius (Tartu ~163 km away)
+    const rowB = summaryRow({ id: 'c2', name: 'Tartu Church', latitude: 58.378, longitude: 26.729 })
+    // Row C: null coordinates
+    const rowC = summaryRow({ id: 'c3', name: 'No Coords Church', latitude: null, longitude: null })
+
+    db.church.findMany.mockResolvedValueOnce([rowA, rowB, rowC])
+
+    const res = await LIST_PUBLIC_CHURCHES({
+      query: { latitude: 59.437, longitude: 24.754, radius_km: 10, page: 1, limit: 10 },
+    })
+
+    const expectedWhere = { status: 'APPROVED' }
+    expect(db.church.count).not.toHaveBeenCalled()
+    expect(db.church.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining(expectedWhere),
+        orderBy: [{ name: 'asc' }, { id: 'asc' }],
+        select: expect.any(Object),
+      }),
+    )
+    const callArgs = db.church.findMany.mock.calls[0][0]
+    // Bounded by the SQL radius box before the exact haversine filter.
+    expect(callArgs.where.latitude).toBeDefined()
+    expect(callArgs.where.longitude).toBeDefined()
+    expect(callArgs.take).toBe(2000)
+    expect(callArgs.skip).toBeUndefined()
+
+    expect(res.total).toBe(1)
+    expect(res.result).toHaveLength(1)
+    expect(res.result[0].id).toBe('c1')
+    expect(res.result[0].latitude).toBe(59.437)
+    expect(res.result[0].longitude).toBe(24.754)
+  })
+
+  it('sorts churches by distance ascending when coordinates are provided (null coords last)', async () => {
+    // Query coords: Tallinn 59.437, 24.754
+    const farRow = summaryRow({
+      id: 'c-far',
+      name: 'Tartu Church',
+      latitude: 58.378,
+      longitude: 26.729,
+    })
+    const nearRow = summaryRow({
+      id: 'c-near',
+      name: 'Tallinn Church',
+      latitude: 59.437,
+      longitude: 24.754,
+    })
+    const nullRow = summaryRow({
+      id: 'c-null',
+      name: 'Online Church',
+      latitude: null,
+      longitude: null,
+    })
+
+    db.church.findMany.mockResolvedValueOnce([farRow, nearRow, nullRow])
+
+    const res = await LIST_PUBLIC_CHURCHES({
+      query: { latitude: 59.437, longitude: 24.754, page: 1, limit: 10 },
+    })
+
+    expect(res.total).toBe(3)
+    expect(res.result.map((r) => r.id)).toEqual(['c-near', 'c-far', 'c-null'])
+    expect(res.result[0].distanceKm).toBe(0)
+    expect(res.result[1].distanceKm).toBeGreaterThan(100)
+    expect(res.result[2].distanceKm).toBeNull()
+  })
+
+  it('filters by open_now in-memory using the sanctuary_hours windows', async () => {
+    try {
+      vi.useFakeTimers()
+      // Sunday 11:00 in Europe/Tallinn (UTC+3) -> instant is 08:00 UTC
+      vi.setSystemTime(new Date('2026-10-11T08:00:00Z'))
+
+      // Row 1: open 10:00–18:30 -> open now (11:00 local)
+      const rowInside = summaryRow({
+        id: 'c-open',
+        timezone: 'Europe/Tallinn',
+        sanctuary_hours: '10:00–18:30 daily',
+      })
+      // Row 2: no sanctuary hours -> closed
+      const rowNoHours = summaryRow({
+        id: 'c-empty',
+        timezone: 'Europe/Tallinn',
+        sanctuary_hours: null,
+      })
+      // Row 3: Sat-only schedule -> closed on Sunday
+      const rowOutside = summaryRow({
+        id: 'c-closed',
+        timezone: 'Europe/Tallinn',
+        sanctuary_hours: 'Sat 11:00–16:00',
+      })
+
+      db.church.findMany.mockResolvedValueOnce([rowInside, rowNoHours, rowOutside])
+
+      const res = await LIST_PUBLIC_CHURCHES({
+        query: { open_now: true, page: 1, limit: 10 },
+      })
+
+      expect(db.church.count).not.toHaveBeenCalled()
+      expect(res.total).toBe(1)
+      expect(res.result).toHaveLength(1)
+      expect(res.result[0].id).toBe('c-open')
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('combines search, denomination, language, quick filters, and in-memory radius', async () => {
+    const insideRow = summaryRow({
+      id: 'c-match',
+      name: 'Grace Cathedral',
+      denomination: 'Lutheran',
+      latitude: 59.437,
+      longitude: 24.754,
+    })
+    const outsideRow = summaryRow({
+      id: 'c-outside',
+      name: 'Grace Chapel',
+      denomination: 'Lutheran',
+      latitude: 58.378,
+      longitude: 26.729,
+    })
+
+    db.church.findMany.mockResolvedValueOnce([insideRow, outsideRow])
+
+    const res = await LIST_PUBLIC_CHURCHES({
+      query: {
+        search: 'grace',
+        denomination: 'Lutheran',
+        language: 'et',
+        sunday_live_stream: true,
+        latitude: 59.437,
+        longitude: 24.754,
+        radius_km: 10,
+        page: 1,
+        limit: 10,
+      },
+    })
+
+    const expectedWhere = {
+      status: 'APPROVED',
+      OR: [
+        { name: { contains: 'grace', mode: 'insensitive' } },
+        { address: { path: ['city'], string_contains: 'grace' } },
+      ],
+      denomination: { contains: 'Lutheran', mode: 'insensitive' },
+      churchLanguages: { some: { language_code: 'et' } },
+      sunday_live_stream: true,
+    }
+
+    expect(db.church.count).not.toHaveBeenCalled()
+    expect(db.church.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining(expectedWhere),
+      }),
+    )
+    expect(res.total).toBe(1)
+    expect(res.result).toHaveLength(1)
+    expect(res.result[0].id).toBe('c-match')
+  })
+
+  // Regression guard (WB2 B1): seeds store qualified values like "Lutheran (EELK)".
+  // If this ever flips back to `equals`, a bare "Lutheran" filter silently drops
+  // every seeded church; keep contains so the acronym matches.
+  it('denomination filter uses contains so qualified seed values still match', async () => {
+    db.$transaction.mockResolvedValueOnce([1, [summaryRow({ denomination: 'Lutheran (EELK)' })]])
+
+    const res = await LIST_PUBLIC_CHURCHES({
+      query: { denomination: 'Lutheran', page: 1, limit: 10 },
+    })
+
+    expect(db.church.count).toHaveBeenCalledWith({
+      where: {
+        status: 'APPROVED',
+        denomination: { contains: 'Lutheran', mode: 'insensitive' },
+      },
+    })
+    expect(res.total).toBe(1)
+  })
+
+  it('returns empty result when filters match no churches (DB path)', async () => {
+    db.$transaction.mockResolvedValueOnce([0, []])
+
+    const res = await LIST_PUBLIC_CHURCHES({
+      query: { denomination: 'NonExistent', language: 'xx', page: 1, limit: 10 },
+    })
+
+    const expectedWhere = {
+      status: 'APPROVED',
+      denomination: { contains: 'NonExistent', mode: 'insensitive' },
+      churchLanguages: { some: { language_code: 'xx' } },
+    }
+    expect(db.church.count).toHaveBeenCalledWith({ where: expectedWhere })
+    expect(res.total).toBe(0)
+    expect(res.result).toEqual([])
+  })
+
+  it('returns accessibility as an array of items split by delimiter instead of joined string', async () => {
+    const row = summaryRow({
+      accessibility: 'Level wheelchair access • Hearing loop • Braille hymnals',
+    })
+    db.$transaction.mockResolvedValueOnce([1, [row]])
+
+    const res = await LIST_PUBLIC_CHURCHES({
+      query: { page: 1, limit: 10 },
+    })
+
+    expect(res.result[0].accessibility).toEqual([
+      'Level wheelchair access',
+      'Hearing loop',
+      'Braille hymnals',
+    ])
+  })
+
+  it('projects churchStyle on the summary and omits the field when unset', async () => {
+    db.$transaction.mockResolvedValueOnce([
+      1,
+      [
+        summaryRow({ id: 'c-style', church_style: 'Contemporary Ecumenical' }),
+        summaryRow({ id: 'c-plain' }),
+      ],
+    ])
+
+    const res = await LIST_PUBLIC_CHURCHES({
+      query: { page: 1, limit: 10 },
+    })
+
+    expect(res.result[0].churchStyle).toBe('Contemporary Ecumenical')
+    expect(res.result[1].churchStyle).toBeUndefined()
+  })
 })
 
 describe('mapPublishedPrayer (via GET_PUBLISHED_PRAYER)', () => {
@@ -311,6 +991,7 @@ describe('mapPublishedPrayer (via GET_PUBLISHED_PRAYER)', () => {
     db.prayer.findFirst.mockResolvedValueOnce({
       id: 'p1',
       church_id: 'c1',
+      church: { name: 'Hope Church' },
       published_at: new Date(),
       published_version_id: 'v1',
     })
@@ -326,7 +1007,7 @@ describe('mapPublishedPrayer (via GET_PUBLISHED_PRAYER)', () => {
       },
       pastor: {
         id: 'pa1',
-        display_name: 'Pastor',
+        name: 'Pastor',
       },
     })
 
@@ -339,6 +1020,7 @@ describe('mapPublishedPrayer (via GET_PUBLISHED_PRAYER)', () => {
     db.prayer.findFirst.mockResolvedValueOnce({
       id: 'p1',
       church_id: 'c1',
+      church: { name: 'Hope Church' },
       published_at: new Date(),
       published_version_id: 'v1',
     })
@@ -354,7 +1036,7 @@ describe('mapPublishedPrayer (via GET_PUBLISHED_PRAYER)', () => {
       },
       pastor: {
         id: 'pa1',
-        display_name: 'Pastor',
+        name: 'Pastor',
       },
     })
 
@@ -367,6 +1049,7 @@ describe('mapPublishedPrayer (via GET_PUBLISHED_PRAYER)', () => {
     db.prayer.findFirst.mockResolvedValueOnce({
       id: 'p1',
       church_id: 'c1',
+      church: { name: 'Hope Church' },
       published_at: new Date(),
       published_version_id: 'v1',
     })
@@ -383,7 +1066,7 @@ describe('mapPublishedPrayer (via GET_PUBLISHED_PRAYER)', () => {
       },
       pastor: {
         id: 'pa1',
-        display_name: 'Pastor',
+        name: 'Pastor',
       },
     })
 
@@ -393,6 +1076,7 @@ describe('mapPublishedPrayer (via GET_PUBLISHED_PRAYER)', () => {
       prayerAudioId: 'a1',
       assetId: 'asset1',
       assetKey: 'media/asset1',
+      assetUrl: 'https://cdn.test/media/asset1',
       approvedAt: '2026-01-01T00:00:00.000Z',
     })
   })
@@ -404,6 +1088,7 @@ describe('LIST_PUBLISHED_PRAYERS — historical pastor attribution', () => {
       {
         id: 'prayer-1',
         church_id: 'church-1',
+        church: { name: 'Hope Church' },
         published_at: new Date('2026-09-30T12:00:00.000Z'),
         published_version_id: 'version-1',
       },
@@ -418,6 +1103,7 @@ describe('LIST_PUBLISHED_PRAYERS — historical pastor attribution', () => {
         introduction: null,
         body: 'Prayer body',
         language_code: 'en',
+        pastor: { name: 'Pastor' },
         selected_audio: null,
       },
     ])
@@ -449,6 +1135,7 @@ describe('LIST_PUBLIC_EVENTS — admin event edits reflected under the correct c
         location: 'Room 9',
         registration_url: 'https://example.org/r',
         language_code: 'et',
+        cta_label: 'Custom CTA',
       },
     ])
 
@@ -471,6 +1158,7 @@ describe('LIST_PUBLIC_EVENTS — admin event edits reflected under the correct c
         location: 'Room 9',
         registrationUrl: 'https://example.org/r',
         languageCode: 'et',
+        ctaLabel: 'Custom CTA',
       },
     ])
   })
@@ -499,14 +1187,12 @@ describe('LIST_PUBLIC_ANNOUNCEMENTS — only live published rows', () => {
 })
 
 describe('COUNT_RECENT_USER_REQUESTS — submission rate limit window', () => {
-  it("counts only this user's requests at this church since the window start", async () => {
+  it("counts this user's requests at every church since the window start", async () => {
     db.request.count.mockResolvedValue(3)
     const since = new Date('2026-01-01T00:00:00Z')
-    await expect(
-      COUNT_RECENT_USER_REQUESTS({ churchId: 'c1', userId: 'u1', since, tx: null }),
-    ).resolves.toBe(3)
+    await expect(COUNT_RECENT_USER_REQUESTS({ userId: 'u1', since, tx: null })).resolves.toBe(3)
     expect(db.request.count).toHaveBeenCalledWith({
-      where: { church_id: 'c1', user_id: 'u1', created_at: { gte: since } },
+      where: { user_id: 'u1', created_at: { gte: since } },
     })
   })
 })
@@ -668,7 +1354,13 @@ describe('GET_HOME — MB-10 typed projection', () => {
     )
     db.prayer.count.mockResolvedValueOnce(1)
     db.prayer.findMany.mockResolvedValueOnce([
-      { id: 'p1', church_id: 'c1', published_at: new Date(), published_version_id: 'v1' },
+      {
+        id: 'p1',
+        church_id: 'c1',
+        church: { name: 'Main' },
+        published_at: new Date(),
+        published_version_id: 'v1',
+      },
     ])
     db.prayerVersion.findMany.mockResolvedValueOnce([
       {
@@ -677,7 +1369,7 @@ describe('GET_HOME — MB-10 typed projection', () => {
         body: 'Amen',
         language_code: 'en',
         selected_audio: null,
-        pastor: { id: 'pa1', display_name: 'Pastor' },
+        pastor: { id: 'pa1', name: 'Pastor' },
       },
     ])
     db.event.count.mockResolvedValueOnce(0)
@@ -712,6 +1404,59 @@ describe('GET_HOME — MB-10 typed projection', () => {
     expect(res.latestPrayers[0].version.title).toBe('Prayer')
     expect(res.latestEvents).toEqual([])
     expect(res.latestAnnouncements).toEqual([])
+  })
+
+  it('keeps mainChurch null for follows-only users and loads followed prayers', async () => {
+    db.userChurch.findMany.mockResolvedValueOnce([
+      { is_main: false, is_followed: true, church_id: 'c2' },
+    ])
+    db.prayer.findMany.mockResolvedValueOnce([
+      {
+        id: 'p2',
+        church_id: 'c2',
+        church: { name: 'Followed Church' },
+        published_at: new Date('2026-10-15T06:00:00.000Z'),
+        published_version_id: 'v2',
+      },
+    ])
+    db.prayerVersion.findMany.mockResolvedValueOnce([
+      {
+        id: 'v2',
+        version_number: 1,
+        pastor_id: 'pa2',
+        title: 'Followed prayer',
+        introduction: null,
+        body: 'Amen',
+        language_code: 'et',
+        pastor: { name: 'Pastor Two' },
+        selected_audio: null,
+      },
+    ])
+    db.church.findMany.mockResolvedValueOnce([
+      {
+        id: 'c2',
+        name: 'Followed Church',
+        denomination: null,
+        address: null,
+        cover_asset_id: null,
+        latitude: null,
+        longitude: null,
+      },
+    ])
+
+    const res = await GET_HOME({ userId: 'u2' })
+
+    expect(res.mainChurch).toBeNull()
+    expect(res.latestPrayers[0]).toMatchObject({
+      churchId: 'c2',
+      churchName: 'Followed Church',
+      version: { pastorName: 'Pastor Two' },
+    })
+    expect(db.prayer.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({ church_id: { in: ['c2'] } }),
+      }),
+    )
   })
 })
 
@@ -764,8 +1509,8 @@ describe('MB-11 — church summary coordinates', () => {
     db.userChurch.findMany.mockResolvedValueOnce([
       { is_main: false, is_followed: true, church_id: 'c2' },
     ])
-    // followed-only fixture: GET_HOME's main row falls back to approved[0]
-    db.church.findFirst.mockResolvedValueOnce(null)
+    // follows-only fixture: mainChurch stays null and the prayer feed reads followed churches
+    db.prayer.findMany.mockResolvedValueOnce([])
     db.church.findMany.mockResolvedValueOnce([
       {
         id: 'c2',

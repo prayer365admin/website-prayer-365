@@ -15,9 +15,9 @@ export default function SiteShell({
   headerVariant?: SiteHeaderVariant
 }) {
   return (
-    <Layout className="!min-h-screen !bg-white_color">
+    <Layout className="!min-h-screen !bg-[#F7F9FB]">
       <SiteTopBar variant={headerVariant} />
-      <div className="flex-1">{children}</div>
+      <div className="min-h-[60vh] flex-1">{children}</div>
       <SiteFooter legalOnly={footerVariant === 'legal-only'} />
     </Layout>
   )
