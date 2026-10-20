@@ -52,6 +52,20 @@ DESIGN W01–W05, W13 | SPEC §7.1 | FEATURE WF1
 | WB-17 | Tests: register→verify→sign-in end to end, unverified blocked, reset flow, setup persistence, main-church single `is_main` (transactional). Flow suite: `src/controller/onboarding.flow.test.ts`.                                                                                                                                             | ✔      |
 | WB-18 | Backend contracts: `registerUser` creates a `prayer_user` customer (locale `null` until onboarding, main church optional); `getMe`/`patchMe` support main-church (clearable) + locale + picture.                                                                                                                                              | ✔      |
 
+### WB1-PROFILE — Routed Customer Profile
+
+DESIGN `docs/website/design/customer-profile/*` | Owner scope update: 19 Oct 2026
+
+| ID      | Task                                                                                                                                                                                                                                                       | Status |
+| ------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------ |
+| WB1-P01 | Add the shared `/customer/*` profile shell beneath the existing customer header, with an additional identity/chaplain/primary-sanctuary summary, five-menu navigation, daily quietude card, sign-out action, responsive layout, and protected-route guard. | ✔     |
+| WB1-P02 | Personal Profile (`/customer`): match the supplied profile design using supported fields—photo, read-only email, name, and preferred language—with real save/remove flows.                                                                                 | ✔     |
+| WB1-P03 | Church Affiliations (`/customer/church-affiliations`): split main and followed church management out of Personal Profile.                                                                                                                                  | ✔     |
+| WB1-P04 | Notifications (`/customer/notifications`): confirm persistence contract, then implement the design without fabricating saved preferences.                                                                                                                  | ☐      |
+| WB1-P05 | Giving & Stewardship (`/customer/stewardship`): add an intentionally empty placeholder until the donation/stewardship backend is available.                                                                                                                | ☐      |
+| WB1-P06 | Sacramental Privacy (`/customer/privacy`): implement supported privacy information; keep export/deletion actions unavailable until backend scope is approved.                                                                                              | ✔      |
+| WB1-P07 | Add responsive and route-level tests for each profile section as it lands.                                                                                                                                                                                 | ☐      |
+
 ## WB2. Church directory
 
 DESIGN W07–W08 | SPEC §7.2, §5.3, §6.2 | FEATURE WF2

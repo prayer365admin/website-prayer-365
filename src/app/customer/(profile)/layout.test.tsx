@@ -2,14 +2,22 @@ import { render, screen } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import CustomerLayout from './layout'
 
-const { requiredWebAuth, redirect } = vi.hoisted(() => ({
+const m = vi.hoisted(() => ({
   requiredWebAuth: vi.fn(),
-  redirect: vi.fn(),
+  redirect: vi.fn((url: string) => {
+    throw new Error(`REDIRECT ${url}`)
+  }),
+  getMe: vi.fn(),
+  listMyChurches: vi.fn(),
 }))
 
-vi.mock('@/utils/required-webauth', () => ({ default: requiredWebAuth }))
-vi.mock('next/navigation', () => ({ redirect }))
+vi.mock('@/utils/required-webauth', () => ({ default: m.requiredWebAuth }))
+vi.mock('next/navigation', () => ({ redirect: m.redirect }))
 vi.mock('@/utils/site-locale', () => ({ getSiteLocale: () => 'en' }))
+vi.mock('@/controller/mobile', () => ({
+  getMe: m.getMe,
+  listMyChurches: m.listMyChurches,
+}))
 vi.mock('@/components/site/setup-guard', () => ({ default: () => null }))
 vi.mock('@/components/site/session-access-guard', () => ({ default: () => null }))
 vi.mock('@/components/site', () => ({
@@ -21,29 +29,48 @@ vi.mock('@/components/site', () => ({
     </div>
   ),
 }))
+vi.mock('./_components/customer-profile-header', () => ({
+  default: ({ initialMe }: { initialMe: { name: string } }) => (
+    <section>Customer profile header: {initialMe.name}</section>
+  ),
+}))
+vi.mock('./_components/profile-shell', () => ({
+  default: ({ children }: { children: React.ReactNode }) => (
+    <div>
+      <nav aria-label="Customer profile" />
+      {children}
+    </div>
+  ),
+}))
 
 const layout = () => CustomerLayout({ children: <div>Customer profile</div> })
 
 describe('/customer layout', () => {
-  beforeEach(() => {
-    redirect.mockReset()
-    requiredWebAuth.mockResolvedValue({ session: { user: { user_id: 'u1', role: null } } })
-  })
+  beforeEach(() => vi.clearAllMocks())
 
-  it('renders the general website header and footer without a dashboard sidebar', async () => {
+  it('renders the website header and footer with the profile summary and navigation', async () => {
+    m.requiredWebAuth.mockResolvedValue({
+      session: { user: { user_id: 'u1', role: null } },
+      user: {
+        created_at: new Date('2024-10-01T00:00:00.000Z'),
+        email_verified_at: new Date('2024-10-02T00:00:00.000Z'),
+      },
+    })
+    m.getMe.mockResolvedValue({ id: 'u1', name: 'Maria' })
+    m.listMyChurches.mockResolvedValue([])
     render(await layout())
 
     expect(screen.getByText('General website header')).toBeTruthy()
+    expect(screen.getByText('Customer profile header: Maria')).toBeTruthy()
     expect(screen.getByRole('main').textContent).toContain('Customer profile')
+    expect(screen.getByRole('navigation', { name: 'Customer profile' })).toBeTruthy()
     expect(screen.getByText('Website footer')).toBeTruthy()
-    expect(screen.queryByRole('navigation')).toBeNull()
   })
 
-  it('sends a guest to the sign-in page', async () => {
-    requiredWebAuth.mockRejectedValue(new Error('no session'))
+  it('sends a guest to the sign-in page before loading profile data', async () => {
+    m.requiredWebAuth.mockRejectedValue(new Error('no session'))
 
-    await layout()
-
-    expect(redirect).toHaveBeenCalledWith('/login')
+    await expect(layout()).rejects.toThrow('REDIRECT /login')
+    expect(m.getMe).not.toHaveBeenCalled()
   })
 })

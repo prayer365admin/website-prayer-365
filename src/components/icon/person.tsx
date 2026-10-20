@@ -1,0 +1,22 @@
+'use client'
+
+import Icon from '@ant-design/icons'
+import type { GetProps } from 'antd'
+
+type CustomIconComponentProps = GetProps<typeof Icon>
+
+// Source: public/icons/Icon-person.svg.
+const IconSvg = () => (
+  <svg width="1em" height="1em" viewBox="0 0 25 25" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <path
+      d="M10.25 8.5C10.25 9.875 11.375 11 12.75 11C14.125 11 15.25 9.875 15.25 8.5C15.25 7.125 14.125 6 12.75 6C11.375 6 10.25 7.125 10.25 8.5ZM7.3125 20.5H5.75L7.75 14H17.75L19.75 20.5H18.1875L16.6562 15.5H8.84375L7.3125 20.5ZM12.75 12.5C10.5312 12.5 8.75 10.7188 8.75 8.5C8.75 6.28125 10.5312 4.5 12.75 4.5C14.9688 4.5 16.75 6.28125 16.75 8.5C16.75 10.7188 14.9688 12.5 12.75 12.5Z"
+      fill="currentColor"
+    />
+  </svg>
+)
+
+const CustomIcon = (props: Partial<CustomIconComponentProps>) => (
+  <Icon component={IconSvg} {...props} />
+)
+
+export { CustomIcon as PersonIcon }

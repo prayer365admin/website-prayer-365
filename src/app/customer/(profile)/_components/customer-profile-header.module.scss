@@ -1,0 +1,254 @@
+.header {
+  display: flex;
+  width: 100%;
+  max-width: 1152px;
+  height: 104px;
+  align-items: center;
+  justify-content: space-between;
+  margin: 0 auto 16px;
+  padding: 16px;
+  border-radius: 16px;
+  background: white;
+  box-shadow: 0 1px 2px 0 #0000000d;
+}
+
+.identity,
+.rightColumn,
+.infoCard,
+.nameLine {
+  display: flex;
+  align-items: center;
+}
+
+.identity {
+  width: 449px;
+  height: 72px;
+  flex: 0 0 449px;
+  min-width: 0;
+  gap: 16px;
+}
+
+.identity :global(.ant-avatar) {
+  width: 72px;
+  height: 72px;
+  flex: 0 0 72px;
+  border-radius: 8px;
+  background: #ffffff01;
+  box-shadow:
+    0 2px 4px -2px #0000001a,
+    0 4px 6px -1px #0000001a;
+}
+
+.identity :global(.ant-avatar .anticon) {
+  color: var(--color-neutral-400);
+  font-size: 32px;
+}
+
+.identityDetails {
+  min-width: 0;
+}
+
+.nameLine {
+  min-width: 0;
+  flex-wrap: nowrap;
+  gap: 8px;
+}
+
+.nameLine h1 {
+  min-width: 0;
+  overflow: hidden;
+  margin: 0;
+  color: #191c1e;
+  font-family: var(--font-heading);
+  font-size: 24px;
+  font-weight: 600;
+  letter-spacing: -1px;
+  line-height: 1;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.verified {
+  display: inline-flex;
+  width: 227px;
+  height: 24px;
+  flex: 0 0 227px;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 4px 8px;
+  border-radius: 9999px;
+  background: var(--color-primary-500);
+  color: white;
+  font-size: 12px;
+  line-height: 16px;
+  white-space: nowrap;
+}
+
+.identityDetails p {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 9px;
+  margin: 6px 0 0;
+  color: var(--color-neutral-600);
+  font-family: var(--font-text);
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 1.5;
+  text-align: center;
+}
+
+.rightColumn {
+  width: 571px;
+  height: 72px;
+  flex: 0 0 571px;
+  gap: 8px;
+}
+
+.infoCard {
+  height: 72px;
+  min-width: 0;
+  gap: 8px;
+  padding: 8px;
+  border-radius: 8px;
+  background: var(--color-neutral-100);
+}
+
+.chaplainCard {
+  width: 347px;
+  flex: 0 0 347px;
+}
+
+.churchCard {
+  width: 216px;
+  flex: 0 0 216px;
+}
+
+.infoIcon {
+  display: grid;
+  width: 56px;
+  height: 56px;
+  flex: 0 0 56px;
+  place-items: center;
+  border-radius: 6px;
+  background: #e6edfb;
+  color: var(--color-primary-500);
+  font-size: 16px;
+  line-height: 20px;
+}
+
+.infoIcon :global(.anticon) {
+  transform: rotate(90deg);
+}
+
+.infoText {
+  min-width: 0;
+  flex: 1;
+}
+
+.infoText span,
+.infoText strong {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.infoText span {
+  color: #414752;
+  font-family: var(--font-heading);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 2px;
+  line-height: 1.5;
+  text-transform: uppercase;
+}
+
+.infoText strong {
+  color: #191c1e;
+  font-family: var(--font-text);
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 1.5;
+}
+
+.infoCard button {
+  height: 40px;
+  flex: 0 0 auto;
+  border: 0;
+  background: #eaf1ff;
+  color: var(--color-primary-700);
+}
+
+.churchImage {
+  flex: 0 0 56px;
+  border-radius: 6px;
+  background: #d5e3ff;
+}
+
+@media (max-width: 1199px) {
+  .header {
+    height: auto;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 16px;
+  }
+
+  .identity,
+  .rightColumn {
+    width: 100%;
+    flex-basis: auto;
+  }
+
+  .chaplainCard {
+    width: auto;
+    flex: 1 1 auto;
+  }
+}
+
+@media (max-width: 640px) {
+  .header {
+    padding: 12px;
+  }
+
+  .identity {
+    height: auto;
+  }
+
+  .identity :global(.ant-avatar) {
+    width: 60px !important;
+    height: 60px !important;
+    flex-basis: 60px;
+  }
+
+  .nameLine h1 {
+    font-size: 19px;
+  }
+
+  .nameLine {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .verified {
+    width: auto;
+    max-width: 100%;
+    height: auto;
+    min-height: 24px;
+    flex-basis: auto;
+    white-space: normal;
+  }
+
+  .rightColumn {
+    height: auto;
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .chaplainCard,
+  .churchCard {
+    width: 100%;
+    flex-basis: auto;
+  }
+}
