@@ -155,8 +155,11 @@ separate login at `/admin/login` (not shared; see SPEC §4 note).
 - Header: cover, church name, denomination, city, service times (local wall
   clock).
 - Blocks: description, address, contacts, website, languages, accessibility.
-- Primary action: **Donate** (W11).
-- Secondary: "View prayers" (W09).
+- Primary action: **Donate** (W11) — today the profile renders a **disabled** Donate button with a
+  not-ready note until the shared donation backend (MB-02/MB-03) lands.
+- Secondary: "View prayers" (W09) — not built as a link: the profile renders its prayer list inline in
+  the "Prayer Lists" card with its own filter; the `/churches/:churchId/prayers` route exists but has no
+  entry point yet (WB-23 ◐).
 - Cross-reference: cover image uses the public `coverUrl` field.
 
 ### W09 — Prayer List / Archive
@@ -196,14 +199,35 @@ separate login at `/admin/login` (not shared; see SPEC §4 note).
 - Never invent a success for an unconfirmed payment; rely on the webhook /
   confirmed outcome.
 
-### W13 — Profile
+### W13 — Profile (routed, WB1-PROFILE)
 
-**Route:** `/customer` (renamed from `/profile`, 14 Oct 2026).
+**Route:** `/customer` (renamed from `/profile`, 14 Oct 2026). Built 20 Oct 2026 as a routed profile:
+one shell + three screens.
 
-- View / edit: name, language, main church, followed churches.
-- Profile picture upload (reuse avatar upload path).
-- Sign out action.
-- No admin or deletion UI (mobile/website account deletion is out of scope).
+| Screen              | Route                           | Content                                                                                                                                                                                                            |
+| ------------------- | ------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Shell               | all `/customer/*` profile pages | Identity block + five-menu navigation + daily quietude card + "Sign Out from Prayer 365"                                                                                                                           |
+| Personal Profile    | `/customer`                     | Profile picture (upload / remove), read-only email + Verified badge, full legal or baptismal name, preferred liturgical language; Save / Cancel                                                                    |
+| Church Affiliations | `/customer/church-affiliations` | Primary parish card (name, city, upcoming-events ticker, "Change Primary Parish"), followed-congregation rows (address, unfollow, notifications placeholder), church search (Follow / Make Primary), Save / Cancel |
+| Sacramental Privacy | `/customer/privacy`             | Pastoral-privilege text, "Export Your Spiritual Archive" (disabled), "Account Suspension & Permanent Deletion" (disabled)                                                                                          |
+
+- Identity block: photo, name, member number (derived from the customer id), member since, Verified
+  badge when the email is verified, "Assigned Chaplain: Not assigned", "Primary Sanctuary" from the
+  main church. Values come from `getMe`, `listMyChurches` and the session (`created_at`,
+  `email_verified_at`).
+- Menu: Personal Profile, Church Affiliations, Notifications, Giving & Stewardship, Sacramental
+  Privacy. The last two are shown **disabled** (not built: WB1-P04/WB1-P05) — no route exists for them.
+- Saving: the profile PATCH sends only the fields it owns (`name`, `locale`, `profilePicture`), and the
+  affiliation save sends `mainChurchId` + follow changes, so one screen cannot clear another's values.
+- Known gaps recorded 20 Oct 2026: the design folder for these screens
+  (`docs/website/design/customer-profile/*`) is gitignored and not in the repository, so the built
+  layout was not diffed against it (R-14 sign-off still open). Copy no longer hardcodes English: the
+  five components read 82 `profile*` keys in en/et/sv/fi (added 20 Oct 2026); the et/sv/fi drafts still
+  need the R-13 native-speaker pass.
+- Identity badge: the header shows "Verified Parishioner" when the email is verified (it no longer claims
+  EELK baptism, which email verification cannot prove).
+- Server data: the layout and the pages under it share one `getMe` read per request
+  (`(profile)/_data.ts` → `getMeOnce`, React request cache).
 
 ## Shared states and interactions
 
@@ -232,7 +256,7 @@ flowchart LR
     C --> P[W09/W10 Prayer]
     C --> G[W11 Donation]
     G --> R[W12 Result]
-    H --> M[W13 Profile]
+    H --> M[W13 Profile /customer/*]
     L -.->|after setup| H
 ```
 
@@ -241,15 +265,16 @@ flowchart LR
 Built without a design or differing from it. Confirm as built or supply a
 design, and record the outcome here. Escalate unclear screens to the Tech Lead.
 
-| Item                                                                            | Status  |
-| ------------------------------------------------------------------------------- | ------- |
-| W02 "Check your email" success screen (card style, no design)                   | Pending |
-| W02 is one step; the design's steps 2-3 became W05 `/customer/setup` (R-06)     | Pending |
-| W05 copy: title, subtitle, "Skip for now", "Enter the Sanctuary", "Form n of 2" | Pending |
-| W05 step 2 Back button (not in the design)                                      | Pending |
-| Phones: secondary action centered on top, primary button full width, `md` size  | Pending |
-| W03 verify, W13 profile: reuse the auth card style (W04 decided 14 Oct)         | Pending |
-| Background shapes (sign-up dot, privacy-note glow): positions matched by eye    | Pending |
+| Item                                                                                                                                                                           | Status  |
+| ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------- |
+| W02 "Check your email" success screen (card style, no design)                                                                                                                  | Pending |
+| W02 is one step; the design's steps 2-3 became W05 `/customer/setup` (R-06)                                                                                                    | Pending |
+| W05 copy: title, subtitle, "Skip for now", "Enter the Sanctuary", "Form n of 2"                                                                                                | Pending |
+| W05 step 2 Back button (not in the design)                                                                                                                                     | Pending |
+| Phones: secondary action centered on top, primary button full width, `md` size                                                                                                 | Pending |
+| W03 verify, W13 profile: reuse the auth card style (W04 decided 14 Oct)                                                                                                        | Pending |
+| W13 routed profile screens (shell, personal, affiliations, privacy): built 20 Oct 2026 from designs shared outside the repo — no design copy in the repository to diff against | Pending |
+| Background shapes (sign-up dot, privacy-note glow): positions matched by eye                                                                                                   | Pending |
 
 ## Future — not designed here
 

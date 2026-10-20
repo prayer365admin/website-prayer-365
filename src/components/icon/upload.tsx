@@ -1,0 +1,22 @@
+'use client'
+
+import Icon from '@ant-design/icons'
+import type { GetProps } from 'antd'
+
+type CustomIconComponentProps = GetProps<typeof Icon>
+
+// Source: public/icons/icon-upload.svg.
+const IconSvg = () => (
+  <svg width="1em" height="1em" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <path
+      d="M10.9648 2.94141L14.6836 6.66016L15.1484 7.125L14.2188 8.05469L13.7539 7.58984L11.1562 4.99219V12.375H9.84375V4.99219L7.24609 7.58984L6.78125 8.05469L5.85156 7.125L6.31641 6.66016L10.0352 2.94141L10.5 2.47656L10.9648 2.94141ZM5.6875 12.1562V15.4375H15.3125V11.5H16.625V16.75H4.375V11.5H5.6875V12.1562Z"
+      fill="currentColor"
+    />
+  </svg>
+)
+
+const CustomIcon = (props: Partial<CustomIconComponentProps>) => (
+  <Icon component={IconSvg} {...props} />
+)
+
+export { CustomIcon as UploadIcon }

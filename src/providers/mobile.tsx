@@ -37,6 +37,15 @@ const APPROVED = 'APPROVED'
 
 const toIso = (d: Date | null) => (d ? d.toISOString() : null)
 
+const churchAddressLabel = (value: unknown): string | null => {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return null
+  const address = value as Record<string, unknown>
+  const parts = [address.line1, address.line2, address.city].filter(
+    (part): part is string => typeof part === 'string' && part.trim().length > 0,
+  )
+  return parts.length ? parts.join(', ') : null
+}
+
 const notFoundChurch = () =>
   new GeneralError({
     code: 404,
@@ -684,6 +693,7 @@ export const LIST_MY_CHURCHES = async ({
           churchId: r.church.id,
           churchName: r.church.name,
           city: (r.church.address as { city?: string } | null)?.city ?? null,
+          address: churchAddressLabel(r.church.address),
           coverAssetId: r.church.cover_asset_id,
           isMain: r.is_main,
           isFollowed: r.is_followed,

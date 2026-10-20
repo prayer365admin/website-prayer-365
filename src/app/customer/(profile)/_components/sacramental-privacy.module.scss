@@ -1,0 +1,234 @@
+.card {
+  width: 100%;
+  max-width: 856px;
+  overflow: hidden;
+  border-radius: 16px;
+  background: #fff;
+  box-shadow: 0 1px 2px rgb(0 0 0 / 5%);
+}
+
+.heading {
+  display: flex;
+  min-height: 102px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 24px;
+  border-bottom: 1px solid var(--color-neutral-200);
+}
+
+.heading h1,
+.body h2 {
+  margin: 0;
+  color: var(--color-primary-900);
+  font-family: var(--font-text);
+  font-weight: 600;
+  line-height: 1.5;
+}
+
+.heading h1 {
+  font-size: 18px;
+}
+
+.heading p {
+  margin: 0;
+  color: var(--color-neutral-600);
+  font-size: 16px;
+  line-height: 1.5;
+}
+
+.headingIcon,
+.privilegeIcon,
+.deletionIcon {
+  display: grid;
+  width: 32px;
+  height: 32px;
+  flex: 0 0 32px;
+  place-items: center;
+  border-radius: 9999px;
+  font-size: 16px;
+}
+
+.headingIcon,
+.privilegeIcon {
+  background: var(--color-blue-200);
+  color: var(--color-primary-500);
+}
+
+// Guard SVG artboard has padding, so the glyph needs a larger font-size than its circle suggests.
+.headingIcon {
+  font-size: 24px;
+}
+
+.privilegeIcon {
+  width: 40px;
+  height: 40px;
+  flex-basis: 40px;
+  background: var(--color-primary-150);
+  font-size: 30px;
+}
+
+.body {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 24px;
+}
+
+.body h2 {
+  font-size: 16px;
+}
+
+.body p {
+  margin: 4px 0 0;
+  color: var(--color-neutral-600);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.privilege {
+  margin-bottom: 16px;
+  overflow: hidden;
+  border-radius: 16px;
+  // Blue wash over a white base (the design lists the white fill first, which in CSS would hide it).
+  background: linear-gradient(135deg, rgb(194 217 255 / 40%) 0%, rgb(255 255 255 / 0%) 100%), #fff;
+}
+
+.privilegeBody {
+  display: flex;
+  gap: 16px;
+  padding: 16px;
+}
+
+.privilege p {
+  font-size: 15px;
+}
+
+.privilegeFooter {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 12px 16px;
+  border-top: 1px solid var(--color-neutral-200);
+  color: var(--color-primary-500);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.exportRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 20px 16px;
+  border-radius: 16px;
+  background: var(--color-neutral-100);
+}
+
+.exportRow h2 {
+  font-size: 14px;
+}
+
+.exportRow p {
+  font-size: 12px;
+}
+
+.exportActions {
+  display: flex;
+  flex: 0 0 auto;
+  gap: 8px;
+}
+
+.body .exportButton,
+.body .exportButton:disabled {
+  border-color: var(--color-primary-150);
+  background: var(--color-primary-150);
+  color: #2555a7;
+}
+
+.body .exportButton:disabled,
+.body .deleteButton:disabled {
+  opacity: 0.6;
+}
+
+.deletion {
+  margin-top: 16px;
+  overflow: hidden;
+  border-radius: 16px;
+  background: var(--color-neutral-100);
+}
+
+.deletionCopy {
+  display: flex;
+  gap: 16px;
+  padding: 16px;
+  border-bottom: 1px solid var(--color-neutral-200);
+}
+
+.deletionIcon {
+  width: 40px;
+  height: 40px;
+  flex-basis: 40px;
+  background: var(--color-danger-200);
+  color: var(--color-danger-700);
+}
+
+.deletionFooter {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 16px;
+}
+
+.deletionFooter p {
+  margin: 0;
+  font-size: 12px;
+}
+
+.body .deleteButton,
+.body .deleteButton:disabled {
+  width: 323px;
+  max-width: 100%;
+  height: 32px;
+  gap: 4px;
+  padding: 7px 14px 9px 8px;
+  border-color: #fff;
+  border-radius: 8px;
+  background: #fff;
+  color: #b21a1a;
+  font-family: var(--font-text);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0;
+  line-height: 1.5;
+}
+
+.body .deleteButton :global(.anticon) {
+  font-size: 20px;
+}
+
+@media (max-width: 640px) {
+  .heading,
+  .body {
+    padding: 20px;
+  }
+
+  .exportRow,
+  .deletionFooter {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .exportActions > *,
+  .body .deleteButton {
+    flex: 1;
+    white-space: normal;
+  }
+
+  .body .deleteButton {
+    height: auto;
+    min-height: 32px;
+  }
+}
