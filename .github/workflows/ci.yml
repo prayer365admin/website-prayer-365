@@ -25,7 +25,12 @@ jobs:
       - run: bun run lint
       # Vitest runs ALONE: two concurrent `vitest run`s in this repo starve the
       # CPU and produce false 15s timeouts.
+      # DATABASE_URL here is a throwaway: the suite is unit tests and never opens
+      # a connection, but importing src/utils/db-connection.ts builds a pg pool
+      # at module load, so the var must exist (CI has no .env).
       - run: bun run test
+        env:
+          DATABASE_URL: postgresql://ci:ci@localhost:5432/ci
       # NOTE: `bun run build` is intentionally not here. It runs
       # `prisma migrate deploy` and `next build`, which need a real database and
       # the app secrets. That check belongs to the Vercel preview deployment.
