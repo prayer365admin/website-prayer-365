@@ -1,43 +1,43 @@
+'use client'
+
 import { SanctuaryIcon } from '@/components/icon/sanctuary'
+import { useSiteI18n } from '@/i18n/site-i18n'
 import Image from 'next/image'
 import Link from 'next/link'
 import s from './footer.module.scss'
-
-const parishLinks = [
-  ['Tallinn Deanery Directory', '/churches'],
-  ['Helsinki Diocese Partners', '/churches'],
-  ['Diaconal Food & Shelter Fund', '/giving'],
-  ['Youth Ministry Gatherings', '/events'],
-] as const
-
-const policyLinks = [
-  ['Privacy of Confession', '/privacy'],
-  ['Terms of Fellowship', '/terms'],
-  ['Pastoral Support', '/support'],
-] as const
+import { SUPPORT_HOTLINE, dialHref } from './support-hotline'
 
 export default function SiteFooter({ legalOnly = false }: { legalOnly?: boolean }) {
+  const { t } = useSiteI18n()
+
+  const parishLinks = [
+    [t('footerParishTallinn'), '/churches'],
+    [t('footerParishHelsinki'), '/churches'],
+    [t('footerParishDiaconal'), '/giving'],
+    [t('footerParishYouth'), '/events'],
+  ] as const
+
+  const policyLinks = [
+    [t('footerPrivacyOfConfession'), '/privacy'],
+    [t('footerTerms'), '/terms'],
+    [t('footerPastoralSupport'), '/support'],
+  ] as const
+
   return (
     <footer className={`${s.footer} ${legalOnly ? s.legalOnly : ''}`}>
       <div className={s.inner}>
-        <section aria-label="Prayer 365" className={s.identity}>
+        <section aria-label={t('footerIdentity')} className={s.identity}>
           <div className={s.brandLine}>
             <Image alt="" className={s.logo} height={28} src="/images/icon.jpg" width={28} />
-            <strong>Prayer 365</strong>
-            <span>Ecumenical Portal</span>
+            <strong>{t('footerIdentity')}</strong>
+            <span>{t('footerPortalLabel')}</span>
           </div>
-          <blockquote>
-            “The Lord bless you and keep you; the Lord make his face shine upon you and be gracious
-            to you.”
-          </blockquote>
-          <p className={s.reference}>
-            Numbers 6:24–25&nbsp; • &nbsp;In fellowship with EELK Baltic &amp; Nordic Ecumenical
-            Council
-          </p>
+          <blockquote>{t('footerVerse')}</blockquote>
+          <p className={s.reference}>{t('footerVerseReference')}</p>
         </section>
 
-        <nav aria-label="Parish network" className={s.parishNetwork}>
-          <h2>Parish Network</h2>
+        <nav aria-label={t('footerParishHeading')} className={s.parishNetwork}>
+          <h2>{t('footerParishHeading')}</h2>
           {parishLinks.map(([label, href]) => (
             <Link href={href} key={label}>
               {label}
@@ -46,21 +46,22 @@ export default function SiteFooter({ legalOnly = false }: { legalOnly?: boolean 
         </nav>
 
         <section className={s.support}>
-          <h2>Pastoral Care &amp; Support</h2>
+          <h2>{t('footerSupportHeading')}</h2>
           <div className={s.hotline}>
-            <span>24/7 Spiritual Hotline</span>
-            <a href="tel:+3726441483">+372 644 1483</a>
-            <span>Confidential chaplain consultation</span>
+            <span>{t('footerHotlineLabel')}</span>
+            {SUPPORT_HOTLINE.number ? (
+              <a href={dialHref(SUPPORT_HOTLINE.number)}>{SUPPORT_HOTLINE.number}</a>
+            ) : (
+              <Link href="/churches">{t('contactPastoralCare')}</Link>
+            )}
+            <span>{t('footerHotlineNote')}</span>
           </div>
         </section>
 
         <div className={s.legal}>
           <p>
             <SanctuaryIcon aria-hidden />
-            <span>
-              © 2024 Prayer 365 Sanctuary. Ecumenical Christian Devotional Network. All rights
-              reserved in faith.
-            </span>
+            <span>{t('footerLegal', { year: new Date().getFullYear() })}</span>
           </p>
           <nav aria-label="Legal">
             {policyLinks.map(([label, href]) => (

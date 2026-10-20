@@ -20,14 +20,19 @@ export const getSessionRedirect = (access: SessionAccess, session: Session | nul
 export default function SessionAccessGuard({ access }: { access: SessionAccess }) {
   const { data: session, status } = useSession()
   const previousVisibility = useRef('')
+  const concealed = useRef(false)
 
   const conceal = useCallback(() => {
+    if (concealed.current) return
     previousVisibility.current = document.documentElement.style.visibility
     document.documentElement.style.visibility = 'hidden'
+    concealed.current = true
   }, [])
 
   const reveal = useCallback(() => {
+    if (!concealed.current) return
     document.documentElement.style.visibility = previousVisibility.current
+    concealed.current = false
   }, [])
 
   const redirect = useCallback(
@@ -49,11 +54,14 @@ export default function SessionAccessGuard({ access }: { access: SessionAccess }
     const handlePageShow = (event: PageTransitionEvent) => {
       if (!event.persisted) return
 
-      void getSession().then((currentSession) => {
-        const target = getSessionRedirect(access, currentSession)
-        if (target) redirect(target)
-        else reveal()
-      })
+      void getSession()
+        .then((currentSession) => {
+          const target = getSessionRedirect(access, currentSession)
+          if (target) redirect(target)
+          else reveal()
+        })
+        // A failed session read must show the page, not a permanently hidden document.
+        .catch(() => reveal())
     }
 
     window.addEventListener('pagehide', handlePageHide)

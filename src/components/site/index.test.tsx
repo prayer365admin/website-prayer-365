@@ -1,4 +1,5 @@
 import { SiteI18nProvider } from '@/i18n/site-i18n'
+import { SITE_MESSAGES } from '@/i18n/messages'
 import { renderWithProviders, sessionMock } from '@/test/frontend/render'
 import { screen } from '@testing-library/react'
 import { beforeEach, describe, expect, it } from 'vitest'
@@ -17,10 +18,38 @@ describe('SiteShell', () => {
     )
 
     expect(screen.getByRole('banner')).toBeTruthy()
-    expect(screen.getByRole('button', { name: 'Account' })).toBeTruthy()
-    expect(screen.getByRole('navigation', { name: 'Primary navigation' })).toBeTruthy()
+    expect(screen.getByRole('button', { name: SITE_MESSAGES.en.account })).toBeTruthy()
+    expect(screen.getByRole('navigation', { name: SITE_MESSAGES.en.headerPrimaryNav })).toBeTruthy()
     expect(screen.getByText('Customer profile')).toBeTruthy()
     expect(screen.getByRole('contentinfo')).toBeTruthy()
-    expect(screen.getByText('24/7 Spiritual Hotline')).toBeTruthy()
+    expect(screen.getByRole('heading', { name: SITE_MESSAGES.en.footerParishHeading })).toBeTruthy()
+    expect(
+      screen.getByRole('heading', { name: SITE_MESSAGES.en.footerSupportHeading }),
+    ).toBeTruthy()
+  })
+
+  it('never renders a phone number while no verified hotline exists', () => {
+    renderWithProviders(
+      <SiteI18nProvider initialLocale="en">
+        <SiteShell>Customer profile</SiteShell>
+      </SiteI18nProvider>,
+    )
+
+    expect(document.querySelector('a[href^="tel:"]')).toBeNull()
+    expect(
+      screen.getByRole('link', { name: SITE_MESSAGES.en.contactPastoralCare }).getAttribute('href'),
+    ).toBe('/churches')
+  })
+
+  // The shell is a client component, so the language switch must reach the footer copy.
+  it('renders the chrome in the provider language', () => {
+    renderWithProviders(
+      <SiteI18nProvider initialLocale="et">
+        <SiteShell>Customer profile</SiteShell>
+      </SiteI18nProvider>,
+    )
+
+    expect(screen.getByText(SITE_MESSAGES.et.footerParishHeading)).toBeTruthy()
+    expect(screen.getByRole('link', { name: SITE_MESSAGES.et.headerDiscoverChurches })).toBeTruthy()
   })
 })

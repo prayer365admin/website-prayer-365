@@ -23,18 +23,9 @@ import s from './top-bar.module.scss'
 
 export type SiteHeaderVariant = 'auth' | 'general'
 
-const authLinks = [
-  { href: '/login', label: 'Sign In' },
-  { href: '/register', label: 'Begin Fellowship', primary: true },
-  { href: '/', label: 'Spiritual Walk' },
-]
-
-const generalLinks = [
-  { href: '/churches', label: 'Discover Churches' },
-  { href: '/events', label: 'Activity & Events' },
-  { href: '/giving', label: 'Giving & Stewardship' },
-  { href: '/prayers', label: 'Prayers & Liturgies' },
-]
+/** True when the path is the link target or a page below it. */
+const isActivePath = (pathname: string, href: string) =>
+  pathname === href || pathname.startsWith(`${href}/`)
 
 export default function SiteTopBar({ variant = 'general' }: { variant?: SiteHeaderVariant }) {
   const { locale, setLocale, t } = useSiteI18n()
@@ -43,12 +34,30 @@ export default function SiteTopBar({ variant = 'general' }: { variant?: SiteHead
   const pathname = usePathname()
   const mainChurch = churches.find((church) => church.isMain) ?? churches[0]
 
+  const authLinks = [
+    { href: '/login', label: t('headerSignIn') },
+    { href: '/register', label: t('signInBeginFellowship'), primary: true },
+    { href: '/', label: t('headerSpiritualWalk') },
+  ]
+
+  const generalLinks = [
+    { href: '/churches', label: t('headerDiscoverChurches') },
+    { href: '/events', label: t('headerEvents') },
+    { href: '/giving', label: t('headerGiving') },
+    { href: '/prayers', label: t('headerPrayers') },
+  ]
+
   const churchMenu: MenuProps['items'] = churches.length
     ? churches.map((church) => ({
         key: church.churchId,
         label: <Link href={`/churches/${church.churchId}`}>{church.churchName}</Link>,
       }))
-    : [{ key: 'empty', label: 'No churches available', disabled: true }]
+    : [
+        {
+          key: 'browse',
+          label: <Link href="/churches">{t('headerBrowseChurches')}</Link>,
+        },
+      ]
 
   const accountMenu: MenuProps['items'] = [
     {
@@ -82,9 +91,9 @@ export default function SiteTopBar({ variant = 'general' }: { variant?: SiteHead
 
   const churchControl = (
     <Dropdown menu={{ items: churchMenu }} placement="bottomRight" trigger={['click']}>
-      <button aria-label="Choose a church" className={s.churchPill} type="button">
+      <button aria-label={t('headerChooseChurch')} className={s.churchPill} type="button">
         <ChurchIcon aria-hidden />
-        <span>{mainChurch?.churchName ?? 'Choose a church'}</span>
+        <span>{mainChurch?.churchName ?? t('headerChooseChurch')}</span>
         <DownOutlined className={s.churchChevron} />
       </button>
     </Dropdown>
@@ -110,7 +119,7 @@ export default function SiteTopBar({ variant = 'general' }: { variant?: SiteHead
     <header className={s.header}>
       <div className={`${s.inner} ${variant === 'auth' ? s.authInner : s.generalInner}`}>
         <div className={s.brandGroup}>
-          <Link aria-label="Prayer 365 home" className={s.logoLink} href="/">
+          <Link aria-label={t('headerPrayerHome')} className={s.logoLink} href="/">
             <Image
               alt=""
               className={s.logo}
@@ -122,7 +131,7 @@ export default function SiteTopBar({ variant = 'general' }: { variant?: SiteHead
           </Link>
           <Link
             aria-current={pathname === '/' ? 'page' : undefined}
-            aria-label="Home"
+            aria-label={t('headerHome')}
             className={`${s.iconButton} ${pathname === '/' ? s.homeButton : ''}`}
             href="/"
           >
@@ -131,10 +140,10 @@ export default function SiteTopBar({ variant = 'general' }: { variant?: SiteHead
         </div>
 
         {variant === 'auth' ? (
-          <nav aria-label="Account navigation" className={s.authNavigation}>
+          <nav aria-label={t('headerAccountNav')} className={s.authNavigation}>
             {authLinks.map((item) => (
               <Link
-                aria-current={pathname === item.href ? 'page' : undefined}
+                aria-current={isActivePath(pathname, item.href) ? 'page' : undefined}
                 className={item.primary ? s.primaryLink : s.navigationLink}
                 href={item.href}
                 key={item.href}
@@ -145,9 +154,14 @@ export default function SiteTopBar({ variant = 'general' }: { variant?: SiteHead
           </nav>
         ) : (
           <div className={s.generalContent}>
-            <nav aria-label="Primary navigation" className={s.generalNavigation}>
+            <nav aria-label={t('headerPrimaryNav')} className={s.generalNavigation}>
               {generalLinks.map((item) => (
-                <Link className={s.navigationLink} href={item.href} key={item.href}>
+                <Link
+                  aria-current={isActivePath(pathname, item.href) ? 'page' : undefined}
+                  className={s.navigationLink}
+                  href={item.href}
+                  key={item.href}
+                >
                   {item.label}
                 </Link>
               ))}
@@ -159,7 +173,7 @@ export default function SiteTopBar({ variant = 'general' }: { variant?: SiteHead
         <div className={s.actions}>
           {variant === 'general' && (
             <Link
-              aria-label="Search"
+              aria-label={t('headerSearch')}
               className={`${s.iconButton} ${s.searchButton}`}
               href="/search"
             >
@@ -169,7 +183,7 @@ export default function SiteTopBar({ variant = 'general' }: { variant?: SiteHead
           <div className={s.desktopLocale}>{localeControl}</div>
           {variant === 'general' && (
             <Link
-              aria-label="Notifications"
+              aria-label={t('headerNotifications')}
               className={`${s.iconButton} ${s.notificationButton}`}
               href="/notifications"
             >
