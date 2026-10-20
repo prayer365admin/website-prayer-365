@@ -21,6 +21,7 @@ church chosen / a language chosen). Skipping sets neither, so every new
 browser asks again until both are filled.']
   locale_setup_completed_at DateTime
   auth_token auth_token [not null]
+  oauthAccounts oauth_accounts [not null]
   roleAssignments role_assignments [not null]
   grantedAssignments role_assignments [not null]
   approvedChurches churches [not null]
@@ -47,6 +48,21 @@ browser asks again until both are filled.']
   created_at DateTime [default: `now()`, not null]
   updated_at DateTime
   deleted_at DateTime
+}
+
+Table oauth_accounts {
+  id String [pk]
+  user_id String [not null]
+  user user [not null]
+  provider String [not null]
+  provider_account_id String [not null]
+  created_at DateTime [default: `now()`, not null]
+  updated_at DateTime
+
+  indexes {
+    (provider, provider_account_id) [unique]
+    (user_id, provider) [unique]
+  }
 }
 
 Table role {
@@ -755,6 +771,8 @@ Enum JobState {
 Ref: user.role_id > role.id [delete: Cascade]
 
 Ref: user.locale > languages.code
+
+Ref: oauth_accounts.user_id > user.id [delete: Cascade]
 
 Ref: auth_token.user_id > user.id [delete: Cascade]
 

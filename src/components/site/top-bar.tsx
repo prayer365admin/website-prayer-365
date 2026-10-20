@@ -35,9 +35,13 @@ export default function SiteTopBar({ variant = 'general' }: { variant?: SiteHead
   const mainChurch = churches.find((church) => church.isMain) ?? churches[0]
 
   const authLinks = [
-    { href: '/login', label: t('headerSignIn') },
-    { href: '/register', label: t('signInBeginFellowship'), primary: true },
-    { href: '/', label: t('headerSpiritualWalk') },
+    { active: pathname === '/login', href: '/login', label: t('headerSignIn') },
+    {
+      active: pathname === '/register' || pathname === '/customer/setup',
+      href: '/register',
+      label: t('signInBeginFellowship'),
+    },
+    { active: pathname === '/', href: '/', label: t('headerSpiritualWalk') },
   ]
 
   const generalLinks = [
@@ -143,8 +147,8 @@ export default function SiteTopBar({ variant = 'general' }: { variant?: SiteHead
           <nav aria-label={t('headerAccountNav')} className={s.authNavigation}>
             {authLinks.map((item) => (
               <Link
-                aria-current={isActivePath(pathname, item.href) ? 'page' : undefined}
-                className={item.primary ? s.primaryLink : s.navigationLink}
+                aria-current={item.active ? 'page' : undefined}
+                className={item.active ? s.primaryLink : s.navigationLink}
                 href={item.href}
                 key={item.href}
               >

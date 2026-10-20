@@ -6,6 +6,7 @@ import { ChurchIcon } from '@/components/icon/church'
 import { LockIcon } from '@/components/icon/lock'
 import { MailIcon } from '@/components/icon/mail'
 import { AuthCardSection } from '@/components/site/auth/auth-card'
+import OAuthButtons from '@/components/site/auth/oauth-buttons'
 import PasswordStrength from '@/components/site/auth/password-strength'
 import StepHeader from '@/components/site/auth/step-header'
 import FormError from '@/components/site/form-error'
@@ -149,6 +150,18 @@ export default function SignUpForm() {
             </SiteButton>
           </div>
         </Form>
+      </AuthCardSection>
+
+      <div className="flex items-center gap-4 py-1">
+        <span aria-hidden className="h-px flex-1 bg-neutral-200" />
+        <span className="whitespace-nowrap text-[10px] uppercase tracking-[0.2em] text-neutral-500">
+          {t('signUpAltDivider')}
+        </span>
+        <span aria-hidden className="h-px flex-1 bg-neutral-200" />
+      </div>
+
+      <AuthCardSection className="grid gap-4 pt-4 sm:grid-cols-2 md:pt-4">
+        <OAuthButtons appleLabel={t('signUpApple')} googleLabel={t('signUpGoogle')} />
       </AuthCardSection>
     </>
   )

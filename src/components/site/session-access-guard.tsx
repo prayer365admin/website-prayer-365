@@ -2,8 +2,8 @@
 
 import { isCustomerRole } from '@/utils/customer-role'
 import type { Session } from 'next-auth'
-import { getSession, useSession } from 'next-auth/react'
-import { useCallback, useEffect, useLayoutEffect, useRef } from 'react'
+import { getSession } from 'next-auth/react'
+import { useCallback, useEffect, useRef } from 'react'
 
 export type SessionAccess = 'protected' | 'guest'
 
@@ -16,9 +16,13 @@ export const getSessionRedirect = (access: SessionAccess, session: Session | nul
 /**
  * Complements the server route guards when the browser restores a complete
  * document from its back/forward cache without requesting the route again.
+ *
+ * It deliberately does NOT redirect on a normal render: the server guards
+ * (requiredWebAuth) are the only authority there. `useSession` only decodes the
+ * cookie, while the server also requires an active user, so redirecting from
+ * both sides ping-ponged /login <-> /customer whenever they disagreed.
  */
 export default function SessionAccessGuard({ access }: { access: SessionAccess }) {
-  const { data: session, status } = useSession()
   const previousVisibility = useRef('')
   const concealed = useRef(false)
 
@@ -42,12 +46,6 @@ export default function SessionAccessGuard({ access }: { access: SessionAccess }
     },
     [conceal],
   )
-
-  useLayoutEffect(() => {
-    if (status === 'loading') return
-    const target = getSessionRedirect(access, session)
-    if (target) redirect(target)
-  }, [access, redirect, session, status])
 
   useEffect(() => {
     const handlePageHide = () => conceal()

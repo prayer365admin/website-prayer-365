@@ -160,12 +160,20 @@ describe('Customer sign-in (W01)', () => {
     expect(await screen.findByText(en.error)).toBeTruthy()
   })
 
-  it('ChurchID and Magic Link buttons are UI only', async () => {
+  it('keeps Apple unavailable and starts Google OAuth into customer setup', async () => {
     renderPage()
-    await userEvent.click(screen.getByRole('button', { name: en.signInChurchId }))
-    await userEvent.click(screen.getByRole('button', { name: en.signInMagicLink }))
 
-    expect(signInMock).not.toHaveBeenCalled()
+    const apple = screen.getByRole('button', { name: en.signInApple })
+    expect(apple).toHaveProperty('disabled', true)
+    expect(apple.className).toContain('disabled:border-neutral-200')
+    expect(apple.className).toContain('disabled:text-neutral-200')
+    await userEvent.click(screen.getByRole('button', { name: en.signInGoogle }))
+
+    expect(signInMock).toHaveBeenCalledWith('google', { redirectTo: '/customer/setup' })
+    const google = screen.getByRole('button', { name: en.signInGoogle })
+    expect(google).toHaveProperty('disabled', true)
+    expect(google.className).toContain('disabled:border-neutral-200')
+    expect(google.className).toContain('disabled:text-neutral-200')
     expect(pushMock).not.toHaveBeenCalled()
   })
 })
