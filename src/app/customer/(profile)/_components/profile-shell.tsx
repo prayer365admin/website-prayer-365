@@ -8,6 +8,7 @@ import { GuardIcon } from '@/components/icon/guard'
 import { PersonIcon } from '@/components/icon/person'
 import { QuoteIcon } from '@/components/icon/quote'
 import { RightLogIcon } from '@/components/icon/right-log'
+import { useSiteI18n } from '@/i18n/site-i18n'
 import { signOut } from 'next-auth/react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
@@ -16,39 +17,46 @@ import s from './profile-shell.module.scss'
 
 // iconSize is each SVG's native artboard size, so the glyphs render at the design's scale.
 const profileMenu = [
-  { href: '/customer', icon: PersonIcon, iconSize: 25, label: 'Personal Profile', ready: true },
+  {
+    href: '/customer',
+    icon: PersonIcon,
+    iconSize: 25,
+    labelKey: 'profileMenuPersonal',
+    ready: true,
+  },
   {
     href: '/customer/church-affiliations',
     icon: ChurchIcon,
     iconSize: 20,
-    label: 'Church Affiliations',
+    labelKey: 'profileMenuAffiliations',
     ready: true,
   },
   {
     href: '/customer/notifications',
     icon: BellRingIcon,
     iconSize: 12,
-    label: 'Notifications',
+    labelKey: 'profileMenuNotifications',
     ready: false,
   },
   {
     href: '/customer/stewardship',
     icon: GivingIcon,
     iconSize: 25,
-    label: 'Giving & Stewardship',
+    labelKey: 'profileMenuStewardship',
     ready: false,
   },
   {
     href: '/customer/privacy',
     icon: GuardIcon,
     iconSize: 20,
-    label: 'Sacramental Privacy',
+    labelKey: 'profileMenuPrivacy',
     ready: true,
   },
 ] as const
 
 export default function ProfileShell({ children }: { children: ReactNode }) {
   const pathname = usePathname()
+  const { t } = useSiteI18n()
   const [signingOut, setSigningOut] = useState(false)
 
   const handleSignOut = async () => {
@@ -65,8 +73,8 @@ export default function ProfileShell({ children }: { children: ReactNode }) {
   return (
     <div className={s.shell}>
       <aside className={s.sidebar}>
-        <nav aria-label="Customer profile">
-          {profileMenu.map(({ href, icon: Icon, iconSize, label, ready }) =>
+        <nav aria-label={t('profileNavLabel')}>
+          {profileMenu.map(({ href, icon: Icon, iconSize, labelKey, ready }) =>
             ready ? (
               <Link
                 aria-current={pathname === href ? 'page' : undefined}
@@ -75,17 +83,18 @@ export default function ProfileShell({ children }: { children: ReactNode }) {
                 key={href}
               >
                 <Icon aria-hidden style={{ fontSize: iconSize }} />
-                <span>{label}</span>
+                <span>{t(labelKey)}</span>
               </Link>
             ) : (
               <span
                 aria-disabled="true"
                 className={`${s.menuItem} ${s.disabledMenuItem}`}
                 key={href}
-                title="This profile section will be added next"
+                title={t('profileMenuComingSoon')}
               >
                 <Icon aria-hidden style={{ fontSize: iconSize }} />
-                <span>{label}</span>
+                <span>{t(labelKey)}</span>
+                <span className="sr-only"> — {t('profileMenuComingSoon')}</span>
               </span>
             ),
           )}
@@ -96,13 +105,11 @@ export default function ProfileShell({ children }: { children: ReactNode }) {
             <span aria-hidden className={s.quoteIcon}>
               <QuoteIcon />
             </span>
-            <strong>Daily Quietude</strong>
+            <strong>{t('profileQuietudeTitle')}</strong>
           </div>
           <div className={s.quoteBody}>
-            <blockquote>
-              “Take a moment. Breathe. Pray. Be still, and know that I am with you.”
-            </blockquote>
-            <p>Psalm 46:10 · Parish reflection feed</p>
+            <blockquote>{t('profileQuietudeQuote')}</blockquote>
+            <p>{t('profileQuietudeSource')}</p>
           </div>
         </section>
       </aside>
@@ -116,7 +123,7 @@ export default function ProfileShell({ children }: { children: ReactNode }) {
         onClick={handleSignOut}
         size="md"
       >
-        Sign Out from Prayer 365
+        {t('profileSignOut')}
       </SiteButton>
     </div>
   )

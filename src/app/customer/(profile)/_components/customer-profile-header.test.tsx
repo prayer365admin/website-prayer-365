@@ -42,7 +42,7 @@ describe('CustomerProfileHeader', () => {
     )
 
     expect(screen.getByRole('heading', { name: 'Maria' })).toBeTruthy()
-    expect(screen.getByText('EELK Baptized / Verified Parishioner')).toBeTruthy()
+    expect(screen.getByText('Verified Parishioner')).toBeTruthy()
     expect(screen.getByText('Member since Oct 2024')).toBeTruthy()
     expect(screen.getByText('Tallinn Demo Church')).toBeTruthy()
   })
@@ -57,7 +57,7 @@ describe('CustomerProfileHeader', () => {
       />,
     )
 
-    expect(screen.queryByText('EELK Baptized / Verified Parishioner')).toBeNull()
+    expect(screen.queryByText('Verified Parishioner')).toBeNull()
     expect(screen.getByText('Not assigned')).toBeTruthy()
     expect(screen.getByText('Not selected')).toBeTruthy()
   })

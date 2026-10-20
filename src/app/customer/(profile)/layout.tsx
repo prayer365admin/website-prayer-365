@@ -1,13 +1,14 @@
 import SiteShell from '@/components/site'
 import SessionAccessGuard from '@/components/site/session-access-guard'
 import SetupGuard from '@/components/site/setup-guard'
-import { getMe, listMyChurches } from '@/controller/mobile'
+import { listMyChurches } from '@/controller/mobile'
 import { SiteI18nProvider } from '@/i18n/site-i18n'
 import requiredWebAuth from '@/utils/required-webauth'
 import { getSiteLocale } from '@/utils/site-locale'
 import { redirect } from 'next/navigation'
 import CustomerProfileHeader from './_components/customer-profile-header'
 import ProfileShell from './_components/profile-shell'
+import { getMeOnce } from './_data'
 
 /**
  * Customer profile shell. The route group keeps /customer/setup on the
@@ -20,7 +21,7 @@ export default async function CustomerLayout({ children }: { children: React.Rea
   const web = await requiredWebAuth().catch(() => null)
   if (!web) redirect('/login')
   const userId = web.session.user.user_id
-  const [me, churches] = await Promise.all([getMe({ userId }), listMyChurches({ userId })])
+  const [me, churches] = await Promise.all([getMeOnce(userId), listMyChurches({ userId })])
 
   return (
     <SiteI18nProvider initialLocale={await getSiteLocale()}>

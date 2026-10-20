@@ -104,8 +104,6 @@ describe('ChurchAffiliations', () => {
     renderWithProviders(<ChurchAffiliations initialChurches={churches} initialMe={me} />)
 
     expect(await screen.findByText('Sunday Eucharistic Service')).toBeTruthy()
-    expect(axiosMock.get).toHaveBeenCalledWith('/api/v1/mobile/churches/c1/events', {
-      params: { page: 1, limit: 5 },
-    })
+    expect(axiosMock.get).toHaveBeenCalledWith('/api/v1/site/churches/c1/events')
   })
 })

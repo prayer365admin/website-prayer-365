@@ -249,7 +249,7 @@
 
 .churchRow :global(.ant-avatar) {
   border-radius: 8px;
-  background: #b9d8f8;
+  background: var(--color-blue-200);
   color: var(--color-primary-700);
 }
 
@@ -307,14 +307,14 @@
   padding: 7px 10px 9px;
   border: 0;
   border-radius: 8px;
-  background: #e6edfb;
+  background: var(--color-primary-150);
   color: #2555a7;
   font-size: 12px;
 }
 
 .notificationButton:disabled {
   border: 0;
-  background: #e6edfb;
+  background: var(--color-primary-150);
   color: #2555a7;
 }
 
@@ -323,8 +323,8 @@
   min-width: 32px;
   height: 32px;
   padding: 0;
-  border-color: #e6edfb;
-  background: #e6edfb;
+  border-color: var(--color-primary-150);
+  background: var(--color-primary-150);
 }
 
 .unfollowButton :global(.anticon) {

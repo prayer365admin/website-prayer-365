@@ -7,9 +7,10 @@ import { LocationPlusIcon } from '@/components/icon/location-plus'
 import { SearchIcon } from '@/components/icon/search'
 import { UnbookmarkIcon } from '@/components/icon/unbookmark'
 import { VerifyIcon } from '@/components/icon/verify'
-import { useUpcomingChurchEvents } from '@/hooks/data/site/church-event'
+import { useSiteChurchEvents } from '@/hooks/data/site/churches'
 import { useChurchOptions } from '@/hooks/data/site/church-option'
 import { useMe, useMyChurches } from '@/hooks/data/site/me'
+import { useSiteI18n } from '@/i18n/site-i18n'
 import type { ChurchOption } from '@/models/church-option'
 import type { MobileMe, MobileMyChurch, MobilePublicEvent } from '@/models/mobile'
 import { App, Avatar, Input } from 'antd'
@@ -19,6 +20,7 @@ import s from './church-affiliations.module.scss'
 
 const churchImagePlaceholder = '/images/placeholder.png'
 const EVENT_ROTATION_MS = 7000
+const TICKER_MAX_EVENTS = 5
 // ponytail: no per-church notification preference exists yet, so every row is off; read it
 // from the church relation once that field is stored.
 const notificationsOn = false
@@ -38,6 +40,7 @@ const formatEventStart = (startsAt: string) => {
 }
 
 function ChurchEventTicker({ events }: { events: MobilePublicEvent[] }) {
+  const { t } = useSiteI18n()
   const [activeIndex, setActiveIndex] = useState(0)
   const [paused, setPaused] = useState(false)
   const [reduceMotion, setReduceMotion] = useState(false)
@@ -65,7 +68,7 @@ function ChurchEventTicker({ events }: { events: MobilePublicEvent[] }) {
 
   return (
     <div
-      aria-label="Upcoming parish events"
+      aria-label={t('profileEventsLabel')}
       className={s.eventTicker}
       onBlur={() => setPaused(false)}
       onFocus={() => setPaused(true)}
@@ -117,6 +120,7 @@ export default function ChurchAffiliations({
   initialMe: MobileMe
 }) {
   const { message } = App.useApp()
+  const { t } = useSiteI18n()
   const { onPatch } = useMe({ userId: initialMe.id, initialData: initialMe })
   const { onFollow } = useMyChurches({ userId: initialMe.id, initialData: initialChurches })
   const [savedChurches, setSavedChurches] = useState(initialChurches)
@@ -128,7 +132,9 @@ export default function ChurchAffiliations({
   const [changingPrimary, setChangingPrimary] = useState(false)
   const searchRef = useRef<InputRef>(null)
   const { data: options, loading: searching } = useChurchOptions(search)
-  const { data: upcomingEvents } = useUpcomingChurchEvents(mainId)
+  // Shared site hook: the church events endpoint already has a cookie-session twin
+  // (`/api/v1/site/churches/:id/events`), same controller as the mobile route.
+  const { data: upcomingEvents } = useSiteChurchEvents(mainId ?? '')
 
   const mainChurch = churches.find((church) => church.churchId === mainId)
   const followed = churches.filter((church) => church.isFollowed && church.churchId !== mainId)
@@ -205,9 +211,9 @@ export default function ChurchAffiliations({
       setSavedChurches(next)
       setSavedMainId(mainId)
       setChangingPrimary(false)
-      message.success('Church affiliations saved.')
+      message.success(t('profileAffiliationsSaved'))
     } catch {
-      message.error('We could not save your church affiliations.')
+      message.error(t('profileAffiliationsSaveError'))
     } finally {
       setSaving(false)
     }
@@ -225,12 +231,18 @@ export default function ChurchAffiliations({
       >
         <header className={s.heroHeading}>
           <div>
-            <h1>Church Affiliations &amp; Parishes</h1>
-            <p>Ecumenical Connectivity</p>
+            <h1>{t('profileAffiliationsTitle')}</h1>
+            <p>{t('profileAffiliationsSubtitle')}</p>
           </div>
           <p>
-            {mainChurch ? '1 Primary Parish' : 'No Primary Parish'} <span aria-hidden>•</span>{' '}
-            {followed.length} Followed {followed.length === 1 ? 'Congregation' : 'Congregations'}
+            {mainChurch ? t('profilePrimaryParishCount') : t('profileNoPrimaryParish')}{' '}
+            <span aria-hidden>•</span>{' '}
+            {t(
+              followed.length === 1
+                ? 'profileFollowedCongregation'
+                : 'profileFollowedCongregations',
+              { count: followed.length },
+            )}
           </p>
         </header>
 
@@ -241,7 +253,7 @@ export default function ChurchAffiliations({
                 className={`${s.primaryCopy} ${upcomingEvents.length ? '' : s.primaryCopyWithoutEvents}`}
               >
                 <span className={s.primaryBadge}>
-                  <VerifyIcon aria-hidden /> Primary Parish
+                  <VerifyIcon aria-hidden /> {t('profilePrimaryParishBadge')}
                 </span>
                 <h2>{mainChurch.churchName}</h2>
                 {mainChurch.city && (
@@ -249,35 +261,38 @@ export default function ChurchAffiliations({
                     <LocationIcon aria-hidden className={s.primaryLocationIcon} /> {mainChurch.city}
                   </p>
                 )}
-                <ChurchEventTicker events={upcomingEvents} key={mainId} />
+                <ChurchEventTicker
+                  events={upcomingEvents.slice(0, TICKER_MAX_EVENTS)}
+                  key={mainId}
+                />
               </div>
               <div className={s.primaryActions}>
                 <SiteButton
                   className={s.dashboardButton}
                   disabled
                   size="sm"
-                  title="A customer-facing parish details page is not available yet"
+                  title={t('profileParishDashboardUnavailable')}
                   variant="outlined"
                 >
-                  Parish Dashboard
+                  {t('profileParishDashboard')}
                 </SiteButton>
                 <SiteButton
                   className={s.changePrimaryButton}
                   onClick={beginPrimaryChange}
                   size="sm"
                 >
-                  Change Primary Parish
+                  {t('profileChangePrimary')}
                 </SiteButton>
               </div>
             </>
           ) : (
             <>
               <div className={s.primaryCopy}>
-                <h2>No primary parish selected</h2>
-                <p>Search below to select your primary parish.</p>
+                <h2>{t('profileNoPrimarySelected')}</h2>
+                <p>{t('profileSelectPrimaryHint')}</p>
               </div>
               <SiteButton className={s.changePrimaryButton} onClick={beginPrimaryChange} size="sm">
-                Select Primary Parish
+                {t('profileSelectPrimary')}
               </SiteButton>
             </>
           )}
@@ -285,8 +300,8 @@ export default function ChurchAffiliations({
       </section>
 
       <section className={s.followedHeading}>
-        <h2>Spiritual Reflections &amp; Calling</h2>
-        <p>Receive bulletins, livestream notices &amp; prayer chains</p>
+        <h2>{t('profileReflectionsHeading')}</h2>
+        <p>{t('profileFollowedSubtitle')}</p>
       </section>
 
       <section className={s.followedContent}>
@@ -298,67 +313,66 @@ export default function ChurchAffiliations({
                 <div>
                   <strong>{church.churchName}</strong>
                   <div className={s.churchMeta}>
-                    <span>{church.address ?? church.city ?? 'Location unavailable'}</span>
+                    <span>{church.address ?? church.city ?? t('profileLocationUnavailable')}</span>
                   </div>
                 </div>
                 <div className={s.rowActions}>
                   <SiteButton
                     aria-label={
                       changingPrimary
-                        ? `Set ${church.churchName} as primary parish`
-                        : `Notifications ${notificationsOn ? 'on' : 'off'} for ${church.churchName}`
+                        ? t('profileSetPrimaryAria', { church: church.churchName })
+                        : t('profileNotificationsAria', {
+                            state: notificationsOn ? 'on' : 'off',
+                            church: church.churchName,
+                          })
                     }
                     className={s.notificationButton}
                     disabled={!changingPrimary}
                     onClick={() => setMainId(church.churchId)}
                     size="xs"
-                    title={
-                      changingPrimary
-                        ? undefined
-                        : 'Per-parish notification preferences are not supported yet'
-                    }
+                    title={changingPrimary ? undefined : t('profileNotificationsUnsupported')}
                   >
                     {changingPrimary
-                      ? 'Set as Primary'
+                      ? t('profileSetAsPrimary')
                       : notificationsOn
-                        ? 'Notifications On'
-                        : 'Notifications Off'}
+                        ? t('profileNotificationsOn')
+                        : t('profileNotificationsOff')}
                   </SiteButton>
                   <SiteButton
-                    aria-label={`Unfollow ${church.churchName}`}
+                    aria-label={t('profileUnfollowAria', { church: church.churchName })}
                     className={s.unfollowButton}
                     icon={<UnbookmarkIcon aria-hidden />}
                     onClick={() => removeFollow(church.churchId)}
                     size="xs"
                     variant="outlined"
                   >
-                    <span className="sr-only">Unfollow</span>
+                    <span className="sr-only">{t('profileUnfollow')}</span>
                   </SiteButton>
                 </div>
               </div>
             ))
           ) : (
-            <p className={s.empty}>No additional churches followed yet.</p>
+            <p className={s.empty}>{t('profileNoFollowed')}</p>
           )}
         </div>
 
         <div className={s.searchArea}>
           <div>
             <LocationPlusIcon aria-hidden className={s.locationPlusIcon} />
-            <span>Add another parish or monastery</span>
+            <span>{t('profileAddParish')}</span>
           </div>
           <Input
             allowClear
             ref={searchRef}
             onChange={(event) => setSearch(event.target.value)}
-            placeholder="Search by parish or city..."
+            placeholder={t('profileSearchPlaceholder')}
             prefix={<SearchIcon aria-hidden className={s.searchIcon} />}
             value={search}
           />
           {search.trim() && (
             <div className={s.results}>
               {searching ? (
-                <span>Searching…</span>
+                <span>{t('profileSearching')}</span>
               ) : availableOptions.length ? (
                 availableOptions.map((option) => (
                   <div key={option.id}>
@@ -367,15 +381,15 @@ export default function ChurchAffiliations({
                       {option.city && <small>{option.city}</small>}
                     </span>
                     <SiteButton onClick={() => addChurch(option)} size="xs" variant="outlined">
-                      Follow
+                      {t('profileFollow')}
                     </SiteButton>
                     <SiteButton onClick={() => addChurch(option, true)} size="xs">
-                      Make Primary
+                      {t('profileMakePrimary')}
                     </SiteButton>
                   </div>
                 ))
               ) : (
-                <span>No approved churches found.</span>
+                <span>{t('profileNoChurchesFound')}</span>
               )}
             </div>
           )}
@@ -384,10 +398,10 @@ export default function ChurchAffiliations({
 
       <footer className={s.actions}>
         <SiteButton disabled={!dirty || saving} onClick={cancel} size="md" variant="outlined">
-          Cancel
+          {t('profileCancel')}
         </SiteButton>
         <SiteButton disabled={!dirty} loading={saving} onClick={save} size="md">
-          Save Changes
+          {t('profileSaveChanges')}
         </SiteButton>
       </footer>
     </article>

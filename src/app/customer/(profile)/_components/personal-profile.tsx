@@ -13,7 +13,7 @@ import { useMe } from '@/hooks/data/site/me'
 import { useSiteI18n } from '@/i18n/site-i18n'
 import { MobileMe } from '@/models/mobile'
 import { AVATAR_ALLOWED_MIME, AVATAR_MAX_BYTES } from '@/models/mobile-avatar'
-import { Alert, App, Avatar, ConfigProvider, Form, Input, Select, Upload } from 'antd'
+import { Alert, App, Avatar, ConfigProvider, Form, Input, Select, Skeleton, Upload } from 'antd'
 import { useState } from 'react'
 import s from './personal-profile.module.scss'
 
@@ -93,7 +93,15 @@ export default function PersonalProfile({
     ])
   }
 
-  if (loading || !me) {
+  if (loading) {
+    return (
+      <article className={s.card}>
+        <Skeleton active paragraph={{ rows: 8 }} />
+      </article>
+    )
+  }
+
+  if (!me) {
     return (
       <Alert
         className="m-6"
@@ -109,8 +117,8 @@ export default function PersonalProfile({
     <ConfigProvider theme={siteFormTheme}>
       <article className={s.card}>
         <header className={s.heading}>
-          <h1>Personal Profile &amp; Spiritual Details</h1>
-          <p>Identity &amp; Parish Registry</p>
+          <h1>{t('profilePersonalTitle')}</h1>
+          <p>{t('profilePersonalSubtitle')}</p>
         </header>
 
         <Form<PersonalProfileValues>
@@ -132,10 +140,7 @@ export default function PersonalProfile({
                 src={me.profilePicture ?? undefined}
               />
               <div className={s.photoDetails}>
-                <p>
-                  Your profile picture and sacramental affiliation name are visible to prayer group
-                  leaders, fellowship coordinators, and pastoral clergy.
-                </p>
+                <p>{t('profilePhotoVisibility')}</p>
                 <div className={s.photoActions}>
                   <Upload
                     accept={AVATAR_ALLOWED_MIME.join(',')}
@@ -144,7 +149,7 @@ export default function PersonalProfile({
                     showUploadList={false}
                   >
                     <SiteButton icon={<UploadIcon aria-hidden />} loading={uploading} size="xs">
-                      Change Photo
+                      {t('profileChangePhoto')}
                     </SiteButton>
                   </Upload>
                   <SiteButton
@@ -155,7 +160,7 @@ export default function PersonalProfile({
                     size="xs"
                     variant="outlined"
                   >
-                    Remove
+                    {t('profileRemove')}
                   </SiteButton>
                 </div>
               </div>
@@ -166,11 +171,11 @@ export default function PersonalProfile({
                 className={s.emailItem}
                 label={
                   <span className={s.emailLabel}>
-                    <span>Email Address</span>
+                    <span>{t('profileEmailAddress')}</span>
                     {emailVerified && (
                       <span className={s.verified}>
                         <VerifyIcon aria-hidden />
-                        Verified
+                        {t('profileVerifiedBadge')}
                       </span>
                     )}
                   </span>
@@ -179,7 +184,7 @@ export default function PersonalProfile({
                 <Input disabled value={me.email} />
               </Form.Item>
               <Form.Item
-                label="Full Legal or Baptismal Name"
+                label={t('profileFullName')}
                 name="name"
                 rules={[
                   { required: true, whitespace: true, message: t('signUpErrorName') },
@@ -188,7 +193,7 @@ export default function PersonalProfile({
               >
                 <Input autoComplete="name" maxLength={200} />
               </Form.Item>
-              <Form.Item label="Preferred Liturgical Language" name="locale">
+              <Form.Item label={t('profilePreferredLanguage')} name="locale">
                 <Select
                   options={SITE_LOCALES.map((code) => ({
                     value: code,
@@ -199,17 +204,17 @@ export default function PersonalProfile({
             </div>
           </section>
 
-          <section className={s.spiritualHeading}>Spiritual Reflections &amp; Calling</section>
+          <section className={s.spiritualHeading}>{t('profileReflectionsHeading')}</section>
 
           <section className={s.spiritualContent}>
-            <h2>Anchoring Scripture Passages</h2>
+            <h2>{t('profileScriptureHeading')}</h2>
             <ScriptureQuote
               className={s.scriptureQuote}
-              quote="The Lord is near to all who call upon Him, to all who call on Him in truth."
-              reference="Psalm 145:18"
+              quote={t('profileScriptureQuote')}
+              reference={t('profileScriptureReference')}
             />
-            <h2>Diaconal Volunteer &amp; Ministry Involvement</h2>
-            <p className={s.ministryUnavailable}>Ministry involvement will be available soon.</p>
+            <h2>{t('profileMinistryHeading')}</h2>
+            <p className={s.ministryUnavailable}>{t('profileMinistryUnavailable')}</p>
           </section>
 
           <footer className={s.actions}>
@@ -219,7 +224,7 @@ export default function PersonalProfile({
               size="md"
               variant="outlined"
             >
-              Cancel
+              {t('profileCancel')}
             </SiteButton>
             <SiteButton
               disabled={!hasUnsavedChanges || uploading}
@@ -227,7 +232,7 @@ export default function PersonalProfile({
               size="md"
               type="submit"
             >
-              Save Changes
+              {t('profileSaveChanges')}
             </SiteButton>
           </footer>
         </Form>

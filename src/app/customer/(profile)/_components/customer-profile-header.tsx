@@ -1,6 +1,7 @@
 'use client'
 
 import { useMe, useMyChurches } from '@/hooks/data/site/me'
+import { useSiteI18n } from '@/i18n/site-i18n'
 import type { MobileMe, MobileMyChurch } from '@/models/mobile'
 import { ChurchIcon } from '@/components/icon/church'
 import { PersonIcon } from '@/components/icon/person'
@@ -28,6 +29,7 @@ export default function CustomerProfileHeader({
   initialMe: MobileMe
   verified: boolean
 }) {
+  const { t } = useSiteI18n()
   const { data: me } = useMe({ userId: initialMe.id, initialData: initialMe })
   const { data: churches } = useMyChurches({
     userId: initialMe.id,
@@ -51,14 +53,14 @@ export default function CustomerProfileHeader({
             {verified && (
               <span className={s.verified}>
                 <VerifyIcon aria-hidden />
-                EELK Baptized / Verified Parishioner
+                {t('profileVerifiedParishioner')}
               </span>
             )}
           </div>
           <p>
             <span>{memberNumber(customer.id)}</span>
             <span aria-hidden>•</span>
-            <span>Member since {memberSince(createdAt)}</span>
+            <span>{t('profileMemberSince', { date: memberSince(createdAt) })}</span>
           </p>
         </div>
       </section>
@@ -69,10 +71,10 @@ export default function CustomerProfileHeader({
             <PhoneOutlined aria-hidden />
           </span>
           <div className={s.infoText}>
-            <span>Assigned Chaplain</span>
-            <strong>Not assigned</strong>
+            <span>{t('profileAssignedChaplain')}</span>
+            <strong>{t('profileNotAssigned')}</strong>
           </div>
-          <Button disabled>Direct Note</Button>
+          <Button disabled>{t('profileDirectNote')}</Button>
         </section>
 
         <section className={`${s.infoCard} ${s.churchCard}`}>
@@ -84,8 +86,8 @@ export default function CustomerProfileHeader({
             src={primaryChurch?.coverUrl ?? undefined}
           />
           <div className={s.infoText}>
-            <span>Primary Sanctuary</span>
-            <strong>{primaryChurch?.churchName ?? 'Not selected'}</strong>
+            <span>{t('profilePrimarySanctuary')}</span>
+            <strong>{primaryChurch?.churchName ?? t('profileNotSelected')}</strong>
           </div>
         </section>
       </div>

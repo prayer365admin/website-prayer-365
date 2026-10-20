@@ -92,7 +92,7 @@
 }
 
 .activeMenuItem {
-  border-color: #005fff;
+  border-color: var(--color-primary-600);
   background: var(--color-primary-500);
   color: white;
 }
@@ -147,7 +147,7 @@
   flex: 0 0 48px;
   place-items: center;
   border-radius: 12px;
-  background: #e6edfb;
+  background: var(--color-primary-150);
   color: var(--color-primary-500);
   font-size: 16px;
   line-height: 20px;
@@ -203,7 +203,7 @@
   padding: 7px 24px 9px 20px;
   border: 0;
   border-radius: 12px;
-  background: #e6edfb;
+  background: var(--color-primary-150);
   color: #2555a7;
   font-family: var(--font-text);
   font-size: 16px;
@@ -221,7 +221,7 @@
 }
 
 .signOut:disabled {
-  background: #e6edfb;
+  background: var(--color-primary-150);
   color: #2555a7;
   opacity: 0.72;
 }
