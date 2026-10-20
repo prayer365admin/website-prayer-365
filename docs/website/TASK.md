@@ -93,16 +93,15 @@ The Stripe backend is planned in admin docs as a shared capability. The website
 must not rebuild it. It reuses the shared donation controller owned by the
 backend. See the shared backend table below for admin task IDs.
 
-| ID    | Task                                                                                                                                                                                                             | Status      |
-| ----- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------- |
-| WB-40 | Website donation integration: server route handler calls shared backend donation controller from MB-02 with NextAuth session user, starts checkout, and tracks idempotency key. No new Stripe code in website.   | 🔒 MB-02    |
-| WB-41 | Donate screen W11: one-time and monthly toggle, preset and custom amount, currency shown from shared `DonationOptions` MB-03. Disabled with not-ready message while backend donation launch remains unavailable. | 🔒 MB-02/03 |
-| WB-42 | Result page W12: confirmed, pending, or failed status from recorded donation attempt MB-02 outcome, never from URL alone. Shows summary for church, amount, currency, and type.                                  | 🔒 MB-02    |
-| WB-43 | Donation hooks: initiate and status query hooks via TanStack Query, idempotency key on initiate.                                                                                                                 | ☐           |
-| WB-44 | Tests: donate button disabled when backend unavailable, initiate is idempotent, result reflects confirmed state, no fabricated success. UI tests only, backend Stripe tests live in DO-08.                       | ☐           |
+| ID    | Task                                                                                                                                                                                                             | Status |
+| ----- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------ |
+| WB-40 | Website donation integration: server route handler calls shared backend donation controller from MB-02 with NextAuth session user, starts checkout, and tracks idempotency key. No new Stripe code in website.   | ✔      |
+| WB-41 | Donate screen W11: one-time and monthly toggle, preset and custom amount, currency shown from shared `DonationOptions` MB-03. Disabled with not-ready message while backend donation launch remains unavailable. | ✔      |
+| WB-42 | Result page W12: confirmed, pending, or failed status from recorded donation attempt MB-02 outcome, never from URL alone. Shows summary for church, amount, currency, and type.                                  | ✔      |
+| WB-43 | Donation hooks: initiate and status query hooks via TanStack Query, idempotency key on initiate.                                                                                                                 | ✔      |
+| WB-44 | Tests: donate button disabled when backend unavailable, initiate is idempotent, result reflects confirmed state, no fabricated success. UI tests only, backend Stripe tests live in DO-08.                       | ✔      |
 
-Status note: MB-02 and MB-03 are pending in `docs/TASK.md`. WB4 remains blocked
-until those land. When they do, mark WB4 unblocked. Do not re-plan the backend.
+Status note: Stripe SDK wired for checkout creation/retrieval; MB-03 implemented (`donation_options` on `Church` and `donationOptions` on `MobilePublicChurch`). WB4 website UI, routes, hooks, and tests complete. Admin D6 leftovers (country launch list, fee treatments, manual payouts) remain open in admin register.
 
 ## Shared backend reuse, do not rebuild in website
 

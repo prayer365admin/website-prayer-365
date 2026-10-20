@@ -4,8 +4,8 @@ import { db } from '@/utils/db-connection'
 import { GeneralError } from '@/utils/general-error'
 import {
   StripeWebhookEventSchema,
-  ParsedWebhookEvent,
-  StripeWebhookResult,
+  type ParsedWebhookEvent,
+  type StripeWebhookResult,
 } from '@/models/stripe-webhook'
 import { Prisma } from '@prisma/client'
 

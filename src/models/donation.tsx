@@ -166,3 +166,75 @@ export type MyActiveGift = {
   churchId: string
   churchName: string
 }
+
+/*
+ * Website donation attempts (WB-40/42). A giver's attempt is identified by the
+ * checkout session Stripe redirects back with; the outcome is read from our own
+ * records, never from the URL. `confirmed` requires a PAID row.
+ */
+
+export const DonationStatusQuerySchema = z
+  .object({
+    sessionId: z.string().trim().min(1),
+    churchId: z.string().trim().min(1),
+    amountMinor: z.coerce.number().int().positive().max(100_000_000),
+    currency: z
+      .string()
+      .trim()
+      .length(3)
+      .transform((c) => c.toLowerCase()),
+    frequency: z.enum(['one_time', 'monthly']),
+  })
+  .strict()
+
+export type DonationStatusQuery = z.infer<typeof DonationStatusQuerySchema>
+
+export const DonationStatusSchema = z.object({
+  state: z.enum(['confirmed', 'pending', 'failed']),
+  churchId: z.string(),
+  churchName: z.string(),
+  amountMinor: z.number().int(),
+  currency: z.string(),
+  frequency: z.enum(['one_time', 'monthly']),
+  paidAt: z.date().nullable(),
+  /** Stripe reported the session; the donation row has not landed yet. */
+  receiptSeen: z.boolean(),
+})
+
+export type DonationStatus = z.infer<typeof DonationStatusSchema>
+
+/** What `initiateDonation` returns to the website: a redirect target plus the attempt shape. */
+export type DonationInitiateResult = {
+  sessionId: string
+  url: string
+  churchId: string
+  amountMinor: number
+  currency: string
+  frequency: 'one_time' | 'monthly'
+}
+
+/** Status a browser can read from the JSON route (dates travel as ISO strings). */
+export type DonationStatusView = Pick<
+  DonationStatus,
+  'state' | 'churchId' | 'churchName' | 'amountMinor' | 'currency' | 'frequency' | 'receiptSeen'
+>
+
+/** One currency's slice of the giver's own paid giving in a calendar year. */
+export type MyDonationContribution = {
+  currency: string
+  totalMinor: number
+  count: number
+  /** 0-based months (Jan = 0) of the year that carry at least one paid gift. */
+  months: number[]
+}
+
+/** Website donate screen's right column: the giver's own stewardship, never shared. */
+export type MyDonationOverview = {
+  year: number
+  activeGift: MyActiveGift | null
+  contributions: MyDonationContribution[]
+  /** Latest paid gift for the active gift's church, or null. */
+  lastPaidAt: Date | null
+  /** Derived next monthly charge (last paid + 1 month) — null unless a pledge is active. */
+  nextGiftAt: Date | null
+}

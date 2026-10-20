@@ -250,7 +250,7 @@ Website reads call shared controllers directly (section 2.2). No separate read e
 
 ### 6.3 Shared donation backend
 
-Stripe processing uses the shared backend (`docs/SPEC.md` §8.5, §9.6 and `docs/TASK.md` under F8DO and X-MOB). The website calls the shared donation controller using the customer session instead of building separate payment logic. Right now `src/providers/stripe.tsx` contains stubs, and webhook handling is incomplete.
+Stripe processing uses the shared backend (`docs/SPEC.md` §8.5, §9.6 and `docs/TASK.md` under F8DO and X-MOB). The website calls the shared donation controller using the customer session instead of building separate payment logic. Checkout creation and checkout session retrieval are wired to the Stripe SDK in `src/providers/stripe.tsx`, and the webhook → `payment.sync` worker pipeline writes `Donation` and `DonationSubscription` rows.
 
 Website donation tasks depend on these admin deliverables:
 
@@ -265,7 +265,7 @@ Website donation tasks depend on these admin deliverables:
 
 The website layer provides only thin server actions calling the shared donation controller, plus donation screens and hooks (`docs/website/TASK.md` WB-40 through WB-44).
 
-Until backend checkout and webhook handlers land, the donation button stays disabled with an explanatory notice. The UI never reports a payment as confirmed without a verified `Donation` row written by the webhook.
+When the backend Stripe integration is disabled (`STRIPE_ENABLED !== 'true'`), the donation button stays disabled with an explanatory notice (`DONATIONS_NOT_READY`). The UI never reports a payment as confirmed without a verified `Donation` row written by the webhook.
 
 ### 6.4 Response conventions
 

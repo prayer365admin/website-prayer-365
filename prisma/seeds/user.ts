@@ -1,6 +1,7 @@
 import { db } from '../../src/utils/db-connection'
 import { PRAYER_ROLES } from './prayer-roles'
 import { getDemoChurch, getDemoChurchNode } from './test-context'
+import { ST_JOHNS_CHURCH_NAME } from './church'
 
 // Every seeded user is verified and has a language (English by default, R-07).
 const verifiedSeedUser = {
@@ -118,6 +119,7 @@ export const seedUsers = async () => {
 
   // End-users (no role) + subject-only mobile records.
   const church = await getDemoChurch()
+  const stJohnsChurch = await db.church.findFirst({ where: { name: ST_JOHNS_CHURCH_NAME } })
   for (const eu of END_USERS) {
     // Demo customers have finished onboarding (parish + language, WB-15), so
     // they land on /customer; register a new account to try /customer/setup.
@@ -136,15 +138,27 @@ export const seedUsers = async () => {
         ...onboarded, // no role: legacy role-less customer
       },
     })
-    if (!church) continue
+    const targetChurch =
+      eu.email === 'believer@example.com' && stJohnsChurch ? stJohnsChurch : church
+    if (!targetChurch) continue
+
+    if (eu.email === 'believer@example.com') {
+      await db.userChurch.updateMany({
+        where: { user_id: user.id, is_main: true },
+        data: { is_main: false },
+      })
+    }
 
     await db.userChurch.upsert({
-      where: { user_id_church_id: { user_id: user.id, church_id: church.id } },
-      update: {},
+      where: { user_id_church_id: { user_id: user.id, church_id: targetChurch.id } },
+      update: {
+        is_main: eu.email === 'believer@example.com',
+        is_followed: true,
+      },
       create: {
         user_id: user.id,
-        church_id: church.id,
-        is_main: eu.email === END_USERS[0].email,
+        church_id: targetChurch.id,
+        is_main: eu.email === 'believer@example.com',
         is_followed: true,
       },
     })

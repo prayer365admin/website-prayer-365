@@ -261,10 +261,8 @@ describe('ContentsSiteChurchProfile', () => {
     await user.type(customInput, '75')
     expect(btn50.getAttribute('aria-pressed')).toBe('false')
 
-    // Donate button disabled with not-ready note
-    const donateBtn = screen.getByRole('button', { name: 'Donate' }) as HTMLButtonElement
-    expect(donateBtn.disabled).toBe(true)
-    expect(screen.getByText('Donations not ready yet')).toBeTruthy()
+    // WB-41: the CTA hands off to the church's real donate page.
+    expect(screen.getByRole('link', { name: 'Donate' }).getAttribute('href')).toBe('/donate/c1')
   })
 
   it('renders pastoral care office contact links with tel: and mailto: hrefs', async () => {
@@ -378,9 +376,7 @@ describe('ContentsSiteChurchProfile', () => {
 
     expect(await screen.findByRole('heading', { level: 1, name: 'Grace' })).toBeTruthy()
 
-    const donate = screen.getByRole('button', { name: 'Donate' }) as HTMLButtonElement
-    expect(donate.disabled).toBe(true)
-    expect(screen.getByText('Donations not ready yet')).toBeTruthy()
+    expect(screen.getByRole('link', { name: 'Donate' }).getAttribute('href')).toBe('/donate/c1')
   })
 
   it('renders sanctuary hours badge with real hours string when present', async () => {

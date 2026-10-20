@@ -295,6 +295,8 @@ model Church {
   youth_ministry     Boolean?
   sanctuary_hours    String?
   diaconal_programs  Json?
+  /** MB-03 donation presets: `{ currency, presetsMinor[], monthlyEnabled }` (null until an admin fills it). */
+  donation_options   Json?
   approved_by      String?
   approved_by_user User?        @relation("ChurchApprovedBy", fields: [approved_by], references: [id])
   approved_at      DateTime?
