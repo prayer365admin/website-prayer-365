@@ -34,7 +34,13 @@ const {
 }))
 
 vi.mock('next/navigation', () => ({
-  useRouter: () => ({ push: pushMock, replace: replaceMock, back: vi.fn(), prefetch: vi.fn() }),
+  useRouter: () => ({
+    push: pushMock,
+    replace: replaceMock,
+    back: vi.fn(),
+    prefetch: vi.fn(),
+    refresh: vi.fn(),
+  }),
   usePathname: pathnameMock,
   useSearchParams: () => searchParamsMock,
   useParams: () => ({ id: 'r1', churchId: 'c1' }),

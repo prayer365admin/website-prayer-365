@@ -346,95 +346,159 @@
 }
 
 .searchArea {
-  position: relative;
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 280px;
-  align-items: center;
+  display: flex;
+  width: 100%;
   height: 66px;
-  gap: 16px;
+  align-items: center;
+  gap: 12px;
   margin-top: 8px;
   padding: 16px;
   border: 1px dashed var(--color-neutral-200);
   border-radius: 16px;
-}
-
-.searchArea > div:first-child {
-  display: flex;
-  width: 416px;
-  height: 21px;
-  align-items: center;
-  gap: 12px;
+  background: transparent;
   color: var(--color-primary-900);
+  cursor: pointer;
   font-size: 14px;
+  text-align: left;
+  transition:
+    border-color 0.2s,
+    background-color 0.2s;
 }
 
-.searchArea .locationPlusIcon {
-  height: 20px;
-  justify-content: center;
+.searchArea:hover {
+  border-color: var(--color-primary-300);
+  background: var(--color-primary-150);
+}
+
+.searchArea:focus-visible {
+  outline: 2px solid var(--color-primary-500);
+  outline-offset: 2px;
+}
+
+.locationPlusIcon {
   color: var(--color-primary-500);
   font-size: 16px;
-  line-height: 20px;
-  text-align: center;
 }
 
-.searchArea .searchIcon {
+.searchIcon {
   color: var(--color-primary-900);
   font-size: 13px;
 }
 
-.searchArea :global(.ant-input-affix-wrapper) {
-  width: 280px;
-  max-width: 280px;
-  height: 32px;
-  gap: 4px;
-  font-size: 12px;
+/* Church picker drawer */
+/* Search stays visible while the drawer body scrolls. */
+.pickerSearch {
+  position: sticky;
+  z-index: 1;
+  top: 0;
+  height: 36px;
+  // Masks rows scrolling past the rounded input corners.
+  box-shadow: 0 0 0 8px white;
 }
 
-.results {
-  position: absolute;
-  z-index: 3;
-  top: calc(100% + 4px);
-  right: 16px;
-  width: min(420px, calc(100% - 32px));
-  overflow: hidden;
-  border: 1px solid var(--color-neutral-200);
-  border-radius: 12px;
-  background: white;
-  box-shadow: 0 8px 24px rgb(14 32 62 / 14%);
-}
-
-.results > span,
-.results > div {
+.pickerBody {
   display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 12px;
+  flex-direction: column;
+  gap: 20px;
+  margin-top: 16px;
 }
 
-.results > div + div {
+.pickerHeading {
+  margin-bottom: 8px;
+  color: var(--color-neutral-500);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.pickerList {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.pickerRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 0;
+}
+
+.pickerRow + .pickerRow {
   border-top: 1px solid var(--color-neutral-100);
 }
 
-.results > div > span {
+.pickerName {
   min-width: 0;
   flex: 1;
 }
 
-.results strong,
-.results small {
+.pickerName strong,
+.pickerName small {
   display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-.results small {
+.pickerName strong {
+  color: var(--color-primary-900);
+  font-size: 14px;
+}
+
+.pickerName small {
   margin-top: 2px;
   color: var(--color-neutral-500);
+  font-size: 12px;
+}
+
+/* Row actions sit under the name, split 50:50. */
+.pickerActions {
+  display: flex;
+  width: 100%;
+  gap: 8px;
+}
+
+.pickerActions > *,
+.pickerFooter > *,
+.actions > * {
+  flex: 1 1 0;
+  min-width: 0;
+}
+
+.pickerPrimaryBadge {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 10px;
+  border-radius: 999px;
+  background: var(--color-primary-150);
+  color: #2555a7;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.pickerEmpty {
+  padding: 16px;
+  border-radius: 12px;
+  background: var(--color-neutral-100);
+  color: var(--color-neutral-600);
+  font-size: 13px;
+  text-align: center;
+}
+
+.pickerFooter {
+  display: flex;
+  gap: 12px;
 }
 
 .actions {
   display: flex;
   height: 96px;
   align-items: center;
-  justify-content: flex-end;
   gap: 12px;
   padding: 24px;
   border-top: 1px solid var(--color-neutral-200);
@@ -514,19 +578,11 @@
 
   .searchArea {
     height: auto;
-    grid-template-columns: 1fr;
-  }
-
-  .searchArea > div:first-child,
-  .searchArea :global(.ant-input-affix-wrapper) {
-    width: 100%;
-    max-width: none;
   }
 
   .actions {
     height: auto;
     min-height: 96px;
-    flex-wrap: wrap;
   }
 }
 

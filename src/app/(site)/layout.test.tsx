@@ -13,6 +13,10 @@ vi.mock('@/utils/required-webauth', () => ({ default: m.requiredWebAuth }))
 vi.mock('next/navigation', () => ({ redirect: m.redirect }))
 vi.mock('@/components/site/setup-guard', () => ({ default: () => null }))
 vi.mock('next/headers', () => ({ cookies: m.cookies }))
+vi.mock('@/controller/mobile', () => ({
+  getMe: vi.fn().mockResolvedValue({ id: 'u1', profilePicture: null }),
+  listMyChurches: vi.fn().mockResolvedValue([]),
+}))
 vi.mock('@/components/site', () => ({
   default: ({ children }: { children: React.ReactNode }) => children,
 }))

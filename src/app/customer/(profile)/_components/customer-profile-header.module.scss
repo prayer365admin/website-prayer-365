@@ -39,8 +39,17 @@
     0 4px 6px -1px #0000001a;
 }
 
+.identity :global(.ant-avatar-image) {
+  // No default 1px transparent border: the photo fills the whole box.
+  border: 0;
+}
+
+.identity :global(.ant-avatar.ant-avatar-icon) {
+  background: var(--color-primary-500);
+}
+
 .identity :global(.ant-avatar .anticon) {
-  color: var(--color-neutral-400);
+  color: white;
   font-size: 32px;
 }
 

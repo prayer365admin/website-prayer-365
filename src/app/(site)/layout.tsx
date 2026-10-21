@@ -1,6 +1,7 @@
 import SiteShell from '@/components/site'
 import SessionAccessGuard from '@/components/site/session-access-guard'
 import SetupGuard from '@/components/site/setup-guard'
+import { getMe, listMyChurches } from '@/controller/mobile'
 import { SiteI18nProvider } from '@/i18n/site-i18n'
 import { isCustomerRole } from '@/utils/customer-role'
 import requiredWebAuth from '@/utils/required-webauth'
@@ -19,12 +20,17 @@ export default async function Layout({ children }: { children: React.ReactNode }
   }
   // Unfinished setup is offered once per browser by SetupGuard (WB-15).
   const customer = isCustomerRole(web.session.user.role)
+  // Seeds the header avatar and church pill on the first render.
+  const userId = web.session.user.user_id
+  const [me, churches] = await Promise.all([getMe({ userId }), listMyChurches({ userId })])
 
   return (
     <SiteI18nProvider initialLocale={await getSiteLocale()}>
       <SessionAccessGuard access="protected" />
       {customer && <SetupGuard />}
-      <SiteShell>{children}</SiteShell>
+      <SiteShell initialChurches={churches} initialMe={me}>
+        {children}
+      </SiteShell>
     </SiteI18nProvider>
   )
 }

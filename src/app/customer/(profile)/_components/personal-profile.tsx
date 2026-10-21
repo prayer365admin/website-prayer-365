@@ -3,7 +3,6 @@
 import SiteButton from '@/components/common/button'
 import { TrashIcon } from '@/components/icon/trash'
 import { UploadIcon } from '@/components/icon/upload'
-import { PersonIcon } from '@/components/icon/person'
 import { VerifyIcon } from '@/components/icon/verify'
 import ScriptureQuote from '@/components/site/auth/scripture-quote'
 import { siteFormTheme } from '@/config/antdTheme'
@@ -13,6 +12,7 @@ import { useMe } from '@/hooks/data/site/me'
 import { useSiteI18n } from '@/i18n/site-i18n'
 import { MobileMe } from '@/models/mobile'
 import { AVATAR_ALLOWED_MIME, AVATAR_MAX_BYTES } from '@/models/mobile-avatar'
+import { UserOutlined } from '@ant-design/icons'
 import { Alert, App, Avatar, ConfigProvider, Form, Input, Select, Skeleton, Upload } from 'antd'
 import { useState } from 'react'
 import s from './personal-profile.module.scss'
@@ -134,7 +134,8 @@ export default function PersonalProfile({
           <section className={s.identitySection}>
             <div className={s.photoPanel}>
               <Avatar
-                icon={<PersonIcon />}
+                // Empty state matches the header account button (white user icon on primary).
+                icon={me.profilePicture ? undefined : <UserOutlined />}
                 shape="square"
                 size={156}
                 src={me.profilePicture ?? undefined}
