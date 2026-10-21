@@ -2,7 +2,13 @@
 
 import { useState } from 'react'
 import Image from 'next/image'
-import { FileTextOutlined, ShareAltOutlined } from '@ant-design/icons'
+import {
+  CheckOutlined,
+  FileTextOutlined,
+  LoadingOutlined,
+  ShareAltOutlined,
+} from '@ant-design/icons'
+import { BookmarkPlusIcon } from '@/components/icon/bookmark-plus'
 import { DirectionIcon } from '@/components/icon/direction'
 import { useSiteI18n } from '@/i18n/site-i18n'
 import type { MobilePublicChurch } from '@/models/mobile'
@@ -10,9 +16,18 @@ import type { MobilePublicChurch } from '@/models/mobile'
 interface HeroProps {
   church: MobilePublicChurch
   isPrimaryParish?: boolean
+  isFollowed?: boolean
+  isFollowPending?: boolean
+  onToggleFollow?: () => void
 }
 
-export function Hero({ church, isPrimaryParish }: HeroProps) {
+export function Hero({
+  church,
+  isPrimaryParish,
+  isFollowed = false,
+  isFollowPending = false,
+  onToggleFollow,
+}: HeroProps) {
   const { t } = useSiteI18n()
   const [failedSrcs, setFailedSrcs] = useState<Record<string, boolean>>({})
 
@@ -155,8 +170,36 @@ export function Hero({ church, isPrimaryParish }: HeroProps) {
             )}
           </div>
 
-          {/* Directions button */}
-          <div className="shrink-0">
+          {/* Actions: Follow and Directions */}
+          <div className="flex shrink-0 flex-wrap items-center gap-3">
+            {onToggleFollow && (
+              <button
+                type="button"
+                onClick={onToggleFollow}
+                disabled={isFollowPending || isPrimaryParish}
+                aria-pressed={isFollowed}
+                aria-label={
+                  isFollowed
+                    ? t('profileUnfollowAria', { church: church.name })
+                    : t('profileFollow')
+                }
+                title={isPrimaryParish ? t('primaryParish') : undefined}
+                className={
+                  isFollowed
+                    ? 'inline-flex h-12 items-center gap-2 rounded-xl border border-white/30 bg-black/30 px-5 text-sm font-semibold text-white backdrop-blur-md transition-colors hover:bg-black/50 disabled:cursor-not-allowed disabled:opacity-75 sm:text-base'
+                    : 'inline-flex h-12 items-center gap-2 rounded-xl bg-[#2F7AD2] px-5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-[#2066B7] disabled:cursor-not-allowed disabled:opacity-50 sm:text-base'
+                }
+              >
+                {isFollowPending ? (
+                  <LoadingOutlined className="text-base" />
+                ) : isFollowed ? (
+                  <CheckOutlined className="text-base" />
+                ) : (
+                  <BookmarkPlusIcon className="h-5 w-5" />
+                )}
+                <span>{isFollowed ? t('profileFollowing') : t('profileFollow')}</span>
+              </button>
+            )}
             <a
               href={directionsHref}
               target="_blank"

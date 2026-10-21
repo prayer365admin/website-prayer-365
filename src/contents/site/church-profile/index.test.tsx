@@ -889,4 +889,95 @@ describe('ContentsSiteChurchProfile', () => {
     expect(screen.queryByRole('heading', { level: 2, name: 'Location' })).toBeNull()
     expect(screen.queryByTestId('gm-pins')).toBeNull()
   })
+
+  it('renders Follow button and calls follow API on click when not followed', async () => {
+    const user = userEvent.setup()
+    axiosMock.get.mockImplementation(async (url: string) => {
+      if (url.includes('/events')) return { data: resolveGet([], 0) }
+      if (url.includes('/announcements')) return { data: resolveGet([], 0) }
+      if (url.includes('/home')) return { data: resolveGet({ mainChurch: null }) }
+      if (url.includes('/me/churches')) return { data: resolveGet([]) }
+      return { data: resolveGet(church) }
+    })
+    axiosMock.put.mockResolvedValueOnce({ data: resolveGet({ churchId: 'c1', isFollowed: true }) })
+
+    renderProfile('c1')
+
+    const followButton = await screen.findByRole('button', { name: 'Follow' })
+    expect(followButton).toBeTruthy()
+    expect(followButton.getAttribute('aria-pressed')).toBe('false')
+
+    await user.click(followButton)
+    expect(axiosMock.put).toHaveBeenCalledWith('/api/v1/site/me/follows/c1')
+  })
+
+  it('renders Following button and calls unfollow API on click when followed', async () => {
+    const user = userEvent.setup()
+    axiosMock.get.mockImplementation(async (url: string) => {
+      if (url.includes('/events')) return { data: resolveGet([], 0) }
+      if (url.includes('/announcements')) return { data: resolveGet([], 0) }
+      if (url.includes('/home')) return { data: resolveGet({ mainChurch: null }) }
+      if (url.includes('/me/churches')) {
+        return {
+          data: resolveGet([
+            {
+              churchId: 'c1',
+              churchName: 'Grace',
+              isMain: false,
+              isFollowed: true,
+              city: 'Tallinn',
+              address: 'Main St 1',
+              coverAssetId: null,
+              coverUrl: null,
+            },
+          ]),
+        }
+      }
+      return { data: resolveGet(church) }
+    })
+    axiosMock.delete.mockResolvedValueOnce({
+      data: resolveGet({ churchId: 'c1', isFollowed: false }),
+    })
+
+    renderProfile('c1')
+
+    const followingButton = await screen.findByRole('button', { name: 'Unfollow Grace' })
+    expect(followingButton).toBeTruthy()
+    expect(followingButton.getAttribute('aria-pressed')).toBe('true')
+    expect(within(followingButton).getByText('Following')).toBeTruthy()
+
+    await user.click(followingButton)
+    expect(axiosMock.delete).toHaveBeenCalledWith('/api/v1/site/me/follows/c1')
+  })
+
+  it('disables the button when church is the primary parish', async () => {
+    axiosMock.get.mockImplementation(async (url: string) => {
+      if (url.includes('/events')) return { data: resolveGet([], 0) }
+      if (url.includes('/announcements')) return { data: resolveGet([], 0) }
+      if (url.includes('/home')) return { data: resolveGet({ mainChurch: { id: 'c1' } }) }
+      if (url.includes('/me/churches')) {
+        return {
+          data: resolveGet([
+            {
+              churchId: 'c1',
+              churchName: 'Grace',
+              isMain: true,
+              isFollowed: true,
+              city: 'Tallinn',
+              address: 'Main St 1',
+              coverAssetId: null,
+              coverUrl: null,
+            },
+          ]),
+        }
+      }
+      return { data: resolveGet(church) }
+    })
+
+    renderProfile('c1')
+
+    const followingButton = await screen.findByRole('button', { name: 'Unfollow Grace' })
+    expect((followingButton as HTMLButtonElement).disabled).toBe(true)
+    expect(within(followingButton).getByText('Following')).toBeTruthy()
+  })
 })

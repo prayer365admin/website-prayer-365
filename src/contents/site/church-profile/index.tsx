@@ -13,6 +13,7 @@ import {
   useSiteChurchProfile,
 } from '@/hooks/data/site/churches'
 import { useSiteHome } from '@/hooks/data/site/home'
+import { useMyChurches } from '@/hooks/data/site/me'
 import { useSiteI18n } from '@/i18n/site-i18n'
 import type { MobilePublishedPrayer } from '@/models/mobile'
 import {
@@ -356,6 +357,19 @@ export default function ContentsSiteChurchProfile({ churchId }: { churchId: stri
   const { data: prayers = [], loading: prayersLoading } = useSiteChurchPrayers(churchId)
   const { data: homeData } = useSiteHome()
   const isPrimaryParish = homeData?.mainChurch?.id === churchId
+  const { data: myChurches = [], onFollow, following: followPending } = useMyChurches()
+  const list = Array.isArray(myChurches) ? myChurches : []
+  const churchRelation = list.find((c) => c?.churchId === churchId)
+  const isFollowed = Boolean(churchRelation?.isFollowed || isPrimaryParish)
+
+  const handleToggleFollow = async () => {
+    if (isPrimaryParish) return
+    try {
+      await onFollow({ churchId, isFollowed: !isFollowed })
+    } catch {
+      // query error handled by react-query
+    }
+  }
   const [prayerFilter, setPrayerFilter] = useState<'All' | 'Eucharist' | 'Contemplative'>('All')
   const [activePrayerId, setActivePrayerId] = useState<string | null>(null)
   const [savedPrayerIds, setSavedPrayerIds] = useState<Set<string>>(new Set())
@@ -434,7 +448,13 @@ export default function ContentsSiteChurchProfile({ churchId }: { churchId: stri
   return (
     <div className="min-h-screen bg-[#F7F9FB]">
       {/* 1. Hero banner */}
-      <Hero church={data} isPrimaryParish={isPrimaryParish} />
+      <Hero
+        church={data}
+        isPrimaryParish={isPrimaryParish}
+        isFollowed={isFollowed}
+        isFollowPending={followPending}
+        onToggleFollow={handleToggleFollow}
+      />
 
       {/* 2. Main content grid */}
       <div className="mx-auto max-w-[1152px] px-4 py-10 sm:px-6">
