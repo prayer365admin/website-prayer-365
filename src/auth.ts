@@ -82,12 +82,13 @@ export const authCallbacks = {
     return !!customer
   },
   jwt: async ({ token, account }: { token: JWT; account?: Account | null }) => {
-    const result = account?.providerAccountId
-      ? await getOAuthUser({
-          provider: account.provider,
-          providerAccountId: account.providerAccountId,
-        })
-      : await getUserByEmail({ email: token.email as string })
+    const result =
+      account?.provider === 'google' && account.providerAccountId
+        ? await getOAuthUser({
+            provider: account.provider,
+            providerAccountId: account.providerAccountId,
+          })
+        : await getUserByEmail({ email: token.email as string })
 
     // Unknown/deleted user ends the session. A role-less customer keeps theirs.
     if (!result) {
@@ -116,14 +117,14 @@ export const authCallbacks = {
 export const { handlers, signIn, signOut, auth } = NextAuth({
   session: {
     strategy: 'jwt',
-    ...(process.env.APP_ENV === 'PROD' && {
-      cookies: {
-        sessionToken: {
-          options: { sameSite: 'none', secure: true },
-        },
-      },
-    }),
   },
+  ...(process.env.APP_ENV === 'PROD' && {
+    cookies: {
+      sessionToken: {
+        options: { sameSite: 'none', secure: true },
+      },
+    },
+  }),
   providers: [
     Google,
     Credentials({

@@ -7,7 +7,7 @@ import { HOME_SHORTCUTS, HomeShortcut, homeCardClassName } from './data'
 
 const cardClassName = `flex h-full flex-col p-5 ${homeCardClassName}`
 
-function ShortcutCard({ shortcut }: { shortcut: HomeShortcut }) {
+function ShortcutCard({ shortcut, count }: { shortcut: HomeShortcut; count: number }) {
   const { t } = useSiteI18n()
   const content = (
     <>
@@ -21,7 +21,7 @@ function ShortcutCard({ shortcut }: { shortcut: HomeShortcut }) {
       </h2>
       <p className="mt-2 flex-1 text-sm leading-6 text-neutral-600">{t(shortcut.body)}</p>
       <span className="mt-6 flex items-center justify-between gap-3 text-xs font-medium text-primary-500">
-        {t(shortcut.link)}
+        {t(count === 1 && shortcut.linkOne ? shortcut.linkOne : shortcut.link, { count })}
         {shortcut.href ? (
           <MaskIcon
             className="bg-primary-500 transition group-hover:translate-x-1"
@@ -52,14 +52,14 @@ function ShortcutCard({ shortcut }: { shortcut: HomeShortcut }) {
 }
 
 /** Home section 2 (`home-2.png`): feature shortcut cards. */
-export default function HomeShortcuts() {
+export default function HomeShortcuts({ readyPrayers }: { readyPrayers: number }) {
   return (
     <section
       aria-label="Shortcuts"
       className="mt-6 grid gap-4 sm:grid-cols-2 lg:mt-8 lg:grid-cols-4 lg:gap-6"
     >
       {HOME_SHORTCUTS.map((shortcut) => (
-        <ShortcutCard key={shortcut.id} shortcut={shortcut} />
+        <ShortcutCard count={readyPrayers} key={shortcut.id} shortcut={shortcut} />
       ))}
     </section>
   )

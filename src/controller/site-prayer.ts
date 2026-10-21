@@ -1,5 +1,9 @@
 import { SitePrayerArchive, SitePrayerArchiveQuery, SitePrayerDetail } from '@/models/site-prayer'
-import { GET_SITE_PRAYER_ARCHIVE, GET_SITE_PRAYER_DETAIL } from '@/providers/site-prayer'
+import {
+  COUNT_SITE_PRAYERS,
+  GET_SITE_PRAYER_ARCHIVE,
+  GET_SITE_PRAYER_DETAIL,
+} from '@/providers/site-prayer'
 
 export const getSitePrayerArchive = ({
   userId,
@@ -17,3 +21,7 @@ export const getSitePrayerDetail = ({
 }: {
   prayerId: string
 }): Promise<SitePrayerDetail | null> => GET_SITE_PRAYER_DETAIL({ prayerId })
+
+/** Total the /prayers archive lists before filters; drives the home "Sessions Ready" label. */
+export const countSitePrayers = ({ userId }: { userId: string }): Promise<number> =>
+  COUNT_SITE_PRAYERS({ userId })

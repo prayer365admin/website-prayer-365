@@ -1,7 +1,8 @@
 import ContentsSiteHome from '@/contents/site/home'
-import { getMyActiveGift } from '@/controller/donation'
+import { getMyDonationOverview } from '@/controller/donation'
 import { getMyHabits } from '@/controller/site-habits'
 import { getHome } from '@/controller/mobile'
+import { countSitePrayers } from '@/controller/site-prayer'
 import requiredWebAuth from '@/utils/required-webauth'
 import { stripAudioTags } from '@/utils/strip-audio-tags'
 import { redirect } from 'next/navigation'
@@ -11,10 +12,11 @@ export default async function Page() {
   if (!web) redirect('/login')
 
   const userId = web.session.user.user_id
-  const [home, gift, habits] = await Promise.all([
+  const [home, giving, habits, readyPrayers] = await Promise.all([
     getHome({ userId }),
-    getMyActiveGift({ userId }),
+    getMyDonationOverview({ userId }),
     getMyHabits({ userId }),
+    countSitePrayers({ userId }),
   ])
   // ElevenLabs audio tags stay in the shared/mobile payload; the website never shows them.
   const latestPrayers = home.latestPrayers.map((prayer) => ({
@@ -28,11 +30,13 @@ export default async function Page() {
   }))
   return (
     <ContentsSiteHome
-      gift={gift}
+      gift={giving.activeGift}
+      nextGiftAt={giving.nextGiftAt}
       habits={habits}
       home={{ ...home, latestPrayers }}
       name={web.session.user.name}
       now={new Date().toISOString()}
+      readyPrayers={readyPrayers}
     />
   )
 }

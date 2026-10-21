@@ -31,27 +31,77 @@ import MapPreviewCard from './map-preview-card'
 import { DENOMINATION_OPTIONS, LANGUAGE_OPTIONS, RADIUS_OPTIONS } from '@/utils/constant'
 
 const DEFAULT_COORDS = { latitude: 59.437, longitude: 24.754 }
-function ChurchCardSkeleton() {
+export function ChurchCardSkeleton({ featured }: { featured?: boolean }) {
   return (
-    <div className="flex flex-col rounded-2xl border border-[#ECEEF0] bg-white p-4 shadow-[0_1px_2px_rgba(0,0,0,0.05)] animate-pulse">
-      <div className="flex items-center justify-between pb-3">
-        <div className="h-5 w-28 rounded-full bg-slate-200" />
-        <div className="h-4 w-16 rounded bg-slate-200" />
+    <article
+      className={`flex flex-col rounded-2xl bg-white animate-pulse ${
+        featured
+          ? 'shadow-[0_12px_36px_-8px_rgba(0,92,173,0.08)] ring-2 ring-inset ring-primary_color/30'
+          : 'shadow-[0_1px_2px_rgba(0,0,0,0.05)]'
+      }`}
+    >
+      {/* Header: left pill, right distance */}
+      <div className="flex items-center justify-between gap-2 p-4">
+        <div
+          className={`h-6 rounded-full ${featured ? 'w-28 bg-[#B9D8F8]' : 'w-24 bg-slate-200'}`}
+        />
+        <div className="ml-auto h-4 w-20 rounded bg-slate-200" />
       </div>
-      <div className="flex items-start gap-4 border-b border-[#DDE0E4] pb-4">
-        <div className="h-20 w-20 sm:h-24 sm:w-24 shrink-0 rounded-2xl bg-slate-200" />
-        <div className="flex flex-1 flex-col gap-2 pt-1">
-          <div className="h-6 w-48 rounded bg-slate-200" />
-          <div className="h-4 w-32 rounded bg-slate-200" />
+
+      {/* Body: Thumbnail + Info */}
+      <div className="flex items-start gap-4 border-b border-[#DDE0E4] px-4 pb-4">
+        <div className="h-20 w-20 shrink-0 rounded-xl bg-slate-200 shadow-sm sm:h-24 sm:w-24" />
+        <div className="flex flex-1 flex-col justify-between self-stretch gap-1">
+          <div>
+            <div className="h-5 w-44 rounded bg-slate-200" />
+            <div className="mt-1.5 h-3.5 w-32 rounded bg-slate-100" />
+          </div>
+          <div className="flex flex-col gap-1.5 pt-1">
+            <div className="flex items-center gap-1.5">
+              <div className="h-3 w-3 rounded-full bg-slate-200" />
+              <div className="h-3.5 w-28 rounded bg-slate-100" />
+            </div>
+            <div className="flex items-center gap-1.5">
+              <div className="h-3 w-3 rounded-full bg-slate-200" />
+              <div className="h-3.5 w-48 rounded bg-slate-100" />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Footer */}
+      <div className="flex flex-col gap-3 p-4">
+        {featured && <div className="h-14 w-full rounded-lg bg-[#FAFAFB]" />}
+        <div className="flex items-center justify-between gap-4">
           <div className="h-3.5 w-40 rounded bg-slate-100" />
+          <div className="h-4 w-24 rounded bg-slate-200" />
         </div>
+        {featured && (
+          <div className="flex flex-col gap-3 pt-1 sm:flex-row sm:items-center sm:justify-between">
+            <div className="grid grid-cols-2 gap-2 sm:flex sm:items-center">
+              <div className="h-10 w-28 rounded-xl bg-slate-200" />
+              <div className="h-10 w-36 rounded-xl bg-slate-100" />
+            </div>
+            <div className="h-8 w-20 rounded bg-slate-100" />
+          </div>
+        )}
       </div>
-      <div className="flex items-center justify-between pt-3">
-        <div className="h-4 w-28 rounded bg-slate-200" />
-        <div className="flex gap-2">
-          <div className="h-8 w-20 rounded-lg bg-slate-100" />
-          <div className="h-8 w-24 rounded-lg bg-slate-100" />
+    </article>
+  )
+}
+
+export function MapPreviewCardSkeleton() {
+  return (
+    <div className="mt-3 rounded-2xl border border-[#ECEEF0] bg-white/95 p-4 shadow-[0_20px_25px_-5px_rgba(0,0,0,0.1)] backdrop-blur animate-pulse">
+      <div className="flex items-center justify-between gap-4">
+        <div className="flex items-center gap-3">
+          <div className="h-12 w-12 shrink-0 rounded-xl bg-slate-200" />
+          <div className="flex flex-col gap-1.5">
+            <div className="h-5 w-36 rounded bg-slate-200" />
+            <div className="h-3.5 w-24 rounded bg-slate-100" />
+          </div>
         </div>
+        <div className="h-8 w-16 shrink-0 rounded-lg bg-slate-200" />
       </div>
     </div>
   )
@@ -149,7 +199,7 @@ export default function ContentsSiteChurchDirectory() {
               <p className="text-base text-[#5B6370]">{t('heroSubtitle')}</p>
             </div>
 
-            {total !== undefined && (
+            {total !== undefined ? (
               <div className="flex shrink-0 items-center gap-1 text-xs text-[#5B6370]">
                 <CheckCircleOutlined
                   className="text-[12px] text-primary_color"
@@ -159,7 +209,9 @@ export default function ContentsSiteChurchDirectory() {
                   {total} {t('congregationsListed')}
                 </span>
               </div>
-            )}
+            ) : loading || isDebouncing ? (
+              <div className="h-4 w-40 rounded-full bg-slate-200/80 animate-pulse" />
+            ) : null}
           </div>
 
           {/* Search row */}
@@ -334,7 +386,7 @@ export default function ContentsSiteChurchDirectory() {
             {(loading || isDebouncing) && (
               <div className="flex flex-col gap-4">
                 {Array.from({ length: 4 }).map((_, i) => (
-                  <ChurchCardSkeleton key={i} />
+                  <ChurchCardSkeleton key={i} featured={i === 0} />
                 ))}
               </div>
             )}
@@ -464,11 +516,15 @@ export default function ContentsSiteChurchDirectory() {
               </div>
 
               {/* Floating Interactive Parish Preview Card (Bottom Anchor) */}
-              {selectedChurch && (
+              {selectedChurch ? (
                 <div className="absolute bottom-3 left-3 right-3 z-20 sm:bottom-4 sm:left-4 sm:right-4">
                   <MapPreviewCard church={selectedChurch} />
                 </div>
-              )}
+              ) : loading || isDebouncing ? (
+                <div className="absolute bottom-3 left-3 right-3 z-20 sm:bottom-4 sm:left-4 sm:right-4">
+                  <MapPreviewCardSkeleton />
+                </div>
+              ) : null}
             </div>
           </div>
         </section>

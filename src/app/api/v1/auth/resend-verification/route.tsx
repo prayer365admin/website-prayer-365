@@ -5,10 +5,10 @@ import { NextRequest, NextResponse } from 'next/server'
 export async function POST(req: NextRequest) {
   const host = req.headers.get('host') || 'localhost:3000'
   const baseUrl = req.headers.get('origin') || `http://${host}`
-  const { email } = await req.json()
 
   try {
-    const result = await resendVerificationEmail({ email: email, baseUrl: baseUrl })
+    const { email } = await req.json()
+    const result = await resendVerificationEmail({ email, baseUrl })
 
     return NextResponse.json(
       {

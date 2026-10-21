@@ -51,7 +51,11 @@ export const useMyChurches = (options: ChurchesQueryOptions = {}) => {
 
   const { data, isLoading } = useQuery({
     queryKey: key,
-    queryFn: async () => (await axios.get(`${baseUrl}/churches`)).data.result as MobileMyChurch[],
+    queryFn: async () => {
+      const res = await axios.get(`${baseUrl}/churches`)
+      const raw = res.data?.result
+      return (Array.isArray(raw) ? raw : []) as MobileMyChurch[]
+    },
     enabled: !!userId,
     initialData: options.initialData,
     staleTime: options.initialData ? 1000 * 60 * 5 : undefined,
@@ -62,7 +66,10 @@ export const useMyChurches = (options: ChurchesQueryOptions = {}) => {
       const url = `${baseUrl}/follows/${encodeURIComponent(churchId)}`
       return isFollowed ? axios.put(url) : axios.delete(url)
     },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: key }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: key })
+      queryClient.invalidateQueries({ queryKey: ['site', 'home'] })
+    },
   })
 
   const waitingForSession = !options.userId && session.status === 'loading'

@@ -21,7 +21,13 @@ import { useState } from 'react'
 
 // Wrong email/password, no account, no password set: one message, so the
 // form never reveals whether an email is registered.
-const CREDENTIAL_CODES = ['PASSWORD_INVALID', 'USER_NOT_FOUND', 'ACCOUNT_HAS_NO_PASSWORD']
+const CREDENTIAL_CODES = [
+  'INVALID_CREDENTIALS',
+  // Keep the former codes mapped to the same copy while old server bundles drain.
+  'PASSWORD_INVALID',
+  'USER_NOT_FOUND',
+  'ACCOUNT_HAS_NO_PASSWORD',
+]
 
 type SignInValues = { email: string; password: string; remember: boolean }
 

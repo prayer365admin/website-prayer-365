@@ -60,6 +60,7 @@ export const GET_LATEST_AUTH_TOKEN = async ({
     where: {
       user_id: user_id,
       type: type,
+      used_at: null,
     },
     orderBy: { created_at: 'desc' },
   })
