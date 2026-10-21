@@ -56,6 +56,44 @@ describe('SiteTopBar', () => {
     expect(link(SITE_MESSAGES.en.headerPrayers).getAttribute('aria-current')).toBeNull()
   })
 
+  it('keeps Prayers visually active on the prayer page and its child pages', () => {
+    pathnameMock.mockReturnValue('/prayers')
+
+    const { unmount } = renderWithProviders(
+      <SiteI18nProvider initialLocale="en">
+        <SiteTopBar />
+      </SiteI18nProvider>,
+    )
+
+    const prayersLink = link(SITE_MESSAGES.en.headerPrayers)
+    expect(prayersLink.getAttribute('aria-current')).toBe('page')
+    expect(prayersLink.className).toContain('activeNavigationLink')
+
+    unmount()
+    pathnameMock.mockReturnValue('/prayers/prayer-1')
+    renderWithProviders(
+      <SiteI18nProvider initialLocale="en">
+        <SiteTopBar />
+      </SiteI18nProvider>,
+    )
+
+    expect(link(SITE_MESSAGES.en.headerPrayers).getAttribute('aria-current')).toBe('page')
+    expect(link(SITE_MESSAGES.en.headerPrayers).className).toContain('activeNavigationLink')
+  })
+
+  it('does not mark Prayers active for a similarly prefixed route', () => {
+    pathnameMock.mockReturnValue('/prayers-archive')
+
+    renderWithProviders(
+      <SiteI18nProvider initialLocale="en">
+        <SiteTopBar />
+      </SiteI18nProvider>,
+    )
+
+    expect(link(SITE_MESSAGES.en.headerPrayers).getAttribute('aria-current')).toBeNull()
+    expect(link(SITE_MESSAGES.en.headerPrayers).className).not.toContain('activeNavigationLink')
+  })
+
   it('offers the directory when the customer follows no church', async () => {
     renderWithProviders(
       <SiteI18nProvider initialLocale="en">

@@ -103,6 +103,18 @@ const toItems = async (prayers: PublishedRow[]): Promise<SitePrayerArchiveItem[]
   return all
 }
 
+/** Same scope as the unfiltered archive: published prayers of the user's approved main/followed churches. */
+export const COUNT_SITE_PRAYERS = ({ userId }: { userId: string }): Promise<number> =>
+  db.prayer.count({
+    where: {
+      ...publishedWhere,
+      church: {
+        status: APPROVED,
+        userChurches: { some: { user_id: userId, OR: [{ is_main: true }, { is_followed: true }] } },
+      },
+    },
+  })
+
 export const GET_SITE_PRAYER_ARCHIVE = async ({
   userId,
   query,

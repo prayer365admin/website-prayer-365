@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 const db = vi.hoisted(() => ({
   userChurch: { findMany: vi.fn() },
   church: { findFirst: vi.fn(), findUnique: vi.fn() },
-  prayer: { findMany: vi.fn(), findFirst: vi.fn() },
+  prayer: { findMany: vi.fn(), findFirst: vi.fn(), count: vi.fn() },
   prayerVersion: { findMany: vi.fn() },
   churchPastor: { findMany: vi.fn() },
 }))
@@ -12,7 +12,7 @@ const s3 = vi.hoisted(() => ({ S3_PUBLIC_URL: vi.fn() }))
 vi.mock('@/utils/db-connection', () => ({ db }))
 vi.mock('@/providers/s3', () => ({ S3_PUBLIC_URL: s3.S3_PUBLIC_URL }))
 
-import { GET_SITE_PRAYER_ARCHIVE, GET_SITE_PRAYER_DETAIL } from './site-prayer'
+import { COUNT_SITE_PRAYERS, GET_SITE_PRAYER_ARCHIVE, GET_SITE_PRAYER_DETAIL } from './site-prayer'
 
 const query = {
   page: 1,
@@ -204,5 +204,23 @@ describe('GET_SITE_PRAYER_DETAIL', () => {
   it('returns null for a missing, draft, or unapproved-church prayer', async () => {
     db.prayer.findFirst.mockResolvedValue(null)
     expect(await GET_SITE_PRAYER_DETAIL({ prayerId: 'nope' })).toBeNull()
+  })
+})
+
+describe('COUNT_SITE_PRAYERS', () => {
+  it("counts published prayers of the user's approved main/followed churches", async () => {
+    db.prayer.count.mockResolvedValue(4)
+
+    await expect(COUNT_SITE_PRAYERS({ userId: 'u1' })).resolves.toBe(4)
+    expect(db.prayer.count).toHaveBeenCalledWith({
+      where: {
+        church: {
+          status: 'APPROVED',
+          userChurches: { some: { user_id: 'u1', OR: [{ is_main: true }, { is_followed: true }] } },
+        },
+        published_version_id: { not: null },
+        published_at: { not: null },
+      },
+    })
   })
 })

@@ -49,6 +49,7 @@ export function DonorForm({
   options,
   activeGift,
   stripeReady,
+  oneTime = false,
 }: {
   churchId: string
   churchName: string
@@ -56,6 +57,7 @@ export function DonorForm({
   options: MobileDonationOptions
   activeGift?: MyActiveGift | null
   stripeReady: boolean
+  oneTime?: boolean
 }) {
   const { locale, t } = useSiteI18n()
   const { onInitiate, initiating } = useInitiateDonation()
@@ -86,7 +88,7 @@ export function DonorForm({
     : DONATION_FALLBACK_OPTIONS.presetsMinor
   const currency = options.currency.toUpperCase()
   const [purpose, setPurpose] = useState(DONATION_PURPOSES[0].id)
-  const [monthly, setMonthly] = useState(options.monthlyEnabled)
+  const [monthly, setMonthly] = useState(options.monthlyEnabled && !oneTime)
   const [presetMinor, setPresetMinor] = useState<number | null>(presets[0])
   const [custom, setCustom] = useState('')
   const [error, setError] = useState<string | null>(null)

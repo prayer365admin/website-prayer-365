@@ -11,7 +11,14 @@ import { homeCardClassName, homeCardThinShadowClassName } from './data'
 const directionsUrl = (church: MobilePublicChurch) => {
   const destination = church.coordinates
     ? `${church.coordinates.latitude},${church.coordinates.longitude}`
-    : [church.address.line1, church.address.city, church.address.countryCode].join(', ')
+    : [
+        church.address.line1,
+        church.address.city,
+        church.address.postalCode,
+        church.address.countryCode,
+      ]
+        .filter(Boolean)
+        .join(', ')
   return `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(destination)}`
 }
 

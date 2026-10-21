@@ -14,20 +14,24 @@ import { BrandQuote, Stewardship } from './stewardship'
 export default function ContentsSiteHome({
   home,
   gift = null,
+  nextGiftAt = null,
   habits = { streakDays: 0, minutesThisWeek: 0 },
   name,
   now,
+  readyPrayers = 0,
 }: {
   home: MobileHome
   gift?: MyActiveGift | null
+  nextGiftAt?: Date | null
   habits?: SiteHabits
   name?: string | null
   now: string
+  readyPrayers?: number
 }) {
   return (
     <BoxContainer containerClassName="py-6 md:py-8">
       <DevotionalHero name={name} now={now} prayer={home.latestPrayers[0]} />
-      <HomeShortcuts />
+      <HomeShortcuts readyPrayers={readyPrayers} />
       <div className="mt-6 grid gap-6 lg:mt-8 lg:grid-cols-[minmax(0,757.33fr)_minmax(0,362.67fr)] lg:gap-8">
         <div className="flex min-w-0 flex-col gap-6">
           <PrimaryParish church={home.mainChurch} />
@@ -41,7 +45,7 @@ export default function ContentsSiteHome({
             mainChurch={home.mainChurch}
           />
           <PrayerPetition church={home.mainChurch} />
-          <Stewardship gift={gift} />
+          <Stewardship churchId={home.mainChurch?.id ?? null} gift={gift} nextGiftAt={nextGiftAt} />
           <BrandQuote />
         </div>
       </div>

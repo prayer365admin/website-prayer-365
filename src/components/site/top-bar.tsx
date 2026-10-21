@@ -159,16 +159,20 @@ export default function SiteTopBar({ variant = 'general' }: { variant?: SiteHead
         ) : (
           <div className={s.generalContent}>
             <nav aria-label={t('headerPrimaryNav')} className={s.generalNavigation}>
-              {generalLinks.map((item) => (
-                <Link
-                  aria-current={isActivePath(pathname, item.href) ? 'page' : undefined}
-                  className={s.navigationLink}
-                  href={item.href}
-                  key={item.href}
-                >
-                  {item.label}
-                </Link>
-              ))}
+              {generalLinks.map((item) => {
+                const isActive = isActivePath(pathname, item.href)
+
+                return (
+                  <Link
+                    aria-current={isActive ? 'page' : undefined}
+                    className={`${s.navigationLink} ${isActive ? s.activeNavigationLink : ''}`}
+                    href={item.href}
+                    key={item.href}
+                  >
+                    {item.label}
+                  </Link>
+                )
+              })}
             </nav>
             {churchControl}
           </div>

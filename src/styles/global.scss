@@ -198,3 +198,11 @@ p {
     @apply bg-gray-50 font-semibold;
   }
 }
+
+// In-page anchors (e.g. home shortcut to #prayer-petition) glide; `data-scroll-behavior` on <html>
+// keeps route changes instant.
+@media (prefers-reduced-motion: no-preference) {
+  html {
+    scroll-behavior: smooth;
+  }
+}

@@ -102,16 +102,7 @@ export default function DevotionalHero({
               </div>
             </div>
 
-            {prayer.audio?.assetUrl ? (
-              <DevotionalAudioPlayer prayerId={prayer.id} src={prayer.audio.assetUrl} />
-            ) : (
-              <Link
-                className="mt-6 inline-flex rounded-full border border-primary-300 bg-white px-5 py-2.5 text-sm font-semibold text-primary-700"
-                href={`/prayers/${prayer.id}`}
-              >
-                {t('homeReadPrayer')}
-              </Link>
-            )}
+            <DevotionalAudioPlayer prayerId={prayer.id} src={prayer.audio?.assetUrl ?? null} />
           </article>
         ) : (
           <div className="mt-8 rounded-[20px] border border-white bg-white/70 px-6 py-8">

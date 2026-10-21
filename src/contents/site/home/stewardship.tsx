@@ -5,11 +5,26 @@ import MaskIcon from '@/components/site/mask-icon'
 import { useSiteI18n } from '@/i18n/site-i18n'
 import { MyActiveGift } from '@/models/donation'
 import { ExportOutlined } from '@ant-design/icons'
+import Link from 'next/link'
 import { homeCardThinShadowClassName } from './data'
 
 /** Home section 3, right 3 (`home-3-right-3.png`): the customer's own active monthly gift. */
-export function Stewardship({ gift }: { gift: MyActiveGift | null }) {
+export function Stewardship({
+  gift,
+  nextGiftAt = null,
+  churchId,
+}: {
+  gift: MyActiveGift | null
+  /** Estimated next monthly charge, from the donation overview. */
+  nextGiftAt?: Date | null
+  /** Main parish: where giving goes when there is no active gift yet. */
+  churchId: string | null
+}) {
   const { locale, t } = useSiteI18n()
+  const targetId = gift?.churchId ?? churchId
+  // No gift and no main parish: there is no church to give to yet, so send them to find one.
+  const donateHref = targetId ? `/donate/${targetId}` : '/churches'
+  const oneTimeHref = targetId ? `${donateHref}?frequency=one_time` : '/churches'
 
   return (
     <section aria-labelledby="home-stewardship-title" className={homeCardThinShadowClassName}>
@@ -34,16 +49,30 @@ export function Stewardship({ gift }: { gift: MyActiveGift | null }) {
         <div className="rounded-xl bg-neutral-50 p-3">
           {gift ? (
             <>
-              <p className="flex items-baseline gap-1.5">
-                <span className="text-2xl font-semibold text-blue-800">
-                  {new Intl.NumberFormat(locale, {
-                    style: 'currency',
-                    currency: gift.currency,
-                    minimumFractionDigits: gift.amountMinor % 100 ? 2 : 0,
-                  }).format(gift.amountMinor / 100)}
-                </span>
-                <span className="text-xs text-neutral-500">{t('homeStewardshipPerMonth')}</span>
-              </p>
+              <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
+                <p className="flex items-baseline gap-1.5">
+                  <span className="text-2xl font-semibold text-blue-800">
+                    {new Intl.NumberFormat(locale, {
+                      style: 'currency',
+                      currency: gift.currency,
+                      minimumFractionDigits: gift.amountMinor % 100 ? 2 : 0,
+                    }).format(gift.amountMinor / 100)}
+                  </span>
+                  <span className="text-xs text-neutral-500">{t('homeStewardshipPerMonth')}</span>
+                </p>
+                {nextGiftAt && (
+                  <p className="text-xs text-neutral-500">
+                    {t('homeStewardshipNext', {
+                      date: new Intl.DateTimeFormat(locale, {
+                        month: 'long',
+                        day: 'numeric',
+                        year: 'numeric',
+                        timeZone: 'UTC',
+                      }).format(nextGiftAt),
+                    })}
+                  </p>
+                )}
+              </div>
               <p className="mt-1 text-xs leading-5 text-neutral-600">
                 {t('homeStewardshipBeneficiary', { church: gift.churchName })}
               </p>
@@ -52,13 +81,19 @@ export function Stewardship({ gift }: { gift: MyActiveGift | null }) {
             <p className="text-sm text-neutral-600">{t('homeStewardshipNone')}</p>
           )}
         </div>
-        <div className="mt-4 flex items-center justify-between gap-3" title={t('homeComingSoon')}>
-          <span className="inline-flex items-center gap-2 text-xs font-medium text-primary-500">
+        <div className="mt-4 flex items-center justify-between gap-3">
+          <Link
+            className="inline-flex items-center gap-2 text-xs font-medium text-primary-500 transition hover:text-primary-700"
+            href={donateHref}
+          >
             {t('homeStewardshipManage')} <ExportOutlined />
-          </span>
-          <span className="rounded-lg bg-blue-50 px-3 py-2 text-xs font-semibold leading-[1.5] tracking-normal text-[#2555A7]">
+          </Link>
+          <Link
+            className="rounded-lg bg-blue-50 px-3 py-2 text-xs font-semibold leading-[1.5] tracking-normal text-[#2555A7] transition hover:bg-primary-300/40"
+            href={oneTimeHref}
+          >
             {t('homeStewardshipOneTime')}
-          </span>
+          </Link>
         </div>
       </div>
     </section>

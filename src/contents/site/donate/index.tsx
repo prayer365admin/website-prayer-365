@@ -18,6 +18,7 @@ export default function ContentsSiteDonate({
   overview,
   userName,
   stripeReady,
+  oneTime = false,
 }: {
   churchId: string
   churchName: string
@@ -26,6 +27,8 @@ export default function ContentsSiteDonate({
   overview: MyDonationOverview
   userName: string | null
   stripeReady: boolean
+  /** Start the form on a one-time gift instead of the church's monthly default. */
+  oneTime?: boolean
 }) {
   return (
     <BoxContainer containerClassName="py-8">
@@ -38,6 +41,7 @@ export default function ContentsSiteDonate({
             isMainParish={isMainParish}
             options={donationOptions ?? DONATION_FALLBACK_OPTIONS}
             activeGift={overview.activeGift}
+            oneTime={oneTime}
             stripeReady={stripeReady}
           />
           <SupporterOverview churchName={churchName} overview={overview} userName={userName} />

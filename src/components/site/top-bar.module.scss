@@ -121,11 +121,17 @@
 }
 
 .navigationLink {
-  padding: 0 4px;
+  padding: 0 18px;
 }
 
 .navigationLink:hover {
   color: var(--color-primary-500);
+}
+
+.activeNavigationLink,
+.activeNavigationLink:hover {
+  background: var(--color-primary-500);
+  color: white;
 }
 
 .primaryLink {
