@@ -12,7 +12,12 @@ export type SignupPayload = {
   password: string
 }
 
-export type SignupResult = { id: string; email: string; name: string }
+export type SignupResult = {
+  id: string
+  email: string
+  name: string
+  verification_email_sent: boolean
+}
 
 /** Backend error_code → the form field it belongs to and the message to show there. */
 export const SIGNUP_ERRORS: Record<

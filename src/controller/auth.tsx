@@ -46,19 +46,25 @@ const sendVerificationEmail = async ({
     ttl_minutes: VERIFICATION_TTL_MINUTES,
   })
 
-  await sendMail({
-    from: process.env.MAIL_FROM || 'info@example.com',
-    to: email,
-    subject: 'Verify your email',
-    template_name: 'verify-email',
-    payload: {
-      customerName: name,
-      link: `${baseUrl}/verify-email?token=${createdToken.token}`,
-      companyName: process.env.NEXT_PUBLIC_COMPANY_NAME,
-      currentYear: dayjs().year(),
-    },
-    baseUrl: baseUrl,
-  })
+  try {
+    await sendMail({
+      from: process.env.MAIL_FROM || 'info@example.com',
+      to: email,
+      subject: 'Verify your email',
+      template_name: 'verify-email',
+      payload: {
+        customerName: name,
+        link: `${baseUrl}/verify-email?token=${createdToken.token}`,
+        companyName: process.env.NEXT_PUBLIC_COMPANY_NAME,
+        currentYear: dayjs().year(),
+      },
+      baseUrl: baseUrl,
+    })
+  } catch (error) {
+    // Do not let an undelivered token trigger the resend cooldown.
+    await USE_AUTH_TOKEN({ id: createdToken.id })
+    throw error
+  }
 }
 
 export const registerUser = async ({
@@ -159,14 +165,27 @@ export const registerUser = async ({
     throw invalidMainChurch()
   }
 
-  await sendVerificationEmail({
-    user_id: result.id,
-    email: emailNormalized,
-    name: name,
-    baseUrl: baseUrl,
-  })
+  let verification_email_sent = true
+  try {
+    await sendVerificationEmail({
+      user_id: result.id,
+      email: emailNormalized,
+      name: name,
+      baseUrl: baseUrl,
+    })
+  } catch {
+    // Account creation already committed. Return a recoverable result so the
+    // client can open the resend-verification screen instead of suggesting
+    // that registration can safely be repeated.
+    verification_email_sent = false
+  }
 
-  return { id: result.id, email: result.email, name: result.name }
+  return {
+    id: result.id,
+    email: result.email,
+    name: result.name,
+    verification_email_sent,
+  }
 }
 
 export const verifyEmail = async ({ token }: { token: string }) => {

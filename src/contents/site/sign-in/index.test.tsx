@@ -140,7 +140,7 @@ describe('Customer sign-in (W01)', () => {
     expect(pushMock).toHaveBeenCalledWith('/verify-account?email=maria%40example.com')
   })
 
-  it.each(['PASSWORD_INVALID', 'USER_NOT_FOUND'])(
+  it.each(['INVALID_CREDENTIALS', 'PASSWORD_INVALID', 'USER_NOT_FOUND'])(
     'shows one credentials message for %s (no account enumeration)',
     async (code) => {
       signInMock.mockResolvedValue({ error: 'x', code })

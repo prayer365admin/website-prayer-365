@@ -41,6 +41,10 @@ export default function SignUpForm() {
         email: values.email.trim(),
         password: values.password,
       })
+      if (!result.verification_email_sent) {
+        router.push(`/verify-account?email=${encodeURIComponent(result.email)}`)
+        return
+      }
       setSentTo(result.email)
     } catch (e) {
       const fieldError = signupErrorOf(e)

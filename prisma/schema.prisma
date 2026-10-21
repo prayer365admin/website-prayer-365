@@ -144,6 +144,7 @@ model User {
   locale_setup_completed_at DateTime?
 
   auth_token AuthToken[] @relation("user_auth_token")
+  loginAttempt AuthLoginAttempt?
   oauthAccounts OAuthAccount[]
 
   // Mind/Added Prayer relations
@@ -243,6 +244,17 @@ model AuthToken {
 
   @@index([type, token])
   @@map("auth_token")
+}
+
+model AuthLoginAttempt {
+  user_id           String    @id
+  user              User      @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  failures          Int       @default(0)
+  window_started_at DateTime  @default(now())
+  blocked_until     DateTime?
+  updated_at        DateTime  @updatedAt
+
+  @@map("auth_login_attempt")
 }
 
 model Country {

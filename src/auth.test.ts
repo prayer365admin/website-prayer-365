@@ -72,6 +72,19 @@ describe('customer sign-in branch', () => {
     expect(token?.user).toMatchObject({ user_id: 'c1', role: null, auth_version: 1 })
   })
 
+  it('hydrates a credentials JWT by email even when Auth.js supplies an account id', async () => {
+    m.getUserByEmail.mockResolvedValue(customer)
+
+    const token = await authCallbacks.jwt({
+      token: { email: 'customer@example.com' } as never,
+      account: { provider: 'credentials', providerAccountId: 'c1' } as never,
+    })
+
+    expect(m.getUserByEmail).toHaveBeenCalledWith({ email: 'customer@example.com' })
+    expect(m.getOAuthUser).not.toHaveBeenCalled()
+    expect(token?.user).toMatchObject({ user_id: 'c1', role: null, auth_version: 1 })
+  })
+
   it('ends the session when the user no longer exists', async () => {
     m.getUserByEmail.mockResolvedValue(null)
 
