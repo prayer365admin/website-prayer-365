@@ -27,7 +27,7 @@ export default async function CustomerLayout({ children }: { children: React.Rea
     <SiteI18nProvider initialLocale={await getSiteLocale()}>
       <SessionAccessGuard access="protected" />
       <SetupGuard />
-      <SiteShell>
+      <SiteShell initialChurches={churches} initialMe={me}>
         <main className="p-6">
           <CustomerProfileHeader
             createdAt={web.user.created_at.toISOString()}

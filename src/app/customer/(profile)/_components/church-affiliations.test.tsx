@@ -1,6 +1,6 @@
 import type { MobileMe, MobileMyChurch } from '@/models/mobile'
 import { axiosMock, renderWithProviders, sessionMock } from '@/test/frontend/render'
-import { screen, waitFor } from '@testing-library/react'
+import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import ChurchAffiliations from './church-affiliations'
@@ -54,28 +54,125 @@ describe('ChurchAffiliations', () => {
     ).toBeTruthy()
   })
 
-  it('stages a primary church change and persists it only after Save', async () => {
-    renderWithProviders(<ChurchAffiliations initialChurches={churches} initialMe={me} />)
-    const save = screen.getByRole('button', { name: 'Save Changes' })
-    const cancel = screen.getByRole('button', { name: 'Cancel' })
+  const extraChurches: MobileMyChurch[] = [
+    ...churches,
+    {
+      churchId: 'c3',
+      churchName: 'Abbey of Peace',
+      city: 'Pärnu',
+      address: 'Pärnu',
+      coverAssetId: null,
+      coverUrl: null,
+      isMain: false,
+      isFollowed: true,
+    },
+  ]
 
-    expect(save).toHaveProperty('disabled', true)
-    expect(cancel).toHaveProperty('disabled', true)
+  const optionsResponse = (url: string) =>
+    Promise.resolve({
+      data: {
+        result: url.includes('/public/churches')
+          ? [
+              { id: 'c1', name: 'Primary Church', city: 'Tallinn' },
+              { id: 'c4', name: 'Monastery of St. Bridget', city: 'Pirita' },
+            ]
+          : [],
+      },
+    })
 
-    await userEvent.click(screen.getByRole('button', { name: 'Change Primary Parish' }))
-    await userEvent.click(
-      screen.getByRole('button', { name: 'Set Followed Church as primary parish' }),
-    )
+  const openPicker = async () => {
+    await userEvent.click(screen.getByRole('button', { name: /Add another parish or monastery/ }))
+    return screen.findByRole('dialog')
+  }
 
-    expect(save).toHaveProperty('disabled', false)
-    expect(axiosMock.patch).not.toHaveBeenCalled()
-    await userEvent.click(save)
+  const names = (list: HTMLElement) =>
+    within(list)
+      .getAllByRole('listitem')
+      .map((item) => item.querySelector('strong')?.textContent)
 
+  it('lists the primary church first, then followed churches alphabetically, then the rest', async () => {
+    axiosMock.get.mockImplementation(optionsResponse)
+    renderWithProviders(<ChurchAffiliations initialChurches={extraChurches} initialMe={me} />)
+    const dialog = await openPicker()
+
+    const [followedList, otherList] = await waitFor(() => {
+      const lists = within(dialog).getAllByRole('list')
+      expect(lists).toHaveLength(2)
+      return lists
+    })
+    expect(names(followedList)).toEqual(['Primary Church', 'Abbey of Peace', 'Followed Church'])
+    expect(names(otherList)).toEqual(['Monastery of St. Bridget'])
+
+    // Primary row: no Make Primary / Follow / Unfollow actions.
+    const primaryRow = within(followedList).getAllByRole('listitem')[0]
+    expect(within(primaryRow).queryAllByRole('button')).toHaveLength(0)
+    // Followed rows: Make Primary + Unfollow. Others: Make Primary + Follow.
+    expect(within(dialog).getByRole('button', { name: 'Unfollow Followed Church' })).toBeTruthy()
+    expect(
+      within(dialog).getByRole('button', { name: 'Set Followed Church as primary parish' }),
+    ).toBeTruthy()
+    expect(
+      within(dialog).getByRole('button', { name: 'Follow Monastery of St. Bridget' }),
+    ).toBeTruthy()
+    expect(
+      within(dialog).getByRole('button', {
+        name: 'Set Monastery of St. Bridget as primary parish',
+      }),
+    ).toBeTruthy()
+  })
+
+  it('filters both sections by church name', async () => {
+    axiosMock.get.mockImplementation(optionsResponse)
+    renderWithProviders(<ChurchAffiliations initialChurches={extraChurches} initialMe={me} />)
+    const dialog = await openPicker()
+
+    await userEvent.type(within(dialog).getByRole('textbox'), 'abbey')
+
+    const followedList = within(dialog).getAllByRole('list')[0]
+    expect(names(followedList)).toEqual(['Abbey of Peace'])
     await waitFor(() =>
-      expect(axiosMock.patch).toHaveBeenCalledWith('/api/v1/site/me', {
-        mainChurchId: 'c2',
+      expect(axiosMock.get).toHaveBeenCalledWith('/api/v1/public/churches', {
+        params: { search: 'abbey' },
       }),
     )
+  })
+
+  it('discards picker changes on Cancel', async () => {
+    axiosMock.get.mockImplementation(optionsResponse)
+    renderWithProviders(<ChurchAffiliations initialChurches={churches} initialMe={me} />)
+    const dialog = await openPicker()
+
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Unfollow Followed Church' }))
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Cancel' }))
+
+    expect(axiosMock.delete).not.toHaveBeenCalled()
+    expect(axiosMock.patch).not.toHaveBeenCalled()
+    const reopened = await openPicker()
+    expect(within(reopened).getByRole('button', { name: 'Unfollow Followed Church' })).toBeTruthy()
+  })
+
+  it('saves the new primary, follows and unfollows from the picker', async () => {
+    axiosMock.get.mockImplementation(optionsResponse)
+    renderWithProviders(<ChurchAffiliations initialChurches={churches} initialMe={me} />)
+    const dialog = await openPicker()
+
+    await userEvent.click(
+      within(dialog).getByRole('button', { name: 'Set Followed Church as primary parish' }),
+    )
+    await userEvent.click(
+      await within(dialog).findByRole('button', { name: 'Follow Monastery of St. Bridget' }),
+    )
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Unfollow Primary Church' }))
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Save Changes' }))
+
+    await waitFor(() =>
+      expect(axiosMock.patch).toHaveBeenCalledWith('/api/v1/site/me', { mainChurchId: 'c2' }),
+    )
+    await waitFor(() => {
+      expect(axiosMock.put).toHaveBeenCalledWith('/api/v1/site/me/follows/c4')
+      expect(axiosMock.delete).toHaveBeenCalledWith('/api/v1/site/me/follows/c1')
+    })
+    expect(screen.getByRole('heading', { level: 2, name: 'Followed Church' })).toBeTruthy()
   })
 
   it('shows upcoming events from the primary church', async () => {

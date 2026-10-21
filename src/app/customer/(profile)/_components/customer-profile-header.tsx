@@ -4,9 +4,8 @@ import { useMe, useMyChurches } from '@/hooks/data/site/me'
 import { useSiteI18n } from '@/i18n/site-i18n'
 import type { MobileMe, MobileMyChurch } from '@/models/mobile'
 import { ChurchIcon } from '@/components/icon/church'
-import { PersonIcon } from '@/components/icon/person'
 import { VerifyIcon } from '@/components/icon/verify'
-import { PhoneOutlined } from '@ant-design/icons'
+import { PhoneOutlined, UserOutlined } from '@ant-design/icons'
 import { Avatar, Button } from 'antd'
 import s from './customer-profile-header.module.scss'
 
@@ -42,7 +41,8 @@ export default function CustomerProfileHeader({
     <header className={s.header}>
       <section className={s.identity}>
         <Avatar
-          icon={<PersonIcon />}
+          // Empty state matches the header account button (white user icon on primary).
+          icon={customer.profilePicture ? undefined : <UserOutlined />}
           shape="square"
           size={72}
           src={customer.profilePicture ?? undefined}

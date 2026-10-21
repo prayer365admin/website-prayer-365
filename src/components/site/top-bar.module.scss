@@ -97,6 +97,23 @@
   color: white;
 }
 
+.accountButton {
+  overflow: hidden;
+}
+
+// antd Avatar has a 1px transparent border; the button's blue showed through it as a ring.
+.accountAvatar {
+  width: 100%;
+  height: 100%;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+}
+
+.accountButton:has(.accountAvatar) {
+  background: transparent;
+}
+
 .authNavigation {
   justify-content: center;
   gap: 12px;

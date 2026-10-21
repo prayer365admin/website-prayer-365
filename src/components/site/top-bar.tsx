@@ -3,19 +3,19 @@
 import { ChurchIcon } from '@/components/icon/church'
 import { LanguageIcon } from '@/components/icon/language'
 import { SITE_LOCALES, SiteLocale } from '@/config/site-locale'
-import { useMyChurches } from '@/hooks/data/site/me'
+import { useMe, useMyChurches } from '@/hooks/data/site/me'
 import { useSiteI18n } from '@/i18n/site-i18n'
+import type { MobileMe, MobileMyChurch } from '@/models/mobile'
 import {
   BellOutlined,
   DownOutlined,
   HomeOutlined,
-  LogoutOutlined,
   SearchOutlined,
   UserOutlined,
 } from '@ant-design/icons'
-import { Dropdown, Select } from 'antd'
+import { Avatar, Dropdown, Select } from 'antd'
 import type { MenuProps } from 'antd'
-import { signOut, useSession } from 'next-auth/react'
+import { useSession } from 'next-auth/react'
 import Image from 'next/image'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
@@ -27,10 +27,20 @@ export type SiteHeaderVariant = 'auth' | 'general'
 const isActivePath = (pathname: string, href: string) =>
   pathname === href || pathname.startsWith(`${href}/`)
 
-export default function SiteTopBar({ variant = 'general' }: { variant?: SiteHeaderVariant }) {
+export default function SiteTopBar({
+  variant = 'general',
+  initialMe,
+  initialChurches,
+}: {
+  variant?: SiteHeaderVariant
+  /** Server-loaded account data, so the avatar and church pill render without waiting for the client session. */
+  initialMe?: MobileMe
+  initialChurches?: MobileMyChurch[]
+}) {
   const { locale, setLocale, t } = useSiteI18n()
   const { data: session } = useSession()
-  const { data: churches } = useMyChurches()
+  const { data: churches } = useMyChurches({ userId: initialMe?.id, initialData: initialChurches })
+  const { data: me } = useMe({ userId: initialMe?.id, initialData: initialMe })
   const pathname = usePathname()
   const mainChurch = churches.find((church) => church.isMain) ?? churches[0]
 
@@ -63,20 +73,6 @@ export default function SiteTopBar({ variant = 'general' }: { variant?: SiteHead
         },
       ]
 
-  const accountMenu: MenuProps['items'] = [
-    {
-      key: 'profile',
-      label: <Link href="/customer">{t('account')}</Link>,
-      icon: <UserOutlined />,
-    },
-    {
-      key: 'logout',
-      label: t('signOut'),
-      icon: <LogoutOutlined />,
-      onClick: () => signOut({ callbackUrl: '/login' }),
-    },
-  ]
-
   const localeControl = (
     <div className={s.locale}>
       <LanguageIcon aria-hidden />
@@ -103,21 +99,29 @@ export default function SiteTopBar({ variant = 'general' }: { variant?: SiteHead
     </Dropdown>
   )
 
-  const accountControl = session?.user ? (
-    <Dropdown menu={{ items: accountMenu }} placement="bottomRight" trigger={['click']}>
-      <button
+  // Signed in: the profile photo (or a user icon) links to the customer profile, where sign-out lives.
+  const accountControl =
+    session?.user || me ? (
+      <Link
         aria-label={t('account')}
         className={`${s.iconButton} ${s.accountButton}`}
-        type="button"
+        href="/customer"
+      >
+        {me?.profilePicture ? (
+          <Avatar alt="" className={s.accountAvatar} shape="square" src={me.profilePicture} />
+        ) : (
+          <UserOutlined />
+        )}
+      </Link>
+    ) : (
+      <Link
+        aria-label={t('account')}
+        className={`${s.iconButton} ${s.accountButton}`}
+        href="/login"
       >
         <UserOutlined />
-      </button>
-    </Dropdown>
-  ) : (
-    <Link aria-label={t('account')} className={`${s.iconButton} ${s.accountButton}`} href="/login">
-      <UserOutlined />
-    </Link>
-  )
+      </Link>
+    )
 
   return (
     <header className={s.header}>

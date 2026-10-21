@@ -1,7 +1,7 @@
 import { SiteI18nProvider } from '@/i18n/site-i18n'
 import { SITE_MESSAGES } from '@/i18n/messages'
-import { pathnameMock, renderWithProviders, sessionMock } from '@/test/frontend/render'
-import { fireEvent, screen } from '@testing-library/react'
+import { axiosMock, pathnameMock, renderWithProviders, sessionMock } from '@/test/frontend/render'
+import { fireEvent, screen, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it } from 'vitest'
 import SiteTopBar from './top-bar'
 
@@ -25,7 +25,55 @@ describe('SiteTopBar', () => {
     expect(screen.getByText('Choose a church')).toBeTruthy()
     expect(screen.getByRole('combobox')).toBeTruthy()
     expect(screen.getByRole('combobox').getAttribute('aria-label')).toBe('Language')
-    expect(screen.getByRole('button', { name: 'Account' })).toBeTruthy()
+    expect(link('Account').getAttribute('href')).toBe('/customer')
+  })
+
+  it('shows the profile photo as the account link and drops the account menu', async () => {
+    axiosMock.get.mockImplementation((url: string) =>
+      Promise.resolve({
+        data: {
+          result:
+            url === '/api/v1/site/me'
+              ? { id: 'u1', profilePicture: 'https://cdn.test/me.png' }
+              : [],
+        },
+      }),
+    )
+    renderWithProviders(
+      <SiteI18nProvider initialLocale="en">
+        <SiteTopBar />
+      </SiteI18nProvider>,
+    )
+
+    const account = link('Account')
+    await waitFor(() =>
+      expect(account.querySelector('img')?.getAttribute('src')).toBe('https://cdn.test/me.png'),
+    )
+    expect(account.getAttribute('href')).toBe('/customer')
+    fireEvent.click(account)
+    expect(screen.queryByText('Sign out')).toBeNull()
+  })
+
+  it('renders the server-loaded avatar before the client session resolves', () => {
+    sessionMock.mockReturnValue({ data: null, status: 'loading' })
+    renderWithProviders(
+      <SiteI18nProvider initialLocale="en">
+        <SiteTopBar
+          initialMe={{
+            id: 'u1',
+            email: 'maria@example.com',
+            name: 'Maria',
+            locale: 'en',
+            profilePicture: 'https://cdn.test/me.png',
+            mainChurchId: null,
+          }}
+        />
+      </SiteI18nProvider>,
+    )
+
+    const account = link('Account')
+    expect(account.getAttribute('href')).toBe('/customer')
+    expect(account.querySelector('img')?.getAttribute('src')).toBe('https://cdn.test/me.png')
   })
 
   it('points the primary navigation at the website routes', () => {

@@ -18,7 +18,7 @@ describe('SiteShell', () => {
     )
 
     expect(screen.getByRole('banner')).toBeTruthy()
-    expect(screen.getByRole('button', { name: SITE_MESSAGES.en.account })).toBeTruthy()
+    expect(screen.getByRole('link', { name: SITE_MESSAGES.en.account })).toBeTruthy()
     expect(screen.getByRole('navigation', { name: SITE_MESSAGES.en.headerPrimaryNav })).toBeTruthy()
     expect(screen.getByText('Customer profile')).toBeTruthy()
     expect(screen.getByRole('contentinfo')).toBeTruthy()

@@ -4,19 +4,18 @@ import SiteButton from '@/components/common/button'
 import { CalendarWeekIcon } from '@/components/icon/calendar-week'
 import { LocationIcon } from '@/components/icon/location'
 import { LocationPlusIcon } from '@/components/icon/location-plus'
-import { SearchIcon } from '@/components/icon/search'
 import { UnbookmarkIcon } from '@/components/icon/unbookmark'
 import { VerifyIcon } from '@/components/icon/verify'
 import { useSiteChurchEvents } from '@/hooks/data/site/churches'
-import { useChurchOptions } from '@/hooks/data/site/church-option'
 import { useMe, useMyChurches } from '@/hooks/data/site/me'
 import { useSiteI18n } from '@/i18n/site-i18n'
-import type { ChurchOption } from '@/models/church-option'
 import type { MobileMe, MobileMyChurch, MobilePublicEvent } from '@/models/mobile'
-import { App, Avatar, Input } from 'antd'
-import type { InputRef } from 'antd'
-import { type CSSProperties, useEffect, useMemo, useRef, useState } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
+import { App, Avatar } from 'antd'
+import { useRouter } from 'next/navigation'
+import { type CSSProperties, useEffect, useMemo, useState } from 'react'
 import s from './church-affiliations.module.scss'
+import ChurchPickerDrawer from './church-picker-drawer'
 
 const churchImagePlaceholder = '/images/placeholder.png'
 const EVENT_ROTATION_MS = 7000
@@ -95,17 +94,6 @@ function ChurchEventTicker({ events }: { events: MobilePublicEvent[] }) {
   )
 }
 
-const relationFromOption = (church: ChurchOption): MobileMyChurch => ({
-  churchId: church.id,
-  churchName: church.name,
-  city: church.city,
-  address: church.city,
-  coverAssetId: null,
-  coverUrl: null,
-  isMain: false,
-  isFollowed: true,
-})
-
 const followedIds = (churches: MobileMyChurch[], mainId: string | null) =>
   churches
     .filter((church) => church.isFollowed || church.churchId === mainId)
@@ -127,40 +115,23 @@ export default function ChurchAffiliations({
   const [churches, setChurches] = useState(initialChurches)
   const [savedMainId, setSavedMainId] = useState(initialMe.mainChurchId)
   const [mainId, setMainId] = useState(initialMe.mainChurchId)
-  const [search, setSearch] = useState('')
   const [saving, setSaving] = useState(false)
-  const [changingPrimary, setChangingPrimary] = useState(false)
-  const searchRef = useRef<InputRef>(null)
-  const { data: options, loading: searching } = useChurchOptions(search)
+  // A new key per opening remounts the picker, so its draft starts from the current relations.
+  const [picker, setPicker] = useState({ open: false, key: 0 })
+  const queryClient = useQueryClient()
+  const router = useRouter()
   // Shared site hook: the church events endpoint already has a cookie-session twin
   // (`/api/v1/site/churches/:id/events`), same controller as the mobile route.
   const { data: upcomingEvents } = useSiteChurchEvents(mainId ?? '')
 
   const mainChurch = churches.find((church) => church.churchId === mainId)
   const followed = churches.filter((church) => church.isFollowed && church.churchId !== mainId)
-  const availableOptions = options.filter(
-    (option) => !churches.some((church) => church.churchId === option.id && church.isFollowed),
-  )
   const dirty = useMemo(
     () =>
       mainId !== savedMainId ||
       followedIds(churches, mainId).join('|') !== followedIds(savedChurches, savedMainId).join('|'),
     [churches, mainId, savedChurches, savedMainId],
   )
-
-  const addChurch = (option: ChurchOption, makePrimary = false) => {
-    setChurches((current) => {
-      const existing = current.find((church) => church.churchId === option.id)
-      if (existing) {
-        return current.map((church) =>
-          church.churchId === option.id ? { ...church, isFollowed: true } : church,
-        )
-      }
-      return [...current, relationFromOption(option)]
-    })
-    if (makePrimary) setMainId(option.id)
-    setSearch('')
-  }
 
   const removeFollow = (churchId: string) => {
     setChurches((current) =>
@@ -173,50 +144,59 @@ export default function ChurchAffiliations({
   const cancel = () => {
     setChurches(savedChurches)
     setMainId(savedMainId)
-    setSearch('')
-    setChangingPrimary(false)
   }
 
-  const beginPrimaryChange = () => {
-    setChangingPrimary(true)
-    requestAnimationFrame(() => searchRef.current?.focus())
-  }
+  const openPicker = () => setPicker((current) => ({ open: true, key: current.key + 1 }))
+  const closePicker = () => setPicker((current) => ({ ...current, open: false }))
 
-  const save = async () => {
+  /** Persists `nextChurches` / `nextMainId` as a diff against the last saved relations. */
+  const persist = async (nextChurches: MobileMyChurch[], nextMainId: string | null) => {
     setSaving(true)
     try {
-      if (mainId !== savedMainId) await onPatch({ mainChurchId: mainId })
+      if (nextMainId !== savedMainId) await onPatch({ mainChurchId: nextMainId })
 
       const ids = new Set([
         ...savedChurches.map((church) => church.churchId),
-        ...churches.map((church) => church.churchId),
+        ...nextChurches.map((church) => church.churchId),
       ])
       await Promise.all(
         Array.from(ids).flatMap((churchId) => {
           const before =
             savedChurches.find((church) => church.churchId === churchId)?.isFollowed ?? false
           const after =
-            churchId === mainId ||
-            (churches.find((church) => church.churchId === churchId)?.isFollowed ?? false)
+            churchId === nextMainId ||
+            (nextChurches.find((church) => church.churchId === churchId)?.isFollowed ?? false)
           return before === after ? [] : [onFollow({ churchId, isFollowed: after })]
         }),
       )
 
-      const next = churches.map((church) => ({
+      const next = nextChurches.map((church) => ({
         ...church,
-        isMain: church.churchId === mainId,
-        isFollowed: church.churchId === mainId || church.isFollowed,
+        isMain: church.churchId === nextMainId,
+        isFollowed: church.churchId === nextMainId || church.isFollowed,
       }))
       setChurches(next)
       setSavedChurches(next)
-      setSavedMainId(mainId)
-      setChangingPrimary(false)
+      setMainId(nextMainId)
+      setSavedMainId(nextMainId)
+      // Main/followed churches feed the header, home, church list/profile and prayers:
+      // drop every cached site query and re-render server components.
+      await queryClient.invalidateQueries({ queryKey: ['site'] })
+      router.refresh()
       message.success(t('profileAffiliationsSaved'))
+      return true
     } catch {
       message.error(t('profileAffiliationsSaveError'))
+      return false
     } finally {
       setSaving(false)
     }
+  }
+
+  const save = () => persist(churches, mainId)
+
+  const savePicker = async (nextChurches: MobileMyChurch[], nextMainId: string | null) => {
+    if (await persist(nextChurches, nextMainId)) closePicker()
   }
 
   return (
@@ -276,11 +256,7 @@ export default function ChurchAffiliations({
                 >
                   {t('profileParishDashboard')}
                 </SiteButton>
-                <SiteButton
-                  className={s.changePrimaryButton}
-                  onClick={beginPrimaryChange}
-                  size="sm"
-                >
+                <SiteButton className={s.changePrimaryButton} onClick={openPicker} size="sm">
                   {t('profileChangePrimary')}
                 </SiteButton>
               </div>
@@ -291,7 +267,7 @@ export default function ChurchAffiliations({
                 <h2>{t('profileNoPrimarySelected')}</h2>
                 <p>{t('profileSelectPrimaryHint')}</p>
               </div>
-              <SiteButton className={s.changePrimaryButton} onClick={beginPrimaryChange} size="sm">
+              <SiteButton className={s.changePrimaryButton} onClick={openPicker} size="sm">
                 {t('profileSelectPrimary')}
               </SiteButton>
             </>
@@ -318,25 +294,16 @@ export default function ChurchAffiliations({
                 </div>
                 <div className={s.rowActions}>
                   <SiteButton
-                    aria-label={
-                      changingPrimary
-                        ? t('profileSetPrimaryAria', { church: church.churchName })
-                        : t('profileNotificationsAria', {
-                            state: notificationsOn ? 'on' : 'off',
-                            church: church.churchName,
-                          })
-                    }
+                    aria-label={t('profileNotificationsAria', {
+                      state: notificationsOn ? 'on' : 'off',
+                      church: church.churchName,
+                    })}
                     className={s.notificationButton}
-                    disabled={!changingPrimary}
-                    onClick={() => setMainId(church.churchId)}
+                    disabled
                     size="xs"
-                    title={changingPrimary ? undefined : t('profileNotificationsUnsupported')}
+                    title={t('profileNotificationsUnsupported')}
                   >
-                    {changingPrimary
-                      ? t('profileSetAsPrimary')
-                      : notificationsOn
-                        ? t('profileNotificationsOn')
-                        : t('profileNotificationsOff')}
+                    {notificationsOn ? t('profileNotificationsOn') : t('profileNotificationsOff')}
                   </SiteButton>
                   <SiteButton
                     aria-label={t('profileUnfollowAria', { church: church.churchName })}
@@ -356,44 +323,10 @@ export default function ChurchAffiliations({
           )}
         </div>
 
-        <div className={s.searchArea}>
-          <div>
-            <LocationPlusIcon aria-hidden className={s.locationPlusIcon} />
-            <span>{t('profileAddParish')}</span>
-          </div>
-          <Input
-            allowClear
-            ref={searchRef}
-            onChange={(event) => setSearch(event.target.value)}
-            placeholder={t('profileSearchPlaceholder')}
-            prefix={<SearchIcon aria-hidden className={s.searchIcon} />}
-            value={search}
-          />
-          {search.trim() && (
-            <div className={s.results}>
-              {searching ? (
-                <span>{t('profileSearching')}</span>
-              ) : availableOptions.length ? (
-                availableOptions.map((option) => (
-                  <div key={option.id}>
-                    <span>
-                      <strong>{option.name}</strong>
-                      {option.city && <small>{option.city}</small>}
-                    </span>
-                    <SiteButton onClick={() => addChurch(option)} size="xs" variant="outlined">
-                      {t('profileFollow')}
-                    </SiteButton>
-                    <SiteButton onClick={() => addChurch(option, true)} size="xs">
-                      {t('profileMakePrimary')}
-                    </SiteButton>
-                  </div>
-                ))
-              ) : (
-                <span>{t('profileNoChurchesFound')}</span>
-              )}
-            </div>
-          )}
-        </div>
+        <button className={s.searchArea} onClick={openPicker} type="button">
+          <LocationPlusIcon aria-hidden className={s.locationPlusIcon} />
+          <span>{t('profileAddParish')}</span>
+        </button>
       </section>
 
       <footer className={s.actions}>
@@ -404,6 +337,16 @@ export default function ChurchAffiliations({
           {t('profileSaveChanges')}
         </SiteButton>
       </footer>
+
+      <ChurchPickerDrawer
+        churches={churches}
+        key={picker.key}
+        mainId={mainId}
+        onCancel={closePicker}
+        onSave={savePicker}
+        open={picker.open}
+        saving={saving}
+      />
     </article>
   )
 }

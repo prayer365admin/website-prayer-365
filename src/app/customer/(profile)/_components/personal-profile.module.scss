@@ -66,8 +66,17 @@
     0 4px 6px -1px #0000001a;
 }
 
+.photoPanel :global(.ant-avatar-image) {
+  // No default 1px transparent border: the photo fills the whole box.
+  border: 0;
+}
+
+.photoPanel :global(.ant-avatar.ant-avatar-icon) {
+  background: var(--color-primary-500);
+}
+
 .photoPanel :global(.ant-avatar .anticon) {
-  color: var(--color-neutral-400);
+  color: white;
   font-size: 64px;
 }
 
@@ -264,7 +273,23 @@
     min-height: 134px;
   }
 
-  .actions {
-    flex-wrap: wrap;
+  // Mobile: photo and form action pairs split the full width 50:50.
+  .photoActions {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .actions > * {
+    flex: 1 1 0;
+    min-width: 0;
+  }
+
+  // Upload wraps its trigger in two spans; stretch them so the button fills its half.
+  .photoActions :global(.ant-upload-wrapper),
+  .photoActions :global(.ant-upload),
+  .photoActions button {
+    display: flex;
+    width: 100%;
+    justify-content: center;
   }
 }

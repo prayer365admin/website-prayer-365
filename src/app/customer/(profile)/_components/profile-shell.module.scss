@@ -27,6 +27,9 @@
 }
 
 .sidebar nav {
+  // Containing block for the `sr-only` (absolute) labels of disabled items; without it they
+  // escape the mobile nav's horizontal scroll and widen the whole page.
+  position: relative;
   display: flex;
   width: 264px;
   height: 280px;
