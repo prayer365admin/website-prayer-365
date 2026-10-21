@@ -3,8 +3,11 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Alert, Button, Input, Pagination, Select, Typography } from 'antd'
 import {
+  AimOutlined,
   CheckCircleOutlined,
   LoadingOutlined,
+  MinusOutlined,
+  PlusOutlined,
   SearchOutlined,
   SendOutlined,
 } from '@ant-design/icons'
@@ -16,6 +19,8 @@ import { PointerIcon } from '@/components/icon/pointer'
 import { SundayLivestreamIcon } from '@/components/icon/sunday-livestream'
 import { YouthMinistryIcon } from '@/components/icon/youth-ministry'
 import { FirstTimeVisitingIcon } from '@/components/icon/first-time-visiting'
+import { CompassIcon } from '@/components/icon/compass'
+import { LayersIcon } from '@/components/icon/layers'
 import { useSiteI18n } from '@/i18n/site-i18n'
 import { useSiteChurches } from '@/hooks/data/site/churches'
 import { useSiteHome } from '@/hooks/data/site/home'
@@ -115,6 +120,9 @@ export default function ContentsSiteChurchDirectory() {
   const [youthMinistry, setYouthMinistry] = useState<boolean>()
   const [page, setPage] = useState(1)
   const [selectedId, setSelectedId] = useState<string>()
+  const [mapZoom, setMapZoom] = useState(14)
+  const [mapCenter, setMapCenter] = useState<{ lat: number; lng: number }>()
+  const [mapType, setMapType] = useState<'roadmap' | 'hybrid'>('roadmap')
 
   const isDebouncing = (inputValue.trim() || undefined) !== search
 
@@ -419,24 +427,107 @@ export default function ContentsSiteChurchDirectory() {
 
           {/* Right column */}
           <div className="self-start lg:sticky lg:top-6">
-            <GoogleMapPins
-              points={(data ?? []).flatMap((c) =>
-                c.latitude != null && c.longitude != null
-                  ? [{ id: c.id, latitude: c.latitude, longitude: c.longitude, label: c.name }]
-                  : [],
-              )}
-              activeId={activeId}
-              onSelect={setSelectedId}
-              className="h-[480px] w-full lg:h-[720px]"
-            />
-            {selectedChurch ? (
-              <MapPreviewCard church={selectedChurch} />
-            ) : loading || isDebouncing ? (
-              <MapPreviewCardSkeleton />
-            ) : null}
+            <div className="relative h-[620px] w-full overflow-hidden rounded-2xl border border-[#ECEEF0] bg-[#F4F8FA] shadow-[0_4px_24px_-4px_rgba(0,92,173,0.12)] lg:h-[720px]">
+              <GoogleMapPins
+                points={(data ?? []).flatMap((c) =>
+                  c.latitude != null && c.longitude != null
+                    ? [{ id: c.id, latitude: c.latitude, longitude: c.longitude, label: c.name }]
+                    : [],
+                )}
+                activeId={activeId}
+                onSelect={setSelectedId}
+                zoom={mapZoom}
+                center={mapCenter}
+                mapTypeId={mapType}
+                allowEmpty
+                customMarkers
+                className="h-full w-full"
+              />
+
+              {/* Top-Left Floating Header Badge */}
+              <div className="pointer-events-none absolute left-4 top-4 z-10">
+                <div className="pointer-events-auto flex items-center gap-2 rounded-full border border-[#ECEEF0] bg-white/90 px-3.5 py-1.5 shadow-sm backdrop-blur-md">
+                  <CompassIcon className="text-[13px] text-[#2F7AD2]" aria-hidden="true" />
+                  <span className="text-[11px] font-bold tracking-wider text-[#414752] uppercase">
+                    TALLINN DIOCESE • SANCTUARY MAP
+                  </span>
+                </div>
+              </div>
+
+              {/* Top-Right Floating Controls */}
+              <div className="absolute right-4 top-4 z-10 flex flex-col items-end gap-2.5">
+                {/* Zoom Controls */}
+                <div className="flex flex-col overflow-hidden rounded-xl border border-[#ECEEF0] bg-white/95 shadow-md backdrop-blur-md">
+                  <button
+                    type="button"
+                    aria-label="Zoom in"
+                    onClick={() => setMapZoom((z) => Math.min(z + 1, 18))}
+                    className="flex h-9 w-9 items-center justify-center text-slate-700 transition hover:bg-slate-50 hover:text-primary_color"
+                  >
+                    <PlusOutlined className="text-sm font-bold" />
+                  </button>
+                  <div className="h-[1px] w-full bg-[#ECEEF0]" />
+                  <button
+                    type="button"
+                    aria-label="Zoom out"
+                    onClick={() => setMapZoom((z) => Math.max(z - 1, 4))}
+                    className="flex h-9 w-9 items-center justify-center text-slate-700 transition hover:bg-slate-50 hover:text-primary_color"
+                  >
+                    <MinusOutlined className="text-sm font-bold" />
+                  </button>
+                </div>
+
+                {/* Center on My Location */}
+                <button
+                  type="button"
+                  aria-label="Center on my location"
+                  onClick={() => {
+                    if (typeof navigator !== 'undefined' && navigator.geolocation) {
+                      navigator.geolocation.getCurrentPosition(
+                        (pos) => {
+                          setMapCenter({ lat: pos.coords.latitude, lng: pos.coords.longitude })
+                          setMapZoom(13)
+                        },
+                        () => {
+                          setMapCenter({
+                            lat: DEFAULT_COORDS.latitude,
+                            lng: DEFAULT_COORDS.longitude,
+                          })
+                        },
+                      )
+                    } else {
+                      setMapCenter({ lat: DEFAULT_COORDS.latitude, lng: DEFAULT_COORDS.longitude })
+                    }
+                  }}
+                  className="flex h-9 w-9 items-center justify-center rounded-xl border border-[#ECEEF0] bg-white/95 text-slate-700 shadow-md backdrop-blur-md transition hover:bg-slate-50 hover:text-primary_color"
+                >
+                  <AimOutlined className="text-base" />
+                </button>
+
+                {/* Toggle Layer */}
+                <button
+                  type="button"
+                  aria-label="Toggle map layer"
+                  onClick={() => setMapType((t) => (t === 'roadmap' ? 'hybrid' : 'roadmap'))}
+                  className="flex h-9 w-9 items-center justify-center rounded-xl border border-[#ECEEF0] bg-white/95 text-slate-700 shadow-md backdrop-blur-md transition hover:bg-slate-50 hover:text-primary_color"
+                >
+                  <LayersIcon className="text-base" />
+                </button>
+              </div>
+
+              {/* Floating Interactive Parish Preview Card (Bottom Anchor) */}
+              {selectedChurch ? (
+                <div className="absolute bottom-3 left-3 right-3 z-20 sm:bottom-4 sm:left-4 sm:right-4">
+                  <MapPreviewCard church={selectedChurch} />
+                </div>
+              ) : loading || isDebouncing ? (
+                <div className="absolute bottom-3 left-3 right-3 z-20 sm:bottom-4 sm:left-4 sm:right-4">
+                  <MapPreviewCardSkeleton />
+                </div>
+              ) : null}
+            </div>
           </div>
         </section>
-
         {/* Bottom banner */}
         <section className="rounded-2xl p-4 shadow-[-1px_-1px_2px_#FFFFFF,0_1px_2px_rgba(0,0,0,0.05)] [background-image:linear-gradient(135deg,rgba(194,217,255,0.4)_0%,rgba(255,255,255,0.45)_100%)]">
           <div className="flex flex-col justify-between gap-6 rounded-xl bg-[#F5F7FF] p-4 lg:flex-row lg:items-end">

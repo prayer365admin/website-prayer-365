@@ -1,10 +1,12 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { ChurchIcon } from '@/components/icon/church'
 import { APIProvider, Map, AdvancedMarker, Pin, useMap } from '@vis.gl/react-google-maps'
 import { Button, Input, Typography } from 'antd'
 
-export const GOOGLE_MAPS_API_KEY = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API ?? ''
+export const GOOGLE_MAPS_API_KEY =
+  process.env.NEXT_PUBLIC_GOOGLE_MAPS_API ?? process.env.GOOGLE_MAPS_API ?? ''
 export const getGoogleMapsApiKey = () => GOOGLE_MAPS_API_KEY
 
 export const GOOGLE_MAPS_MAP_ID = process.env.NEXT_PUBLIC_GOOGLE_MAPS_MAP_ID ?? 'DEMO_MAP_ID'
@@ -19,15 +21,6 @@ export type GoogleMapPoint = {
 
 const DEFAULT_CENTER = { lat: 59.437, lng: 24.754 } // Tallinn
 
-function centerOf(points: GoogleMapPoint[]): { lat: number; lng: number } {
-  if (points.length === 0) return DEFAULT_CENTER
-  const sum = points.reduce(
-    (acc, p) => ({ lat: acc.lat + p.latitude, lng: acc.lng + p.longitude }),
-    { lat: 0, lng: 0 },
-  )
-  return { lat: sum.lat / points.length, lng: sum.lng / points.length }
-}
-
 function PanToLocation({ center }: { center?: { lat: number; lng: number } | null }) {
   const map = useMap()
   const lat = center?.lat
@@ -40,18 +33,55 @@ function PanToLocation({ center }: { center?: { lat: number; lng: number } | nul
   return null
 }
 
+function CameraHandler({ center, zoom }: { center?: { lat: number; lng: number }; zoom?: number }) {
+  const map = useMap()
+  const prevCenterRef = useRef(center)
+  const prevZoomRef = useRef(zoom)
+
+  useEffect(() => {
+    if (!map || !center) return
+    if (
+      !prevCenterRef.current ||
+      prevCenterRef.current.lat !== center.lat ||
+      prevCenterRef.current.lng !== center.lng
+    ) {
+      prevCenterRef.current = center
+      map.panTo({ lat: center.lat, lng: center.lng })
+    }
+  }, [map, center])
+
+  useEffect(() => {
+    if (!map || zoom == null) return
+    if (prevZoomRef.current !== zoom) {
+      prevZoomRef.current = zoom
+      map.setZoom(zoom)
+    }
+  }, [map, zoom])
+
+  return null
+}
 export function GoogleMapPins({
   points,
   activeId,
   onSelect,
   className,
   zoom = 9,
+  center: controlledCenter,
+  allowEmpty = false,
+  customMarkers = false,
+  mapTypeId = 'roadmap',
+  children,
 }: {
   points: GoogleMapPoint[]
   activeId?: string
   onSelect?: (id: string) => void
   className?: string
   zoom?: number
+  center?: { lat: number; lng: number }
+  allowEmpty?: boolean
+  customMarkers?: boolean
+  mapTypeId?: 'roadmap' | 'satellite' | 'hybrid' | 'terrain'
+  children?: React.ReactNode
 }) {
   const validPoints = useMemo(
     () =>
@@ -65,34 +95,48 @@ export function GoogleMapPins({
     [points],
   )
 
-  if (!GOOGLE_MAPS_API_KEY || validPoints.length === 0) {
+  const activePoint = useMemo(
+    () => validPoints.find((p) => p.id === activeId),
+    [validPoints, activeId],
+  )
+
+  const initialCenter = useMemo(() => {
+    if (controlledCenter) return controlledCenter
+    if (activePoint) return { lat: activePoint.latitude, lng: activePoint.longitude }
+    if (validPoints.length === 1)
+      return { lat: validPoints[0].latitude, lng: validPoints[0].longitude }
+    return DEFAULT_CENTER
+  }, [controlledCenter, activePoint, validPoints])
+
+  if (!GOOGLE_MAPS_API_KEY || (!allowEmpty && validPoints.length === 0)) {
     return (
       <div
         className={`flex items-center justify-center rounded-2xl bg-[#ECEEF0] text-gray-400 ${
           className ?? 'h-[360px] w-full'
         }`}
         aria-label="Map unavailable"
-      />
+      >
+        {children}
+      </div>
     )
   }
-
-  const center = centerOf(validPoints)
-  const activePoint = validPoints.find((p) => p.id === activeId)
-
   return (
-    <div className={`overflow-hidden rounded-2xl ${className ?? 'h-[360px] w-full'}`}>
+    <div className={`relative overflow-hidden rounded-2xl ${className ?? 'h-[360px] w-full'}`}>
       <APIProvider apiKey={GOOGLE_MAPS_API_KEY} libraries={['geocoding', 'marker']}>
         <Map
           mapId={GOOGLE_MAPS_MAP_ID}
           style={{ width: '100%', height: '100%' }}
-          defaultCenter={center}
-          defaultZoom={zoom}
+          defaultCenter={initialCenter}
+          defaultZoom={zoom ?? 13}
+          mapTypeId={mapTypeId}
+          gestureHandling="greedy"
           disableDefaultUI
           clickableIcons={false}
         >
           {activePoint && (
             <PanToLocation center={{ lat: activePoint.latitude, lng: activePoint.longitude }} />
           )}
+          <CameraHandler center={controlledCenter} zoom={zoom} />
           {validPoints.map((p) => {
             const isSelected = p.id === activeId
             return (
@@ -103,18 +147,40 @@ export function GoogleMapPins({
                 zIndex={isSelected ? 100 : 1}
                 onClick={onSelect ? () => onSelect(p.id) : undefined}
               >
-                {isSelected && (
-                  <Pin
-                    background="#005CAD"
-                    borderColor="#FFFFFF"
-                    glyphColor="#FFFFFF"
-                    scale={1.6}
-                  />
+                {customMarkers ? (
+                  isSelected ? (
+                    <div className="relative flex flex-col items-center cursor-pointer pointer-events-auto">
+                      <div className="absolute -top-10 z-30 flex items-center gap-1.5 whitespace-nowrap rounded-md bg-[#191C1E] px-2.5 py-1 text-xs font-semibold text-white shadow-xl">
+                        <span className="h-1.5 w-1.5 rounded-full bg-white" />
+                        <span>{p.label} (Selected)</span>
+                      </div>
+                      <div className="relative flex h-14 w-14 items-center justify-center">
+                        <div className="absolute h-14 w-14 animate-pulse rounded-full bg-[#005CAD]/30 pointer-events-none" />
+                        <div className="relative flex h-10 w-10 items-center justify-center rounded-full border-2 border-white bg-[#005CAD] text-white shadow-md">
+                          <ChurchIcon className="text-[16px] text-white" />
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="flex h-9 w-9 items-center justify-center rounded-full border border-[#ECEEF0] bg-white text-[#005CAD] shadow-sm transition hover:scale-110 cursor-pointer pointer-events-auto">
+                      <ChurchIcon className="text-[14px] text-[#005CAD]" />
+                    </div>
+                  )
+                ) : (
+                  isSelected && (
+                    <Pin
+                      background="#005CAD"
+                      borderColor="#FFFFFF"
+                      glyphColor="#FFFFFF"
+                      scale={1.6}
+                    />
+                  )
                 )}
               </AdvancedMarker>
             )
           })}
         </Map>
+        {children}
       </APIProvider>
     </div>
   )
