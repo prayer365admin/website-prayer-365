@@ -82,12 +82,16 @@ const event = {
 const renderHome = (
   data: MobileHome,
   gift: Parameters<typeof ContentsSiteHome>[0]['gift'] = null,
+  readyPrayers = 0,
+  nextGiftAt: Date | null = null,
 ) =>
   renderWithProviders(
     <SiteI18nProvider initialLocale="en">
       <ContentsSiteHome
         gift={gift}
         home={data}
+        nextGiftAt={nextGiftAt}
+        readyPrayers={readyPrayers}
         name="Anna Example"
         now="2026-10-15T08:00:00.000Z"
       />
@@ -95,17 +99,28 @@ const renderHome = (
   )
 
 describe('WB3 Home devotional hero', () => {
-  it('renders live prayer attribution and a text-only action without approved audio', () => {
+  it('disables every player control except Read transcript without approved audio', () => {
     renderHome(home())
 
     expect(screen.getByRole('heading', { name: /Good morning, Anna/i })).toBeTruthy()
     expect(screen.getByRole('heading', { name: 'Peace in uncertain times' })).toBeTruthy()
     expect(screen.getByText('Daniel Mäkinen')).toBeTruthy()
     expect(screen.getAllByText('Hope Church').length).toBeGreaterThan(0)
-    expect(screen.getByRole('link', { name: 'Read prayer' }).getAttribute('href')).toBe(
+    for (const name of [
+      'Play prayer audio',
+      'Go back 10 seconds',
+      'Go forward 10 seconds',
+      'Playback speed 1 times',
+      'Mute prayer audio',
+      'Download prayer audio',
+    ]) {
+      // Disabled through the surrounding <fieldset disabled>, so check :disabled, not the attribute.
+      expect(screen.getByRole('button', { name }).matches(':disabled')).toBe(true)
+    }
+    expect(screen.getByLabelText('Prayer audio position').matches(':disabled')).toBe(true)
+    expect(screen.getByRole('link', { name: /Read transcript/i }).getAttribute('href')).toBe(
       '/prayers/prayer-1',
     )
-    expect(screen.queryByRole('button', { name: 'Play prayer audio' })).toBeNull()
   })
 
   it('shows the functional player only when approved audio has a public URL', () => {
@@ -136,6 +151,22 @@ describe('WB3 Home devotional hero', () => {
     )
   })
 
+  it('shows the ready prayer count on the Daily Prayer card', () => {
+    renderHome(home(), null, 5)
+
+    expect(screen.getByRole('link', { name: /Daily Prayer/ }).textContent).toContain(
+      '5 Sessions Ready',
+    )
+  })
+
+  it('uses the singular label when one prayer is ready', () => {
+    renderHome(home(), null, 1)
+
+    expect(screen.getByRole('link', { name: /Daily Prayer/ }).textContent).toContain(
+      '1 Session Ready',
+    )
+  })
+
   it('links available shortcuts and marks unbuilt ones as coming soon', () => {
     renderHome(home())
 
@@ -145,8 +176,25 @@ describe('WB3 Home devotional hero', () => {
     )
     expect(screen.getByRole('heading', { name: 'Sunday Services' })).toBeTruthy()
     expect(screen.queryByRole('link', { name: /Sunday Services/ })).toBeNull()
-    expect(screen.queryByRole('link', { name: /Request Prayer/ })).toBeNull()
-    expect(screen.getAllByText('Coming soon')).toHaveLength(2)
+    expect(screen.getByRole('link', { name: /Request Prayer/ }).getAttribute('href')).toBe(
+      '#prayer-petition',
+    )
+    expect(screen.getAllByText('Coming soon')).toHaveLength(1)
+  })
+
+  it('points Directions at the parish address when coordinates are missing', () => {
+    renderHome({
+      ...home(),
+      mainChurch: {
+        ...mainChurch,
+        coordinates: null,
+        address: { ...mainChurch.address, city: '' },
+      },
+    })
+
+    // Empty parts (blank city, null postal code) are dropped instead of leaving ", ," gaps.
+    const href = screen.getByRole('link', { name: /Directions/ }).getAttribute('href')!
+    expect(new URL(href).searchParams.get('destination')).toBe('Vabaduse väljak 1, EE')
   })
 
   it('renders the main parish, its services, events, and the active gift', () => {
@@ -158,6 +206,8 @@ describe('WB3 Home devotional hero', () => {
         churchId: 'church-1',
         churchName: 'Hope Church',
       },
+      0,
+      new Date('2026-11-15T00:00:00.000Z'),
     )
 
     expect(screen.getByRole('heading', { name: 'Hope Church' })).toBeTruthy()
@@ -172,6 +222,13 @@ describe('WB3 Home devotional hero', () => {
     expect(screen.getByRole('button', { name: 'Save Date' })).toBeTruthy()
     expect(screen.getByText('€10')).toBeTruthy()
     expect(screen.getByText('Beneficiary: Hope Church')).toBeTruthy()
+    expect(screen.getByText('Next: November 15, 2026')).toBeTruthy()
+    expect(screen.getByRole('link', { name: /Manage Giving/ }).getAttribute('href')).toBe(
+      '/donate/church-1',
+    )
+    expect(screen.getByRole('link', { name: 'One-time Offering' }).getAttribute('href')).toBe(
+      '/donate/church-1?frequency=one_time',
+    )
   })
 
   it('downloads the event .ics only on click (nothing time-dependent in the SSR markup)', async () => {
@@ -249,6 +306,10 @@ describe('WB3 Home devotional hero', () => {
       '/customer',
     )
     expect(screen.getByText('No active monthly gift yet.')).toBeTruthy()
+    // No gift and no main parish: giving starts from the church directory.
+    expect(screen.getByRole('link', { name: /Manage Giving/ }).getAttribute('href')).toBe(
+      '/churches',
+    )
   })
 
   it('shows the real check-in streak and minutes listened this week', () => {

@@ -31,8 +31,9 @@ const icon = (src: string, size = 20) => (
   <Image alt="" aria-hidden height={size} src={src} width={size} />
 )
 
-const squareButton =
-  'flex size-8 items-center justify-center rounded-lg border border-neutral-200 bg-white transition hover:border-primary-300'
+// `enabled:` keeps hover feedback off the controls of a prayer without audio.
+const disabledControl = 'disabled:cursor-not-allowed disabled:opacity-50'
+const squareButton = `flex size-8 items-center justify-center rounded-lg border border-neutral-200 bg-white transition enabled:hover:border-primary-300 ${disabledControl}`
 
 export default function DevotionalAudioPlayer({
   prayerId,
@@ -40,7 +41,8 @@ export default function DevotionalAudioPlayer({
   showTranscript = true,
 }: {
   prayerId: string
-  src: string
+  /** null = the prayer has no approved audio: every control is disabled except Read transcript (same when the file fails to load). */
+  src: string | null
   /** Off on the prayer detail page, where the full text is already shown. */
   showTranscript?: boolean
 }) {
@@ -50,6 +52,9 @@ export default function DevotionalAudioPlayer({
   const listened = useRef({ session: '', last: 0, seconds: 0, minutes: 0 })
   const [playing, setPlaying] = useState(false)
   const [muted, setMuted] = useState(false)
+  // The file behind an approved audio can still be missing (e.g. seeded demo keys).
+  const [failed, setFailed] = useState(false)
+  const unavailable = !src || failed
   const [current, setCurrent] = useState(0)
   const [duration, setDuration] = useState(0)
   const [rate, setRate] = useState(1)
@@ -64,6 +69,7 @@ export default function DevotionalAudioPlayer({
   // Metadata can load before hydration attaches the media handlers below, so read it once on mount.
   useEffect(() => {
     if ((audioRef.current?.readyState ?? 0) >= 1) syncDuration()
+    if (audioRef.current?.error) setFailed(true)
   }, [])
 
   // timeupdate fires only ~4x/second; follow playback every frame so the progress moves smoothly.
@@ -150,21 +156,25 @@ export default function DevotionalAudioPlayer({
   }
 
   return (
-    <div className="mt-5 sm:mt-7">
-      <audio
-        onDurationChange={syncDuration}
-        onEnded={() => setPlaying(false)}
-        onLoadedMetadata={syncDuration}
-        onPause={() => setPlaying(false)}
-        onPlay={() => setPlaying(true)}
-        onTimeUpdate={(event) => {
-          setCurrent(event.currentTarget.currentTime)
-          trackListening(event.currentTarget)
-        }}
-        preload="metadata"
-        ref={audioRef}
-        src={src}
-      />
+    // A disabled fieldset disables every button and input inside it; Read transcript is a link, so it stays usable.
+    <fieldset className="mt-5 min-w-0 border-0 p-0 sm:mt-7" disabled={unavailable}>
+      {src && (
+        <audio
+          onDurationChange={syncDuration}
+          onEnded={() => setPlaying(false)}
+          onError={() => setFailed(true)}
+          onLoadedMetadata={syncDuration}
+          onPause={() => setPlaying(false)}
+          onPlay={() => setPlaying(true)}
+          onTimeUpdate={(event) => {
+            setCurrent(event.currentTarget.currentTime)
+            trackListening(event.currentTarget)
+          }}
+          preload="metadata"
+          ref={audioRef}
+          src={src}
+        />
+      )}
       <div className="relative">
         <div aria-hidden="true" className="flex h-12 items-end justify-between overflow-hidden">
           {wave.map((height, index) => (
@@ -186,7 +196,7 @@ export default function DevotionalAudioPlayer({
         </div>
         <input
           aria-label="Prayer audio position"
-          className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
+          className="absolute inset-0 h-full w-full cursor-pointer opacity-0 disabled:cursor-not-allowed"
           disabled={!duration}
           max={duration}
           min={0}
@@ -205,7 +215,7 @@ export default function DevotionalAudioPlayer({
         <div className="flex items-center gap-1">
           <button
             aria-label={playing ? 'Pause prayer audio' : 'Play prayer audio'}
-            className="mr-2 flex size-12 items-center justify-center rounded-xl bg-primary-500 text-lg text-white transition hover:bg-primary-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-500"
+            className={`mr-2 flex size-12 items-center justify-center rounded-xl bg-primary-500 text-lg text-white transition enabled:hover:bg-primary-700 ${disabledControl} focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-500`}
             onClick={toggle}
             type="button"
           >
@@ -213,7 +223,7 @@ export default function DevotionalAudioPlayer({
           </button>
           <button
             aria-label="Go back 10 seconds"
-            className="flex size-8 items-center justify-center rounded-lg transition hover:bg-primary-100"
+            className={`flex size-8 items-center justify-center rounded-lg transition enabled:hover:bg-primary-100 ${disabledControl}`}
             onClick={() => seek(current - 10)}
             type="button"
           >
@@ -221,7 +231,7 @@ export default function DevotionalAudioPlayer({
           </button>
           <button
             aria-label="Go forward 10 seconds"
-            className="flex size-8 items-center justify-center rounded-lg transition hover:bg-primary-100"
+            className={`flex size-8 items-center justify-center rounded-lg transition enabled:hover:bg-primary-100 ${disabledControl}`}
             onClick={() => seek(current + 10)}
             type="button"
           >
@@ -229,7 +239,7 @@ export default function DevotionalAudioPlayer({
           </button>
           <button
             aria-label={`Playback speed ${rate} times`}
-            className="ml-auto inline-flex h-8 items-center gap-1 rounded-full sm:ml-2 border border-neutral-200 bg-white px-3 text-xs font-semibold text-blue-800 transition hover:border-primary-300"
+            className={`ml-auto inline-flex h-8 items-center gap-1 rounded-full sm:ml-2 border border-neutral-200 bg-white px-3 text-xs font-semibold text-blue-800 transition enabled:hover:border-primary-300 ${disabledControl}`}
             onClick={cycleRate}
             type="button"
           >
@@ -248,9 +258,15 @@ export default function DevotionalAudioPlayer({
           >
             {icon(muted ? '/icons/Icon-sound-off.svg' : '/icons/Icon-sound.svg', 18)}
           </button>
-          <a aria-label="Download prayer audio" className={squareButton} download href={src}>
-            {icon('/icons/icon-download.svg', 18)}
-          </a>
+          {!unavailable ? (
+            <a aria-label="Download prayer audio" className={squareButton} download href={src}>
+              {icon('/icons/icon-download.svg', 18)}
+            </a>
+          ) : (
+            <button aria-label="Download prayer audio" className={squareButton} type="button">
+              {icon('/icons/icon-download.svg', 18)}
+            </button>
+          )}
           {showTranscript && (
             <Link
               className="ml-auto inline-flex h-8 items-center gap-2 rounded-full border border-neutral-200 bg-white px-3 text-xs sm:ml-0 font-semibold text-blue-800 transition hover:border-primary-300"
@@ -262,6 +278,6 @@ export default function DevotionalAudioPlayer({
           )}
         </div>
       </div>
-    </div>
+    </fieldset>
   )
 }

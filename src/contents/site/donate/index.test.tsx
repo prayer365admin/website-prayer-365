@@ -35,10 +35,12 @@ const renderScreen = ({
   stripeReady = true,
   isMainParish = true,
   data = overview,
+  oneTime = false,
 }: {
   stripeReady?: boolean
   isMainParish?: boolean
   data?: MyDonationOverview
+  oneTime?: boolean
 } = {}) =>
   renderWithProviders(
     <SiteI18nProvider initialLocale="en">
@@ -47,6 +49,7 @@ const renderScreen = ({
         churchName="St. John's Church"
         donationOptions={options}
         isMainParish={isMainParish}
+        oneTime={oneTime}
         overview={data}
         stripeReady={stripeReady}
         userName="Anna"
@@ -88,6 +91,13 @@ describe('ContentsSiteDonate (W11)', () => {
     expect(screen.getByRole('button', { name: 'Monthly Sustaining Pledge' }).ariaPressed).toBe(
       'true',
     )
+  })
+
+  it('starts on a one-time gift when opened from the home One-time Offering link', () => {
+    renderScreen({ oneTime: true })
+
+    expect(screen.getByRole('button', { name: 'One-Time Gift' }).ariaPressed).toBe('true')
+    expect(screen.getByRole('button', { name: /^complete gift of €10\.00$/i })).toBeTruthy()
   })
 
   it('drops the monthly suffix for a one-time gift', () => {

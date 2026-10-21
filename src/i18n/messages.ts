@@ -342,7 +342,6 @@ export const SITE_MESSAGES = {
       'Today is a new opportunity to pray, belong, give, and grow in fellowship across our northern communities.',
     homeGuidedContemplation: 'Guided contemplation',
     homeDailyPrayer: 'Daily prayer',
-    homeReadPrayer: 'Read prayer',
     homePrayerReflection: 'Prayer reflection',
     homeSharePrayer: 'Share prayer',
     homeLinkCopied: 'Prayer link copied',
@@ -357,7 +356,8 @@ export const SITE_MESSAGES = {
     homeShortcutPrayerTitle: 'Daily Prayer',
     homeShortcutPrayerBody:
       'Guided morning, midday, and compline audio meditations refreshed at dawn.',
-    homeShortcutPrayerLink: '3 Sessions Ready',
+    homeShortcutPrayerLink: '{count} Sessions Ready',
+    homeShortcutPrayerLinkOne: '{count} Session Ready',
     homeShortcutChurchesTitle: 'Find Churches',
     homeShortcutChurchesBody:
       'Locate 12+ welcoming congregations near Tallinn, Harju, and Helsinki dioceses.',
@@ -425,6 +425,7 @@ export const SITE_MESSAGES = {
     homeStewardshipPerMonth: '/ month',
     homeStewardshipBeneficiary: 'Beneficiary: {church}',
     homeStewardshipNone: 'No active monthly gift yet.',
+    homeStewardshipNext: 'Next: {date}',
     homeStewardshipManage: 'Manage Giving',
     homeStewardshipOneTime: 'One-time Offering',
     homeBrandQuote: 'Where prayer connects people, faith moves further.',
@@ -1052,7 +1053,6 @@ export const SITE_MESSAGES = {
       'Täna on uus võimalus palvetada, kuuluda, anda ja kasvada osaduses meie põhjamaistes kogukondades.',
     homeGuidedContemplation: 'Juhendatud mõtisklus',
     homeDailyPrayer: 'Igapäevane palve',
-    homeReadPrayer: 'Loe palvet',
     homePrayerReflection: 'Palvemõtisklus',
     homeSharePrayer: 'Jaga palvet',
     homeLinkCopied: 'Palve link kopeeritud',
@@ -1067,7 +1067,8 @@ export const SITE_MESSAGES = {
     homeShortcutPrayerTitle: 'Igapäevane palve',
     homeShortcutPrayerBody:
       'Juhendatud hommiku-, keskpäeva- ja õhtupalve helimõtisklused, uuendatud koidikul.',
-    homeShortcutPrayerLink: '3 sessiooni valmis',
+    homeShortcutPrayerLink: '{count} sessiooni valmis',
+    homeShortcutPrayerLinkOne: '{count} sessioon valmis',
     homeShortcutChurchesTitle: 'Leia kogudusi',
     homeShortcutChurchesBody:
       'Leia 12+ külalislahket kogudust Tallinna, Harju ja Helsingi piiskopkondade lähedal.',
@@ -1134,6 +1135,7 @@ export const SITE_MESSAGES = {
     homeStewardshipPerMonth: '/ kuus',
     homeStewardshipBeneficiary: 'Saaja: {church}',
     homeStewardshipNone: 'Sul pole veel aktiivset igakuist annetust.',
+    homeStewardshipNext: 'Järgmine: {date}',
     homeStewardshipManage: 'Halda annetusi',
     homeStewardshipOneTime: 'Ühekordne annetus',
     homeBrandQuote: 'Kus palve ühendab inimesi, liigub usk kaugemale.',
@@ -1677,7 +1679,6 @@ export const SITE_MESSAGES = {
       'Idag är en ny möjlighet att be, höra till, ge och växa i gemenskap i våra nordiska församlingar.',
     homeGuidedContemplation: 'Guidad kontemplation',
     homeDailyPrayer: 'Daglig bön',
-    homeReadPrayer: 'Läs bönen',
     homePrayerReflection: 'Bönereflektion',
     homeSharePrayer: 'Dela bönen',
     homeLinkCopied: 'Länken till bönen har kopierats',
@@ -1693,7 +1694,8 @@ export const SITE_MESSAGES = {
     homeShortcutPrayerTitle: 'Daglig bön',
     homeShortcutPrayerBody:
       'Guidade ljudmeditationer för morgon, middag och completorium, förnyade i gryningen.',
-    homeShortcutPrayerLink: '3 sessioner redo',
+    homeShortcutPrayerLink: '{count} sessioner redo',
+    homeShortcutPrayerLinkOne: '{count} session redo',
     homeShortcutChurchesTitle: 'Hitta församlingar',
     homeShortcutChurchesBody:
       'Hitta 12+ välkomnande församlingar nära Tallinns, Harjus och Helsingfors stift.',
@@ -1761,6 +1763,7 @@ export const SITE_MESSAGES = {
     homeStewardshipPerMonth: '/ månad',
     homeStewardshipBeneficiary: 'Mottagare: {church}',
     homeStewardshipNone: 'Du har ingen aktiv månadsgåva ännu.',
+    homeStewardshipNext: 'Nästa: {date}',
     homeStewardshipManage: 'Hantera gåvor',
     homeStewardshipOneTime: 'Engångsgåva',
     homeBrandQuote: 'Där bönen förenar människor, går tron längre.',
@@ -2304,7 +2307,6 @@ export const SITE_MESSAGES = {
       'Tänään on uusi mahdollisuus rukoilla, kuulua yhteyteen, antaa ja kasvaa yhteydessä pohjoisissa yhteisöissämme.',
     homeGuidedContemplation: 'Ohjattu mietiskely',
     homeDailyPrayer: 'Päivän rukous',
-    homeReadPrayer: 'Lue rukous',
     homePrayerReflection: 'Rukousmietiskely',
     homeSharePrayer: 'Jaa rukous',
     homeLinkCopied: 'Rukouksen linkki kopioitu',
@@ -2320,7 +2322,8 @@ export const SITE_MESSAGES = {
     homeShortcutPrayerTitle: 'Päivän rukous',
     homeShortcutPrayerBody:
       'Ohjatut aamu-, keskipäivä- ja iltarukouksen äänimietiskelyt, päivitetty aamunkoitteessa.',
-    homeShortcutPrayerLink: '3 hetkeä valmiina',
+    homeShortcutPrayerLink: '{count} hetkeä valmiina',
+    homeShortcutPrayerLinkOne: '{count} hetki valmiina',
     homeShortcutChurchesTitle: 'Löydä seurakuntia',
     homeShortcutChurchesBody:
       'Löydä 12+ vieraanvaraista seurakuntaa Tallinnan, Harjun ja Helsingin hiippakuntien läheltä.',
@@ -2389,6 +2392,7 @@ export const SITE_MESSAGES = {
     homeStewardshipPerMonth: '/ kk',
     homeStewardshipBeneficiary: 'Saaja: {church}',
     homeStewardshipNone: 'Sinulla ei ole vielä aktiivista kuukausilahjoitusta.',
+    homeStewardshipNext: 'Seuraava: {date}',
     homeStewardshipManage: 'Hallinnoi lahjoituksia',
     homeStewardshipOneTime: 'Kertalahjoitus',
     homeBrandQuote: 'Missä rukous yhdistää ihmisiä, usko kulkee pidemmälle.',

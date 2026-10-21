@@ -9,12 +9,14 @@ export type HomeShortcut = {
   title: SiteMessageKey
   body: SiteMessageKey
   link: SiteMessageKey
+  /** Singular form of `link`, used when the count is 1. */
+  linkOne?: SiteMessageKey
   /** null = the feature does not exist yet; the card renders as "Coming soon". */
   href: string | null
 }
 
-// Static home-2 shortcut cards. Copy follows the design for now; swap a message key for live data
-// (e.g. a session or church count) here once a source exists.
+// Static home-2 shortcut cards. The prayer link interpolates {count} (/prayers archive total);
+// other copy follows the design until a live source exists.
 export const HOME_SHORTCUTS: HomeShortcut[] = [
   {
     id: 'daily-prayer',
@@ -24,6 +26,7 @@ export const HOME_SHORTCUTS: HomeShortcut[] = [
     title: 'homeShortcutPrayerTitle',
     body: 'homeShortcutPrayerBody',
     link: 'homeShortcutPrayerLink',
+    linkOne: 'homeShortcutPrayerLinkOne',
     href: '/prayers',
   },
   {
@@ -54,7 +57,7 @@ export const HOME_SHORTCUTS: HomeShortcut[] = [
     title: 'homeShortcutRequestTitle',
     body: 'homeShortcutRequestBody',
     link: 'homeShortcutRequestLink',
-    href: null,
+    href: '#prayer-petition',
   },
 ]
 

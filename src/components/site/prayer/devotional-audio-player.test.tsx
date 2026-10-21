@@ -85,4 +85,20 @@ describe('DevotionalAudioPlayer (WB-34/35)', () => {
     expect(keys[1]).toMatch(/:2$/)
     expect(new Set(keys).size).toBe(2)
   })
+
+  it('disables the controls when the audio file fails to load', () => {
+    const { container } = render(<DevotionalAudioPlayer prayerId="p1" src={src} />)
+
+    fireEvent.error(container.querySelector('audio') as HTMLAudioElement)
+
+    expect(screen.getByRole('button', { name: 'Play prayer audio' }).matches(':disabled')).toBe(
+      true,
+    )
+    expect(screen.getByRole('button', { name: 'Download prayer audio' }).matches(':disabled')).toBe(
+      true,
+    )
+    expect(screen.getByRole('link', { name: /Read transcript/i }).getAttribute('href')).toBe(
+      '/prayers/p1',
+    )
+  })
 })
