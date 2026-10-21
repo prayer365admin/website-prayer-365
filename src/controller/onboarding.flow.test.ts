@@ -66,6 +66,17 @@ const fake = vi.hoisted(() => {
 
 vi.mock('@/utils/db-connection', () => {
   const user = fake.table(() => store.user, {
+    create: async ({ data }: Row) => {
+      const row = {
+        id: fake.id(),
+        created_at: new Date(),
+        status: 'active',
+        auth_version: 1,
+        ...data,
+      }
+      store.user.push(row)
+      return row
+    },
     // GET_USER_BY_EMAIL includes the role (sign-in needs it).
     findUnique: async ({ where }: Row) => {
       const row = store.user.find((r) => fake.matches(r, where))
@@ -107,6 +118,12 @@ vi.mock('@/controller/mail', () => ({
   default: vi.fn(async (mail: Row) => {
     store.mails.push(mail)
   }),
+}))
+
+vi.mock('@/providers/auth-login-attempt', () => ({
+  IS_LOGIN_BLOCKED: vi.fn().mockResolvedValue(false),
+  RECORD_LOGIN_FAILURE: vi.fn().mockResolvedValue(undefined),
+  CLEAR_LOGIN_FAILURES: vi.fn().mockResolvedValue(undefined),
 }))
 
 // NextAuth runtime pulls in next/server; only the credentials helpers are used.
@@ -192,7 +209,7 @@ describe('WB1 onboarding flows (WB-17)', () => {
     await registerAndVerify()
 
     await expect(register()).rejects.toMatchObject({ code: 409, error_code: 'USER_EXISTS' })
-    expect(await signInCode('Wrong@1234')).toBe('PASSWORD_INVALID')
+    expect(await signInCode('Wrong@1234')).toBe('INVALID_CREDENTIALS')
   })
 
   it('setup: skipping both steps leaves it unfinished; filling both finishes it', async () => {
@@ -275,7 +292,7 @@ describe('WB1 onboarding flows (WB-17)', () => {
 
     await resetPassword({ token, new_password: 'NewSecret@456' })
 
-    expect(await signInCode()).toBe('PASSWORD_INVALID')
+    expect(await signInCode()).toBe('INVALID_CREDENTIALS')
     expect(await signIn('NewSecret@456')).toMatchObject({ email: EMAIL })
     // Password change ends other sessions (requiredWebAuth checks auth_version).
     expect(store.user[0].auth_version).toBe(2)

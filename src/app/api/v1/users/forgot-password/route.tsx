@@ -5,10 +5,10 @@ import { NextRequest, NextResponse } from 'next/server'
 export async function POST(req: NextRequest) {
   const host = req.headers.get('host') || 'localhost:3000'
   const baseUrl = req.headers.get('origin') || `http://${host}`
-  const { email }: { email: string } = await req.json()
 
   try {
-    const result = await requestPasswordReset({ email: email, baseUrl: baseUrl })
+    const { email }: { email: string } = await req.json()
+    const result = await requestPasswordReset({ email, baseUrl })
 
     return NextResponse.json(
       {

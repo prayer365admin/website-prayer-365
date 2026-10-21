@@ -5,9 +5,11 @@ import { NextRequest, NextResponse } from 'next/server'
 export async function POST(req: NextRequest) {
   const host = req.headers.get('host') || 'localhost:3000'
   const baseUrl = req.headers.get('origin') || `http://${host}`
-  const { full_name, email, password, confirm_password, locale, main_church_id } = await req.json()
 
   try {
+    const { full_name, email, password, confirm_password, locale, main_church_id } =
+      await req.json()
+
     if (password !== confirm_password) {
       throw new GeneralError({
         code: 400,
@@ -23,13 +25,15 @@ export async function POST(req: NextRequest) {
       password: password,
       locale: locale,
       main_church_id: main_church_id,
-      baseUrl: baseUrl,
+      baseUrl,
     })
 
     return NextResponse.json(
       {
         success: true,
-        message: 'Successfully registered! Please check your email to verify your account.',
+        message: result.verification_email_sent
+          ? 'Successfully registered! Please check your email to verify your account.'
+          : 'Successfully registered. Please resend the verification email.',
         result,
       },
       { status: 200 },

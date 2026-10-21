@@ -5,7 +5,7 @@ vi.mock('@/controller/mail', () => ({ default: vi.fn() }))
 vi.mock('@/controller/user', () => ({ updateUser: vi.fn() }))
 vi.mock('@/utils/hash', () => ({ hashSecret: vi.fn().mockResolvedValue('hashed') }))
 vi.mock('@/providers/auth-token', () => ({
-  CREATE_AUTH_TOKEN: vi.fn().mockResolvedValue({ token: 'tok' }),
+  CREATE_AUTH_TOKEN: vi.fn().mockResolvedValue({ id: 'token-1', token: 'tok' }),
   COUNT_AUTH_TOKENS: vi.fn(),
   GET_LATEST_AUTH_TOKEN: vi.fn(),
   GET_VALID_AUTH_TOKEN: vi.fn(),
@@ -19,6 +19,7 @@ vi.mock('@/providers/user', () => ({
 
 import sendMail from '@/controller/mail'
 import { registerUser } from '@/controller/auth'
+import { USE_AUTH_TOKEN } from '@/providers/auth-token'
 import { CREATE_CUSTOMER, GET_USER_BY_EMAIL } from '@/providers/user'
 
 const input = {
@@ -55,7 +56,12 @@ describe('registerUser (WB1 / WB-18)', () => {
       role_name: 'prayer_user',
     })
     expect(sendMail).toHaveBeenCalledTimes(1)
-    expect(result).toEqual({ id: 'u1', email: 'maria@example.com', name: 'Maria' })
+    expect(result).toEqual({
+      id: 'u1',
+      email: 'maria@example.com',
+      name: 'Maria',
+      verification_email_sent: true,
+    })
   })
 
   it('locale is optional: a missing locale remains unfinished for onboarding (R-06)', async () => {
@@ -113,5 +119,16 @@ describe('registerUser (WB1 / WB-18)', () => {
 
     await expect(registerUser(input)).rejects.toMatchObject({ error_code: 'USER_EXISTS' })
     expect(CREATE_CUSTOMER).not.toHaveBeenCalled()
+  })
+
+  it('returns a recoverable result when the first verification email fails', async () => {
+    vi.mocked(sendMail).mockRejectedValueOnce(new Error('mail unavailable'))
+
+    await expect(registerUser(input)).resolves.toMatchObject({
+      id: 'u1',
+      email: 'maria@example.com',
+      verification_email_sent: false,
+    })
+    expect(USE_AUTH_TOKEN).toHaveBeenCalledWith({ id: 'token-1' })
   })
 })

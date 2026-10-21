@@ -30,7 +30,16 @@ const axiosError = (error_code: string) =>
     response: { data: { error_code } },
   })
 
-const created = { data: { result: { id: 'u1', email: 'maria@example.com', name: 'Maria' } } }
+const created = {
+  data: {
+    result: {
+      id: 'u1',
+      email: 'maria@example.com',
+      name: 'Maria',
+      verification_email_sent: true,
+    },
+  },
+}
 
 describe('Customer sign-up (W02)', () => {
   beforeEach(() => {
@@ -93,6 +102,20 @@ describe('Customer sign-up (W02)', () => {
 
     await userEvent.click(screen.getByRole('button', { name: en.signUpSuccessAction }))
     expect(pushMock).toHaveBeenCalledWith('/login')
+  })
+
+  it('opens resend verification when account creation succeeds but mail delivery fails', async () => {
+    axiosMock.post.mockResolvedValue({
+      data: { result: { ...created.data.result, verification_email_sent: false } },
+    })
+    renderPage()
+    await fill()
+    await submit()
+
+    await waitFor(() =>
+      expect(pushMock).toHaveBeenCalledWith('/verify-account?email=maria%40example.com'),
+    )
+    expect(screen.queryByText(en.signUpSuccessTitle)).toBeNull()
   })
 
   it('locks the fields while the account is being created', async () => {

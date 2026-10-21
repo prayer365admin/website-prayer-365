@@ -24,7 +24,7 @@ export default function SignInForm({
     const payload = await loginForm.validateFields()
     const code = await onSignIn({ email: payload.name, password: payload.password })
 
-    if (code === 'PASSWORD_INVALID') {
+    if (code === 'INVALID_CREDENTIALS' || code === 'PASSWORD_INVALID') {
       return notification.error({
         message: 'Password invalid',
         description: 'Please check your email and password, and try again!',

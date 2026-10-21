@@ -21,10 +21,24 @@ describe('useSignup', () => {
   beforeEach(() => axiosMock.post.mockReset())
 
   it('posts the payload with confirm_password = password and returns the result', async () => {
-    axiosMock.post.mockResolvedValue({ data: { result: { id: 'u1' } } })
+    axiosMock.post.mockResolvedValue({
+      data: {
+        result: {
+          id: 'u1',
+          email: 'maria@example.com',
+          name: 'Maria',
+          verification_email_sent: true,
+        },
+      },
+    })
     const { result } = renderHook(() => useSignup(), { wrapper: Providers })
 
-    expect(await result.current.onSignup(payload)).toEqual({ id: 'u1' })
+    expect(await result.current.onSignup(payload)).toEqual({
+      id: 'u1',
+      email: 'maria@example.com',
+      name: 'Maria',
+      verification_email_sent: true,
+    })
     expect(axiosMock.post).toHaveBeenCalledWith('/api/v1/auth/signup', {
       ...payload,
       confirm_password: 'password1',
