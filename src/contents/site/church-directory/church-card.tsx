@@ -41,7 +41,6 @@ export default function ChurchCard({
   const denomination = formatDenomination(church.denomination)
   const accessibilityText = church.accessibility?.[0] ?? null
   const quote = church.description || null
-
   return (
     <article
       className={`flex flex-col rounded-2xl bg-white ${
