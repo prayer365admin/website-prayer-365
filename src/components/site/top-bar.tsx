@@ -6,13 +6,7 @@ import { SITE_LOCALES, SiteLocale } from '@/config/site-locale'
 import { useMe, useMyChurches } from '@/hooks/data/site/me'
 import { useSiteI18n } from '@/i18n/site-i18n'
 import type { MobileMe, MobileMyChurch } from '@/models/mobile'
-import {
-  BellOutlined,
-  DownOutlined,
-  HomeOutlined,
-  SearchOutlined,
-  UserOutlined,
-} from '@ant-design/icons'
+import { DownOutlined, HomeOutlined, SearchOutlined, UserOutlined } from '@ant-design/icons'
 import { Avatar, Dropdown, Select } from 'antd'
 import type { MenuProps } from 'antd'
 import { useSession } from 'next-auth/react'
@@ -193,16 +187,6 @@ export default function SiteTopBar({
             </Link>
           )}
           <div className={s.desktopLocale}>{localeControl}</div>
-          {variant === 'general' && (
-            <Link
-              aria-label={t('headerNotifications')}
-              className={`${s.iconButton} ${s.notificationButton}`}
-              href="/notifications"
-            >
-              <BellOutlined />
-              <span aria-hidden className={s.notificationDot} />
-            </Link>
-          )}
           {accountControl}
         </div>
       </div>

@@ -6,7 +6,6 @@ import { CalendarClockIcon } from '@/components/icon/calendar-clock'
 import { CreditCardIcon } from '@/components/icon/credit-card'
 import { PauseCircleIcon } from '@/components/icon/pause-circle'
 import { QuoteIcon } from '@/components/icon/quote'
-import { ShieldCheckIcon } from '@/components/icon/shield-check'
 import { SparklesIcon } from '@/components/icon/sparkles'
 import { UserIcon } from '@/components/icon/user'
 import { useSiteI18n } from '@/i18n/site-i18n'
@@ -45,7 +44,7 @@ function SustainingRing({ filled }: { filled: number }) {
 
 const MANAGEMENT_ICONS = [CreditCardIcon, PauseCircleIcon, ArrowDownBracketIcon]
 
-/** W11 right column: the giver's own ledger, the annual report opt-in, and the impact story. */
+/** W11 right column: the giver's own ledger and the impact story. */
 export function SupporterOverview({
   overview,
   churchName,
@@ -206,39 +205,6 @@ export function SupporterOverview({
               <TrailingIcon style={trailingStyle} />
             </span>
           ))}
-        </div>
-      </section>
-
-      <section
-        aria-labelledby="donate-report-title"
-        className="min-w-0 rounded-xl bg-white shadow-[0_1px_2px_rgba(0,0,0,0.05)]"
-      >
-        <div className="flex items-center gap-4 p-4">
-          <div className="min-w-0 flex-1">
-            <h2
-              className="font-font_heading text-xl font-semibold leading-[1.5] text-[#0E203E]"
-              id="donate-report-title"
-            >
-              {t('donateAnnualReportTitle')}
-            </h2>
-            <p className="text-xs leading-[1.5] text-[#5C6370]">{t('donateAnnualReportBody')}</p>
-          </div>
-          {/* Visual only: the notification-preferences endpoint does not exist yet. */}
-          <span
-            aria-hidden="true"
-            className="flex h-8 w-14 shrink-0 items-center justify-end rounded-full bg-[#2F7AD2] p-[3px]"
-            title={t('donateComingSoon')}
-          >
-            <span className="size-[26px] rounded-full bg-white" />
-          </span>
-        </div>
-        <div className="p-4 pt-0">
-          <div className="flex items-center gap-4 rounded-xl bg-gradient-to-br from-[rgba(194,217,255,0.4)] to-transparent bg-white p-4 shadow-[-1px_-1px_2px_#FFFFFF,0_1px_2px_rgba(0,0,0,0.05)]">
-            <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-[#D0E4FF]">
-              <ShieldCheckIcon style={{ fontSize: 16, color: '#2F7AD2' }} />
-            </span>
-            <p className="text-xs leading-[1.5] text-[#5C6370]">{t('donateTrustBody')}</p>
-          </div>
         </div>
       </section>
 
