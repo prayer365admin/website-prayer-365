@@ -6,7 +6,7 @@ import { SITE_LOCALES, SiteLocale } from '@/config/site-locale'
 import { useMe, useMyChurches } from '@/hooks/data/site/me'
 import { useSiteI18n } from '@/i18n/site-i18n'
 import type { MobileMe, MobileMyChurch } from '@/models/mobile'
-import { DownOutlined, HomeOutlined, SearchOutlined, UserOutlined } from '@ant-design/icons'
+import { DownOutlined, HomeOutlined, UserOutlined } from '@ant-design/icons'
 import { Avatar, Dropdown, Select } from 'antd'
 import type { MenuProps } from 'antd'
 import { useSession } from 'next-auth/react'
@@ -50,9 +50,8 @@ export default function SiteTopBar({
 
   const generalLinks = [
     { href: '/churches', label: t('headerDiscoverChurches') },
-    { href: '/events', label: t('headerEvents') },
-    { href: '/giving', label: t('headerGiving') },
     { href: '/prayers', label: t('headerPrayers') },
+    { href: '/giving', label: t('headerGiving') },
   ]
 
   const churchMenu: MenuProps['items'] = churches.length
@@ -177,15 +176,6 @@ export default function SiteTopBar({
         )}
 
         <div className={s.actions}>
-          {variant === 'general' && (
-            <Link
-              aria-label={t('headerSearch')}
-              className={`${s.iconButton} ${s.searchButton}`}
-              href="/search"
-            >
-              <SearchOutlined />
-            </Link>
-          )}
           <div className={s.desktopLocale}>{localeControl}</div>
           {accountControl}
         </div>

@@ -120,10 +120,9 @@
 }
 
 .generalNavigation {
-  width: 631px;
+  width: auto;
   height: 32px;
-  justify-content: space-between;
-  gap: 0;
+  gap: 4px;
   padding-left: 12px;
 }
 
@@ -238,8 +237,7 @@
   .homeButton,
   .authNavigation,
   .generalNavigation,
-  .desktopLocale,
-  .searchButton {
+  .desktopLocale {
     display: none;
   }
 

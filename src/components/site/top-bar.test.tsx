@@ -21,7 +21,7 @@ describe('SiteTopBar', () => {
     )
 
     expect(screen.getByRole('link', { name: 'Prayer 365 home' })).toBeTruthy()
-    expect(screen.getByRole('link', { name: 'Discover Churches' })).toBeTruthy()
+    expect(screen.getByRole('link', { name: 'Discovery Churches' })).toBeTruthy()
     expect(screen.getByText('Choose a church')).toBeTruthy()
     expect(screen.getByRole('combobox')).toBeTruthy()
     expect(screen.getByRole('combobox').getAttribute('aria-label')).toBe('Language')
@@ -83,11 +83,19 @@ describe('SiteTopBar', () => {
       </SiteI18nProvider>,
     )
 
-    expect(link(SITE_MESSAGES.en.headerDiscoverChurches).getAttribute('href')).toBe('/churches')
-    expect(link(SITE_MESSAGES.en.headerEvents).getAttribute('href')).toBe('/events')
-    expect(link(SITE_MESSAGES.en.headerGiving).getAttribute('href')).toBe('/giving')
-    expect(link(SITE_MESSAGES.en.headerPrayers).getAttribute('href')).toBe('/prayers')
-    expect(link(SITE_MESSAGES.en.headerSearch).getAttribute('href')).toBe('/search')
+    const navigation = screen.getByRole('navigation', { name: SITE_MESSAGES.en.headerPrimaryNav })
+    expect(
+      Array.from(navigation.querySelectorAll('a')).map((item) => [
+        item.textContent,
+        item.getAttribute('href'),
+      ]),
+    ).toEqual([
+      [SITE_MESSAGES.en.headerDiscoverChurches, '/churches'],
+      [SITE_MESSAGES.en.headerPrayers, '/prayers'],
+      [SITE_MESSAGES.en.headerGiving, '/giving'],
+    ])
+    expect(screen.queryByRole('link', { name: SITE_MESSAGES.en.headerEvents })).toBeNull()
+    expect(screen.queryByRole('link', { name: SITE_MESSAGES.en.headerSearch })).toBeNull()
     expect(screen.queryByRole('link', { name: /notifications/i })).toBeNull()
   })
 
@@ -164,7 +172,7 @@ describe('SiteTopBar', () => {
 
     expect(screen.getByRole('navigation', { name: 'Account navigation' })).toBeTruthy()
     expect(screen.getByRole('link', { name: 'Begin Fellowship' })).toBeTruthy()
-    expect(screen.queryByRole('link', { name: 'Discover Churches' })).toBeNull()
+    expect(screen.queryByRole('link', { name: 'Discovery Churches' })).toBeNull()
   })
 
   it('marks the sign-in link active on the sign-in page', () => {
@@ -226,7 +234,7 @@ describe('SiteTopBar', () => {
       </SiteI18nProvider>,
     )
 
-    expect(link('Home').getAttribute('aria-current')).toBe('page')
+    expect(link('Homepage').getAttribute('aria-current')).toBe('page')
 
     unmount()
     pathnameMock.mockReturnValue('/events')
@@ -236,7 +244,7 @@ describe('SiteTopBar', () => {
       </SiteI18nProvider>,
     )
 
-    expect(link('Home').getAttribute('aria-current')).toBeNull()
+    expect(link('Homepage').getAttribute('aria-current')).toBeNull()
   })
 
   it('renders the navigation in the provider language', () => {
