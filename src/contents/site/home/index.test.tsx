@@ -151,6 +151,28 @@ describe('WB3 Home devotional hero', () => {
     expect(screen.getByTestId('audio-progress').getAttribute('style')).toContain('width: 50%')
   })
 
+  it('hides the prayer share and love actions on the homepage', () => {
+    renderHome(home())
+
+    const quotePanel = screen.getByAltText('Misty Nordic lake at sunrise').parentElement!
+    expect(within(quotePanel).queryByRole('button', { name: 'Share prayer' })).toBeNull()
+    expect(
+      within(quotePanel).queryByRole('button', {
+        name: 'Saving prayers is not available yet',
+      }),
+    ).toBeNull()
+
+    const scripture = screen
+      .getByRole('heading', { name: 'Scripture of the day' })
+      .closest('section')!
+    expect(within(scripture).queryByRole('button', { name: 'Share scripture' })).toBeNull()
+    expect(
+      within(scripture).queryByRole('button', {
+        name: 'Saving prayers is not available yet',
+      }),
+    ).toBeNull()
+  })
+
   it('renders the directory empty state when no eligible prayer exists', () => {
     renderHome({ ...home(), latestPrayers: [] })
 

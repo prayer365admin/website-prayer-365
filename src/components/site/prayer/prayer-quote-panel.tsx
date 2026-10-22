@@ -22,9 +22,11 @@ const excerpt = (body: string) => {
 /** Lake-image quote column shared by Home (`home-1.png`) and the prayer archive featured card. */
 export default function PrayerQuotePanel({
   prayer,
+  showActions = true,
   showLoveAction = true,
 }: {
   prayer: PrayerQuote | null
+  showActions?: boolean
   showLoveAction?: boolean
 }) {
   const { t } = useSiteI18n()
@@ -79,27 +81,29 @@ export default function PrayerQuotePanel({
               <p className="text-[10px] font-semibold uppercase tracking-[0.23em] text-white/75">
                 {prayer.churchName}
               </p>
-              <div className="flex gap-2">
-                <button
-                  aria-label={shared ? t('homeLinkCopied') : t('homeSharePrayer')}
-                  className="flex size-9 items-center justify-center rounded-lg bg-white/20 backdrop-blur-sm hover:bg-white/30"
-                  onClick={sharePrayer}
-                  type="button"
-                >
-                  <ShareAltOutlined />
-                </button>
-                {showLoveAction && (
+              {showActions && (
+                <div className="flex gap-2">
                   <button
-                    aria-label={t('homeSaveUnavailable')}
-                    className="flex size-9 cursor-not-allowed items-center justify-center rounded-lg bg-white/20 opacity-60 backdrop-blur-sm"
-                    disabled
-                    title={t('homeSaveUnavailable')}
+                    aria-label={shared ? t('homeLinkCopied') : t('homeSharePrayer')}
+                    className="flex size-9 items-center justify-center rounded-lg bg-white/20 backdrop-blur-sm hover:bg-white/30"
+                    onClick={sharePrayer}
                     type="button"
                   >
-                    <HeartOutlined />
+                    <ShareAltOutlined />
                   </button>
-                )}
-              </div>
+                  {showLoveAction && (
+                    <button
+                      aria-label={t('homeSaveUnavailable')}
+                      className="flex size-9 cursor-not-allowed items-center justify-center rounded-lg bg-white/20 opacity-60 backdrop-blur-sm"
+                      disabled
+                      title={t('homeSaveUnavailable')}
+                      type="button"
+                    >
+                      <HeartOutlined />
+                    </button>
+                  )}
+                </div>
+              )}
             </div>
           </>
         ) : (

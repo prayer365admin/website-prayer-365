@@ -136,6 +136,7 @@ export default function DevotionalHero({
               }
             : null
         }
+        showActions={false}
       />
     </section>
   )
