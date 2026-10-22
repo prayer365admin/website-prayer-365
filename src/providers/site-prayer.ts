@@ -262,7 +262,13 @@ export const GET_SITE_PRAYER_DETAIL = async ({
     toItems([row]),
     db.church.findUnique({
       where: { id: row.church_id },
-      select: { id: true, name: true, address: true },
+      select: {
+        id: true,
+        name: true,
+        address: true,
+        contacts: true,
+        cover_asset: { select: { object_key: true, purpose: true, status: true } },
+      },
     }),
     db.prayer.findMany({
       where: { church_id: row.church_id, id: { not: row.id }, ...publishedWhere },
@@ -274,12 +280,20 @@ export const GET_SITE_PRAYER_DETAIL = async ({
   if (!prayer || !church) return null
 
   const address = church.address as { city?: string } | null
+  const contacts = church.contacts as { phone?: unknown } | null
+  const phone = typeof contacts?.phone === 'string' ? contacts.phone.trim() || null : null
+  const imageUrl =
+    church.cover_asset?.purpose === 'IMAGE' && church.cover_asset.status === 'READY'
+      ? S3_PUBLIC_URL({ key: church.cover_asset.object_key })
+      : null
   return {
     prayer,
     church: {
       id: church.id,
       name: church.name,
       city: address?.city ?? null,
+      phone,
+      imageUrl,
     },
     related: await toItems(siblings),
   }

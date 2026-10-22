@@ -59,6 +59,12 @@ export type SitePrayerArchive = {
 
 export type SitePrayerDetail = {
   prayer: SitePrayerArchiveItem
-  church: { id: string; name: string; city: string | null }
+  church: {
+    id: string
+    name: string
+    city: string | null
+    phone: string | null
+    imageUrl: string | null
+  }
   related: SitePrayerArchiveItem[]
 }

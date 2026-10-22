@@ -32,7 +32,13 @@ const item = (id: string, title: string, audio: boolean) => ({
 
 const detail: SitePrayerDetail = {
   prayer: item('prayer-1', 'Peace in Uncertain Times', true),
-  church: { id: 'church-1', name: 'Hope Church', city: 'Tallinn' },
+  church: {
+    id: 'church-1',
+    name: 'Hope Church',
+    city: 'Tallinn',
+    phone: '+372 123 4567',
+    imageUrl: '/images/dynamic-prayer.jpg',
+  },
   related: [item('prayer-2', 'Resting in the Shadow', false)],
 }
 
@@ -49,29 +55,54 @@ describe('PrayerDetail', () => {
 
     expect(screen.getByRole('heading', { level: 1, name: 'Peace in Uncertain Times' })).toBeTruthy()
     expect(screen.getByText(/Led by Daniel Mäkinen, Hope Church/)).toBeTruthy()
-    expect(screen.getByRole('heading', { name: /Opening Invocation/ })).toBeTruthy()
+    expect(screen.getByRole('heading', { name: /Introductions/ })).toBeTruthy()
+    expect(screen.getByRole('heading', { name: /^2\s*Prayer$/ })).toBeTruthy()
     expect(screen.getByText('Do not be anxious.')).toBeTruthy()
     expect(screen.getByText('Bring every request in prayer.')).toBeTruthy()
+    expect(screen.getAllByText('Peace in Uncertain Times').length).toBeGreaterThan(1)
+    expect(
+      screen
+        .getByRole('img', { name: 'Peace in Uncertain Times' })
+        .getAttribute('src')
+        ?.includes('dynamic-prayer.jpg'),
+    ).toBe(true)
     expect(screen.getByText('Audio player without transcript')).toBeTruthy()
     expect(
       screen.getByRole('link', { name: /View: Hope Church \(Tallinn\)/ }).getAttribute('href'),
     ).toBe('/churches/church-1')
     expect(screen.queryByLabelText('Saving prayers is not available yet')).toBeNull()
     expect(screen.queryByRole('heading', { name: 'Liturgical Context' })).toBeNull()
-    expect(screen.queryByRole('heading', { name: 'Devotionals in this Arc' })).toBeNull()
-    expect(screen.queryByRole('link', { name: /Resting in the Shadow/ })).toBeNull()
+    expect(screen.getByRole('heading', { name: 'Related Prayers by Churches' })).toBeTruthy()
+    expect(screen.getByRole('link', { name: /Resting in the Shadow/ }).getAttribute('href')).toBe(
+      '/prayers/prayer-2',
+    )
+    expect(screen.getByRole('link', { name: '+372 123 4567' }).getAttribute('href')).toBe(
+      'tel:+3721234567',
+    )
+    expect(screen.getByRole('heading', { name: 'Donations / Stewardship' })).toBeTruthy()
+    expect(screen.getByRole('link', { name: /Donate/ }).getAttribute('href')).toBe(
+      '/donate/church-1',
+    )
   })
 
   it('numbers sections from 1 when there is no introduction and shows text-only prayers without a player', () => {
     renderDetail({
       ...detail,
       prayer: { ...item('prayer-1', 'Evening Peace', false), introduction: null },
+      church: { ...detail.church, imageUrl: null, phone: null },
       related: [],
     })
 
-    expect(screen.queryByRole('heading', { name: /Opening Invocation/ })).toBeNull()
-    expect(screen.getByRole('heading', { name: /1\s*Scripture Meditation/ })).toBeTruthy()
+    expect(screen.queryByRole('heading', { name: /Introductions/ })).toBeNull()
+    expect(screen.getByRole('heading', { name: /1\s*Prayer/ })).toBeTruthy()
+    expect(
+      screen
+        .getByRole('img', { name: 'Evening Peace' })
+        .getAttribute('src')
+        ?.includes('church.jpg'),
+    ).toBe(true)
     expect(screen.queryByText(/Audio player/)).toBeNull()
-    expect(screen.queryByRole('heading', { name: 'Devotionals in this Arc' })).toBeNull()
+    expect(screen.queryByRole('heading', { name: 'Related Prayers by Churches' })).toBeNull()
+    expect(screen.queryByText('Church phone number')).toBeNull()
   })
 })

@@ -258,6 +258,8 @@ describe('GET_SITE_PRAYER_DETAIL', () => {
       id: 'c1',
       name: 'Hope Church',
       address: { city: 'Tallinn' },
+      contacts: { phone: ' +372 123 4567 ' },
+      cover_asset: { object_key: 'church.jpg', purpose: 'IMAGE', status: 'READY' },
     })
     db.prayer.findMany.mockResolvedValue([])
 
@@ -279,6 +281,36 @@ describe('GET_SITE_PRAYER_DETAIL', () => {
       id: 'c1',
       name: 'Hope Church',
       city: 'Tallinn',
+      phone: '+372 123 4567',
+      imageUrl: 'https://cdn.test/church.jpg',
+    })
+  })
+
+  it('omits invalid contact and unavailable cover data', async () => {
+    db.prayer.findFirst.mockResolvedValue({
+      id: 'p1',
+      church_id: 'c1',
+      church: { name: 'Hope Church' },
+      published_at: new Date('2026-10-15T08:00:00Z'),
+      published_version_id: 'v1',
+    })
+    db.church.findUnique.mockResolvedValue({
+      id: 'c1',
+      name: 'Hope Church',
+      address: null,
+      contacts: { phone: 1234 },
+      cover_asset: { object_key: 'pending.jpg', purpose: 'IMAGE', status: 'PENDING' },
+    })
+    db.prayer.findMany.mockResolvedValue([])
+
+    const detail = await GET_SITE_PRAYER_DETAIL({ prayerId: 'p1' })
+
+    expect(detail?.church).toEqual({
+      id: 'c1',
+      name: 'Hope Church',
+      city: null,
+      phone: null,
+      imageUrl: null,
     })
   })
 

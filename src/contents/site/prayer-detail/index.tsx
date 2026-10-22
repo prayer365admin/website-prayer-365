@@ -1,18 +1,16 @@
 'use client'
 
 import BoxContainer from '@/components/container/boxed'
-import { QuoteIcon } from '@/components/icon/quote'
-import AvatarStack from '@/components/site/avatar-stack'
-import MaskIcon from '@/components/site/mask-icon'
+import { HandHeartIcon } from '@/components/icon/hand-heart'
 import { FeaturedPrayer } from '@/components/site/prayer/featured-prayer'
 import { readingMinutes } from '@/contents/site/prayers/data'
 import { useSiteI18n } from '@/i18n/site-i18n'
 import { SitePrayerDetail } from '@/models/site-prayer'
-import { ArrowRightOutlined, HeartOutlined, PlusOutlined } from '@ant-design/icons'
+import { ArrowRightOutlined } from '@ant-design/icons'
 import Image from 'next/image'
 import Link from 'next/link'
 import { ReactNode } from 'react'
-import { PRAYER_DETAIL_STATIC, paragraphs } from './data'
+import { paragraphs } from './data'
 import { PrayerDetailSidebar } from './sidebar'
 
 const card = 'rounded-2xl bg-white shadow-[0_8px_30px_rgba(24,74,140,0.08)]'
@@ -37,49 +35,6 @@ const Section = ({
   </section>
 )
 
-const ActionTile = ({
-  icon,
-  title,
-  body,
-  href,
-}: {
-  icon: string
-  title: string
-  body: string
-  href?: string
-}) => {
-  const { t } = useSiteI18n()
-  const content = (
-    <>
-      <span className="flex size-12 shrink-0 items-center justify-center rounded-full bg-primary-150">
-        <MaskIcon className="bg-primary-500" size={16} src={icon} />
-      </span>
-      <span className="min-w-0 flex-1">
-        <span className="block font-font_text text-sm font-semibold leading-[1.5] text-primary-900">
-          {title}
-        </span>
-        <span className="block font-font_text text-xs leading-[1.5] text-neutral-600">{body}</span>
-      </span>
-      {/* Design "Primary-600" is #2555A7; this codebase's primary-600 token is #005FFF. */}
-      <ArrowRightOutlined className="px-2 text-sm leading-5 text-[#2555A7]" />
-    </>
-  )
-  const className = 'flex min-h-16 min-w-0 items-center gap-2 rounded-xl bg-neutral-100 p-2'
-  return href ? (
-    <Link className={`${className} transition hover:bg-primary-100`} href={href}>
-      {content}
-    </Link>
-  ) : (
-    <div
-      aria-disabled="true"
-      className={`${className} cursor-not-allowed`}
-      title={t('homeComingSoon')}
-    >
-      {content}
-    </div>
-  )
-}
-
 /** W10 prayer reader (`prayer-details.png`). */
 export default function PrayerDetail({
   detail,
@@ -88,7 +43,7 @@ export default function PrayerDetail({
   detail: SitePrayerDetail
   userId: string
 }) {
-  const { locale, t } = useSiteI18n()
+  const { t } = useSiteI18n()
   const { prayer, church } = detail
   // Body copy at a comfortable reading measure.
   const readingClass = 'text-base max-w-[68ch]'
@@ -118,14 +73,13 @@ export default function PrayerDetail({
             )}
 
             <Section index={prayer.introduction ? 2 : 1} title={t('prayerDetailSection2')}>
-              {/* Static sanctuary image for now; captions stay real. */}
               <figure className="relative mb-6 aspect-[724/288] overflow-hidden rounded-xl bg-primary-900">
                 <Image
-                  alt=""
+                  alt={prayer.title}
                   className="object-cover"
                   fill
                   sizes="(min-width: 1024px) 720px, 100vw"
-                  src="/images/church.jpg"
+                  src={church.imageUrl ?? '/images/church.jpg'}
                 />
                 <div className="absolute inset-0 bg-[linear-gradient(0deg,rgba(45,49,51,0.8)_0%,rgba(45,49,51,0.2)_50%,rgba(45,49,51,0)_100%)]" />
                 <figcaption className="absolute inset-x-0 bottom-0 p-4 text-white">
@@ -145,57 +99,29 @@ export default function PrayerDetail({
                 ))}
               </div>
             </Section>
-
-            <Section index={prayer.introduction ? 3 : 2} title={t('prayerDetailSection3')}>
-              <figure className="my-6 rounded-2xl bg-[linear-gradient(135deg,rgba(194,217,255,0.4)_0%,rgba(255,255,255,0)_100%)] p-4">
-                <div className="bg-primary-100 p-4 text-center">
-                  <QuoteIcon aria-hidden className="!text-primary-500" style={{ fontSize: 16 }} />
-                  <blockquote className="mx-auto mt-2 max-w-xl font-font_quote text-2xl italic leading-tight text-blue-800 sm:text-[32px]">
-                    “{t('prayerDetailBenediction')}”
-                  </blockquote>
-                  <figcaption className="mt-3 text-[10px] uppercase tracking-[2px] text-neutral-600">
-                    {t('prayerDetailBenedictionCaption')}
-                  </figcaption>
-                </div>
-              </figure>
-            </Section>
           </article>
 
-          <section className={`flex flex-col gap-4 p-4 ${card}`}>
-            <div className="flex flex-wrap items-center justify-between gap-4">
-              <div className="flex items-center gap-3">
-                <AvatarStack trailing={<PlusOutlined />} />
-                <div>
-                  <p className="text-sm font-semibold text-primary-900">
-                    {t('prayerDetailParishioners', {
-                      count: PRAYER_DETAIL_STATIC.parishionersToday.toLocaleString(locale),
-                    })}
-                  </p>
-                  <p className="text-xs text-neutral-500">{t('prayerDetailParishionersBody')}</p>
-                </div>
+          <section className="flex flex-col gap-4 rounded-2xl bg-[linear-gradient(135deg,#163B66,#0E294A)] p-5 text-white shadow-[0_8px_30px_rgba(24,74,140,0.08)] sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex min-w-0 items-start gap-4">
+              <span className="flex size-12 shrink-0 items-center justify-center rounded-xl bg-white/15">
+                <HandHeartIcon className="text-2xl" />
+              </span>
+              <div>
+                <h2 className="text-xl font-semibold text-white">
+                  {t('prayerArchiveStewardshipLabel')}
+                </h2>
+                <p className="mt-1 max-w-[58ch] text-sm leading-6 text-white/80">
+                  {t('prayerDetailDonationBody', { church: church.name })}
+                </p>
               </div>
-              <button
-                aria-disabled="true"
-                className="inline-flex h-10 w-full cursor-not-allowed items-center justify-center gap-2 rounded-lg bg-primary-500 px-4 sm:w-auto text-sm font-medium text-white"
-                title={t('homeComingSoon')}
-                type="button"
-              >
-                <HeartOutlined /> {t('prayerDetailPrayed')}
-              </button>
             </div>
-            <div className="grid gap-3 sm:grid-cols-2">
-              <ActionTile
-                body={t('prayerDetailCandleBody', { church: church.name })}
-                icon="/icons/icon-candle-holder.svg"
-                title={t('prayerDetailCandle')}
-              />
-              <ActionTile
-                body={t('prayerDetailNoteBody')}
-                href="/#prayer-petition"
-                icon="/icons/icon-file-pen.svg"
-                title={t('prayerDetailNote')}
-              />
-            </div>
+            <Link
+              className="inline-flex h-11 shrink-0 items-center justify-center gap-2 rounded-lg bg-white px-5 text-sm font-semibold text-primary-900 transition hover:bg-primary-100"
+              href={`/donate/${church.id}`}
+            >
+              {t('donate')}
+              <ArrowRightOutlined />
+            </Link>
           </section>
         </div>
 

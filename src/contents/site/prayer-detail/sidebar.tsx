@@ -6,7 +6,6 @@ import { SitePrayerDetail } from '@/models/site-prayer'
 import { ArrowRightOutlined, PhoneOutlined } from '@ant-design/icons'
 import Image from 'next/image'
 import Link from 'next/link'
-import { PRAYER_DETAIL_STATIC } from './data'
 
 const card = 'rounded-2xl bg-white shadow-[0_8px_30px_rgba(24,74,140,0.08)]'
 const softButton =
@@ -15,7 +14,8 @@ const softButton =
 /** W10 right rail: pastor and crisis support. */
 export function PrayerDetailSidebar({ detail }: { detail: SitePrayerDetail }) {
   const { t } = useSiteI18n()
-  const { prayer, church } = detail
+  const { prayer, church, related } = detail
+  const phoneHref = church.phone?.replace(/[^\d+]/g, '')
 
   return (
     <aside className="flex min-w-0 flex-col gap-6">
@@ -62,29 +62,61 @@ export function PrayerDetailSidebar({ detail }: { detail: SitePrayerDetail }) {
         </div>
       </section>
 
-      <section className="rounded-2xl bg-[image:linear-gradient(var(--color-overlay-navy),var(--color-overlay-navy)),url('/images/sanctuary-banner.webp')] bg-cover bg-center p-4 text-white shadow-[0_12px_36px_rgba(11,58,140,0.25)]">
-        <div className="flex items-center gap-3 border-b border-white/15 pb-4">
-          <span className="flex size-12 shrink-0 items-center justify-center rounded-xl bg-white/10">
-            <MaskIcon className="bg-white" size={18} src="/icons/icon-user-headset.svg" />
-          </span>
-          <h2 className="text-xl font-semibold leading-snug">{t('prayerDetailCrisisTitle')}</h2>
-        </div>
-        <p className="mt-4 text-xs leading-5 text-white/80">{t('prayerDetailCrisisBody')}</p>
-        <a
-          className="mt-4 flex items-center gap-4 rounded-xl bg-white/10 p-4 text-white transition hover:bg-white/15 hover:text-white"
-          href={`tel:${PRAYER_DETAIL_STATIC.crisisPhone.replace(/\s/g, '')}`}
-        >
-          <span className="flex size-11 shrink-0 items-center justify-center rounded-full bg-white text-primary-500">
-            <PhoneOutlined className="rotate-90" />
-          </span>
-          <span>
-            <span className="block text-[10px] font-semibold uppercase tracking-[2px] text-white/70">
-              {t('prayerDetailCrisisLabel')}
+      {related.length > 0 && (
+        <section className={card}>
+          <h2 className="border-b border-neutral-200 p-4 text-xl font-semibold text-primary-900">
+            {t('prayerDetailArc')}
+          </h2>
+          <div className="flex flex-col gap-2 p-4">
+            {related.map((relatedPrayer) => (
+              <Link
+                className="group flex min-w-0 items-center gap-3 rounded-xl bg-neutral-100 p-3 transition hover:bg-primary-100"
+                href={`/prayers/${relatedPrayer.id}`}
+                key={relatedPrayer.id}
+              >
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate text-sm font-semibold text-primary-900">
+                    {relatedPrayer.title}
+                  </span>
+                  <span className="mt-1 block truncate text-xs text-neutral-500">
+                    {relatedPrayer.churchName}
+                  </span>
+                </span>
+                <ArrowRightOutlined className="shrink-0 text-sm text-primary-500 transition-transform group-hover:translate-x-0.5" />
+              </Link>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {church.phone && phoneHref && (
+        <section className="rounded-2xl bg-[image:linear-gradient(var(--color-overlay-navy),var(--color-overlay-navy)),url('/images/sanctuary-banner.webp')] bg-cover bg-center p-4 text-white shadow-[0_12px_36px_rgba(11,58,140,0.25)]">
+          <div className="flex items-center gap-3 border-b border-white/15 pb-4">
+            <span className="flex size-12 shrink-0 items-center justify-center rounded-xl bg-white/10">
+              <MaskIcon className="bg-white" size={18} src="/icons/icon-user-headset.svg" />
             </span>
-            <span className="block text-xl font-semibold">{PRAYER_DETAIL_STATIC.crisisPhone}</span>
-          </span>
-        </a>
-      </section>
+            <h2 className="text-xl font-semibold leading-snug">{t('prayerDetailCrisisTitle')}</h2>
+          </div>
+          <p className="mt-4 text-xs leading-5 text-white/80">
+            {t('prayerDetailCrisisBody', { church: church.name })}
+          </p>
+          <a
+            aria-label={church.phone}
+            className="mt-4 flex items-center gap-4 rounded-xl bg-white/10 p-4 text-white transition hover:bg-white/15 hover:text-white"
+            href={`tel:${phoneHref}`}
+          >
+            <span className="flex size-11 shrink-0 items-center justify-center rounded-full bg-white text-primary-500">
+              <PhoneOutlined className="rotate-90" />
+            </span>
+            <span>
+              <span className="block text-[10px] font-semibold uppercase tracking-[2px] text-white/70">
+                {t('prayerDetailCrisisLabel')}
+              </span>
+              <span className="block text-xl font-semibold">{church.phone}</span>
+            </span>
+          </a>
+        </section>
+      )}
     </aside>
   )
 }
