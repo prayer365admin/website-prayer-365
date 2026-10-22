@@ -148,6 +148,8 @@ describe('PrayerArchive', () => {
       ),
     )
     expect(await screen.findByRole('heading', { name: 'Final prayer' })).toBeTruthy()
+    // Outlast the 300ms search debounce: an unchanged search must not reset to page 1.
+    await new Promise((resolve) => setTimeout(resolve, 350))
     expect(screen.getByText('Showing 7–7 of 7 sacred prayers')).toBeTruthy()
   })
 

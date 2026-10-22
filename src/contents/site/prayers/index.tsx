@@ -114,13 +114,16 @@ export default function PrayerArchive({
   const [format, setFormat] = useState(initialQuery.format)
   const [page, setPage] = useState(initialQuery.page)
 
+  // Only a changed search resets the page; firing on mount would undo paging.
   useEffect(() => {
+    const next = search.trim()
+    if (next === debouncedSearch) return
     const timeout = setTimeout(() => {
-      setDebouncedSearch(search.trim())
+      setDebouncedSearch(next)
       setPage(1)
     }, 300)
     return () => clearTimeout(timeout)
-  }, [search])
+  }, [search, debouncedSearch])
 
   const query: SitePrayerArchiveQuery = {
     ...initialQuery,
