@@ -373,7 +373,6 @@ export const SITE_MESSAGES = {
     // --- WB3 Home section 3 (home-3) ---
     homeParishLabel: 'Your primary parish',
     homeParishDirections: 'Directions',
-    homeParishBulletin: 'Bulletin',
     homeParishEmptyTitle: 'Choose your primary parish',
     homeParishEmptyBody:
       'Set a main church in your profile to see its services and gatherings here.',
@@ -1081,7 +1080,6 @@ export const SITE_MESSAGES = {
     // --- WB3 Home section 3 (home-3) ---
     homeParishLabel: 'Sinu põhikogudus',
     homeParishDirections: 'Juhised',
-    homeParishBulletin: 'Teadaanded',
     homeParishEmptyTitle: 'Vali oma põhikogudus',
     homeParishEmptyBody:
       'Määra profiilis põhikogudus, et näha siin selle jumalateenistusi ja kogunemisi.',
@@ -1707,7 +1705,6 @@ export const SITE_MESSAGES = {
     // --- WB3 Home section 3 (home-3) ---
     homeParishLabel: 'Din huvudförsamling',
     homeParishDirections: 'Vägbeskrivning',
-    homeParishBulletin: 'Församlingsblad',
     homeParishEmptyTitle: 'Välj din huvudförsamling',
     homeParishEmptyBody:
       'Ange en huvudförsamling i din profil för att se dess gudstjänster och samlingar här.',
@@ -2333,7 +2330,6 @@ export const SITE_MESSAGES = {
     // --- WB3 Home section 3 (home-3) ---
     homeParishLabel: 'Pääseurakuntasi',
     homeParishDirections: 'Reittiohjeet',
-    homeParishBulletin: 'Tiedotteet',
     homeParishEmptyTitle: 'Valitse pääseurakuntasi',
     homeParishEmptyBody:
       'Valitse profiilissasi pääseurakunta nähdäksesi sen jumalanpalvelukset ja kokoontumiset täällä.',

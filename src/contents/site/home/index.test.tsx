@@ -1,7 +1,7 @@
 import { SiteI18nProvider } from '@/i18n/site-i18n'
 import { MobileHome } from '@/models/mobile'
 import { axiosMock, renderWithProviders } from '@/test/frontend/render'
-import { fireEvent, screen, waitFor } from '@testing-library/react'
+import { fireEvent, screen, waitFor, within } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
 import ContentsSiteHome from '.'
 import { eventIcs } from './gatherings'
@@ -212,6 +212,13 @@ describe('WB3 Home devotional hero', () => {
     )
 
     expect(screen.getByRole('heading', { name: 'Hope Church' })).toBeTruthy()
+    const parish = screen.getByRole('region', { name: 'Hope Church' })
+    const detailLinks = within(parish).getAllByRole('link', { name: 'Hope Church' })
+    expect(detailLinks).toHaveLength(2)
+    expect(detailLinks.every((link) => link.getAttribute('href') === '/churches/church-1')).toBe(
+      true,
+    )
+    expect(within(parish).queryByRole('button', { name: 'Bulletin' })).toBeNull()
     expect(screen.getByText('Every Sunday @ 10:00 (ET)')).toBeTruthy()
     expect(screen.getByRole('link', { name: /Directions/ }).getAttribute('href')).toContain(
       'destination=59.4%2C24.7',
