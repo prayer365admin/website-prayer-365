@@ -6,7 +6,13 @@ import { SITE_LOCALES, SiteLocale } from '@/config/site-locale'
 import { useMe, useMyChurches } from '@/hooks/data/site/me'
 import { useSiteI18n } from '@/i18n/site-i18n'
 import type { MobileMe, MobileMyChurch } from '@/models/mobile'
-import { DownOutlined, HomeOutlined, SearchOutlined, UserOutlined } from '@ant-design/icons'
+import {
+  BellOutlined,
+  DownOutlined,
+  HomeOutlined,
+  SearchOutlined,
+  UserOutlined,
+} from '@ant-design/icons'
 import { Avatar, Dropdown, Select } from 'antd'
 import type { MenuProps } from 'antd'
 import { useSession } from 'next-auth/react'
@@ -16,6 +22,9 @@ import { usePathname } from 'next/navigation'
 import s from './top-bar.module.scss'
 
 export type SiteHeaderVariant = 'auth' | 'general'
+
+// Hidden until the notifications page exists; flip to show the bell again.
+const SHOW_NOTIFICATIONS = false
 
 /** True when the path is the link target or a page below it. */
 const isActivePath = (pathname: string, href: string) =>
@@ -187,6 +196,16 @@ export default function SiteTopBar({
             </Link>
           )}
           <div className={s.desktopLocale}>{localeControl}</div>
+          {SHOW_NOTIFICATIONS && variant === 'general' && (
+            <Link
+              aria-label={t('headerNotifications')}
+              className={`${s.iconButton} ${s.notificationButton}`}
+              href="/notifications"
+            >
+              <BellOutlined />
+              <span aria-hidden className={s.notificationDot} />
+            </Link>
+          )}
           {accountControl}
         </div>
       </div>
