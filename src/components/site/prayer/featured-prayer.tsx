@@ -87,17 +87,7 @@ export const FeaturedPrayer = ({
                   : excerpt(prayer.introduction, prayer.body)}
               </p>
             </div>
-            {detail ? (
-              <button
-                aria-label={t('homeSaveUnavailable')}
-                className="flex size-8 shrink-0 cursor-not-allowed items-center justify-center rounded-lg border border-neutral-200 bg-white"
-                disabled
-                title={t('homeSaveUnavailable')}
-                type="button"
-              >
-                <MaskIcon className="bg-blue-800" size={16} src="/icons/icon-bookmark.svg" />
-              </button>
-            ) : (
+            {!detail && (
               <Link
                 aria-label={t('prayerArchiveView')}
                 className="flex size-8 shrink-0 items-center justify-center rounded-lg border border-neutral-200 bg-white"
@@ -120,6 +110,7 @@ export const FeaturedPrayer = ({
         </article>
       </div>
       <PrayerQuotePanel
+        showLoveAction={!detail}
         prayer={{
           id: prayer.id,
           title: prayer.title,

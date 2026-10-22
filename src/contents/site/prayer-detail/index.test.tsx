@@ -56,9 +56,10 @@ describe('PrayerDetail', () => {
     expect(
       screen.getByRole('link', { name: /View: Hope Church \(Tallinn\)/ }).getAttribute('href'),
     ).toBe('/churches/church-1')
-    expect(screen.getByRole('link', { name: /Resting in the Shadow/ }).getAttribute('href')).toBe(
-      '/prayers/prayer-2',
-    )
+    expect(screen.queryByLabelText('Saving prayers is not available yet')).toBeNull()
+    expect(screen.queryByRole('heading', { name: 'Liturgical Context' })).toBeNull()
+    expect(screen.queryByRole('heading', { name: 'Devotionals in this Arc' })).toBeNull()
+    expect(screen.queryByRole('link', { name: /Resting in the Shadow/ })).toBeNull()
   })
 
   it('numbers sections from 1 when there is no introduction and shows text-only prayers without a player', () => {

@@ -20,7 +20,13 @@ const excerpt = (body: string) => {
 }
 
 /** Lake-image quote column shared by Home (`home-1.png`) and the prayer archive featured card. */
-export default function PrayerQuotePanel({ prayer }: { prayer: PrayerQuote | null }) {
+export default function PrayerQuotePanel({
+  prayer,
+  showLoveAction = true,
+}: {
+  prayer: PrayerQuote | null
+  showLoveAction?: boolean
+}) {
   const { t } = useSiteI18n()
   const [shared, setShared] = useState(false)
 
@@ -82,15 +88,17 @@ export default function PrayerQuotePanel({ prayer }: { prayer: PrayerQuote | nul
                 >
                   <ShareAltOutlined />
                 </button>
-                <button
-                  aria-label={t('homeSaveUnavailable')}
-                  className="flex size-9 cursor-not-allowed items-center justify-center rounded-lg bg-white/20 opacity-60 backdrop-blur-sm"
-                  disabled
-                  title={t('homeSaveUnavailable')}
-                  type="button"
-                >
-                  <HeartOutlined />
-                </button>
+                {showLoveAction && (
+                  <button
+                    aria-label={t('homeSaveUnavailable')}
+                    className="flex size-9 cursor-not-allowed items-center justify-center rounded-lg bg-white/20 opacity-60 backdrop-blur-sm"
+                    disabled
+                    title={t('homeSaveUnavailable')}
+                    type="button"
+                  >
+                    <HeartOutlined />
+                  </button>
+                )}
               </div>
             </div>
           </>
