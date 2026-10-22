@@ -75,14 +75,19 @@ describe('auth asides', () => {
 
   it('sign-up aside renders the journey, stats and church photo', () => {
     renderEn(
-      <SignUpAside locale="en" stats={{ approvedChurches: 12, dioceses: 3 }} t={siteT('en')} />,
+      <SignUpAside
+        locale="en"
+        stats={{ approvedChurches: 12, dioceses: 3, publishedPrayers: 4812 }}
+        t={siteT('en')}
+      />,
     )
 
     expect(screen.getByText(en.journeyTitle)).toBeTruthy()
     expect(screen.getByText(en.signUpQuote)).toBeTruthy()
     expect(screen.getByText('12 Parishes')).toBeTruthy()
+    expect(screen.getByText(en.vespersLabel)).toBeTruthy()
+    expect(screen.getByText('4,812')).toBeTruthy()
     expect(screen.getByText('3')).toBeTruthy()
-    expect(screen.queryByText(en.vespersLabel)).toBeNull()
     expect(screen.getByAltText(en.photoCaption)).toBeTruthy()
   })
 })
