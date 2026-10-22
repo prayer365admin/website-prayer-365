@@ -94,6 +94,7 @@ const renderHome = (
         readyPrayers={readyPrayers}
         name="Anna Example"
         now="2026-10-15T08:00:00.000Z"
+        userId="u1"
       />
     </SiteI18nProvider>,
   )
@@ -299,7 +300,7 @@ describe('WB3 Home devotional hero', () => {
     )
   })
 
-  it('shows the real check-in streak and minutes listened this week', () => {
+  it('shows the real prayer-listening streak and minutes listened this week', () => {
     renderWithProviders(
       <SiteI18nProvider initialLocale="en">
         <ContentsSiteHome
@@ -307,6 +308,7 @@ describe('WB3 Home devotional hero', () => {
           home={home()}
           name="Anna Example"
           now="2026-10-15T08:00:00.000Z"
+          userId="u1"
         />
       </SiteI18nProvider>,
     )

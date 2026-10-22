@@ -15,5 +15,5 @@ export default async function PrayerDetailPage({
   const detail = await getSitePrayerDetail({ prayerId })
   if (!detail) notFound()
 
-  return <PrayerDetail detail={detail} />
+  return <PrayerDetail detail={detail} userId={web.session.user.user_id} />
 }

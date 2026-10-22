@@ -49,10 +49,12 @@ export const FeaturedPrayer = ({
   prayer,
   eyebrow,
   detail = false,
+  userId,
 }: {
   prayer: SitePrayerArchiveItem
   eyebrow: string
   detail?: boolean
+  userId: string
 }) => {
   const { t } = useSiteI18n()
   const Title = detail ? 'h1' : 'h2'
@@ -105,6 +107,7 @@ export const FeaturedPrayer = ({
               prayerId={prayer.id}
               showTranscript={!detail}
               src={prayer.audio.url}
+              userId={userId}
             />
           )}
         </article>

@@ -38,6 +38,7 @@ export default async function ChurchPrayerArchivePage({
       basePath={`/churches/${churchId}/prayers`}
       fixedChurchName={archive.churches[0]?.label}
       query={query}
+      userId={web.session.user.user_id}
     />
   )
 }

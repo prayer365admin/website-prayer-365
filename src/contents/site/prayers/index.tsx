@@ -109,11 +109,13 @@ export default function PrayerArchive({
   basePath = '/prayers',
   query,
   fixedChurchName,
+  userId,
 }: {
   archive: SitePrayerArchive
   basePath?: string
   query: SitePrayerArchiveQuery
   fixedChurchName?: string
+  userId: string
 }) {
   const { locale, t } = useSiteI18n()
   const router = useRouter()
@@ -271,7 +273,11 @@ export default function PrayerArchive({
       ) : (
         <>
           {archive.featured && (
-            <FeaturedPrayer eyebrow={t('prayerArchiveFeatured')} prayer={archive.featured} />
+            <FeaturedPrayer
+              eyebrow={t('prayerArchiveFeatured')}
+              prayer={archive.featured}
+              userId={userId}
+            />
           )}
 
           <section aria-labelledby="prayer-collection-title">

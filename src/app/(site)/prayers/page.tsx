@@ -23,5 +23,5 @@ export default async function PrayerArchivePage({ searchParams }: { searchParams
   })
   const archive = await getSitePrayerArchive({ userId: web.session.user.user_id, query })
 
-  return <PrayerArchive archive={archive} query={query} />
+  return <PrayerArchive archive={archive} query={query} userId={web.session.user.user_id} />
 }

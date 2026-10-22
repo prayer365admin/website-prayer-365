@@ -21,6 +21,7 @@ export default function ContentsSiteHome({
   habits = { streakDays: 0, minutesThisWeek: 0 },
   name,
   now,
+  userId,
   readyPrayers = 0,
 }: {
   home: MobileHome
@@ -29,11 +30,12 @@ export default function ContentsSiteHome({
   habits?: SiteHabits
   name?: string | null
   now: string
+  userId: string
   readyPrayers?: number
 }) {
   return (
     <BoxContainer containerClassName="py-6 md:py-8">
-      <DevotionalHero name={name} now={now} prayer={home.latestPrayers[0]} />
+      <DevotionalHero name={name} now={now} prayer={home.latestPrayers[0]} userId={userId} />
       <HomeShortcuts readyPrayers={readyPrayers} />
       <div className="mt-6 grid gap-6 lg:mt-8 lg:grid-cols-[minmax(0,757.33fr)_minmax(0,362.67fr)] lg:gap-8">
         <div className="flex min-w-0 flex-col gap-6">

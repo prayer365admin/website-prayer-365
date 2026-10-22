@@ -81,7 +81,13 @@ const ActionTile = ({
 }
 
 /** W10 prayer reader (`prayer-details.png`). */
-export default function PrayerDetail({ detail }: { detail: SitePrayerDetail }) {
+export default function PrayerDetail({
+  detail,
+  userId,
+}: {
+  detail: SitePrayerDetail
+  userId: string
+}) {
   const { locale, t } = useSiteI18n()
   const { prayer, church } = detail
   // Body copy at a comfortable reading measure.
@@ -93,6 +99,7 @@ export default function PrayerDetail({ detail }: { detail: SitePrayerDetail }) {
         detail
         eyebrow={`${format} · ${t('prayerArchiveMinutes', { minutes: readingMinutes(prayer.body) })}`}
         prayer={prayer}
+        userId={userId}
       />
 
       <div className="grid gap-6 md:gap-8 lg:grid-cols-[minmax(0,757.33fr)_minmax(0,362.67fr)] lg:gap-9">

@@ -39,7 +39,7 @@ const detail: SitePrayerDetail = {
 const renderDetail = (data = detail) =>
   renderWithProviders(
     <SiteI18nProvider initialLocale="en">
-      <PrayerDetail detail={data} />
+      <PrayerDetail detail={data} userId="u1" />
     </SiteI18nProvider>,
   )
 

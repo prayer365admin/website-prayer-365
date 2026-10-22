@@ -40,7 +40,7 @@ const query: SitePrayerArchiveQuery = {
 const renderArchive = (archive: SitePrayerArchive) =>
   renderWithProviders(
     <SiteI18nProvider initialLocale="en">
-      <PrayerArchive archive={archive} query={query} />
+      <PrayerArchive archive={archive} query={query} userId="u1" />
     </SiteI18nProvider>,
   )
 
@@ -123,6 +123,7 @@ describe('PrayerArchive', () => {
             languages: ['en'],
           }}
           query={{ ...query, churchId: 'church-1', format: 'audio' }}
+          userId="u1"
         />
       </SiteI18nProvider>,
     )

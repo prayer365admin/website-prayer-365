@@ -15,10 +15,12 @@ export default function DevotionalHero({
   prayer,
   name,
   now,
+  userId,
 }: {
   prayer?: MobilePublishedPrayer
   name?: string | null
   now: string
+  userId: string
 }) {
   const { locale, t } = useSiteI18n()
   const date = new Date(now)
@@ -102,7 +104,11 @@ export default function DevotionalHero({
               </div>
             </div>
 
-            <DevotionalAudioPlayer prayerId={prayer.id} src={prayer.audio?.assetUrl ?? null} />
+            <DevotionalAudioPlayer
+              prayerId={prayer.id}
+              src={prayer.audio?.assetUrl ?? null}
+              userId={userId}
+            />
           </article>
         ) : (
           <div className="mt-8 rounded-[20px] border border-white bg-white/70 px-6 py-8">
