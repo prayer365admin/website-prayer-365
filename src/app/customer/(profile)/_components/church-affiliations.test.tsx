@@ -52,6 +52,7 @@ describe('ChurchAffiliations', () => {
     expect(
       screen.getByRole('button', { name: 'Notifications off for Followed Church' }),
     ).toBeTruthy()
+    expect(screen.queryByText('Spiritual Reflections & Calling')).toBeNull()
   })
 
   const extraChurches: MobileMyChurch[] = [

@@ -280,7 +280,6 @@ export default function ChurchAffiliations({
       </section>
 
       <section className={s.followedHeading}>
-        <h2>{t('profileReflectionsHeading')}</h2>
         <p>{t('profileFollowedSubtitle')}</p>
       </section>
 
