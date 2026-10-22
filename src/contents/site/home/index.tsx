@@ -13,6 +13,7 @@ import { BrandQuote, Stewardship } from './stewardship'
 
 // Temporarily hide website event and announcement UI without removing its implementation.
 const SHOW_EVENTS_AND_ANNOUNCEMENTS = false
+const SHOW_PRAYER_PETITION = false
 
 export default function ContentsSiteHome({
   home,
@@ -51,7 +52,7 @@ export default function ContentsSiteHome({
             habits={habits}
             mainChurch={home.mainChurch}
           />
-          <PrayerPetition church={home.mainChurch} />
+          {SHOW_PRAYER_PETITION && <PrayerPetition church={home.mainChurch} />}
           <Stewardship churchId={home.mainChurch?.id ?? null} gift={gift} nextGiftAt={nextGiftAt} />
           <BrandQuote />
         </div>

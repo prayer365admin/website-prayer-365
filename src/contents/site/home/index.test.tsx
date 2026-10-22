@@ -5,6 +5,7 @@ import { fireEvent, screen, waitFor, within } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
 import ContentsSiteHome from '.'
 import { eventIcs } from './gatherings'
+import PrayerPetition from './petition'
 
 const home = (audioUrl: string | null = null): MobileHome => ({
   mainChurch: null,
@@ -99,6 +100,13 @@ const renderHome = (
     </SiteI18nProvider>,
   )
 
+const renderPetition = () =>
+  renderWithProviders(
+    <SiteI18nProvider initialLocale="en">
+      <PrayerPetition church={mainChurch} />
+    </SiteI18nProvider>,
+  )
+
 describe('WB3 Home devotional hero', () => {
   it('disables every player control except Read transcript without approved audio', () => {
     renderHome(home())
@@ -177,10 +185,10 @@ describe('WB3 Home devotional hero', () => {
     )
     expect(screen.getByRole('heading', { name: 'Sunday Services' })).toBeTruthy()
     expect(screen.queryByRole('link', { name: /Sunday Services/ })).toBeNull()
-    expect(screen.getByRole('link', { name: /Request Prayer/ }).getAttribute('href')).toBe(
-      '#prayer-petition',
-    )
-    expect(screen.getAllByText('Coming soon')).toHaveLength(1)
+    expect(screen.getByRole('heading', { name: 'Request Prayer' })).toBeTruthy()
+    expect(screen.queryByRole('link', { name: /Request Prayer/ })).toBeNull()
+    expect(screen.getAllByText('Coming soon')).toHaveLength(2)
+    expect(screen.queryByLabelText('Your Prayer Request')).toBeNull()
   })
 
   it('points Directions at the parish address when coordinates are missing', () => {
@@ -259,7 +267,7 @@ describe('WB3 Home devotional hero', () => {
           finish = () => resolve({ data: { result: { id: 'r1', kind: 'prayer', createdAt: '' } } })
         }),
     )
-    renderHome({ ...home(), mainChurch })
+    renderPetition()
 
     fireEvent.click(screen.getByRole('button', { name: 'Family & Peace' }))
     fireEvent.change(screen.getByLabelText('Your Prayer Request'), {
@@ -289,14 +297,10 @@ describe('WB3 Home devotional hero', () => {
     expect(config.headers['Idempotency-Key']).toBeTruthy()
   })
 
-  it('disables the petition and shows parish setup without a main church', () => {
+  it('hides the petition and shows parish setup without a main church', () => {
     renderHome(home())
 
-    expect(screen.getByText('Choose a main church to send prayer requests.')).toBeTruthy()
-    expect(
-      (screen.getByLabelText('Your Prayer Request') as HTMLTextAreaElement).closest('fieldset')
-        ?.disabled,
-    ).toBe(true)
+    expect(screen.queryByLabelText('Your Prayer Request')).toBeNull()
     expect(screen.getByRole('link', { name: 'Open profile' }).getAttribute('href')).toBe(
       '/customer',
     )

@@ -57,7 +57,7 @@ export const HOME_SHORTCUTS: HomeShortcut[] = [
     title: 'homeShortcutRequestTitle',
     body: 'homeShortcutRequestBody',
     link: 'homeShortcutRequestLink',
-    href: '#prayer-petition',
+    href: null,
   },
 ]
 
