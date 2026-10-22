@@ -7,7 +7,7 @@ import {
   searchParamsMock,
   sessionMock,
 } from '@/test/frontend/render'
-import { fireEvent, screen, waitFor } from '@testing-library/react'
+import { fireEvent, screen, waitFor, within } from '@testing-library/react'
 import { beforeEach, describe, expect, it } from 'vitest'
 import SiteTopBar from './top-bar'
 
@@ -254,6 +254,29 @@ describe('SiteTopBar', () => {
     fireEvent.click(browseChurches)
 
     await waitFor(() => expect(picker.getAttribute('aria-expanded')).toBe('false'))
+  })
+
+  it('opens a menu drawer with the navigation links for small screens', async () => {
+    pathnameMock.mockReturnValue('/giving')
+    renderWithProviders(
+      <SiteI18nProvider initialLocale="en">
+        <SiteTopBar />
+      </SiteI18nProvider>,
+    )
+
+    const menu = screen.getByRole('button', { name: SITE_MESSAGES.en.headerMenu })
+    fireEvent.click(menu)
+
+    const drawer = await screen.findByRole('dialog')
+    const giving = within(drawer).getByRole('link', { name: SITE_MESSAGES.en.headerGiving })
+    expect(giving.getAttribute('aria-current')).toBe('page')
+    expect(within(drawer).getByRole('link', { name: SITE_MESSAGES.en.headerHome })).toBeTruthy()
+    expect(within(drawer).getByRole('combobox', { name: SITE_MESSAGES.en.language })).toBeTruthy()
+    expect(within(drawer).getByText('English')).toBeTruthy()
+
+    fireEvent.click(giving)
+
+    await waitFor(() => expect(menu.getAttribute('aria-expanded')).toBe('false'))
   })
 
   it('shows the account-flow navigation without customer discovery links', () => {

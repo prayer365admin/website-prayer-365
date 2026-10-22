@@ -2,7 +2,7 @@
 
 import { ChurchIcon } from '@/components/icon/church'
 import { LanguageIcon } from '@/components/icon/language'
-import { SITE_LOCALES, SiteLocale } from '@/config/site-locale'
+import { SITE_LOCALES, SITE_LOCALE_NAMES, SiteLocale } from '@/config/site-locale'
 import { useMe, useMyChurches } from '@/hooks/data/site/me'
 import { useSiteI18n } from '@/i18n/site-i18n'
 import type { MobileMe, MobileMyChurch } from '@/models/mobile'
@@ -11,9 +11,10 @@ import {
   CheckOutlined,
   DownOutlined,
   HomeOutlined,
+  MenuOutlined,
   UserOutlined,
 } from '@ant-design/icons'
-import { Avatar, Modal, Select } from 'antd'
+import { Avatar, Drawer, Modal, Select } from 'antd'
 import { useSession } from 'next-auth/react'
 import Image from 'next/image'
 import Link from 'next/link'
@@ -51,6 +52,7 @@ export default function SiteTopBar({
   const isPrayerArchive = pathname === '/prayers' || Boolean(churchPrayerMatch)
   const [churchMenuOpen, setChurchMenuOpen] = useState(false)
   const closeChurchMenu = () => setChurchMenuOpen(false)
+  const [navMenuOpen, setNavMenuOpen] = useState(false)
 
   const authLinks = [
     { active: pathname === '/login', href: '/login', label: t('headerSignIn') },
@@ -112,19 +114,17 @@ export default function SiteTopBar({
       ]
 
   const localeControl = (
-    <div className={s.locale}>
-      <LanguageIcon aria-hidden />
-      <Select<SiteLocale>
-        aria-label={t('language')}
-        className={s.languageSelect}
-        onChange={setLocale}
-        options={SITE_LOCALES.map((code) => ({ value: code, label: code.toUpperCase() }))}
-        popupMatchSelectWidth={false}
-        suffixIcon={null}
-        value={locale}
-        variant="borderless"
-      />
-    </div>
+    <Select<SiteLocale>
+      aria-label={t('language')}
+      className={s.languageSelect}
+      onChange={setLocale}
+      options={SITE_LOCALES.map((code) => ({ value: code, label: code.toUpperCase() }))}
+      popupMatchSelectWidth={false}
+      prefix={<LanguageIcon aria-hidden className={s.languageIcon} />}
+      suffixIcon={null}
+      value={locale}
+      variant="borderless"
+    />
   )
 
   const churchControl = (
@@ -217,7 +217,7 @@ export default function SiteTopBar({
             <Link
               aria-current={pathname === '/' ? 'page' : undefined}
               aria-label={t('headerHome')}
-              className={`${s.iconButton} ${pathname === '/' ? s.homeButton : ''}`}
+              className={`${s.iconButton} ${s.homeLink} ${pathname === '/' ? s.homeButton : ''}`}
               href="/"
             >
               <HomeOutlined />
@@ -263,8 +263,61 @@ export default function SiteTopBar({
           {variant === 'general' && churchControl}
           <div className={s.desktopLocale}>{localeControl}</div>
           {variant === 'general' && accountControl}
+          {variant === 'general' && (
+            <button
+              aria-expanded={navMenuOpen}
+              aria-label={t('headerMenu')}
+              className={`${s.iconButton} ${s.menuButton}`}
+              onClick={() => setNavMenuOpen(true)}
+              type="button"
+            >
+              <MenuOutlined />
+            </button>
+          )}
         </div>
       </div>
+
+      {/* Below the desktop breakpoint the header hides the nav links and locale; this drawer carries them. */}
+      {variant === 'general' && (
+        <Drawer
+          onClose={() => setNavMenuOpen(false)}
+          open={navMenuOpen}
+          size="100%"
+          title={t('headerMenu')}
+        >
+          <nav aria-label={t('headerPrimaryNav')} className={s.drawerNavigation}>
+            {[{ href: '/', label: t('headerHome') }, ...generalLinks].map((item) => {
+              const isActive =
+                item.href === '/' ? pathname === '/' : isActivePath(pathname, item.href)
+
+              return (
+                <Link
+                  aria-current={isActive ? 'page' : undefined}
+                  className={`${s.navigationLink} ${isActive ? s.activeNavigationLink : ''}`}
+                  href={item.href}
+                  key={item.href}
+                  onClick={() => setNavMenuOpen(false)}
+                >
+                  {item.label}
+                </Link>
+              )
+            })}
+          </nav>
+          <div className={s.drawerLocaleRow}>
+            <Select<SiteLocale>
+              aria-label={t('language')}
+              className={s.drawerLocale}
+              onChange={setLocale}
+              options={SITE_LOCALES.map((code) => ({
+                value: code,
+                label: SITE_LOCALE_NAMES[code],
+              }))}
+              prefix={<LanguageIcon aria-hidden className={s.drawerLocaleIcon} />}
+              value={locale}
+            />
+          </div>
+        </Drawer>
+      )}
     </header>
   )
 }

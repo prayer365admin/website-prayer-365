@@ -85,6 +85,38 @@
     color 160ms ease;
 }
 
+.menuButton {
+  display: none;
+}
+
+.drawerNavigation {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.drawerNavigation .navigationLink {
+  padding: 0 12px;
+  line-height: 44px;
+}
+
+.drawerLocaleRow {
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid var(--color-neutral-200);
+}
+
+.drawerLocale {
+  width: 100%;
+  height: 44px;
+}
+
+.drawerLocaleIcon {
+  margin-inline-end: 8px;
+  color: var(--color-primary-900);
+  font-size: 18px;
+}
+
 .iconButton:hover {
   background: var(--color-blue-200);
   color: var(--color-blue-800);
@@ -423,30 +455,35 @@
   margin: 0;
 }
 
-.locale {
-  display: inline-flex;
-  width: 52px;
+.languageSelect {
   height: 26px;
-  align-items: center;
-  gap: 2px;
-  padding: 0 3px;
-  border-radius: 999px;
+  padding: 0 8px !important;
+  border-radius: 999px !important;
   background: var(--color-neutral-50);
   color: var(--color-neutral-600);
   font-size: 13px;
+  cursor: pointer;
 }
 
-.languageSelect {
-  width: 30px;
-  min-width: 30px;
-  height: 26px;
-  flex: 0 0 30px;
-  padding: 0 !important;
-  font-size: 13px;
+// Keep the pill look while focused or open: antd adds a square focus outline.
+// The open menu already shows where focus is; keyboard focus keeps a pill-shaped ring.
+.languageSelect:global(.ant-select-focused),
+.languageSelect:global(.ant-select-open) {
+  border-color: transparent !important;
+  background: var(--color-neutral-50) !important;
+  box-shadow: none !important;
+}
+
+.languageSelect:global(.ant-select-open) {
+  outline: none !important;
+}
+
+.languageIcon {
+  margin-inline-end: 4px;
+  font-size: 14px;
 }
 
 .languageSelect :global(.ant-select-content) {
-  width: 30px;
   height: 26px !important;
   color: inherit !important;
   font-size: 13px !important;
@@ -468,10 +505,14 @@
     height: 32px;
   }
 
-  .homeButton,
+  .homeLink,
   .generalNavigation,
   .desktopLocale {
     display: none;
+  }
+
+  .menuButton {
+    display: inline-flex;
   }
 
   .authInner .actions {
