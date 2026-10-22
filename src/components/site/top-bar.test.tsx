@@ -1,6 +1,12 @@
 import { SiteI18nProvider } from '@/i18n/site-i18n'
 import { SITE_MESSAGES } from '@/i18n/messages'
-import { axiosMock, pathnameMock, renderWithProviders, sessionMock } from '@/test/frontend/render'
+import {
+  axiosMock,
+  pathnameMock,
+  renderWithProviders,
+  searchParamsMock,
+  sessionMock,
+} from '@/test/frontend/render'
 import { fireEvent, screen, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it } from 'vitest'
 import SiteTopBar from './top-bar'
@@ -11,6 +17,7 @@ describe('SiteTopBar', () => {
   beforeEach(() => {
     sessionMock.mockReturnValue({ data: { user: { user_id: 'u1' } }, status: 'authenticated' })
     pathnameMock.mockReturnValue('/dashboard/customers')
+    searchParamsMock.get.mockReturnValue(null)
   })
 
   it('shows the general customer navigation, church control, locale and account menu', () => {
@@ -137,6 +144,54 @@ describe('SiteTopBar', () => {
     expect(link(SITE_MESSAGES.en.headerPrayers).className).toContain('activeNavigationLink')
   })
 
+  it('shows the selected prayer church and switches the archive from the header', async () => {
+    pathnameMock.mockReturnValue('/prayers')
+    searchParamsMock.get.mockImplementation((key) => (key === 'churchId' ? 'c2' : null))
+    const churches = [
+      {
+        churchId: 'c1',
+        churchName: 'Hope Church',
+        city: null,
+        address: null,
+        coverAssetId: null,
+        coverUrl: null,
+        isMain: true,
+        isFollowed: true,
+      },
+      {
+        churchId: 'c2',
+        churchName: 'Grace Church',
+        city: null,
+        address: null,
+        coverAssetId: null,
+        coverUrl: null,
+        isMain: false,
+        isFollowed: true,
+      },
+    ]
+
+    renderWithProviders(
+      <SiteI18nProvider initialLocale="en">
+        <SiteTopBar initialChurches={churches} />
+      </SiteI18nProvider>,
+    )
+
+    expect(screen.getByText('Grace Church')).toBeTruthy()
+    const picker = screen.getByRole('button', { name: SITE_MESSAGES.en.headerChooseChurch })
+    fireEvent.click(picker)
+    const hope = await screen.findByRole('link', { name: 'Hope Church' })
+    expect(hope.getAttribute('href')).toBe('/prayers?churchId=c1')
+    expect(screen.getByRole('link', { name: 'Grace Church' }).getAttribute('aria-current')).toBe(
+      'page',
+    )
+    expect(
+      screen
+        .getByRole('link', { name: SITE_MESSAGES.en.headerBrowseChurches })
+        .getAttribute('href'),
+    ).toBe('/churches')
+    expect(picker.getAttribute('aria-expanded')).toBe('true')
+  })
+
   it('does not mark Prayers active for a similarly prefixed route', () => {
     pathnameMock.mockReturnValue('/prayers-archive')
 
@@ -157,10 +212,48 @@ describe('SiteTopBar', () => {
       </SiteI18nProvider>,
     )
 
-    fireEvent.click(screen.getByRole('button', { name: SITE_MESSAGES.en.headerChooseChurch }))
+    const picker = screen.getByRole('button', { name: SITE_MESSAGES.en.headerChooseChurch })
+    fireEvent.click(picker)
 
     const browse = await screen.findByRole('link', { name: SITE_MESSAGES.en.headerBrowseChurches })
     expect(browse.getAttribute('href')).toBe('/churches')
+    fireEvent.click(browse)
+    await waitFor(() => expect(picker.getAttribute('aria-expanded')).toBe('false'))
+  })
+
+  it('uses a responsive modal church picker', async () => {
+    renderWithProviders(
+      <SiteI18nProvider initialLocale="en">
+        <SiteTopBar
+          initialChurches={[
+            {
+              churchId: 'c1',
+              churchName: 'Hope Church',
+              city: 'Tallinn',
+              address: null,
+              coverAssetId: null,
+              coverUrl: null,
+              isMain: true,
+              isFollowed: true,
+            },
+          ]}
+        />
+      </SiteI18nProvider>,
+    )
+
+    const picker = screen.getByRole('button', { name: SITE_MESSAGES.en.headerChooseChurch })
+    fireEvent.click(picker)
+
+    expect(await screen.findByRole('dialog')).toBeTruthy()
+    expect(screen.getByRole('link', { name: 'Hope Church' })).toBeTruthy()
+    const browseChurches = screen.getByRole('link', {
+      name: SITE_MESSAGES.en.headerBrowseChurches,
+    })
+    expect(browseChurches).toBeTruthy()
+
+    fireEvent.click(browseChurches)
+
+    await waitFor(() => expect(picker.getAttribute('aria-expanded')).toBe('false'))
   })
 
   it('shows the account-flow navigation without customer discovery links', () => {

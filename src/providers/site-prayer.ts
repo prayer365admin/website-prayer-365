@@ -22,6 +22,9 @@ type PublishedRow = {
 const includes = (value: string | null, search: string) =>
   Boolean(value?.toLocaleLowerCase().includes(search))
 
+const readingMinutes = (text: string) =>
+  Math.max(1, Math.round(text.trim().split(/\s+/).length / 150))
+
 const publishedSelect = {
   id: true,
   church_id: true,
@@ -152,7 +155,7 @@ export const GET_SITE_PRAYER_ARCHIVE = async ({
       OR: [{ is_main: true }, { is_followed: true }],
       church: { status: APPROVED },
     },
-    select: { church_id: true, church: { select: { name: true } } },
+    select: { church_id: true, is_main: true, church: { select: { name: true } } },
     orderBy: { church: { name: 'asc' } },
   })
 
@@ -170,12 +173,14 @@ export const GET_SITE_PRAYER_ARCHIVE = async ({
   }
 
   const allowedIds = scopedChurches.map((church) => church.value)
-  const selectedChurchId = fixedChurchId || query.churchId
-  const churchIds = selectedChurchId
-    ? allowedIds.includes(selectedChurchId)
-      ? [selectedChurchId]
-      : []
-    : allowedIds
+  const defaultChurchId =
+    relationships.find((relationship) => relationship.is_main)?.church_id ??
+    relationships[0]?.church_id ??
+    ''
+  const selectedChurchId = fixedChurchId || query.churchId || defaultChurchId
+  const churchIds = allowedIds.includes(selectedChurchId) ? [selectedChurchId] : []
+  const selectedChurchName =
+    scopedChurches.find((church) => church.value === selectedChurchId)?.label ?? null
 
   if (churchIds.length === 0) {
     return {
@@ -187,6 +192,8 @@ export const GET_SITE_PRAYER_ARCHIVE = async ({
       totalPages: 1,
       churches: scopedChurches,
       languages: [],
+      selectedChurchId: null,
+      selectedChurchName: null,
     }
   }
 
@@ -198,12 +205,19 @@ export const GET_SITE_PRAYER_ARCHIVE = async ({
 
   const all = await toItems(prayers)
 
+  const featured = all[0] ?? null
   const languages = Array.from(new Set(all.map((prayer) => prayer.languageCode))).sort()
   const needle = query.search.toLocaleLowerCase()
-  const filtered = all.filter((prayer) => {
+  const filtered = all.slice(1).filter((prayer) => {
     if (query.language && prayer.languageCode !== query.language) return false
     if (query.format === 'audio' && !prayer.audio) return false
     if (query.format === 'text' && prayer.audio) return false
+
+    const minutes = readingMinutes(prayer.body)
+    if (query.duration === 'short' && minutes >= 3) return false
+    if (query.duration === 'medium' && (minutes < 3 || minutes > 5)) return false
+    if (query.duration === 'long' && minutes < 6) return false
+
     if (!needle) return true
     return [
       prayer.title,
@@ -213,13 +227,10 @@ export const GET_SITE_PRAYER_ARCHIVE = async ({
       prayer.churchName,
     ].some((value) => includes(value, needle))
   })
-
-  const featured = filtered.find((prayer) => prayer.audio) ?? null
-  const grid = featured ? filtered.filter((prayer) => prayer.id !== featured.id) : filtered
-  const total = grid.length
+  const total = filtered.length
   const totalPages = Math.max(1, Math.ceil(total / query.limit))
   const page = Math.min(query.page, totalPages)
-  const result = grid.slice((page - 1) * query.limit, page * query.limit)
+  const result = filtered.slice((page - 1) * query.limit, page * query.limit)
 
   return {
     result,
@@ -230,6 +241,8 @@ export const GET_SITE_PRAYER_ARCHIVE = async ({
     totalPages,
     churches: scopedChurches,
     languages,
+    selectedChurchId,
+    selectedChurchName,
   }
 }
 

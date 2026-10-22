@@ -433,7 +433,7 @@ export const SITE_MESSAGES = {
     prayerArchiveTitle: 'Daily Prayers, Liturgies & Contemplative Readings',
     prayerArchiveBody:
       'Nourish your inner sanctuary with timeless ecumenical prayers, Baltic liturgical cycles, and serene pastoral intercessions crafted for morning reflection, twilight stillness, and every quiet hour between.',
-    prayerArchiveSearch: 'Search by scripture, prayer topic, liturgical season, or pastor…',
+    prayerArchiveSearch: 'Search prayers, scripture, or pastor…',
     prayerArchiveSearchAction: 'Search prayers',
     prayerArchiveAll: 'All Prayers',
     prayerArchiveChurch: 'Parish / Church',
@@ -442,13 +442,16 @@ export const SITE_MESSAGES = {
     prayerArchiveAllLanguages: 'All Languages',
     prayerArchiveDuration: 'Duration',
     prayerArchiveAnyDuration: 'Any Duration',
+    prayerArchiveDurationShort: 'Under 3 min',
+    prayerArchiveDurationMedium: '3–5 min',
+    prayerArchiveDurationLong: '6+ min',
     prayerArchiveDurationUnavailable:
       'Duration filtering will be available when audio metadata is published.',
     prayerArchiveFormat: 'Format',
     prayerArchiveAllFormats: 'All Formats',
     prayerArchiveAudio: 'Audio',
     prayerArchiveText: 'Text only',
-    prayerArchiveFeatured: "Today's Guided Meditation",
+    prayerArchiveFeatured: 'Latest Prayer',
     prayerArchiveGuided: 'Guided contemplation',
     prayerArchiveCollection: 'Curated Liturgies & Prayers',
     prayerArchiveCollectionBody:
@@ -458,8 +461,8 @@ export const SITE_MESSAGES = {
     prayerArchiveAudioAvailable: 'Audio prayer',
     prayerArchiveTextAvailable: 'Text prayer',
     prayerArchiveView: 'View Prayer & Details',
-    prayerArchiveEmptyTitle: 'No prayers match these filters',
-    prayerArchiveEmptyBody: 'Try a broader search, another language, or all formats.',
+    prayerArchiveEmptyTitle: 'No prayers match your search',
+    prayerArchiveEmptyBody: 'Try a broader search term.',
     prayerArchiveNoChurchTitle: 'Build your fellowship first',
     prayerArchiveNoChurchBody:
       'Choose a main church or follow a parish to receive its published prayer archive.',
@@ -580,6 +583,7 @@ export const SITE_MESSAGES = {
     prayerArchiveBannerAction: 'Monthly Liturgical Prayer',
     prayerArchivePastorFallback: 'Pastor',
     prayerArchiveChurchContext: 'Parish prayer archive',
+    prayerArchiveStewardshipLabel: 'Donations / Stewardship',
     // --- WB3 Prayer detail (W10) ---
     prayerDetailLedBy: 'Led by {pastor}, {church}',
     prayerDetailSection1: 'Opening Invocation & Breath',

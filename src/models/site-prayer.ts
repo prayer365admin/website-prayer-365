@@ -6,6 +6,7 @@ export const SitePrayerArchiveQuerySchema = z.object({
   search: z.string().trim().max(200).catch('').default(''),
   churchId: z.string().trim().max(100).catch('').default(''),
   language: z.string().trim().max(10).catch('').default(''),
+  duration: z.enum(['all', 'short', 'medium', 'long']).catch('all').default('all'),
   format: z.enum(['all', 'audio', 'text']).catch('all').default('all'),
 })
 
@@ -52,6 +53,8 @@ export type SitePrayerArchive = {
   totalPages: number
   churches: SitePrayerArchiveOption[]
   languages: string[]
+  selectedChurchId: string | null
+  selectedChurchName: string | null
 }
 
 export type SitePrayerDetail = {

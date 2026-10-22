@@ -6,13 +6,19 @@ import { SITE_LOCALES, SiteLocale } from '@/config/site-locale'
 import { useMe, useMyChurches } from '@/hooks/data/site/me'
 import { useSiteI18n } from '@/i18n/site-i18n'
 import type { MobileMe, MobileMyChurch } from '@/models/mobile'
-import { DownOutlined, HomeOutlined, UserOutlined } from '@ant-design/icons'
-import { Avatar, Dropdown, Select } from 'antd'
-import type { MenuProps } from 'antd'
+import {
+  ArrowRightOutlined,
+  CheckOutlined,
+  DownOutlined,
+  HomeOutlined,
+  UserOutlined,
+} from '@ant-design/icons'
+import { Avatar, Modal, Select } from 'antd'
 import { useSession } from 'next-auth/react'
 import Image from 'next/image'
 import Link from 'next/link'
-import { usePathname } from 'next/navigation'
+import { usePathname, useSearchParams } from 'next/navigation'
+import { useState } from 'react'
 import s from './top-bar.module.scss'
 
 export type SiteHeaderVariant = 'auth' | 'general'
@@ -36,7 +42,15 @@ export default function SiteTopBar({
   const { data: churches } = useMyChurches({ userId: initialMe?.id, initialData: initialChurches })
   const { data: me } = useMe({ userId: initialMe?.id, initialData: initialMe })
   const pathname = usePathname()
+  const searchParams = useSearchParams()
   const mainChurch = churches.find((church) => church.isMain) ?? churches[0]
+  const churchPrayerMatch = pathname.match(/^\/churches\/([^/]+)\/prayers(?:\/|$)/)
+  const prayerChurchId =
+    pathname === '/prayers' ? searchParams.get('churchId') : churchPrayerMatch?.[1]
+  const selectedChurch = churches.find((church) => church.churchId === prayerChurchId) ?? mainChurch
+  const isPrayerArchive = pathname === '/prayers' || Boolean(churchPrayerMatch)
+  const [churchMenuOpen, setChurchMenuOpen] = useState(false)
+  const closeChurchMenu = () => setChurchMenuOpen(false)
 
   const authLinks = [
     { active: pathname === '/login', href: '/login', label: t('headerSignIn') },
@@ -53,16 +67,48 @@ export default function SiteTopBar({
     { href: '/giving', label: t('headerGiving') },
   ]
 
-  const churchMenu: MenuProps['items'] = churches.length
-    ? churches.map((church) => ({
-        key: church.churchId,
-        label: <Link href={`/churches/${church.churchId}`}>{church.churchName}</Link>,
-      }))
+  const churchLinks = churches.length
+    ? churches.map((church) => {
+        const selected = church.churchId === selectedChurch?.churchId
+        const context = [church.city, church.isMain ? t('homeHabitsMain') : null]
+          .filter(Boolean)
+          .join(' · ')
+
+        return (
+          <Link
+            aria-current={selected ? 'page' : undefined}
+            aria-label={church.churchName}
+            className={`${s.churchMenuLink} ${selected ? s.churchMenuLinkSelected : ''}`}
+            href={
+              isPrayerArchive
+                ? pathname === '/prayers'
+                  ? `/prayers?churchId=${encodeURIComponent(church.churchId)}`
+                  : `/churches/${church.churchId}/prayers`
+                : `/churches/${church.churchId}`
+            }
+            key={church.churchId}
+            onClick={closeChurchMenu}
+          >
+            <span className={s.churchMenuIcon}>
+              <ChurchIcon aria-hidden />
+            </span>
+            <span className={s.churchMenuCopy}>
+              <span className={s.churchMenuName}>{church.churchName}</span>
+              {context && <span className={s.churchMenuMeta}>{context}</span>}
+            </span>
+            {selected && <CheckOutlined className={s.churchMenuCheck} />}
+          </Link>
+        )
+      })
     : [
-        {
-          key: 'browse',
-          label: <Link href="/churches">{t('headerBrowseChurches')}</Link>,
-        },
+        <Link className={s.churchMenuLink} href="/churches" key="browse" onClick={closeChurchMenu}>
+          <span className={s.churchMenuIcon}>
+            <ChurchIcon aria-hidden />
+          </span>
+          <span className={s.churchMenuCopy}>
+            <span className={s.churchMenuName}>{t('headerBrowseChurches')}</span>
+          </span>
+        </Link>,
       ]
 
   const localeControl = (
@@ -82,13 +128,51 @@ export default function SiteTopBar({
   )
 
   const churchControl = (
-    <Dropdown menu={{ items: churchMenu }} placement="bottomRight" trigger={['click']}>
-      <button aria-label={t('headerChooseChurch')} className={s.churchPill} type="button">
+    <>
+      <button
+        aria-expanded={churchMenuOpen}
+        aria-label={t('headerChooseChurch')}
+        className={s.churchPill}
+        onClick={() => setChurchMenuOpen(true)}
+        type="button"
+      >
         <ChurchIcon aria-hidden />
-        <span>{mainChurch?.churchName ?? t('headerChooseChurch')}</span>
+        <span className={s.churchPillLabel}>
+          {selectedChurch?.churchName ?? t('headerChooseChurch')}
+        </span>
         <DownOutlined className={s.churchChevron} />
       </button>
-    </Dropdown>
+
+      <Modal
+        centered
+        className={s.churchPickerModal}
+        destroyOnHidden
+        footer={
+          churches.length > 0 ? (
+            <Link className={s.churchDropdownBrowse} href="/churches" onClick={closeChurchMenu}>
+              {t('headerBrowseChurches')}
+              <ArrowRightOutlined aria-hidden className={s.churchDropdownBrowseIcon} />
+            </Link>
+          ) : null
+        }
+        onCancel={closeChurchMenu}
+        open={churchMenuOpen}
+        title={
+          <span className={s.churchModalTitle}>
+            <span>
+              <span className={s.churchDropdownEyebrow}>{t('headerChooseChurch')}</span>
+              <span className={s.churchDropdownHint}>{t('prayerArchiveChurchContext')}</span>
+            </span>
+            <span className={s.churchDropdownCount}>{churches.length}</span>
+          </span>
+        }
+        width="min(560px, calc(100vw - 24px))"
+      >
+        <nav aria-label={t('headerChooseChurch')} className={s.churchDropdownList}>
+          {churchLinks}
+        </nav>
+      </Modal>
+    </>
   )
 
   // Signed in: the profile photo (or a user icon) links to the customer profile, where sign-out lives.
@@ -172,11 +256,11 @@ export default function SiteTopBar({
                 )
               })}
             </nav>
-            {churchControl}
           </div>
         )}
 
         <div className={s.actions}>
+          {variant === 'general' && churchControl}
           <div className={s.desktopLocale}>{localeControl}</div>
           {variant === 'general' && accountControl}
         </div>

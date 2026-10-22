@@ -87,6 +87,7 @@ const query = {
   search: '',
   churchId: '',
   language: '',
+  duration: 'all' as const,
   format: 'all' as const,
 }
 
@@ -150,7 +151,6 @@ const seedPrayer = ({
   })
 }
 
-const VISIBLE = ['playable', 'text-only', 'unapproved-audio', 'audio-without-file']
 const HIDDEN = ['draft', 'scheduled', 'suspended-church']
 
 beforeAll(() => {
@@ -203,11 +203,11 @@ describe('WB-35 — unpublished prayers never reach the website', () => {
     expect(home.followedChurches.map((c) => c.id).sort()).toEqual(['c1', 'c2'])
   })
 
-  it('archive lists exactly the published prayers, and its church filter excludes suspended churches', async () => {
+  it('archive lists the selected approved church prayers and excludes suspended churches', async () => {
     const archive = await GET_SITE_PRAYER_ARCHIVE({ userId: 'u1', query })
     const ids = [archive.featured!.id, ...archive.result.map((prayer) => prayer.id)]
 
-    expect(ids.sort()).toEqual([...VISIBLE].sort())
+    expect(ids.sort()).toEqual(['playable', 'unapproved-audio'].sort())
     expect(ids).not.toEqual(expect.arrayContaining(HIDDEN))
     expect(archive.churches.map((c) => c.value).sort()).toEqual(['c1', 'c2'])
   })
@@ -245,11 +245,9 @@ describe('WB-35 — only approved audio with a file becomes playable', () => {
       'unapproved-audio': null,
       'text-only': null,
     })
-    expect(archive.featured?.id).toBe('playable')
+    expect(archive.featured?.id).toBe('unapproved-audio')
     expect(archiveAudio['playable']?.url).toBe(`${CDN}/a/playable.mp3`)
     expect(archiveAudio['unapproved-audio']).toBeNull()
-    expect(archiveAudio['audio-without-file']).toBeNull()
-    expect(archiveAudio['text-only']).toBeNull()
   })
 
   it('format filters follow the same rule', async () => {
@@ -262,11 +260,10 @@ describe('WB-35 — only approved audio with a file becomes playable', () => {
       query: { ...query, format: 'text' },
     })
 
-    expect([audioOnly.featured?.id, ...audioOnly.result.map((p) => p.id)]).toEqual(['playable'])
-    expect(textOnly.featured).toBeNull()
-    expect(textOnly.result.map((p) => p.id).sort()).toEqual(
-      ['audio-without-file', 'text-only', 'unapproved-audio'].sort(),
-    )
+    expect(audioOnly.featured?.id).toBe('unapproved-audio')
+    expect(audioOnly.result.map((p) => p.id)).toEqual(['playable'])
+    expect(textOnly.featured?.id).toBe('unapproved-audio')
+    expect(textOnly.result).toEqual([])
   })
 
   it('the playback URL is a plain public URL: no signature or credentials to attach', async () => {

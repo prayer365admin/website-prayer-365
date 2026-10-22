@@ -21,10 +21,11 @@ import {
 
 const query = {
   page: 1,
-  limit: 1,
+  limit: 6,
   search: '',
   churchId: '',
   language: '',
+  duration: 'all' as const,
   format: 'all' as const,
 }
 
@@ -32,8 +33,8 @@ beforeEach(() => {
   vi.clearAllMocks()
   s3.S3_PUBLIC_URL.mockImplementation(({ key }: { key: string }) => `https://cdn.test/${key}`)
   db.userChurch.findMany.mockResolvedValue([
-    { church_id: 'c1', church: { name: 'Hope Church' } },
-    { church_id: 'c2', church: { name: 'Grace Church' } },
+    { church_id: 'c1', is_main: true, church: { name: 'Hope Church' } },
+    { church_id: 'c2', is_main: false, church: { name: 'Grace Church' } },
   ])
   db.prayer.findMany.mockResolvedValue([
     {
@@ -42,13 +43,6 @@ beforeEach(() => {
       church: { name: 'Hope Church' },
       published_at: new Date('2026-10-15T08:00:00Z'),
       published_version_id: 'v1',
-    },
-    {
-      id: 'p2',
-      church_id: 'c2',
-      church: { name: 'Grace Church' },
-      published_at: new Date('2026-10-14T08:00:00Z'),
-      published_version_id: 'v2',
     },
     {
       id: 'p3',
@@ -106,38 +100,91 @@ beforeEach(() => {
 })
 
 describe('GET_SITE_PRAYER_ARCHIVE', () => {
-  it('selects the newest approved-audio prayer as featured and paginates the remaining grid', async () => {
+  it('loads the main church and highlights its latest prayer', async () => {
     const archive = await GET_SITE_PRAYER_ARCHIVE({ userId: 'u1', query })
 
     expect(archive.featured?.id).toBe('p1')
     expect(archive.featured?.audio?.url).toBe('https://cdn.test/audio.mp3')
-    expect(archive.result.map((item) => item.id)).toEqual(['p2'])
-    expect(archive.total).toBe(2)
-    expect(archive.totalPages).toBe(2)
-    expect(archive.languages).toEqual(['en', 'et'])
-  })
-
-  it('removes ElevenLabs audio tags from the text readers see and search', async () => {
-    const archive = await GET_SITE_PRAYER_ARCHIVE({ userId: 'u1', query })
-    expect(archive.featured?.body).toBe('Be still and know.')
-
-    const tagSearch = await GET_SITE_PRAYER_ARCHIVE({
-      userId: 'u1',
-      query: { ...query, search: 'calm' },
-    })
-    expect(tagSearch.featured).toBeNull()
-    expect(tagSearch.total).toBe(0)
-  })
-
-  it('combines search, language, and text-only filters before pagination', async () => {
-    const archive = await GET_SITE_PRAYER_ARCHIVE({
-      userId: 'u1',
-      query: { ...query, limit: 6, search: 'daniel', language: 'en', format: 'text' },
-    })
-
-    expect(archive.featured).toBeNull()
     expect(archive.result.map((item) => item.id)).toEqual(['p3'])
     expect(archive.total).toBe(1)
+    expect(archive.selectedChurchId).toBe('c1')
+    expect(archive.selectedChurchName).toBe('Hope Church')
+    expect(db.prayer.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({ where: expect.objectContaining({ church_id: { in: ['c1'] } }) }),
+    )
+  })
+
+  it('removes ElevenLabs audio tags from the text readers see', async () => {
+    const archive = await GET_SITE_PRAYER_ARCHIVE({ userId: 'u1', query })
+    expect(archive.featured?.body).toBe('Be still and know.')
+  })
+
+  it('applies search, language, and format on the server while keeping the latest highlighted', async () => {
+    const archive = await GET_SITE_PRAYER_ARCHIVE({
+      userId: 'u1',
+      query: { ...query, search: 'evening', language: 'en', format: 'text' },
+    })
+
+    expect(archive.featured?.id).toBe('p1')
+    expect(archive.result.map((item) => item.id)).toEqual(['p3'])
+    expect(archive.total).toBe(1)
+    expect(archive.page).toBe(1)
+    expect(archive.totalPages).toBe(1)
+  })
+
+  it('filters the collection by estimated prayer duration on the server', async () => {
+    const archive = await GET_SITE_PRAYER_ARCHIVE({
+      userId: 'u1',
+      query: { ...query, duration: 'long' },
+    })
+
+    expect(archive.featured?.id).toBe('p1')
+    expect(archive.result).toEqual([])
+    expect(archive.total).toBe(0)
+  })
+
+  it('highlights the latest prayer even when it has no audio', async () => {
+    db.prayerVersion.findMany.mockResolvedValue([
+      {
+        id: 'v1',
+        pastor_id: 'pastor-1',
+        title: 'Latest text prayer',
+        introduction: null,
+        body: 'Be still.',
+        language_code: 'en',
+        pastor: { name: 'Daniel', image_asset: null },
+        selected_audio: null,
+      },
+      {
+        id: 'v3',
+        pastor_id: 'pastor-1',
+        title: 'Older prayer',
+        introduction: null,
+        body: 'Rest.',
+        language_code: 'en',
+        pastor: { name: 'Daniel', image_asset: null },
+        selected_audio: null,
+      },
+    ])
+
+    const archive = await GET_SITE_PRAYER_ARCHIVE({ userId: 'u1', query })
+
+    expect(archive.featured?.id).toBe('p1')
+    expect(archive.featured?.audio).toBeNull()
+  })
+
+  it('loads a followed church selected from the header', async () => {
+    db.prayer.findMany.mockResolvedValue([])
+    const archive = await GET_SITE_PRAYER_ARCHIVE({
+      userId: 'u1',
+      query: { ...query, churchId: 'c2' },
+    })
+
+    expect(archive.selectedChurchId).toBe('c2')
+    expect(archive.selectedChurchName).toBe('Grace Church')
+    expect(db.prayer.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({ where: expect.objectContaining({ church_id: { in: ['c2'] } }) }),
+    )
   })
 
   it('rejects a query-string church outside the customer fellowship', async () => {
@@ -163,6 +210,7 @@ describe('GET_SITE_PRAYER_ARCHIVE', () => {
     })
 
     expect(archive.churches).toEqual([{ value: 'c3', label: 'Open Parish' }])
+    expect(archive.selectedChurchId).toBe('c3')
     expect(db.prayer.findMany).toHaveBeenCalledWith(
       expect.objectContaining({ where: expect.objectContaining({ church_id: { in: ['c3'] } }) }),
     )
