@@ -235,10 +235,23 @@
   }
 
   .homeButton,
-  .authNavigation,
   .generalNavigation,
   .desktopLocale {
     display: none;
+  }
+
+  .authInner .actions {
+    display: none;
+  }
+
+  .authInner {
+    position: relative;
+  }
+
+  .authInner .authNavigation {
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
   }
 
   .generalContent {

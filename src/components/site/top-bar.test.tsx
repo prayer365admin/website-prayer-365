@@ -171,7 +171,10 @@ describe('SiteTopBar', () => {
     )
 
     expect(screen.getByRole('navigation', { name: 'Account navigation' })).toBeTruthy()
-    expect(screen.getByRole('link', { name: 'Begin Fellowship' })).toBeTruthy()
+    expect(screen.getByRole('link', { name: SITE_MESSAGES.en.signInBeginFellowship })).toBeTruthy()
+    expect(screen.queryByRole('link', { name: SITE_MESSAGES.en.headerHome })).toBeNull()
+    expect(screen.queryByRole('link', { name: SITE_MESSAGES.en.account })).toBeNull()
+    expect(screen.queryByRole('link', { name: SITE_MESSAGES.en.headerSpiritualWalk })).toBeNull()
     expect(screen.queryByRole('link', { name: 'Discovery Churches' })).toBeNull()
   })
 

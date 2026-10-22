@@ -45,7 +45,6 @@ export default function SiteTopBar({
       href: '/register',
       label: t('signInBeginFellowship'),
     },
-    { active: pathname === '/', href: '/', label: t('headerSpiritualWalk') },
   ]
 
   const generalLinks = [
@@ -130,14 +129,16 @@ export default function SiteTopBar({
               width={32}
             />
           </Link>
-          <Link
-            aria-current={pathname === '/' ? 'page' : undefined}
-            aria-label={t('headerHome')}
-            className={`${s.iconButton} ${pathname === '/' ? s.homeButton : ''}`}
-            href="/"
-          >
-            <HomeOutlined />
-          </Link>
+          {variant === 'general' && (
+            <Link
+              aria-current={pathname === '/' ? 'page' : undefined}
+              aria-label={t('headerHome')}
+              className={`${s.iconButton} ${pathname === '/' ? s.homeButton : ''}`}
+              href="/"
+            >
+              <HomeOutlined />
+            </Link>
+          )}
         </div>
 
         {variant === 'auth' ? (
@@ -177,7 +178,7 @@ export default function SiteTopBar({
 
         <div className={s.actions}>
           <div className={s.desktopLocale}>{localeControl}</div>
-          {accountControl}
+          {variant === 'general' && accountControl}
         </div>
       </div>
     </header>
