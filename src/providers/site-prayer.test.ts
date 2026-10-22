@@ -12,7 +12,12 @@ const s3 = vi.hoisted(() => ({ S3_PUBLIC_URL: vi.fn() }))
 vi.mock('@/utils/db-connection', () => ({ db }))
 vi.mock('@/providers/s3', () => ({ S3_PUBLIC_URL: s3.S3_PUBLIC_URL }))
 
-import { COUNT_SITE_PRAYERS, GET_SITE_PRAYER_ARCHIVE, GET_SITE_PRAYER_DETAIL } from './site-prayer'
+import {
+  COUNT_SITE_PRAYERS,
+  GET_LATEST_PLAYABLE_SITE_PRAYER,
+  GET_SITE_PRAYER_ARCHIVE,
+  GET_SITE_PRAYER_DETAIL,
+} from './site-prayer'
 
 const query = {
   page: 1,
@@ -161,6 +166,34 @@ describe('GET_SITE_PRAYER_ARCHIVE', () => {
     expect(db.prayer.findMany).toHaveBeenCalledWith(
       expect.objectContaining({ where: expect.objectContaining({ church_id: { in: ['c3'] } }) }),
     )
+  })
+})
+
+describe('GET_LATEST_PLAYABLE_SITE_PRAYER', () => {
+  it('returns the newest published prayer that has approved audio', async () => {
+    await expect(GET_LATEST_PLAYABLE_SITE_PRAYER()).resolves.toEqual({
+      id: 'p1',
+      title: 'Peace in uncertainty',
+      churchName: 'Hope Church',
+      pastorName: 'Daniel',
+      languageCode: 'en',
+      audioUrl: 'https://cdn.test/audio.mp3',
+    })
+    expect(db.prayer.findMany).toHaveBeenCalledWith({
+      where: {
+        church: { status: 'APPROVED' },
+        published_version_id: { not: null },
+        published_at: { not: null },
+      },
+      orderBy: [{ published_at: 'desc' }, { id: 'desc' }],
+      select: expect.any(Object),
+    })
+  })
+
+  it('returns null when no published prayer has playable audio', async () => {
+    db.prayerVersion.findMany.mockResolvedValue([])
+
+    await expect(GET_LATEST_PLAYABLE_SITE_PRAYER()).resolves.toBeNull()
   })
 })
 

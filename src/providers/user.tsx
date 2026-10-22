@@ -12,6 +12,16 @@ const data = 'user'
 // Never return the password hash from any read/write that surfaces a DTO.
 const SAFE = { password: true }
 
+/** Public fellowship total: active customer accounts only, never staff or deleted users. */
+export const COUNT_ACTIVE_CUSTOMERS = (): Promise<number> =>
+  db.user.count({
+    where: {
+      deleted_at: null,
+      status: 'active',
+      OR: [{ role_id: null }, { role: { is: { name: CUSTOMER_ROLE } } }],
+    },
+  })
+
 /**
  * Staff list: users with a staff role (not the `prayer_user` customer role, R-02).
  * Optional `role` filter narrows by role id.

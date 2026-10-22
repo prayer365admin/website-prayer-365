@@ -1,6 +1,12 @@
-import { SitePrayerArchive, SitePrayerArchiveQuery, SitePrayerDetail } from '@/models/site-prayer'
+import {
+  SiteLoginPrayer,
+  SitePrayerArchive,
+  SitePrayerArchiveQuery,
+  SitePrayerDetail,
+} from '@/models/site-prayer'
 import {
   COUNT_SITE_PRAYERS,
+  GET_LATEST_PLAYABLE_SITE_PRAYER,
   GET_SITE_PRAYER_ARCHIVE,
   GET_SITE_PRAYER_DETAIL,
 } from '@/providers/site-prayer'
@@ -25,3 +31,7 @@ export const getSitePrayerDetail = ({
 /** Total the /prayers archive lists before filters; drives the home "Sessions Ready" label. */
 export const countSitePrayers = ({ userId }: { userId: string }): Promise<number> =>
   COUNT_SITE_PRAYERS({ userId })
+
+/** Latest public prayer with approved audio for the guest Login player. */
+export const getLatestPlayableSitePrayer = (): Promise<SiteLoginPrayer | null> =>
+  GET_LATEST_PLAYABLE_SITE_PRAYER()

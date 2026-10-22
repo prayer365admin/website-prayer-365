@@ -6,6 +6,7 @@ import {
   SitePrayerArchiveItem,
   SitePrayerArchiveQuery,
   SitePrayerDetail,
+  SiteLoginPrayer,
 } from '@/models/site-prayer'
 
 const APPROVED = 'APPROVED'
@@ -114,6 +115,27 @@ export const COUNT_SITE_PRAYERS = ({ userId }: { userId: string }): Promise<numb
       },
     },
   })
+
+/** Most recently published public prayer that has an approved, playable audio asset. */
+export const GET_LATEST_PLAYABLE_SITE_PRAYER = async (): Promise<SiteLoginPrayer | null> => {
+  const prayers = (await db.prayer.findMany({
+    where: publishedWhere,
+    orderBy: [{ published_at: 'desc' }, { id: 'desc' }],
+    select: publishedSelect,
+  })) as PublishedRow[]
+  const prayer = (await toItems(prayers)).find((item) => item.audio)
+
+  if (!prayer?.audio) return null
+
+  return {
+    id: prayer.id,
+    title: prayer.title,
+    churchName: prayer.churchName,
+    pastorName: prayer.pastorName,
+    languageCode: prayer.languageCode,
+    audioUrl: prayer.audio.url,
+  }
+}
 
 export const GET_SITE_PRAYER_ARCHIVE = async ({
   userId,

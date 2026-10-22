@@ -32,6 +32,15 @@ export type SitePrayerArchiveItem = {
   } | null
 }
 
+export type SiteLoginPrayer = {
+  id: string
+  title: string
+  churchName: string
+  pastorName: string
+  languageCode: string
+  audioUrl: string
+}
+
 export type SitePrayerArchiveOption = { value: string; label: string }
 
 export type SitePrayerArchive = {

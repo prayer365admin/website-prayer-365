@@ -4,6 +4,7 @@ vi.mock('@/providers/user', () => ({
   GET_USER_BY_ID: vi.fn(),
   GET_USER_BY_EMAIL: vi.fn(),
   CREATE_USER: vi.fn(),
+  COUNT_ACTIVE_CUSTOMERS: vi.fn(),
   UPDATE_USER: vi.fn(),
   INCREMENT_AUTH_VERSION: vi.fn(),
 }))
@@ -12,8 +13,15 @@ vi.mock('@/utils/hash', () => ({
   hashSecret: vi.fn(async ({ secret }: { secret: string }) => `hashed:${secret}`),
 }))
 
-import { createUser, getUserByEmail, getUserById, updateUser } from './user'
 import {
+  createUser,
+  getFellowshipMemberCount,
+  getUserByEmail,
+  getUserById,
+  updateUser,
+} from './user'
+import {
+  COUNT_ACTIVE_CUSTOMERS,
   CREATE_USER,
   GET_USER_BY_EMAIL,
   GET_USER_BY_ID,
@@ -23,6 +31,11 @@ import {
 import { hashSecret } from '@/utils/hash'
 
 const mockUser = { id: 'u1', email: 'a@b.com', name: 'A', role_id: null }
+
+it('returns the public fellowship member count', async () => {
+  vi.mocked(COUNT_ACTIVE_CUSTOMERS).mockResolvedValue(37)
+  await expect(getFellowshipMemberCount()).resolves.toBe(37)
+})
 
 describe('getUserById', () => {
   beforeEach(() => vi.clearAllMocks())
