@@ -702,7 +702,6 @@ export const SITE_MESSAGES = {
     profileExportBody:
       'Download all devotional journals, prayer chains, and certified tax giving receipts.',
     profileExportPdf: 'PDF Archive',
-    profileExportJson: 'JSON Data',
     profileDeletionHeading: 'Account Suspension & Permanent Deletion',
     profileDeletionBody:
       'We maintain a 14-day peaceful grace window. If requested, your parish profile, membership roll link, and prayer log entries will be queued for permanent irreversible destruction. All communications cease immediately.',
@@ -1325,7 +1324,6 @@ export const SITE_MESSAGES = {
     profileExportBody:
       'Laadi alla kõik palveraamatud, palveahelad ja kinnitatud maksuannetuste kviitungid.',
     profileExportPdf: 'PDF-arhiiv',
-    profileExportJson: 'JSON-andmed',
     profileDeletionHeading: 'Konto peatamine ja jäädav kustutamine',
     profileDeletionBody:
       'Jätame 14-päevase rahuliku armuaja. Soovi korral pannakse sinu koguduse profiil, liikmerolli viide ja palvelogi kanded jäädavalt ja pöördumatult kustutamisele. Kogu suhtlus lakkab kohe.',
@@ -1951,7 +1949,6 @@ export const SITE_MESSAGES = {
     profileExportBody:
       'Ladda ner alla andaktsdagböcker, bönekedjor och intygade gåvokvitton för skatt.',
     profileExportPdf: 'PDF-arkiv',
-    profileExportJson: 'JSON-data',
     profileDeletionHeading: 'Kontospärrning och permanent radering',
     profileDeletionBody:
       'Vi har ett 14 dagars fridfullt nådefönster. Om det begärs köas din församlingsprofil, medlemslänk och bönelogg för permanent och oåterkallelig radering. All kommunikation upphör omedelbart.',
@@ -2580,7 +2577,6 @@ export const SITE_MESSAGES = {
     profileExportBody:
       'Lataa kaikki hartauspäiväkirjat, rukousketjut ja vahvistetut verovähennyskuitit.',
     profileExportPdf: 'PDF-arkisto',
-    profileExportJson: 'JSON-tiedot',
     profileDeletionHeading: 'Tilin keskeyttäminen ja pysyvä poistaminen',
     profileDeletionBody:
       'Säilytämme 14 päivän rauhallisen armonajan. Pyynnöstä seurakuntaprofiilisi, jäsenyyslinkkisi ja rukouslokimerkintäsi asetetaan pysyvään ja peruuttamattomaan poistoon. Kaikki viestintä päättyy välittömästi.',
