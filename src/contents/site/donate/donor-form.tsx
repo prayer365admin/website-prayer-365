@@ -214,7 +214,7 @@ export function DonorForm({
           <div className="flex gap-1 rounded-lg bg-[#F5F7FF] p-1">
             <button
               aria-pressed={monthly}
-              className={`h-[41px] flex-1 rounded-md text-sm font-semibold leading-[1.5] transition-colors ${
+              className={`min-h-[41px] flex-1 rounded-md px-2 py-1 text-sm font-semibold leading-[1.5] transition-colors ${
                 monthly
                   ? 'bg-[#2F7AD2] text-white shadow-[0_1px_2px_rgba(0,0,0,0.05)]'
                   : 'text-[#8F96A3]'
@@ -227,7 +227,7 @@ export function DonorForm({
             </button>
             <button
               aria-pressed={!monthly}
-              className={`h-[41px] flex-1 rounded-md text-sm font-semibold leading-[1.5] transition-colors ${
+              className={`min-h-[41px] flex-1 rounded-md px-2 py-1 text-sm font-semibold leading-[1.5] transition-colors ${
                 monthly
                   ? 'text-[#8F96A3]'
                   : 'bg-[#2F7AD2] text-white shadow-[0_1px_2px_rgba(0,0,0,0.05)]'
