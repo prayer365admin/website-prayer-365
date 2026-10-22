@@ -40,6 +40,8 @@ import { TranscriptIcon } from '@/components/icon/transcript'
 import { BookmarkPlusIcon } from '@/components/icon/bookmark-plus'
 
 const WEEKDAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
+// Temporarily hide website event and announcement UI without removing its implementation.
+const SHOW_EVENTS_AND_ANNOUNCEMENTS = false
 dayjs.extend(utc)
 dayjs.extend(timezone)
 
@@ -667,61 +669,63 @@ export default function ContentsSiteChurchProfile({ churchId }: { churchId: stri
             </SectionCard>
 
             {/* Upcoming Gatherings card */}
-            <SectionCard
-              title={t('upcomingGatherings')}
-              subtitle={t('gatheringFellowship')}
-              bodyClassName="p-4 sm:p-6"
-            >
-              {events.length === 0 || eventsLoading ? (
-                <div className="rounded-xl border border-dashed border-[#DDE0E4] bg-[#FAFAFB] p-6 text-center text-sm text-[#5C6370]">
-                  {t('noUpcomingGatherings')}
-                </div>
-              ) : (
-                <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-                  {events.slice(0, 3).map((ev, idx) => {
-                    const formattedDate = ev.startsAt
-                      ? dayjs
-                          .utc(ev.startsAt)
-                          .tz(data.timezone || 'UTC')
-                          .format('ddd, MMM D HH:mm')
-                      : ''
-                    const regUrl = ev.registrationUrl
-                    const buttonLabel = ev.ctaLabel?.trim() || t('joinService')
-                    return (
-                      <div
-                        key={ev.id || idx}
-                        className="flex flex-col justify-between rounded-2xl border border-[#DDE0E4] bg-[#FAFAFB] p-5 shadow-[0_1px_2px_rgba(0,0,0,0.02)] transition-shadow hover:shadow-sm"
-                      >
-                        <div>
-                          <h3 className="line-clamp-2 text-base font-semibold leading-snug text-[#0E203E] min-h-[44px]">
-                            {ev.title}
-                          </h3>
-                          <div className="mt-1 text-xs font-medium text-[#5C6370]">
-                            {[formattedDate, ev.location].filter(Boolean).join(' • ')}
+            {SHOW_EVENTS_AND_ANNOUNCEMENTS && (
+              <SectionCard
+                title={t('upcomingGatherings')}
+                subtitle={t('gatheringFellowship')}
+                bodyClassName="p-4 sm:p-6"
+              >
+                {events.length === 0 || eventsLoading ? (
+                  <div className="rounded-xl border border-dashed border-[#DDE0E4] bg-[#FAFAFB] p-6 text-center text-sm text-[#5C6370]">
+                    {t('noUpcomingGatherings')}
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+                    {events.slice(0, 3).map((ev, idx) => {
+                      const formattedDate = ev.startsAt
+                        ? dayjs
+                            .utc(ev.startsAt)
+                            .tz(data.timezone || 'UTC')
+                            .format('ddd, MMM D HH:mm')
+                        : ''
+                      const regUrl = ev.registrationUrl
+                      const buttonLabel = ev.ctaLabel?.trim() || t('joinService')
+                      return (
+                        <div
+                          key={ev.id || idx}
+                          className="flex flex-col justify-between rounded-2xl border border-[#DDE0E4] bg-[#FAFAFB] p-5 shadow-[0_1px_2px_rgba(0,0,0,0.02)] transition-shadow hover:shadow-sm"
+                        >
+                          <div>
+                            <h3 className="line-clamp-2 text-base font-semibold leading-snug text-[#0E203E] min-h-[44px]">
+                              {ev.title}
+                            </h3>
+                            <div className="mt-1 text-xs font-medium text-[#5C6370]">
+                              {[formattedDate, ev.location].filter(Boolean).join(' • ')}
+                            </div>
+                            <p className="mt-3 line-clamp-3 text-xs leading-relaxed text-[#5C6370] min-h-[44px]">
+                              {ev.description || t('noDescription')}
+                            </p>
                           </div>
-                          <p className="mt-3 line-clamp-3 text-xs leading-relaxed text-[#5C6370] min-h-[44px]">
-                            {ev.description || t('noDescription')}
-                          </p>
+                          {regUrl && (
+                            <div className="mt-5">
+                              <a
+                                href={regUrl}
+                                target="_blank"
+                                rel="noreferrer"
+                                aria-label={buttonLabel}
+                                className="block w-full rounded-xl border border-[#2F7AD2] bg-white py-2 text-center text-xs font-semibold text-[#2F7AD2] transition-colors hover:bg-[#E6EDFB]"
+                              >
+                                {buttonLabel}
+                              </a>
+                            </div>
+                          )}
                         </div>
-                        {regUrl && (
-                          <div className="mt-5">
-                            <a
-                              href={regUrl}
-                              target="_blank"
-                              rel="noreferrer"
-                              aria-label={buttonLabel}
-                              className="block w-full rounded-xl border border-[#2F7AD2] bg-white py-2 text-center text-xs font-semibold text-[#2F7AD2] transition-colors hover:bg-[#E6EDFB]"
-                            >
-                              {buttonLabel}
-                            </a>
-                          </div>
-                        )}
-                      </div>
-                    )
-                  })}
-                </div>
-              )}
-            </SectionCard>
+                      )
+                    })}
+                  </div>
+                )}
+              </SectionCard>
+            )}
 
             {/* Diaconal Ministry card */}
             <SectionCard
@@ -1029,42 +1033,47 @@ export default function ContentsSiteChurchProfile({ churchId }: { churchId: stri
             </section>
 
             {/* Parish Notice Board card */}
-            <section className="rounded-2xl border border-[#DDE0E4] bg-white p-5 shadow-[0_1px_2px_rgba(0,0,0,0.05)]">
-              <h2 className="mb-3 text-xl font-semibold text-[#0E203E]">
-                {t('parishNoticeBoard')}
-              </h2>
-              {announcements.length === 0 ? (
-                <div className="rounded-xl border border-dashed border-[#DDE0E4] bg-[#FAFAFB] p-4 text-center text-xs text-[#5C6370]">
-                  {t('noNoticeBoard')}
-                </div>
-              ) : (
-                <div className="space-y-2">
-                  {announcements.slice(0, 2).map((item, idx) => {
-                    // Category comes from a title prefix — `[Category] Title` or `Category: Title`
-                    // (website SPEC §5 / decision W8). The body is shown as-is.
-                    const titleMatch = item.title.match(/^\s*\[([^\]]{1,30})\]\s*(.*)$/)
-                    const colonMatch = titleMatch
-                      ? null
-                      : item.title.match(/^\s*([^:]{1,30}):\s+(.+)$/)
-                    const category = titleMatch?.[1] ?? colonMatch?.[1] ?? null
-                    const titleText = titleMatch?.[2] ?? colonMatch?.[2] ?? item.title
+            {SHOW_EVENTS_AND_ANNOUNCEMENTS && (
+              <section className="rounded-2xl border border-[#DDE0E4] bg-white p-5 shadow-[0_1px_2px_rgba(0,0,0,0.05)]">
+                <h2 className="mb-3 text-xl font-semibold text-[#0E203E]">
+                  {t('parishNoticeBoard')}
+                </h2>
+                {announcements.length === 0 ? (
+                  <div className="rounded-xl border border-dashed border-[#DDE0E4] bg-[#FAFAFB] p-4 text-center text-xs text-[#5C6370]">
+                    {t('noNoticeBoard')}
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {announcements.slice(0, 2).map((item, idx) => {
+                      // Category comes from a title prefix — `[Category] Title` or `Category: Title`
+                      // (website SPEC §5 / decision W8). The body is shown as-is.
+                      const titleMatch = item.title.match(/^\s*\[([^\]]{1,30})\]\s*(.*)$/)
+                      const colonMatch = titleMatch
+                        ? null
+                        : item.title.match(/^\s*([^:]{1,30}):\s+(.+)$/)
+                      const category = titleMatch?.[1] ?? colonMatch?.[1] ?? null
+                      const titleText = titleMatch?.[2] ?? colonMatch?.[2] ?? item.title
 
-                    return (
-                      <div key={item.id || idx} className="space-y-1 rounded-xl bg-[#FAFAFB] p-3.5">
-                        {category && <div className="text-xs text-[#005CAD]">{category}</div>}
-                        <h3 className="text-sm font-semibold text-[#191C1E]">{titleText}</h3>
-                        <p className="text-xs leading-relaxed text-[#5C6370]">{item.body}</p>
-                        {item.publishedAt && (
-                          <span className="block text-[11px] text-[#8C93A0]">
-                            {dayjs.utc(item.publishedAt).format('D MMM YYYY')}
-                          </span>
-                        )}
-                      </div>
-                    )
-                  })}
-                </div>
-              )}
-            </section>
+                      return (
+                        <div
+                          key={item.id || idx}
+                          className="space-y-1 rounded-xl bg-[#FAFAFB] p-3.5"
+                        >
+                          {category && <div className="text-xs text-[#005CAD]">{category}</div>}
+                          <h3 className="text-sm font-semibold text-[#191C1E]">{titleText}</h3>
+                          <p className="text-xs leading-relaxed text-[#5C6370]">{item.body}</p>
+                          {item.publishedAt && (
+                            <span className="block text-[11px] text-[#8C93A0]">
+                              {dayjs.utc(item.publishedAt).format('D MMM YYYY')}
+                            </span>
+                          )}
+                        </div>
+                      )
+                    })}
+                  </div>
+                )}
+              </section>
+            )}
           </div>
         </div>
       </div>

@@ -168,21 +168,22 @@ describe('ContentsSiteChurchProfile', () => {
     expect(screen.getByText('About the Parish')).toBeTruthy()
   })
 
-  it('shows unlisted empty states for sections lacking backing data', async () => {
+  it('shows unlisted empty states while event and announcement sections stay hidden', async () => {
     axiosMock.get.mockResolvedValueOnce({
       data: resolveGet(church),
     })
 
     renderProfile()
 
+    await screen.findByRole('heading', { level: 1, name: 'Grace' })
     expect(
-      await screen.findByText('No upcoming gatherings or events scheduled at this time.'),
-    ).toBeTruthy()
+      screen.queryByText('No upcoming gatherings or events scheduled at this time.'),
+    ).toBeNull()
     expect(
       screen.getByText('Diaconal community programs are not currently listed for this parish.'),
     ).toBeTruthy()
     expect(screen.getByText('Pastoral staff directory is not currently listed.')).toBeTruthy()
-    expect(screen.getByText('No active parish notices or announcements at this time.')).toBeTruthy()
+    expect(screen.queryByText('No active parish notices or announcements at this time.')).toBeNull()
   })
 
   it('renders real worship schedule rows with weekday, time, timezone, and language badge', async () => {
@@ -393,7 +394,7 @@ describe('ContentsSiteChurchProfile', () => {
     expect(screen.getAllByText('10:00–18:30 daily').length).toBeGreaterThan(0)
   })
 
-  it('renders upcoming gatherings events with title, formatted date, location, and join link', async () => {
+  it('keeps upcoming gatherings hidden when events are returned', async () => {
     const mockEvents = [
       {
         id: 'ev1',
@@ -428,16 +429,10 @@ describe('ContentsSiteChurchProfile', () => {
 
     renderProfile()
 
-    expect(await screen.findByText('Choral Evensong')).toBeTruthy()
-    expect(screen.getByText('Silent Meditation')).toBeTruthy()
-    expect(screen.getByText(/West Choir/)).toBeTruthy()
-    expect(screen.getByText(/Side Chapel/)).toBeTruthy()
-
-    const joinLink = screen.getByRole('link', { name: /join service/i })
-    expect(joinLink.getAttribute('href')).toBe('https://example.com/join-service')
-    expect(joinLink.getAttribute('target')).toBe('_blank')
-
-    expect(screen.getAllByRole('link', { name: /join service/i })).toHaveLength(1)
+    await screen.findByRole('heading', { level: 1, name: 'Grace' })
+    expect(screen.queryByText('Choral Evensong')).toBeNull()
+    expect(screen.queryByText('Silent Meditation')).toBeNull()
+    expect(screen.queryByRole('link', { name: /join service/i })).toBeNull()
   })
 
   it('renders sanctuary gallery tiles with captions from data.gallery', async () => {
@@ -597,7 +592,7 @@ describe('ContentsSiteChurchProfile', () => {
     expect(screen.queryByText('Tallinn Deanery')).toBeNull()
   })
 
-  it('renders notice board announcements with title, body, and date', async () => {
+  it('keeps the notice board hidden when announcements are returned', async () => {
     const mockAnnouncements = [
       {
         id: 'a1',
@@ -617,14 +612,15 @@ describe('ContentsSiteChurchProfile', () => {
 
     renderProfile()
 
-    expect(await screen.findByText('Organ Restoration Project')).toBeTruthy()
+    await screen.findByRole('heading', { level: 1, name: 'Grace' })
+    expect(screen.queryByText('Organ Restoration Project')).toBeNull()
     expect(
-      screen.getByText('The historic organ is undergoing restoration this autumn.'),
-    ).toBeTruthy()
-    expect(screen.getByText('10 Oct 2026')).toBeTruthy()
+      screen.queryByText('The historic organ is undergoing restoration this autumn.'),
+    ).toBeNull()
+    expect(screen.queryByText('10 Oct 2026')).toBeNull()
   })
 
-  it('renders noNoticeBoard when announcements list is empty', async () => {
+  it('does not render the notice-board empty state', async () => {
     axiosMock.get.mockImplementation(async (url: string) => {
       if (url.includes('/events')) return { data: resolveGet([], 0) }
       if (url.includes('/announcements')) return { data: resolveGet([], 0) }
@@ -634,9 +630,8 @@ describe('ContentsSiteChurchProfile', () => {
 
     renderProfile()
 
-    expect(
-      await screen.findByText('No active parish notices or announcements at this time.'),
-    ).toBeTruthy()
+    await screen.findByRole('heading', { level: 1, name: 'Grace' })
+    expect(screen.queryByText('No active parish notices or announcements at this time.')).toBeNull()
   })
 
   it('renders Primary Parish chip when home.mainChurch.id matches churchId', async () => {

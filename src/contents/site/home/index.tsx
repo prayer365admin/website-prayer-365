@@ -11,6 +11,9 @@ import ScriptureOfDay from './scripture'
 import HomeShortcuts from './shortcuts'
 import { BrandQuote, Stewardship } from './stewardship'
 
+// Temporarily hide website event and announcement UI without removing its implementation.
+const SHOW_EVENTS_AND_ANNOUNCEMENTS = false
+
 export default function ContentsSiteHome({
   home,
   gift = null,
@@ -35,7 +38,9 @@ export default function ContentsSiteHome({
       <div className="mt-6 grid gap-6 lg:mt-8 lg:grid-cols-[minmax(0,757.33fr)_minmax(0,362.67fr)] lg:gap-8">
         <div className="flex min-w-0 flex-col gap-6">
           <PrimaryParish church={home.mainChurch} />
-          <UpcomingGatherings events={home.latestEvents} timeZone={home.mainChurch?.timezone} />
+          {SHOW_EVENTS_AND_ANNOUNCEMENTS && (
+            <UpcomingGatherings events={home.latestEvents} timeZone={home.mainChurch?.timezone} />
+          )}
           <ScriptureOfDay />
         </div>
         <div className="flex min-w-0 flex-col gap-6">

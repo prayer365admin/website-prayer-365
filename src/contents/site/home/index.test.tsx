@@ -2,7 +2,7 @@ import { SiteI18nProvider } from '@/i18n/site-i18n'
 import { MobileHome } from '@/models/mobile'
 import { axiosMock, renderWithProviders } from '@/test/frontend/render'
 import { fireEvent, screen, waitFor } from '@testing-library/react'
-import { describe, expect, it, vi } from 'vitest'
+import { describe, expect, it } from 'vitest'
 import ContentsSiteHome from '.'
 import { eventIcs } from './gatherings'
 
@@ -197,7 +197,7 @@ describe('WB3 Home devotional hero', () => {
     expect(new URL(href).searchParams.get('destination')).toBe('Vabaduse väljak 1, EE')
   })
 
-  it('renders the main parish, its services, events, and the active gift', () => {
+  it('renders the main parish, its services, and the active gift without events', () => {
     renderHome(
       { ...home(), mainChurch, latestEvents: [event] },
       {
@@ -215,11 +215,9 @@ describe('WB3 Home devotional hero', () => {
     expect(screen.getByRole('link', { name: /Directions/ }).getAttribute('href')).toContain(
       'destination=59.4%2C24.7',
     )
-    expect(screen.getByRole('heading', { name: event.title })).toBeTruthy()
-    expect(screen.getByRole('link', { name: 'RSVP' }).getAttribute('href')).toBe(
-      event.registrationUrl,
-    )
-    expect(screen.getByRole('button', { name: 'Save Date' })).toBeTruthy()
+    expect(screen.queryByRole('heading', { name: event.title })).toBeNull()
+    expect(screen.queryByRole('link', { name: 'RSVP' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Save Date' })).toBeNull()
     expect(screen.getByText('€10')).toBeTruthy()
     expect(screen.getByText('Beneficiary: Hope Church')).toBeTruthy()
     expect(screen.getByText('Next: November 15, 2026')).toBeTruthy()
@@ -231,22 +229,11 @@ describe('WB3 Home devotional hero', () => {
     )
   })
 
-  it('downloads the event .ics only on click (nothing time-dependent in the SSR markup)', async () => {
-    const created: Blob[] = []
-    URL.createObjectURL = vi.fn((blob: Blob) => {
-      created.push(blob)
-      return 'blob:event'
-    })
-    URL.revokeObjectURL = vi.fn()
-    const click = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {})
+  it('keeps event actions hidden when the home response contains events', () => {
     renderHome({ ...home(), mainChurch, latestEvents: [event] })
 
-    fireEvent.click(screen.getByRole('button', { name: 'Save Date' }))
-
-    expect(click).toHaveBeenCalledTimes(1)
-    expect(await created[0].text()).toContain('SUMMARY:Trinity Sunday Festival Worship')
-    expect(URL.revokeObjectURL).toHaveBeenCalledWith('blob:event')
-    click.mockRestore()
+    expect(screen.queryByRole('heading', { name: event.title })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Save Date' })).toBeNull()
   })
 
   it('escapes calendar text and assumes a one-hour slot', () => {
