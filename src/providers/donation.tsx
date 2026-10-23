@@ -11,6 +11,7 @@ import {
   DonationSummary,
   DonationSummaryRow,
   MyActiveGift,
+  MyLatestDonation,
 } from '@/models/donation'
 
 /*
@@ -349,6 +350,35 @@ export const GET_MY_PAID_DONATIONS = async ({
     paidAt: row.paid_at,
     churchId: row.church_id,
   }))
+}
+
+/**
+ * The user's newest paid donation across all churches.
+ * Subject-only: filtered by the caller's own user_id.
+ */
+export const GET_MY_LATEST_DONATION = async ({
+  userId,
+}: {
+  userId: string
+}): Promise<MyLatestDonation | null> => {
+  const row = await db.donation.findFirst({
+    where: { user_id: userId, status: 'PAID' },
+    orderBy: [{ paid_at: 'desc' }, { created_at: 'desc' }, { id: 'desc' }],
+    include: {
+      church: { select: { id: true, name: true, slug: true } },
+    },
+  })
+  if (!row) return null
+  return {
+    id: row.id,
+    amountMinor: Number(row.amount_minor),
+    currency: row.currency.toUpperCase(),
+    paidAt: row.paid_at,
+    isMonthly: Boolean(row.subscription_id),
+    churchId: row.church.id,
+    churchName: row.church.name,
+    churchSlug: row.church.slug ?? row.church.id,
+  }
 }
 
 /**

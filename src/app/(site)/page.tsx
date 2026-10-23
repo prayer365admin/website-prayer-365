@@ -31,6 +31,7 @@ export default async function Page() {
   return (
     <ContentsSiteHome
       gift={giving.activeGift}
+      latestTransaction={giving.latestTransaction}
       nextGiftAt={giving.nextGiftAt}
       habits={habits}
       home={{ ...home, latestPrayers }}

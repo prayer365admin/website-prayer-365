@@ -12,6 +12,7 @@ import {
   GET_CHURCH_LABEL,
   GET_MY_PAID_DONATIONS,
   GET_MY_DONATION_ATTEMPT,
+  GET_MY_LATEST_DONATION,
   GET_CHECKOUT_RECEIPT,
   CANCEL_OTHER_CHURCH_SUBSCRIPTIONS,
 } from '@/providers/donation'
@@ -348,8 +349,9 @@ export const getMyDonationOverview = async ({
   userId: string
 }): Promise<MyDonationOverview> => {
   const year = new Date().getUTCFullYear()
-  const [activeGift, rows] = await Promise.all([
+  const [activeGift, latestTransaction, rows] = await Promise.all([
     GET_MY_ACTIVE_GIFT({ userId }),
+    GET_MY_LATEST_DONATION({ userId }),
     GET_MY_PAID_DONATIONS({
       userId,
       from: new Date(Date.UTC(year, 0, 1)),
@@ -384,6 +386,7 @@ export const getMyDonationOverview = async ({
   return {
     year,
     activeGift,
+    latestTransaction,
     contributions,
     lastPaidAt,
     nextGiftAt: lastPaidAt ? nextMonthlyCharge(lastPaidAt) : null,

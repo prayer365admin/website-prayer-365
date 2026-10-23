@@ -273,9 +273,22 @@ export type MyDonationContribution = {
 }
 
 /** Website donate screen's right column: the giver's own stewardship, never shared. */
+export type MyLatestDonation = {
+  id: string
+  amountMinor: number
+  currency: string
+  paidAt: Date | null
+  isMonthly: boolean
+  churchId: string
+  churchName: string
+  churchSlug: string
+}
+
 export type MyDonationOverview = {
   year: number
   activeGift: MyActiveGift | null
+  /** Latest completed transaction across all churches, or null. */
+  latestTransaction?: MyLatestDonation | null
   contributions: MyDonationContribution[]
   /** Latest paid gift for the active gift's church, or null. */
   lastPaidAt: Date | null

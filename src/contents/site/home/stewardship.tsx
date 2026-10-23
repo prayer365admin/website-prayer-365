@@ -3,19 +3,21 @@
 import { QuoteIcon } from '@/components/icon/quote'
 import MaskIcon from '@/components/site/mask-icon'
 import { useSiteI18n } from '@/i18n/site-i18n'
-import { MyActiveGift } from '@/models/donation'
+import { MyActiveGift, MyLatestDonation } from '@/models/donation'
 import { ExportOutlined } from '@ant-design/icons'
 import Link from 'next/link'
 import { homeCardThinShadowClassName } from './data'
 
 /** Home section 3, right 3 (`home-3-right-3.png`): the customer's own active monthly gift. */
 export function Stewardship({
-  gift,
+  gift = null,
+  latestTransaction = null,
   nextGiftAt = null,
   churchId,
   churchSlug,
 }: {
-  gift: MyActiveGift | null
+  gift?: MyActiveGift | null
+  latestTransaction?: MyLatestDonation | null
   /** Estimated next monthly charge, from the donation overview. */
   nextGiftAt?: Date | null
   /** Main parish: where giving goes when there is no active gift yet. */
@@ -23,11 +25,29 @@ export function Stewardship({
   churchSlug?: string | null
 }) {
   const { locale, t } = useSiteI18n()
-  const targetSlug = churchSlug ?? gift?.churchId ?? churchId
-  // No gift and no main parish: there is no church to give to yet, so send them to find one.
+  const display = latestTransaction
+    ? {
+        amountMinor: latestTransaction.amountMinor,
+        currency: latestTransaction.currency,
+        churchName: latestTransaction.churchName,
+        churchSlug: latestTransaction.churchSlug,
+        isMonthly: latestTransaction.isMonthly,
+        date: latestTransaction.paidAt,
+      }
+    : gift
+      ? {
+          amountMinor: gift.amountMinor,
+          currency: gift.currency,
+          churchName: gift.churchName,
+          churchSlug: churchSlug ?? gift.churchId,
+          isMonthly: true,
+          date: null,
+        }
+      : null
+
+  const targetSlug = display?.churchSlug ?? churchSlug ?? churchId
   const donateHref = targetSlug ? `/donate?church=${targetSlug}` : '/churches'
   const oneTimeHref = targetSlug ? `/donate?church=${targetSlug}&frequency=one_time` : '/churches'
-
   return (
     <section aria-labelledby="home-stewardship-title" className={homeCardThinShadowClassName}>
       <div className="flex items-center gap-3 border-b border-neutral-200 p-4">
@@ -40,29 +60,26 @@ export function Stewardship({
         >
           {t('homeStewardshipTitle')}
         </h2>
-        {gift && (
-          <span className="rounded-full bg-primary-300/40 px-2.5 py-0.5 text-xs text-blue-800">
-            {t('homeStewardshipActive')}
-          </span>
-        )}
       </div>
 
       <div className="p-4">
         <div className="rounded-xl bg-neutral-50 p-3">
-          {gift ? (
+          {display ? (
             <>
               <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
                 <p className="flex items-baseline gap-1.5">
                   <span className="text-2xl font-semibold text-blue-800">
                     {new Intl.NumberFormat(locale, {
                       style: 'currency',
-                      currency: gift.currency,
-                      minimumFractionDigits: gift.amountMinor % 100 ? 2 : 0,
-                    }).format(gift.amountMinor / 100)}
+                      currency: display.currency,
+                      minimumFractionDigits: display.amountMinor % 100 ? 2 : 0,
+                    }).format(display.amountMinor / 100)}
                   </span>
-                  <span className="text-xs text-neutral-500">{t('homeStewardshipPerMonth')}</span>
+                  {display.isMonthly && (
+                    <span className="text-xs text-neutral-500">{t('homeStewardshipPerMonth')}</span>
+                  )}
                 </p>
-                {nextGiftAt && (
+                {display.isMonthly && nextGiftAt ? (
                   <p className="text-xs text-neutral-500">
                     {t('homeStewardshipNext', {
                       date: new Intl.DateTimeFormat(locale, {
@@ -73,10 +90,19 @@ export function Stewardship({
                       }).format(nextGiftAt),
                     })}
                   </p>
-                )}
+                ) : display.date ? (
+                  <p className="text-xs text-neutral-500">
+                    {new Intl.DateTimeFormat(locale, {
+                      month: 'long',
+                      day: 'numeric',
+                      year: 'numeric',
+                      timeZone: 'UTC',
+                    }).format(new Date(display.date))}
+                  </p>
+                ) : null}
               </div>
               <p className="mt-1 text-xs leading-5 text-neutral-600">
-                {t('homeStewardshipBeneficiary', { church: gift.churchName })}
+                {t('homeStewardshipBeneficiary', { church: display.churchName })}
               </p>
             </>
           ) : (

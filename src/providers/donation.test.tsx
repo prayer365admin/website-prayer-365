@@ -18,6 +18,7 @@ vi.mock('@/utils/db-connection', () => ({
       count: vi.fn(),
       findMany: vi.fn(),
       groupBy: vi.fn(),
+      findFirst: vi.fn(),
     },
     donationSubscription: {
       findUnique: vi.fn(),
@@ -37,6 +38,7 @@ import {
   GET_DONATION_SUMMARY,
   GET_MY_ACTIVE_GIFT,
   CANCEL_OTHER_CHURCH_SUBSCRIPTIONS,
+  GET_MY_LATEST_DONATION,
 } from './donation'
 
 const scope = new Set(['c1'])
@@ -368,5 +370,41 @@ describe('CANCEL_OTHER_CHURCH_SUBSCRIPTIONS', () => {
     })
     expect(stripeMock.cancelSubscription).toHaveBeenCalledWith('sub_prior')
     expect(canceled).toEqual(['sub_prior'])
+  })
+})
+
+describe('GET_MY_LATEST_DONATION', () => {
+  it('returns the latest paid donation across all churches', async () => {
+    vi.mocked(db.donation.findFirst).mockResolvedValue({
+      id: 'd1',
+      amount_minor: BigInt(5000),
+      currency: 'eur',
+      paid_at: new Date('2026-10-23T07:50:00.000Z'),
+      subscription_id: 'sub_1',
+      church: { id: 'c1', name: 'St. John', slug: 'st-john' },
+    } as never)
+
+    const res = await GET_MY_LATEST_DONATION({ userId: 'u1' })
+
+    expect(db.donation.findFirst).toHaveBeenCalledWith({
+      where: { user_id: 'u1', status: 'PAID' },
+      orderBy: [{ paid_at: 'desc' }, { created_at: 'desc' }, { id: 'desc' }],
+      include: { church: { select: { id: true, name: true, slug: true } } },
+    })
+    expect(res).toEqual({
+      id: 'd1',
+      amountMinor: 5000,
+      currency: 'EUR',
+      paidAt: new Date('2026-10-23T07:50:00.000Z'),
+      isMonthly: true,
+      churchId: 'c1',
+      churchName: 'St. John',
+      churchSlug: 'st-john',
+    })
+  })
+
+  it('returns null when user has no paid donations', async () => {
+    vi.mocked(db.donation.findFirst).mockResolvedValue(null)
+    expect(await GET_MY_LATEST_DONATION({ userId: 'u1' })).toBeNull()
   })
 })
