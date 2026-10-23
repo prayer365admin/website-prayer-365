@@ -23,6 +23,9 @@ import s from './top-bar.module.scss'
 
 export type SiteHeaderVariant = 'auth' | 'general'
 
+// Hidden until the notifications page exists; flip to show the bell again.
+const SHOW_NOTIFICATIONS = false
+
 /** True when the path is the link target or a page below it. */
 const isActivePath = (pathname: string, href: string) =>
   pathname === href || pathname.startsWith(`${href}/`)
@@ -193,7 +196,7 @@ export default function SiteTopBar({
             </Link>
           )}
           <div className={s.desktopLocale}>{localeControl}</div>
-          {variant === 'general' && (
+          {SHOW_NOTIFICATIONS && variant === 'general' && (
             <Link
               aria-label={t('headerNotifications')}
               className={`${s.iconButton} ${s.notificationButton}`}

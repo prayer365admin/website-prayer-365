@@ -69,6 +69,7 @@ describe('ContentsSiteDonate (W11)', () => {
     expect(screen.getByText('Quiet & Private')).toBeTruthy()
     expect(screen.getByText('Tax-Exempt')).toBeTruthy()
     expect(screen.getByText('100%')).toBeTruthy()
+    expect(screen.queryByText('Annual Report & Statements')).toBeNull()
   })
 
   it('shows the route church as the fixed beneficiary and marks the registered parish', () => {
