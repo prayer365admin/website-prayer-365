@@ -39,6 +39,7 @@ beforeEach(() => {
   db.prayer.findMany.mockResolvedValue([
     {
       id: 'p1',
+      slug: 'peace-in-uncertainty',
       church_id: 'c1',
       church: { name: 'Hope Church' },
       published_at: new Date('2026-10-15T08:00:00Z'),
@@ -46,6 +47,7 @@ beforeEach(() => {
     },
     {
       id: 'p3',
+      slug: 'evening-peace',
       church_id: 'c1',
       church: { name: 'Hope Church' },
       published_at: new Date('2026-10-13T08:00:00Z'),
@@ -249,6 +251,7 @@ describe('GET_SITE_PRAYER_DETAIL', () => {
   it('returns only a published prayer of an approved church, with church and siblings', async () => {
     db.prayer.findFirst.mockResolvedValue({
       id: 'p1',
+      slug: 'peace-in-uncertainty',
       church_id: 'c1',
       church: { name: 'Hope Church' },
       published_at: new Date('2026-10-15T08:00:00Z'),
@@ -263,10 +266,10 @@ describe('GET_SITE_PRAYER_DETAIL', () => {
     })
     db.prayer.findMany.mockResolvedValue([])
 
-    const detail = await GET_SITE_PRAYER_DETAIL({ prayerId: 'p1' })
+    const detail = await GET_SITE_PRAYER_DETAIL({ prayerSlug: 'peace-in-uncertainty' })
 
     expect(db.prayer.findFirst.mock.calls[0][0].where).toEqual({
-      id: 'p1',
+      OR: [{ slug: 'peace-in-uncertainty' }, { id: 'peace-in-uncertainty' }],
       church: { status: 'APPROVED' },
       published_version_id: { not: null },
       published_at: { not: null },
@@ -289,6 +292,7 @@ describe('GET_SITE_PRAYER_DETAIL', () => {
   it('omits invalid contact and unavailable cover data', async () => {
     db.prayer.findFirst.mockResolvedValue({
       id: 'p1',
+      slug: 'peace-in-uncertainty',
       church_id: 'c1',
       church: { name: 'Hope Church' },
       published_at: new Date('2026-10-15T08:00:00Z'),
@@ -303,7 +307,7 @@ describe('GET_SITE_PRAYER_DETAIL', () => {
     })
     db.prayer.findMany.mockResolvedValue([])
 
-    const detail = await GET_SITE_PRAYER_DETAIL({ prayerId: 'p1' })
+    const detail = await GET_SITE_PRAYER_DETAIL({ prayerSlug: 'peace-in-uncertainty' })
 
     expect(detail?.church).toEqual({
       id: 'c1',
@@ -316,7 +320,7 @@ describe('GET_SITE_PRAYER_DETAIL', () => {
 
   it('returns null for a missing, draft, or unapproved-church prayer', async () => {
     db.prayer.findFirst.mockResolvedValue(null)
-    expect(await GET_SITE_PRAYER_DETAIL({ prayerId: 'nope' })).toBeNull()
+    expect(await GET_SITE_PRAYER_DETAIL({ prayerSlug: 'nope' })).toBeNull()
   })
 })
 

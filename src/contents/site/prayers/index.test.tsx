@@ -12,6 +12,7 @@ vi.mock('@/components/site/prayer/devotional-audio-player', () => ({
 
 const prayer = (id: string, audio: boolean, title = 'Morning gratitude') => ({
   id,
+  slug: `${id}-slug`,
   churchId: 'church-1',
   churchName: 'Hope Church',
   publishedAt: '2026-10-15T06:00:00.000Z',
@@ -86,6 +87,11 @@ describe('PrayerArchive', () => {
     expect(screen.getByRole('link', { name: 'Giving & Stewardship' }).getAttribute('href')).toBe(
       '/giving',
     )
+    expect(
+      screen
+        .getAllByRole('link', { name: 'View Prayer & Details' })
+        .some((link) => link.getAttribute('href') === '/prayers/grid-1-slug'),
+    ).toBe(true)
     expect(screen.queryByText(/Year [ABC]/)).toBeNull()
     expect(screen.queryByText('Consecutive Days in Prayer')).toBeNull()
     expect(screen.queryByText(/Believers Praying Today/)).toBeNull()

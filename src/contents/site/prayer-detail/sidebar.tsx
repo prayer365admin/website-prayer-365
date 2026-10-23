@@ -71,7 +71,7 @@ export function PrayerDetailSidebar({ detail }: { detail: SitePrayerDetail }) {
             {related.map((relatedPrayer) => (
               <Link
                 className="group flex min-w-0 items-center gap-3 rounded-xl bg-neutral-100 p-3 transition hover:bg-primary-100"
-                href={`/prayers/${relatedPrayer.id}`}
+                href={`/prayers/${relatedPrayer.slug}`}
                 key={relatedPrayer.id}
               >
                 <span className="min-w-0 flex-1">

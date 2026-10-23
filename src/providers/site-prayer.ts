@@ -13,6 +13,7 @@ const APPROVED = 'APPROVED'
 
 type PublishedRow = {
   id: string
+  slug: string
   church_id: string
   church: { name: string }
   published_at: Date | null
@@ -27,6 +28,7 @@ const readingMinutes = (text: string) =>
 
 const publishedSelect = {
   id: true,
+  slug: true,
   church_id: true,
   church: { select: { name: true } },
   published_at: true,
@@ -81,6 +83,7 @@ const toItems = async (prayers: PublishedRow[]): Promise<SitePrayerArchiveItem[]
     return [
       {
         id: prayer.id,
+        slug: prayer.slug,
         churchId: prayer.church_id,
         churchName: prayer.church.name,
         publishedAt: prayer.published_at.toISOString(),
@@ -248,12 +251,12 @@ export const GET_SITE_PRAYER_ARCHIVE = async ({
 
 /** One published prayer for the reader (W10) with its church and up to three newer/older siblings. */
 export const GET_SITE_PRAYER_DETAIL = async ({
-  prayerId,
+  prayerSlug,
 }: {
-  prayerId: string
+  prayerSlug: string
 }): Promise<SitePrayerDetail | null> => {
   const row = (await db.prayer.findFirst({
-    where: { id: prayerId, ...publishedWhere },
+    where: { OR: [{ slug: prayerSlug }, { id: prayerSlug }], ...publishedWhere },
     select: publishedSelect,
   })) as PublishedRow | null
   if (!row) return null

@@ -16,7 +16,9 @@ describe('DevotionalAudioPlayer (WB-34/35)', () => {
   })
 
   it('plays the public URL directly: no credentials mode, no auth header path', () => {
-    const { container } = render(<DevotionalAudioPlayer prayerId="p1" src={src} userId="u1" />)
+    const { container } = render(
+      <DevotionalAudioPlayer prayerId="p1" prayerSlug="morning-prayer" src={src} userId="u1" />,
+    )
     const audio = container.querySelector('audio')!
 
     expect(audio.getAttribute('src')).toBe(src)
@@ -28,12 +30,22 @@ describe('DevotionalAudioPlayer (WB-34/35)', () => {
   })
 
   it('hides the transcript link on the detail page', () => {
-    render(<DevotionalAudioPlayer prayerId="p1" showTranscript={false} src={src} userId="u1" />)
+    render(
+      <DevotionalAudioPlayer
+        prayerId="p1"
+        prayerSlug="morning-prayer"
+        showTranscript={false}
+        src={src}
+        userId="u1"
+      />,
+    )
     expect(screen.queryByRole('link', { name: /Read transcript/ })).toBeNull()
   })
 
   it('reports one prayer_listen on the first successful play, not on later plays', async () => {
-    const { container } = render(<DevotionalAudioPlayer prayerId="p1" src={src} userId="u1" />)
+    const { container } = render(
+      <DevotionalAudioPlayer prayerId="p1" prayerSlug="morning-prayer" src={src} userId="u1" />,
+    )
     const audio = container.querySelector('audio')!
     audio.play = vi.fn(async () => {})
     const button = () => screen.getByRole('button', { name: /^(Play|Pause) prayer audio$/ })
@@ -53,7 +65,9 @@ describe('DevotionalAudioPlayer (WB-34/35)', () => {
   })
 
   it('reports one prayer_listen_minute per full minute played, at real speed, ignoring seeks', async () => {
-    const { container } = render(<DevotionalAudioPlayer prayerId="p1" src={src} userId="u1" />)
+    const { container } = render(
+      <DevotionalAudioPlayer prayerId="p1" prayerSlug="morning-prayer" src={src} userId="u1" />,
+    )
     const audio = container.querySelector('audio')!
     Object.defineProperty(audio, 'paused', { configurable: true, value: false })
     const at = (time: number, rate = 1) => {
@@ -91,7 +105,9 @@ describe('DevotionalAudioPlayer (WB-34/35)', () => {
   })
 
   it('counts continuous playback when media updates are delayed in a background tab', async () => {
-    const { container } = render(<DevotionalAudioPlayer prayerId="p1" src={src} userId="u1" />)
+    const { container } = render(
+      <DevotionalAudioPlayer prayerId="p1" prayerSlug="morning-prayer" src={src} userId="u1" />,
+    )
     const audio = container.querySelector('audio')!
     Object.defineProperty(audio, 'paused', { configurable: true, value: false })
     Object.defineProperty(audio, 'currentTime', { configurable: true, value: 30 })
@@ -111,7 +127,9 @@ describe('DevotionalAudioPlayer (WB-34/35)', () => {
   })
 
   it('combines sub-minute listening across different prayers for the same user', async () => {
-    const first = render(<DevotionalAudioPlayer prayerId="p1" src={src} userId="u1" />)
+    const first = render(
+      <DevotionalAudioPlayer prayerId="p1" prayerSlug="morning-prayer" src={src} userId="u1" />,
+    )
     const firstAudio = first.container.querySelector('audio')!
     Object.defineProperty(firstAudio, 'paused', { configurable: true, value: false })
     for (let time = 0.5; time <= 35; time += 0.5) {
@@ -120,7 +138,9 @@ describe('DevotionalAudioPlayer (WB-34/35)', () => {
     }
     first.unmount()
 
-    const second = render(<DevotionalAudioPlayer prayerId="p2" src={src} userId="u1" />)
+    const second = render(
+      <DevotionalAudioPlayer prayerId="p2" prayerSlug="evening-prayer" src={src} userId="u1" />,
+    )
     const secondAudio = second.container.querySelector('audio')!
     Object.defineProperty(secondAudio, 'paused', { configurable: true, value: false })
     for (let time = 0.5; time <= 25; time += 0.5) {
@@ -140,7 +160,9 @@ describe('DevotionalAudioPlayer (WB-34/35)', () => {
   })
 
   it('disables the controls when the audio file fails to load', () => {
-    const { container } = render(<DevotionalAudioPlayer prayerId="p1" src={src} userId="u1" />)
+    const { container } = render(
+      <DevotionalAudioPlayer prayerId="p1" prayerSlug="morning-prayer" src={src} userId="u1" />,
+    )
 
     fireEvent.error(container.querySelector('audio') as HTMLAudioElement)
 
@@ -151,7 +173,7 @@ describe('DevotionalAudioPlayer (WB-34/35)', () => {
       true,
     )
     expect(screen.getByRole('link', { name: /Read transcript/i }).getAttribute('href')).toBe(
-      '/prayers/p1',
+      '/prayers/morning-prayer',
     )
   })
 })

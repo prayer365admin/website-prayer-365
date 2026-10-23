@@ -13,6 +13,7 @@ vi.mock('@/components/site/prayer/devotional-audio-player', () => ({
 
 const item = (id: string, title: string, audio: boolean) => ({
   id,
+  slug: `${id}-slug`,
   churchId: 'church-1',
   churchName: 'Hope Church',
   publishedAt: '2026-10-15T06:00:00.000Z',
@@ -74,7 +75,7 @@ describe('PrayerDetail', () => {
     expect(screen.queryByRole('heading', { name: 'Liturgical Context' })).toBeNull()
     expect(screen.getByRole('heading', { name: 'Related Prayers by Churches' })).toBeTruthy()
     expect(screen.getByRole('link', { name: /Resting in the Shadow/ }).getAttribute('href')).toBe(
-      '/prayers/prayer-2',
+      '/prayers/prayer-2-slug',
     )
     expect(screen.getByRole('link', { name: '+372 123 4567' }).getAttribute('href')).toBe(
       'tel:+3721234567',

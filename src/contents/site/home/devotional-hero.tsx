@@ -106,6 +106,7 @@ export default function DevotionalHero({
 
             <DevotionalAudioPlayer
               prayerId={prayer.id}
+              prayerSlug={prayer.slug}
               src={prayer.audio?.assetUrl ?? null}
               userId={userId}
             />
@@ -129,6 +130,7 @@ export default function DevotionalHero({
           prayer
             ? {
                 id: prayer.id,
+                slug: prayer.slug,
                 title: prayer.version.title,
                 body: prayer.version.body,
                 languageCode: prayer.version.languageCode,

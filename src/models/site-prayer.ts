@@ -14,6 +14,7 @@ export type SitePrayerArchiveQuery = z.infer<typeof SitePrayerArchiveQuerySchema
 
 export type SitePrayerArchiveItem = {
   id: string
+  slug: string
   churchId: string
   churchName: string
   publishedAt: string

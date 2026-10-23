@@ -141,6 +141,7 @@ const seedPrayer = ({
   })
   store.prayer.push({
     id,
+    slug: `${id}-slug`,
     church_id: churchId,
     church: owner,
     current_version_id: `v-${id}`,
@@ -221,11 +222,11 @@ describe('WB-35 — unpublished prayers never reach the website', () => {
   })
 
   it.each(HIDDEN)('prayer detail for %s is not found', async (id) => {
-    expect(await GET_SITE_PRAYER_DETAIL({ prayerId: id })).toBeNull()
+    expect(await GET_SITE_PRAYER_DETAIL({ prayerSlug: id })).toBeNull()
   })
 
   it('prayer detail siblings never include hidden prayers', async () => {
-    const detail = await GET_SITE_PRAYER_DETAIL({ prayerId: 'playable' })
+    const detail = await GET_SITE_PRAYER_DETAIL({ prayerSlug: 'playable' })
 
     expect(detail?.related.map((prayer) => prayer.id)).toEqual(['unapproved-audio'])
   })
@@ -267,7 +268,7 @@ describe('WB-35 — only approved audio with a file becomes playable', () => {
   })
 
   it('the playback URL is a plain public URL: no signature or credentials to attach', async () => {
-    const detail = await GET_SITE_PRAYER_DETAIL({ prayerId: 'playable' })
+    const detail = await GET_SITE_PRAYER_DETAIL({ prayerSlug: 'playable' })
     const url = new URL(detail!.prayer.audio!.url)
 
     expect(url.origin + url.pathname).toBe(`${CDN}/a/playable.mp3`)

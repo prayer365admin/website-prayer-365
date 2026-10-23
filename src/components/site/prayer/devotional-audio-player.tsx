@@ -91,11 +91,14 @@ const squareButton = `flex size-8 items-center justify-center rounded-lg border 
 
 export default function DevotionalAudioPlayer({
   prayerId,
+  prayerSlug,
   src,
   userId,
   showTranscript = true,
 }: {
   prayerId: string
+  /** Stable public identifier used by the website transcript route. */
+  prayerSlug: string
   /** null = the prayer has no approved audio: every control is disabled except Read transcript (same when the file fails to load). */
   src: string | null
   /** Keeps unfinished listened seconds isolated to the authenticated member. */
@@ -402,7 +405,7 @@ export default function DevotionalAudioPlayer({
           {showTranscript && (
             <Link
               className="ml-auto inline-flex h-8 items-center gap-2 rounded-full border border-neutral-200 bg-white px-3 text-xs sm:ml-0 font-semibold text-blue-800 transition hover:border-primary-300"
-              href={`/prayers/${prayerId}`}
+              href={`/prayers/${prayerSlug}`}
             >
               {icon('/icons/Icon-align-left.svg', 16)}
               Read transcript

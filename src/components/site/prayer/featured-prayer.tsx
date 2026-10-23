@@ -93,7 +93,7 @@ export const FeaturedPrayer = ({
               <Link
                 aria-label={t('prayerArchiveView')}
                 className="flex size-8 shrink-0 items-center justify-center rounded-lg border border-neutral-200 bg-white"
-                href={`/prayers/${prayer.id}`}
+                href={`/prayers/${prayer.slug}`}
               >
                 <MaskIcon className="bg-blue-800" size={16} src="/icons/icon-bookmark.svg" />
               </Link>
@@ -105,6 +105,7 @@ export const FeaturedPrayer = ({
           {prayer.audio && (
             <DevotionalAudioPlayer
               prayerId={prayer.id}
+              prayerSlug={prayer.slug}
               showTranscript={!detail}
               src={prayer.audio.url}
               userId={userId}
@@ -116,6 +117,7 @@ export const FeaturedPrayer = ({
         showLoveAction={!detail}
         prayer={{
           id: prayer.id,
+          slug: prayer.slug,
           title: prayer.title,
           body: prayer.body,
           languageCode: prayer.languageCode,

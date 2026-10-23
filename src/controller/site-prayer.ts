@@ -23,10 +23,10 @@ export const getSitePrayerArchive = ({
 
 /** Published prayer of any approved church, or null (page renders 404). */
 export const getSitePrayerDetail = ({
-  prayerId,
+  prayerSlug,
 }: {
-  prayerId: string
-}): Promise<SitePrayerDetail | null> => GET_SITE_PRAYER_DETAIL({ prayerId })
+  prayerSlug: string
+}): Promise<SitePrayerDetail | null> => GET_SITE_PRAYER_DETAIL({ prayerSlug })
 
 /** Total the /prayers archive lists before filters; drives the home "Sessions Ready" label. */
 export const countSitePrayers = ({ userId }: { userId: string }): Promise<number> =>

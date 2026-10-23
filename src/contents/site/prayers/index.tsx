@@ -83,7 +83,7 @@ const PrayerCard = ({ prayer }: { prayer: SitePrayerArchiveItem }) => {
         </div>
         <Link
           className="mt-4 flex h-10 items-center justify-center gap-3 rounded-lg bg-primary-150 text-sm font-medium text-blue-800 transition hover:bg-primary-300/40"
-          href={`/prayers/${prayer.id}`}
+          href={`/prayers/${prayer.slug}`}
         >
           {t('prayerArchiveView')}
           <MaskIcon className="bg-blue-800" size={18} src="/icons/Icon-arrow-right.svg" />

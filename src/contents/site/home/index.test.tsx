@@ -15,6 +15,7 @@ const home = (audioUrl: string | null = null): MobileHome => ({
   latestPrayers: [
     {
       id: 'prayer-1',
+      slug: 'peace-in-uncertain-times',
       churchId: 'church-1',
       churchName: 'Hope Church',
       publishedAt: '2026-10-15T06:00:00.000Z',
@@ -128,7 +129,7 @@ describe('WB3 Home devotional hero', () => {
     }
     expect(screen.getByLabelText('Prayer audio position').matches(':disabled')).toBe(true)
     expect(screen.getByRole('link', { name: /Read transcript/i }).getAttribute('href')).toBe(
-      '/prayers/prayer-1',
+      '/prayers/peace-in-uncertain-times',
     )
   })
 
@@ -138,7 +139,7 @@ describe('WB3 Home devotional hero', () => {
     expect(screen.getByRole('button', { name: 'Play prayer audio' })).toBeTruthy()
     expect(screen.getByRole('link', { name: 'Download prayer audio' })).toBeTruthy()
     expect(screen.getByRole('link', { name: /Read transcript/i }).getAttribute('href')).toBe(
-      '/prayers/prayer-1',
+      '/prayers/peace-in-uncertain-times',
     )
 
     const audio = container.querySelector('audio') as HTMLAudioElement

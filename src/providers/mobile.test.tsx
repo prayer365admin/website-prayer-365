@@ -1020,6 +1020,7 @@ describe('mapPublishedPrayer (via GET_PUBLISHED_PRAYER)', () => {
   it('returns audio: null when audio snapshot is READY but not APPROVED', async () => {
     db.prayer.findFirst.mockResolvedValueOnce({
       id: 'p1',
+      slug: 'prayer',
       church_id: 'c1',
       church: { name: 'Hope Church' },
       published_at: new Date(),
@@ -1049,6 +1050,7 @@ describe('mapPublishedPrayer (via GET_PUBLISHED_PRAYER)', () => {
   it('returns audio: null when audio snapshot is APPROVED but lacks asset_id', async () => {
     db.prayer.findFirst.mockResolvedValueOnce({
       id: 'p1',
+      slug: 'prayer',
       church_id: 'c1',
       church: { name: 'Hope Church' },
       published_at: new Date(),
@@ -1078,6 +1080,7 @@ describe('mapPublishedPrayer (via GET_PUBLISHED_PRAYER)', () => {
   it('returns audio details when audio snapshot is APPROVED and has asset_id', async () => {
     db.prayer.findFirst.mockResolvedValueOnce({
       id: 'p1',
+      slug: 'prayer',
       church_id: 'c1',
       church: { name: 'Hope Church' },
       published_at: new Date(),
@@ -1117,6 +1120,7 @@ describe('LIST_PUBLISHED_PRAYERS — historical pastor attribution', () => {
     const publishedRows = [
       {
         id: 'prayer-1',
+        slug: 'morning-prayer',
         church_id: 'church-1',
         church: { name: 'Hope Church' },
         published_at: new Date('2026-09-30T12:00:00.000Z'),
@@ -1386,6 +1390,7 @@ describe('GET_HOME — MB-10 typed projection', () => {
     db.prayer.findMany.mockResolvedValueOnce([
       {
         id: 'p1',
+        slug: 'prayer',
         church_id: 'c1',
         church: { name: 'Main' },
         published_at: new Date(),
@@ -1443,6 +1448,7 @@ describe('GET_HOME — MB-10 typed projection', () => {
     db.prayer.findMany.mockResolvedValueOnce([
       {
         id: 'p2',
+        slug: 'followed-prayer',
         church_id: 'c2',
         church: { name: 'Followed Church' },
         published_at: new Date('2026-10-15T06:00:00.000Z'),

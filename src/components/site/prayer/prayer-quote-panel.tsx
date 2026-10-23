@@ -8,6 +8,7 @@ import { useState } from 'react'
 
 export type PrayerQuote = {
   id: string
+  slug: string
   title: string
   body: string
   languageCode: string
@@ -34,7 +35,7 @@ export default function PrayerQuotePanel({
 
   const sharePrayer = async () => {
     if (!prayer) return
-    const url = `${window.location.origin}/prayers/${prayer.id}`
+    const url = `${window.location.origin}/prayers/${prayer.slug}`
     try {
       if (navigator.share) {
         await navigator.share({ title: prayer.title, text: excerpt(prayer.body), url })
