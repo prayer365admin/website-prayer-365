@@ -3,92 +3,386 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+    <meta name="x-apple-disable-message-reformatting" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
     <title>Verify your email</title>
+    <style>
+      table {
+        border-spacing: 0;
+        mso-table-lspace: 0;
+        mso-table-rspace: 0;
+      }
+      img {
+        border: 0;
+        line-height: 100%;
+        outline: none;
+        text-decoration: none;
+        -ms-interpolation-mode: bicubic;
+      }
+      @media only screen and (max-width: 620px) {
+        .page-pad {
+          padding: 20px 12px !important;
+        }
+        .card-pad {
+          padding-left: 24px !important;
+          padding-right: 24px !important;
+        }
+        .email-title {
+          font-size: 28px !important;
+          line-height: 34px !important;
+        }
+        .footer-pad {
+          padding-left: 20px !important;
+          padding-right: 20px !important;
+        }
+      }
+    </style>
   </head>
-  <body style="margin: 0; padding: 0; -webkit-text-size-adjust: 100%; background-color: #ffffff">
+  <body
+    style="
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      background-color: #f5f8fc;
+      color: #031530;
+      font-family: Arial, Helvetica, sans-serif;
+      -webkit-text-size-adjust: 100%;
+      -ms-text-size-adjust: 100%;
+    "
+  >
+    <div
+      style="
+        display: none;
+        max-height: 0;
+        overflow: hidden;
+        opacity: 0;
+        color: transparent;
+        line-height: 1px;
+      "
+    >
+      Confirm your email address to begin your Prayer 365 Sanctuary journey.
+    </div>
     <table
-      align="center"
       border="0"
       cellpadding="0"
       cellspacing="0"
       role="presentation"
-      style="width: 100%; max-width: 600px"
+      style="width: 100%; background-color: #f5f8fc"
     >
-      <tbody>
-        <tr>
-          <td style="padding: 16px 0; text-align: center">
-            <p
-              style="
-                border-top: solid 4px #f36e69;
-                font-size: 1px;
-                margin: 0px auto;
-                width: 100%;
-                max-width: 550px;
-              "
-            ></p>
-          </td>
-        </tr>
-        <tr>
-          <td style="padding: 24px 25px" align="left">
-            <div
-              style="
-                font-family: helvetica, arial, sans-serif;
-                font-size: 14px;
-                line-height: 18px;
-                text-align: left;
-                color: #282828;
-              "
-            >
-              Hi <strong>{{customerName}}</strong>, <br /><br />
-              Welcome! Please confirm your email address to activate your account. Click the button
-              below to verify your email:
-              <br /><br />
-              <div style="text-align: center; padding: 16px 0">
-                <a
-                  href="{{link}}"
-                  style="
-                    background-color: #f36e69;
-                    color: #ffffff;
-                    text-decoration: none;
-                    display: inline-block;
-                    padding: 14px 28px;
-                    border-radius: 10px;
-                    font-size: 16px;
-                    font-weight: bold;
-                  "
+      <tr>
+        <td align="center" class="page-pad" style="padding: 40px 16px">
+          <table
+            border="0"
+            cellpadding="0"
+            cellspacing="0"
+            role="presentation"
+            width="600"
+            style="width: 100%; max-width: 600px"
+          >
+            <tr>
+              <td
+                style="
+                  overflow: hidden;
+                  border: 1px solid #e4ebf4;
+                  border-radius: 24px;
+                  background-color: #ffffff;
+                  box-shadow: 0 14px 40px rgba(3, 21, 48, 0.08);
+                "
+              >
+                <table
+                  border="0"
+                  cellpadding="0"
+                  cellspacing="0"
+                  role="presentation"
+                  style="width: 100%"
                 >
-                  Verify Email
-                </a>
-              </div>
-              <br />
-              This link will expire in <strong>24 hours</strong> for your security. <br /><br />
-              If you didn't create this account, you can safely ignore this email.
-              <br /><br />
-              Need help? Just reply to this email or contact our support team anytime.
-              <br /><br />
-              Welcome aboard,
-              <br /><br />
-              {{companyName}} Team
-            </div>
-          </td>
-        </tr>
-        <tr>
-          <td style="background-color: #f36e69; padding: 16px 25px; text-align: center">
-            <div
-              style="
-                font-family: Ubuntu, helvetica, arial, sans-serif;
-                font-size: 13px;
-                line-height: 1;
-                text-align: center;
-                color: #ffffff;
-              "
-            >
-              ©{{currentYear}} {{companyName}}. All rights reserved.
-            </div>
-          </td>
-        </tr>
-      </tbody>
+                  <tr>
+                    <td align="center" class="card-pad" style="padding: 36px 48px 20px">
+                      <img
+                        src="{{baseUrl}}/images/logo.png"
+                        width="58"
+                        height="58"
+                        alt="Prayer 365 Sanctuary"
+                        style="
+                          display: block;
+                          width: 58px;
+                          height: 58px;
+                          border: 0;
+                          border-radius: 15px;
+                        "
+                      />
+                      <p
+                        style="
+                          margin: 12px 0 0;
+                          color: #0b4497;
+                          font-size: 12px;
+                          font-weight: 700;
+                          line-height: 18px;
+                          letter-spacing: 1.8px;
+                          text-transform: uppercase;
+                        "
+                      >
+                        Prayer 365 Sanctuary
+                      </p>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td align="center" class="card-pad" style="padding: 10px 48px 42px">
+                      <div
+                        style="
+                          width: 64px;
+                          height: 64px;
+                          border: 7px solid #dcecff;
+                          border-radius: 50%;
+                          background-color: #ffffff;
+                          color: #2f7ad2;
+                          font-size: 28px;
+                          line-height: 64px;
+                          text-align: center;
+                          box-shadow: 0 12px 24px -12px #2f7ad2;
+                        "
+                      >
+                        <!--[if mso]>
+                          <span
+                            style="
+                              color: #2f7ad2;
+                              font-size: 28px;
+                              font-weight: 700;
+                              line-height: 64px;
+                            "
+                            >&#10003;</span
+                          >
+                        <![endif]-->
+                        <!--[if !mso]><!-->
+                        <svg
+                          width="28"
+                          height="28"
+                          viewBox="0 0 16 16"
+                          fill="none"
+                          xmlns="http://www.w3.org/2000/svg"
+                          role="img"
+                          aria-label="Verified"
+                          style="display: block; margin: 18px auto 0"
+                        >
+                          <path
+                            d="M1.59375 3.9375C1.5625 5.3125 1.8125 7.28125 2.625 9.21875C3.53125 11.25 5.03125 13.2188 7.59375 14.375C10.125 13.2188 11.625 11.25 12.5312 9.21875C13.375 7.28125 13.625 5.3125 13.5938 3.9375L7.59375 1.625L1.59375 3.9375ZM15.0625 3.53125C15.1562 5.09375 14.9062 7.5 13.9062 9.8125C12.875 12.1875 11.0625 14.5 7.96875 15.8438L7.59375 16L7.1875 15.8438C4.09375 14.5 2.28125 12.1875 1.25 9.8125C0.25 7.5 0 5.09375 0.09375 3.53125L0.125 2.90625L0.71875 2.65625L7.21875 0.15625L7.59375 0L7.9375 0.15625L14.4375 2.65625L15.0312 2.90625L15.0625 3.53125ZM11.125 6.53125L7.125 10.5312L6.59375 11.0625L6.0625 10.5312L4.0625 8.53125L3.53125 8L4.59375 6.96875L5.125 7.5L6.59375 8.96875L10.0625 5.5L10.5938 4.96875L11.6562 6L11.125 6.53125Z"
+                            fill="#2F7AD2"
+                          />
+                        </svg>
+                        <!--<![endif]-->
+                      </div>
+                      <p
+                        style="
+                          margin: 28px 0 8px;
+                          color: #2f7ad2;
+                          font-size: 11px;
+                          font-weight: 700;
+                          line-height: 16px;
+                          letter-spacing: 2px;
+                          text-transform: uppercase;
+                        "
+                      >
+                        Welcome to the fellowship
+                      </p>
+                      <h1
+                        class="email-title"
+                        style="
+                          margin: 0;
+                          color: #031530;
+                          font-size: 34px;
+                          font-weight: 700;
+                          line-height: 41px;
+                          letter-spacing: -0.8px;
+                        "
+                      >
+                        Verify your email address
+                      </h1>
+                      <p
+                        style="margin: 16px 0 0; color: #596579; font-size: 16px; line-height: 25px"
+                      >
+                        Hello <strong style="color: #031530">{{customerName}}</strong>, confirm your
+                        email to activate your sanctuary account and continue your daily rhythm of
+                        prayer and fellowship.
+                      </p>
+                      <table
+                        border="0"
+                        cellpadding="0"
+                        cellspacing="0"
+                        role="presentation"
+                        style="margin-top: 30px; width: 100%"
+                      >
+                        <tr>
+                          <td
+                            align="center"
+                            bgcolor="#2F7AD2"
+                            style="border: 1px solid #1f69bd; border-radius: 12px"
+                          >
+                            <a
+                              href="{{link}}"
+                              style="
+                                display: block;
+                                padding: 16px 24px;
+                                color: #ffffff;
+                                font-size: 16px;
+                                font-weight: 700;
+                                line-height: 24px;
+                                text-align: center;
+                                text-decoration: none;
+                              "
+                            >
+                              Verify Email Address&nbsp;&nbsp;&#8594;
+                            </a>
+                          </td>
+                        </tr>
+                      </table>
+                      <p
+                        style="margin: 22px 0 0; color: #596579; font-size: 14px; line-height: 22px"
+                      >
+                        This secure link expires in
+                        <strong style="color: #031530">24 hours</strong>. If you did not create this
+                        account, you can safely ignore this email.
+                      </p>
+                      <table
+                        border="0"
+                        cellpadding="0"
+                        cellspacing="0"
+                        role="presentation"
+                        style="
+                          margin-top: 28px;
+                          width: 100%;
+                          border: 1px solid #dfebfa;
+                          border-radius: 16px;
+                          background-color: #f3f7ff;
+                          background-image: linear-gradient(
+                            135deg,
+                            rgba(194, 217, 255, 0.4) 0%,
+                            rgba(255, 255, 255, 0) 100%
+                          );
+                        "
+                      >
+                        <tr>
+                          <td style="padding: 18px; text-align: left">
+                            <table
+                              border="0"
+                              cellpadding="0"
+                              cellspacing="0"
+                              role="presentation"
+                              style="width: 100%"
+                            >
+                              <tr>
+                                <td style="width: 40px; vertical-align: top">
+                                  <div
+                                    style="
+                                      width: 32px;
+                                      height: 32px;
+                                      border-radius: 50%;
+                                      background-color: #dcecff;
+                                      color: #2f7ad2;
+                                      font-size: 16px;
+                                      font-weight: 700;
+                                      line-height: 32px;
+                                      text-align: center;
+                                    "
+                                  >
+                                    <!--[if mso]>
+                                      <span
+                                        style="
+                                          color: #2f7ad2;
+                                          font-size: 16px;
+                                          font-weight: 700;
+                                          line-height: 32px;
+                                        "
+                                        >&#10003;</span
+                                      >
+                                    <![endif]-->
+                                    <!--[if !mso]><!-->
+                                    <svg
+                                      width="16"
+                                      height="16"
+                                      viewBox="0 0 16 16"
+                                      fill="none"
+                                      xmlns="http://www.w3.org/2000/svg"
+                                      role="img"
+                                      aria-label="Secure"
+                                      style="display: block; margin: 8px auto 0"
+                                    >
+                                      <path
+                                        d="M1.59375 3.9375C1.5625 5.3125 1.8125 7.28125 2.625 9.21875C3.53125 11.25 5.03125 13.2188 7.59375 14.375C10.125 13.2188 11.625 11.25 12.5312 9.21875C13.375 7.28125 13.625 5.3125 13.5938 3.9375L7.59375 1.625L1.59375 3.9375ZM15.0625 3.53125C15.1562 5.09375 14.9062 7.5 13.9062 9.8125C12.875 12.1875 11.0625 14.5 7.96875 15.8438L7.59375 16L7.1875 15.8438C4.09375 14.5 2.28125 12.1875 1.25 9.8125C0.25 7.5 0 5.09375 0.09375 3.53125L0.125 2.90625L0.71875 2.65625L7.21875 0.15625L7.59375 0L7.9375 0.15625L14.4375 2.65625L15.0312 2.90625L15.0625 3.53125ZM11.125 6.53125L7.125 10.5312L6.59375 11.0625L6.0625 10.5312L4.0625 8.53125L3.53125 8L4.59375 6.96875L5.125 7.5L6.59375 8.96875L10.0625 5.5L10.5938 4.96875L11.6562 6L11.125 6.53125Z"
+                                        fill="#2F7AD2"
+                                      />
+                                    </svg>
+                                    <!--<![endif]-->
+                                  </div>
+                                </td>
+                                <td style="vertical-align: top">
+                                  <p
+                                    style="
+                                      margin: 0;
+                                      color: #031530;
+                                      font-size: 15px;
+                                      font-weight: 700;
+                                      line-height: 21px;
+                                    "
+                                  >
+                                    Reassuring safeguards
+                                  </p>
+                                  <p
+                                    style="
+                                      margin: 4px 0 0;
+                                      color: #596579;
+                                      font-size: 13px;
+                                      line-height: 20px;
+                                    "
+                                  >
+                                    Verification links are single-use. Your account and devotional
+                                    information remain private.
+                                  </p>
+                                </td>
+                              </tr>
+                            </table>
+                          </td>
+                        </tr>
+                      </table>
+                      <p
+                        style="
+                          margin: 28px 0 6px;
+                          color: #7b8798;
+                          font-size: 12px;
+                          line-height: 18px;
+                        "
+                      >
+                        If the button does not work, copy and paste this address into your browser:
+                      </p>
+                      <p
+                        style="
+                          margin: 0;
+                          color: #2f7ad2;
+                          font-size: 12px;
+                          line-height: 18px;
+                          overflow-wrap: anywhere;
+                          word-break: break-all;
+                        "
+                      >
+                        {{link}}
+                      </p>
+                    </td>
+                  </tr>
+                </table>
+              </td>
+            </tr>
+            <tr>
+              <td align="center" class="footer-pad" style="padding: 24px 32px 8px">
+                <p style="margin: 0; color: #7b8798; font-size: 12px; line-height: 19px">
+                  Need help? Reply to this email or contact your pastoral support team.
+                </p>
+                <p style="margin: 8px 0 0; color: #9aa4b3; font-size: 11px; line-height: 18px">
+                  &copy; {{currentYear}} Prayer 365 Sanctuary. All rights reserved in faith.
+                </p>
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
     </table>
   </body>
 </html>
