@@ -1,4 +1,6 @@
 import { GeneralError } from '@/utils/general-error'
+import { sanitizePrayerRichText } from '@/utils/sanitize-prayer-rich-text'
+import { richTextToPlainText } from '@/utils/rich-text-plain'
 import { withIdempotency } from '@/utils/idempotency'
 import { auditPayload } from '@/utils/audit'
 import { GET_AVAILABLE_LANGUAGE_CODES } from '@/providers/church'
@@ -21,6 +23,22 @@ import {
   PublishInput,
   ScheduleInput,
 } from '@/models/prayer'
+
+const sanitizePrayerCopy = (input: PrayerInput) => {
+  const introduction = input.introduction
+    ? sanitizePrayerRichText(input.introduction) || null
+    : null
+  const body = sanitizePrayerRichText(input.body)
+  if (!richTextToPlainText(body)) {
+    throw new GeneralError({
+      code: 422,
+      error: 'VALIDATION_ERROR',
+      error_code: 'BODY_REQUIRED',
+      details: 'Full prayer text is required.',
+    })
+  }
+  return { introduction, body }
+}
 
 /*
  * Prayer business logic (Tasks 21/22/25).
@@ -150,13 +168,14 @@ export const createPrayer = async ({
     pastorId: input.pastorId,
     languageCode: input.languageCode,
   })
+  const copy = sanitizePrayerCopy(input)
   return CREATE_PRAYER_WITH_VERSION({
     churchId,
     data: {
       pastorId: input.pastorId,
       title: input.title,
-      introduction: input.introduction ?? null,
-      body: input.body,
+      introduction: copy.introduction,
+      body: copy.body,
       languageCode: input.languageCode,
     },
     actorId: userId,
@@ -196,6 +215,7 @@ export const patchPrayer = async ({
     pastorId: input.pastorId,
     languageCode: input.languageCode,
   })
+  const copy = sanitizePrayerCopy(input)
   return CREATE_VERSION_SNAPSHOT({
     churchIds,
     prayerId,
@@ -203,8 +223,8 @@ export const patchPrayer = async ({
     data: {
       pastorId: input.pastorId,
       title: input.title,
-      introduction: input.introduction ?? null,
-      body: input.body,
+      introduction: copy.introduction,
+      body: copy.body,
       languageCode: input.languageCode,
     },
     actorId: userId,

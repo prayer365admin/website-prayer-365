@@ -22,6 +22,7 @@ import {
   MobilePublishedPrayer,
   MobileRequestInput,
 } from '@/models/mobile'
+import { richTextToPlainText } from '@/utils/rich-text-plain'
 
 /*
  * Mobile shared backend adapter (SPEC §8.4 / Tasks 39-43).
@@ -845,8 +846,10 @@ const mapPublishedPrayer = (p: {
       pastorId: p.version.pastor_id,
       pastorName: p.version.pastor.name,
       title: p.version.title,
-      introduction: p.version.introduction,
-      body: p.version.body,
+      introduction: p.version.introduction
+        ? richTextToPlainText(p.version.introduction) || null
+        : null,
+      body: richTextToPlainText(p.version.body),
       languageCode: p.version.language_code,
     },
     audio: approved

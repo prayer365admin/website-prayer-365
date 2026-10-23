@@ -7,9 +7,10 @@ import { useSiteI18n } from '@/i18n/site-i18n'
 import { SitePrayerArchiveItem } from '@/models/site-prayer'
 import Image from 'next/image'
 import Link from 'next/link'
+import { richTextToPlainText } from '@/utils/rich-text-plain'
 
 export const excerpt = (value: string | null, fallback: string, max = 180) => {
-  const source = value?.trim() || fallback.trim()
+  const source = richTextToPlainText(value || fallback)
   return source.length > max ? `${source.slice(0, max).trimEnd()}…` : source
 }
 
@@ -78,7 +79,7 @@ export const FeaturedPrayer = ({
               <p className="mt-1 line-clamp-2 text-xs text-neutral-600">
                 {detail
                   ? [
-                      prayer.introduction,
+                      prayer.introduction && richTextToPlainText(prayer.introduction),
                       t('prayerDetailLedBy', {
                         pastor: prayer.pastorName,
                         church: prayer.churchName,

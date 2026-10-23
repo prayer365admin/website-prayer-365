@@ -1,6 +1,7 @@
 'use client'
 
 import BoxContainer from '@/components/container/boxed'
+import RichTextContent from '@/components/common/rich-text-content'
 import { HandHeartIcon } from '@/components/icon/hand-heart'
 import { FeaturedPrayer } from '@/components/site/prayer/featured-prayer'
 import { readingMinutes } from '@/contents/site/prayers/data'
@@ -10,7 +11,6 @@ import { ArrowRightOutlined } from '@ant-design/icons'
 import Image from 'next/image'
 import Link from 'next/link'
 import { ReactNode } from 'react'
-import { paragraphs } from './data'
 import { PrayerDetailSidebar } from './sidebar'
 
 const card = 'rounded-2xl bg-white shadow-[0_8px_30px_rgba(24,74,140,0.08)]'
@@ -63,11 +63,10 @@ export default function PrayerDetail({
             {prayer.introduction && (
               <Section index={1} title={t('prayerDetailSection1')}>
                 <div className="rounded-xl bg-primary-100 p-4 mb-4">
-                  <p
-                    className={`whitespace-pre-line leading-relaxed text-neutral-600 ${readingClass}`}
-                  >
-                    {prayer.introduction}
-                  </p>
+                  <RichTextContent
+                    className={`leading-relaxed text-neutral-600 ${readingClass}`}
+                    html={prayer.introduction}
+                  />
                 </div>
               </Section>
             )}
@@ -91,13 +90,10 @@ export default function PrayerDetail({
                   </span>
                 </figcaption>
               </figure>
-              <div className={`mb-4 space-y-4 leading-relaxed text-neutral-600 ${readingClass}`}>
-                {paragraphs(prayer.body).map((paragraph, index) => (
-                  <p className="whitespace-pre-line" key={index}>
-                    {paragraph}
-                  </p>
-                ))}
-              </div>
+              <RichTextContent
+                className={`mb-4 leading-relaxed text-neutral-600 ${readingClass}`}
+                html={prayer.body}
+              />
             </Section>
           </article>
 

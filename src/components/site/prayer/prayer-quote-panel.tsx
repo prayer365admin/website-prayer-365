@@ -5,6 +5,7 @@ import { useSiteI18n } from '@/i18n/site-i18n'
 import { HeartOutlined, ShareAltOutlined } from '@ant-design/icons'
 import Image from 'next/image'
 import { useState } from 'react'
+import { richTextToPlainText } from '@/utils/rich-text-plain'
 
 export type PrayerQuote = {
   id: string
@@ -15,9 +16,11 @@ export type PrayerQuote = {
   churchName: string
 }
 
+const quoteText = (body: string) => richTextToPlainText(body).replace(/\s+/g, ' ').trim()
+
 const excerpt = (body: string) => {
-  const source = body.trim()
-  return source.length > 210 ? `${source.slice(0, 207).trimEnd()}…` : source
+  const source = quoteText(body)
+  return source.length > 180 ? `${source.slice(0, 177).trimEnd()}…` : source
 }
 
 /** Lake-image quote column shared by Home (`home-1.png`) and the prayer archive featured card. */
@@ -68,14 +71,14 @@ export default function PrayerQuotePanel({
               <Image alt="" aria-hidden height={11} src="/icons/icon-book.svg" width={14} />
               {t('homePrayerReflection')} · {prayer.languageCode.toUpperCase()}
             </span>
-            <div className="flex gap-3">
+            <div className="flex min-w-0 gap-3">
               <QuoteIcon
                 aria-hidden
                 className="mt-1 shrink-0 self-start !text-white"
                 style={{ fontSize: 20 }}
               />
-              <blockquote className="line-clamp-5 font-font_quote text-2xl italic leading-tight text-white md:text-[32px]">
-                {prayer.body.trim()}
+              <blockquote className="line-clamp-5 min-w-0 flex-1 break-words font-font_quote text-[clamp(1.5rem,2.2vw,2rem)] italic leading-[1.25] text-white [overflow-wrap:anywhere]">
+                {quoteText(prayer.body)}
               </blockquote>
             </div>
             <div className="mt-4 flex items-end justify-between gap-4">

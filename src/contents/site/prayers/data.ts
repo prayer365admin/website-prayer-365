@@ -1,3 +1,5 @@
+import { richTextToPlainText } from '@/utils/rich-text-plain'
+
 const DAY = 24 * 60 * 60 * 1000
 
 /** Sunday lectionary cycle (A/B/C), retained for non-archive calendar consumers. */
@@ -11,4 +13,4 @@ export const lectionaryYear = (date: Date) => {
 
 /** Reading time at a slow, prayerful pace. ponytail: estimate from the text; swap for audio duration once it is stored. */
 export const readingMinutes = (text: string) =>
-  Math.max(1, Math.round(text.trim().split(/\s+/).length / 150))
+  Math.max(1, Math.round(richTextToPlainText(text).split(/\s+/).length / 150))

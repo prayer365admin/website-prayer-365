@@ -1,6 +1,8 @@
 'use client'
 
 import CardTitle from '@/components/common/card-title'
+import RichTextEditor from '@/components/common/rich-text-editor'
+import RichTextContent from '@/components/common/rich-text-content'
 import SelectPastor from '@/components/common/select/pastor'
 import { useChurchProfile } from '@/hooks/data/church'
 import { useChurchPastors } from '@/hooks/data/pastor'
@@ -42,6 +44,7 @@ import timezone from 'dayjs/plugin/timezone'
 import { utcToLocal } from '@/utils/utc-to-local'
 import { useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
+import { plainTextToRichText } from '@/utils/rich-text-plain'
 
 dayjs.extend(utc)
 dayjs.extend(timezone)
@@ -229,7 +232,11 @@ export default function ContentsChurchesPrayersEditor({
         <Input />
       </Form.Item>
       <Form.Item name="introduction" label="Introduction">
-        <Input />
+        <RichTextEditor
+          ariaLabel="Introduction"
+          minHeight={120}
+          placeholder="Write a short introduction to the prayer"
+        />
       </Form.Item>
       <Row gutter={16}>
         <Col span={12}>
@@ -252,7 +259,11 @@ export default function ContentsChurchesPrayersEditor({
         label="Full prayer text"
         rules={[{ required: true, message: 'Full prayer text is required.' }]}
       >
-        <Input.TextArea rows={8} />
+        <RichTextEditor
+          ariaLabel="Full prayer text"
+          minHeight={280}
+          placeholder="Write the full prayer text"
+        />
       </Form.Item>
       <div className="flex justify-between items-center">
         <Upload
@@ -262,7 +273,7 @@ export default function ContentsChurchesPrayersEditor({
           onChange={async (info) => {
             if (info.file.originFileObj) {
               const text = await info.file.originFileObj.text()
-              form.setFieldsValue({ body: text })
+              form.setFieldsValue({ body: plainTextToRichText(text) })
             }
           }}
         >
@@ -295,11 +306,15 @@ export default function ContentsChurchesPrayersEditor({
           </div>
           <div>
             <div className="font-semibold text-gray-500">Introduction</div>
-            <div>{saved.current.introduction || '—'}</div>
+            {saved.current.introduction ? (
+              <RichTextContent html={saved.current.introduction} />
+            ) : (
+              <div>—</div>
+            )}
           </div>
           <div>
             <div className="font-semibold text-gray-500">Full prayer text</div>
-            <div className="whitespace-pre-wrap">{saved.current.body}</div>
+            <RichTextContent html={saved.current.body} />
           </div>
           <Row gutter={16}>
             <Col span={12}>

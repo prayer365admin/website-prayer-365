@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { richTextToPlainText } from '@/utils/rich-text-plain'
 
 /*
  * Prayer DTOs (SPEC §6.2 / Tasks 21-25).
@@ -21,6 +22,10 @@ export const PrayerInputSchema = z
     body: z.string().trim().min(1).max(40000),
     pastorId: z.string().uuid(),
     languageCode: z.string().trim().min(1).max(10),
+  })
+  .refine((value) => richTextToPlainText(value.body).length > 0, {
+    message: 'Full prayer text is required.',
+    path: ['body'],
   })
   .strict()
 

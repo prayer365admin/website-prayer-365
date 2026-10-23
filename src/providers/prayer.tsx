@@ -5,6 +5,7 @@ import { auditPayload } from '@/utils/audit'
 import { hashContent } from '@/utils/hash'
 import customSlugify from '@/utils/slugify'
 import { mapVersion, PrayerListQuery, PrayerOutput, PrayerVersionOutput } from '@/models/prayer'
+import { sanitizePrayerRichText } from '@/utils/sanitize-prayer-rich-text'
 
 /** Newest audio of a version (any status): the editor resumes an in-flight generation from it. */
 const LATEST_AUDIO = {
@@ -83,6 +84,12 @@ type VersionRow = {
   audio?: { id: string; status: string }[]
 }
 
+const mapSafeVersion = (version: VersionRow): PrayerVersionOutput => ({
+  ...mapVersion(version),
+  introduction: version.introduction ? sanitizePrayerRichText(version.introduction) || null : null,
+  body: sanitizePrayerRichText(version.body),
+})
+
 const mapPrayer = (
   p: {
     id: string
@@ -101,7 +108,7 @@ const mapPrayer = (
   churchId: p.church_id,
   version: p.version,
   createdAt: p.created_at.toISOString(),
-  current: current ? mapVersion(current) : null,
+  current: current ? mapSafeVersion(current) : null,
   published:
     p.published_version_id && p.published_at
       ? { prayerVersionId: p.published_version_id, publishedAt: p.published_at.toISOString() }
@@ -496,7 +503,7 @@ export const APPROVE_TEXT = async ({
         requestId,
       }),
     })
-    return mapVersion(updated)
+    return mapSafeVersion(updated)
   })
 }
 

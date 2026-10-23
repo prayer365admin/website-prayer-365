@@ -174,6 +174,18 @@ describe('WB3 Home devotional hero', () => {
     ).toBeNull()
   })
 
+  it('renders the image quote as normalized text clamped to five lines', () => {
+    const data = home()
+    data.latestPrayers[0]!.version.body = `${'God, thank you for the promise of grace. '.repeat(6)}\n\nThank you, God.`
+    renderHome(data)
+
+    const quotePanel = screen.getByAltText('Misty Nordic lake at sunrise').parentElement!
+    const quote = quotePanel.querySelector('blockquote')!
+    expect(quote.classList.contains('line-clamp-5')).toBe(true)
+    expect(quote.textContent).not.toContain('\n')
+    expect(quote.textContent).toContain('Thank you, God.')
+  })
+
   it('renders the directory empty state when no eligible prayer exists', () => {
     renderHome({ ...home(), latestPrayers: [] })
 

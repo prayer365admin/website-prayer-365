@@ -1,6 +1,7 @@
 import { db } from '@/utils/db-connection'
 import { S3_PUBLIC_URL } from '@/providers/s3'
 import { stripAudioTags } from '@/utils/strip-audio-tags'
+import { sanitizePrayerRichText } from '@/utils/sanitize-prayer-rich-text'
 import {
   SitePrayerArchive,
   SitePrayerArchiveItem,
@@ -93,8 +94,9 @@ const toItems = async (prayers: PublishedRow[]): Promise<SitePrayerArchiveItem[]
         pastorRole: assignment?.pastoral_role ?? null,
         pastorImageUrl: imageKey ? S3_PUBLIC_URL({ key: imageKey }) : null,
         title: stripAudioTags(version.title),
-        introduction: version.introduction && stripAudioTags(version.introduction),
-        body: stripAudioTags(version.body),
+        introduction:
+          version.introduction && sanitizePrayerRichText(stripAudioTags(version.introduction)),
+        body: sanitizePrayerRichText(stripAudioTags(version.body)),
         languageCode: version.language_code,
         audio:
           selectedAudio?.status === 'APPROVED' && audioUrl

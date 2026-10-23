@@ -2,8 +2,31 @@ import { replaceMock, axiosMock, resolveGet } from '@/test/frontend/render'
 import { renderWithProviders } from '@/test/frontend/render'
 import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { beforeEach, describe, expect, it } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import ContentsChurchesPrayersEditor from './editor'
+
+// React Quill is client-only and is covered by production compilation. Keep
+// these form-flow tests focused on the controlled value contract.
+vi.mock('@/components/common/rich-text-editor', () => ({
+  default: ({
+    ariaLabel,
+    value,
+    onChange,
+  }: {
+    ariaLabel: string
+    value?: string | null
+    onChange?: (value: string) => void
+  }) => (
+    <div>
+      <div aria-label="Text formatting" role="toolbar" />
+      <textarea
+        aria-label={ariaLabel}
+        onChange={(event) => onChange?.(event.target.value)}
+        value={value ?? ''}
+      />
+    </div>
+  ),
+}))
 
 describe('ContentsChurchesPrayersEditor', () => {
   const pastorA = {
@@ -110,8 +133,9 @@ describe('ContentsChurchesPrayersEditor', () => {
     })
 
     expect(screen.getByLabelText('Title')).toBeTruthy()
-    expect(screen.getByLabelText('Introduction')).toBeTruthy()
-    expect(screen.getByLabelText('Full prayer text')).toBeTruthy()
+    expect((await screen.findByRole('textbox', { name: 'Introduction' })).tagName).toBe('TEXTAREA')
+    expect(screen.getByRole('textbox', { name: 'Full prayer text' }).tagName).toBe('TEXTAREA')
+    expect(screen.getAllByRole('toolbar', { name: 'Text formatting' })).toHaveLength(2)
     expect(screen.getByRole('button', { name: 'Save text' })).toBeTruthy()
 
     const reviewButton = screen.getByRole('button', {
@@ -127,12 +151,11 @@ describe('ContentsChurchesPrayersEditor', () => {
     await user.type(screen.getByLabelText('Title'), 'New prayer')
     await user.type(screen.getByLabelText('Full prayer text'), 'Hello')
 
-    const comboboxes = screen.getAllByRole('combobox')
-    await user.click(comboboxes[0]) // Pastor
+    await user.click(screen.getByLabelText('Pastor'))
     const pastorOptions = await screen.findAllByText('Pastor A')
     await user.click(pastorOptions[pastorOptions.length - 1])
 
-    await user.click(comboboxes[1]) // Language
+    await user.click(screen.getByLabelText('Content language'))
     const langOptions = await screen.findAllByText('en')
     await user.click(langOptions[langOptions.length - 1])
 
@@ -161,7 +184,9 @@ describe('ContentsChurchesPrayersEditor', () => {
 
     // Wait for queries and prefill
     await screen.findByDisplayValue('Morning prayer')
-    await screen.findByDisplayValue('Hello world')
+    await waitFor(() => {
+      expect(screen.getByLabelText('Full prayer text').textContent).toContain('Hello world')
+    })
 
     axiosMock.patch.mockResolvedValueOnce({ data: { result: detail } })
 
