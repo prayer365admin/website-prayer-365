@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { axiosMock, Providers, resolveGet } from '@/test/frontend/render'
 import { useChurchOptions, useFrequentChurches } from './church-option'
 
-const options = [{ id: 'c1', name: 'Tallinna Jaani', city: 'Tallinn' }]
+const options = [{ id: 'c1', slug: 'tallinna-jaani', name: 'Tallinna Jaani', city: 'Tallinn' }]
 
 describe('useChurchOptions', () => {
   beforeEach(() => {

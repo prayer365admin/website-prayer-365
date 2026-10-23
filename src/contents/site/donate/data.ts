@@ -1,4 +1,5 @@
 import { SiteMessageKey } from '@/i18n/messages'
+import { DonationCategory } from '@/models/donation'
 import { MobileDonationOptions } from '@/models/mobile'
 
 /**
@@ -12,7 +13,8 @@ export const DONATION_FALLBACK_OPTIONS: MobileDonationOptions = {
   monthlyEnabled: true,
 }
 
-export type DonationPurposeId = 'general' | 'pantry' | 'organ' | 'youth'
+/** Same enum the checkout API accepts, so a form choice can never drift from the server contract. */
+export type DonationPurposeId = DonationCategory
 
 export type DonationPurpose = {
   id: DonationPurposeId

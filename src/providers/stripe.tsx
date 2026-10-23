@@ -1,6 +1,8 @@
 import Stripe from 'stripe'
 import { NotImplementedError } from '@/utils/not-implemented-error'
 import { GeneralError } from '@/utils/general-error'
+import { DonationCategory } from '@/models/donation'
+import { logger } from '@/utils/logger'
 import { verifyStripeWebhookSignature, parseStripeWebhookEvent } from './stripe-webhook'
 
 /*
@@ -70,6 +72,10 @@ export interface CheckoutSessionRequest {
   userId?: string
   /** Resolved by the caller that already loaded the church; omitted → generic product name. */
   churchName?: string
+  /** Ministry designation from the form; copied into transaction metadata. */
+  category?: DonationCategory
+  /** Existing Stripe Customer ID, if known for this giver. */
+  customerId?: string
 }
 export interface CheckoutSessionResult {
   sessionId: string
@@ -93,11 +99,23 @@ export interface StripePaymentIntent {
 export interface StripeSubscription {
   id: string
   status: string
+  /** Owning Customer id — the key the billing portal is opened for. */
+  customer?: string
+  /** Unix timestamp when the customer canceled the subscription, or null. */
+  canceledAt?: number | null
+  /** Unix timestamp when cancellation takes effect, or null. */
+  cancelAt?: number | null
+  /** True when the subscription is marked to end or has already been canceled. */
+  cancelAtPeriodEnd?: boolean
   plan?: {
     amount: number
     currency: string
   }
   metadata?: Record<string, string>
+}
+
+export interface StripeBillingPortalSession {
+  url: string
 }
 
 export interface StripeCharge {
@@ -137,11 +155,25 @@ export const STRIPE = {
   },
   /** Retrieve a Stripe Subscription. */
   async retrieveSubscription(
-    _id: string,
+    id: string,
     _options?: { stripeAccount?: string },
   ): Promise<StripeSubscription> {
     ensureEnabled('retrieveSubscription')
-    return pending('retrieveSubscription')
+    const sub = await makeStripe().subscriptions.retrieve(id)
+    const price = sub.items.data[0]?.price
+    return {
+      id: sub.id,
+      status: sub.status,
+      customer: typeof sub.customer === 'string' ? sub.customer : sub.customer?.id,
+      canceledAt: sub.canceled_at ?? null,
+      cancelAt: sub.cancel_at ?? null,
+      cancelAtPeriodEnd: Boolean(sub.cancel_at_period_end || sub.cancel_at || sub.canceled_at),
+      plan:
+        price && price.unit_amount !== null
+          ? { amount: price.unit_amount, currency: price.currency }
+          : undefined,
+      metadata: sub.metadata ?? undefined,
+    }
   },
   /** Cancel a Stripe Subscription. */
   async cancelSubscription(id: string): Promise<StripeSubscription> {
@@ -196,9 +228,13 @@ export const STRIPE = {
     // signed-in giver so the website can show their own stewardship.
     const metadata: Record<string, string> = { churchId: req.churchId }
     if (req.userId) metadata.userId = req.userId
+    // The giver's chosen designation travels with the transaction so the parish
+    // can sort gifts by ministry in Stripe without a second lookup.
+    if (req.category) metadata.category = req.category
 
     const session = await makeStripe().checkout.sessions.create({
       mode: req.frequency === 'monthly' ? 'subscription' : 'payment',
+      ...(req.customerId ? { customer: req.customerId } : {}),
       line_items: [
         {
           quantity: 1,
@@ -231,6 +267,32 @@ export const STRIPE = {
     }
     return { sessionId: session.id, url: session.url }
   },
+  /**
+   * Open the Stripe-hosted billing portal for a Customer. The giver pauses or
+   * changes their own pledge there — we never mutate a subscription directly.
+   */
+  async createBillingPortalSession({
+    customerId,
+    returnUrl,
+  }: {
+    customerId: string
+    returnUrl: string
+  }): Promise<StripeBillingPortalSession> {
+    ensureEnabled('createBillingPortalSession')
+    const session = await makeStripe().billingPortal.sessions.create({
+      customer: customerId,
+      return_url: returnUrl,
+    })
+    if (!session.url) {
+      throw new GeneralError({
+        code: 502,
+        error: 'PAYMENT_ERROR',
+        error_code: 'STRIPE_PORTAL_URL_MISSING',
+        details: 'Stripe did not return a billing portal url.',
+      })
+    }
+    return { url: session.url }
+  },
   /** Verify a raw webhook signature and parse the typed event. */
   async constructWebhookEvent(rawBody: string, signature: string): Promise<ParsedWebhookEvent> {
     ensureEnabled('constructWebhookEvent')
@@ -245,5 +307,40 @@ export const STRIPE = {
     }
     verifyStripeWebhookSignature({ rawBody, signatureHeader: signature, secret })
     return parseStripeWebhookEvent(rawBody)
+  },
+  /**
+   * Cancel any other active subscriptions in Stripe for the same church and customer.
+   */
+  async cancelOtherChurchSubscriptions({
+    customerId,
+    churchId,
+    currentSubscriptionId,
+  }: {
+    customerId: string
+    churchId: string
+    currentSubscriptionId?: string
+  }): Promise<string[]> {
+    ensureEnabled('cancelSubscription')
+    const subs = await makeStripe().subscriptions.list({
+      customer: customerId,
+      status: 'active',
+      limit: 20,
+    })
+    const canceled: string[] = []
+    for (const sub of subs.data) {
+      if (sub.id === currentSubscriptionId) continue
+      if (sub.metadata?.churchId === churchId) {
+        await makeStripe()
+          .subscriptions.cancel(sub.id)
+          .catch((err) => {
+            logger.warn('failed_to_cancel_stripe_subscription', {
+              subscription_id: sub.id,
+              error: err instanceof Error ? err.message : String(err),
+            })
+          })
+        canceled.push(sub.id)
+      }
+    }
+    return canceled
   },
 }

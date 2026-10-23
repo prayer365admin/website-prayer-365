@@ -9,6 +9,7 @@ import { z } from 'zod'
 
 export const ChurchOptionSchema = z.object({
   id: z.string(),
+  slug: z.string(),
   name: z.string(),
   city: z.string().nullable(),
 })

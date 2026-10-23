@@ -1,6 +1,11 @@
 import { GeneralError } from '@/utils/general-error'
 import { z } from 'zod'
 
+/** W11 "Designate Ministry Purpose": the designation a gift is directed to. */
+export const DonationCategorySchema = z.enum(['general', 'pantry', 'organ', 'youth'])
+
+export type DonationCategory = z.infer<typeof DonationCategorySchema>
+
 export const DonationInputSchema = z
   .object({
     amountMinor: z.number().int().positive().max(100_000_000),
@@ -10,6 +15,8 @@ export const DonationInputSchema = z
       .length(3)
       .transform((c) => c.toLowerCase()),
     frequency: z.enum(['one_time', 'monthly']),
+    /** Rides into Stripe transaction metadata as `category`; omitted → no key. */
+    category: DonationCategorySchema.optional(),
     successUrl: z.string().url().optional(),
     cancelUrl: z.string().url().optional(),
   })
@@ -204,6 +211,35 @@ export const DonationStatusSchema = z.object({
 
 export type DonationStatus = z.infer<typeof DonationStatusSchema>
 
+/**
+ * POST /api/v1/site/donations body: the beneficiary parish travels as a field,
+ * not as a path segment, so the browser never composes an API URL from data.
+ */
+export const SiteDonationInitiateSchema = DonationInputSchema.extend({
+  churchId: z
+    .string()
+    .trim()
+    .min(1)
+    .max(64)
+    .regex(/^[A-Za-z0-9_-]+$/, 'Invalid church id.'),
+})
+
+export type SiteDonationInitiate = z.infer<typeof SiteDonationInitiateSchema>
+
+/** POST body for the billing-portal hand-off: an in-app return path, never a host. */
+export const BillingPortalRequestSchema = z
+  .object({
+    returnPath: z
+      .string()
+      .trim()
+      .max(2048)
+      .refine((path) => path.startsWith('/donate'), 'Must be an in-app /donate path.')
+      .optional(),
+  })
+  .strict()
+
+export type BillingPortalRequest = z.infer<typeof BillingPortalRequestSchema>
+
 /** What `initiateDonation` returns to the website: a redirect target plus the attempt shape. */
 export type DonationInitiateResult = {
   sessionId: string
@@ -245,4 +281,24 @@ export type MyDonationOverview = {
   lastPaidAt: Date | null
   /** Derived next monthly charge (last paid + 1 month) — null unless a pledge is active. */
   nextGiftAt: Date | null
+}
+
+/**
+ * W11 spotlight: the nearest other parish that has a published prayer, so the
+ * donate screen shows a real neighbour instead of a fixed story. Null when the
+ * beneficiary has no coordinates or no nearby parish has published anything.
+ */
+export type DonateNeighborSpotlight = {
+  churchId: string
+  slug: string
+  churchName: string
+  coverUrl: string | null
+  distanceKm: number | null
+  prayer: {
+    id: string
+    title: string
+    body: string
+    pastorName: string
+    churchName: string
+  }
 }

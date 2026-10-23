@@ -27,21 +27,27 @@ describe('useInitiateDonation', () => {
 
     expect(started).toEqual({ sessionId: 'cs_1', url: 'https://checkout.test/cs_1' })
     const [url, body, config] = axiosMock.post.mock.calls[0]
-    expect(url).toBe('/api/v1/site/churches/c1/donations')
-    expect(body).toEqual({ amountMinor: 2500, currency: 'eur', frequency: 'one_time' })
+    expect(url).toBe('/api/v1/site/donations')
+    expect(body).toEqual({
+      churchId: 'c1',
+      amountMinor: 2500,
+      currency: 'eur',
+      frequency: 'one_time',
+    })
     expect(config.headers['Idempotency-Key']).toEqual(expect.any(String))
   })
 
-  it('refuses a church id that could leave the donations path', async () => {
+  it('never builds the endpoint from the church id', async () => {
+    axiosMock.post.mockResolvedValue({ data: { result: { sessionId: 'cs_2', url: 'u' } } })
     const { result } = renderHook(() => useInitiateDonation(), { wrapper })
 
-    await expect(
-      result.current.onInitiate({
-        churchId: '../../admin',
-        input: { amountMinor: 1000, currency: 'eur', frequency: 'one_time' },
-      }),
-    ).rejects.toThrow('Invalid church id')
-    expect(axiosMock.post).not.toHaveBeenCalled()
+    await result.current.onInitiate({
+      churchId: '../../admin',
+      input: { amountMinor: 1000, currency: 'eur', frequency: 'one_time' },
+    })
+
+    // The server rejects an unusable id; the client never turns it into a URL.
+    expect(axiosMock.post.mock.calls[0][0]).toBe('/api/v1/site/donations')
   })
 })
 

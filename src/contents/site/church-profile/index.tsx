@@ -651,7 +651,7 @@ export default function ContentsSiteChurchProfile({ slug }: { slug: string }) {
             </section>
 
             {/* Parish Stewardship widget */}
-            <Stewardship slug={data.slug} churchId={data.id} churchName={data.name} />
+            <Stewardship slug={data.slug} churchName={data.name} />
           </div>
         </div>
       </div>
@@ -669,7 +669,7 @@ export default function ContentsSiteChurchProfile({ slug }: { slug: string }) {
               </p>
             </div>
             <Link
-              href="/donate"
+              href={`/donate?church=${data.slug}`}
               className="inline-flex h-11 shrink-0 items-center justify-center rounded-xl bg-white px-6 text-sm font-semibold text-[#0E203E] shadow-sm transition-colors hover:bg-white/90 active:scale-95"
             >
               {t('donationBannerCta')}

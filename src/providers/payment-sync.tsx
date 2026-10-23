@@ -55,21 +55,37 @@ export async function UPSERT_DONATION_SUBSCRIPTION({
 
     const effectiveUserId = userId || existing?.user_id
     if (providerStatus === 'active' && effectiveUserId && churchId) {
-      const priorActive = await tx.donationSubscription.findMany({
+      const eventTime = new Date(eventCreated * 1000)
+      const newerActive = await tx.donationSubscription.findFirst({
         where: {
           user_id: effectiveUserId,
           church_id: churchId,
           provider_status: 'active',
           provider_subscription_id: { not: providerSubscriptionId },
+          created_at: { gt: eventTime },
         },
-        select: { id: true, provider_subscription_id: true },
       })
-      if (priorActive.length > 0) {
-        await tx.donationSubscription.updateMany({
-          where: { id: { in: priorActive.map((s) => s.id) } },
-          data: { provider_status: 'canceled' },
+
+      if (newerActive) {
+        providerStatus = 'canceled'
+      } else {
+        const priorActive = await tx.donationSubscription.findMany({
+          where: {
+            user_id: effectiveUserId,
+            church_id: churchId,
+            provider_status: 'active',
+            provider_subscription_id: { not: providerSubscriptionId },
+            created_at: { lte: eventTime },
+          },
+          select: { id: true, provider_subscription_id: true },
         })
-        priorToCancel = priorActive.map((s) => s.provider_subscription_id)
+        if (priorActive.length > 0) {
+          await tx.donationSubscription.updateMany({
+            where: { id: { in: priorActive.map((s) => s.id) } },
+            data: { provider_status: 'canceled' },
+          })
+          priorToCancel = priorActive.map((s) => s.provider_subscription_id)
+        }
       }
     }
 
@@ -176,10 +192,11 @@ export async function UPSERT_DONATION_PAYMENT({
         }
       }
 
-      if (userId && sub.provider_status === 'active') {
+      const effectiveUserId = userId || sub.user_id
+      if (effectiveUserId && sub.provider_status === 'active') {
         const priorActive = await tx.donationSubscription.findMany({
           where: {
-            user_id: userId,
+            user_id: effectiveUserId,
             church_id: churchId,
             provider_status: 'active',
             id: { not: sub.id },

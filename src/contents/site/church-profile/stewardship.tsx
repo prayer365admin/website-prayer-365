@@ -9,12 +9,11 @@ import { useSiteI18n } from '@/i18n/site-i18n'
 
 const PRESET_AMOUNTS = [10, 50, 100, 25]
 interface StewardshipProps {
-  churchId?: string
-  slug?: string
+  slug: string
   churchName?: string
 }
 
-export function Stewardship({ churchId, slug, churchName }: StewardshipProps) {
+export function Stewardship({ slug, churchName }: StewardshipProps) {
   const { t } = useSiteI18n()
   const [selectedAmount, setSelectedAmount] = useState<number | null>(10)
   const [customAmount, setCustomAmount] = useState('')
@@ -93,7 +92,7 @@ export function Stewardship({ churchId, slug, churchName }: StewardshipProps) {
           <Link
             aria-label={t('donate')}
             className="flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-white px-4 text-base font-semibold text-[#0E203E] shadow-sm transition-opacity hover:opacity-95"
-            href={`/donate/${slug ?? churchId}`}
+            href={`/donate?church=${slug}`}
           >
             <SendOutlined className="text-base text-[#0E203E]" />
             <span>{t('giveViaBanklink')}</span>

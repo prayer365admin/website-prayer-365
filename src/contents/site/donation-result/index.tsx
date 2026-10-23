@@ -112,14 +112,14 @@ export default function ContentsSiteDonationResult({
             {current.state === 'failed' && (
               <Link
                 className="rounded-xl bg-primary-500 px-5 py-3 text-sm font-semibold text-white"
-                href={`/donate/${current.churchSlug ?? attempt.churchId}`}
+                href={`/donate?church=${current.churchSlug ?? attempt.churchId}`}
               >
                 {t('donateResultTryAgain')}
               </Link>
             )}
             <Link
               className="text-sm font-semibold text-blue-800 underline-offset-2 hover:underline"
-              href={`/donate/${current.churchSlug ?? attempt.churchId}`}
+              href={`/donate?church=${current.churchSlug ?? attempt.churchId}`}
             >
               {t('donateResultBack')}
             </Link>

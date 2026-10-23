@@ -25,8 +25,8 @@ export function Stewardship({
   const { locale, t } = useSiteI18n()
   const targetSlug = churchSlug ?? gift?.churchId ?? churchId
   // No gift and no main parish: there is no church to give to yet, so send them to find one.
-  const donateHref = targetSlug ? `/donate/${targetSlug}` : '/churches'
-  const oneTimeHref = targetSlug ? `${donateHref}?frequency=one_time` : '/churches'
+  const donateHref = targetSlug ? `/donate?church=${targetSlug}` : '/churches'
+  const oneTimeHref = targetSlug ? `/donate?church=${targetSlug}&frequency=one_time` : '/churches'
 
   return (
     <section aria-labelledby="home-stewardship-title" className={homeCardThinShadowClassName}>

@@ -14,17 +14,16 @@ vi.mock('@/controller/donation', () => ({ initiateDonation: m.initiateDonation }
 
 import { POST } from './route'
 
-const params = { params: Promise.resolve({ churchId: 'c1' }) }
-const body = { amountMinor: 1000, currency: 'EUR', frequency: 'monthly' }
+const body = { churchId: 'c1', amountMinor: 1000, currency: 'EUR', frequency: 'monthly' }
 
 const req = (payload: unknown, headers: Record<string, string> = {}) =>
-  new NextRequest('http://localhost/api/v1/site/churches/c1/donations', {
+  new NextRequest('http://localhost/api/v1/site/donations', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...headers },
     body: JSON.stringify(payload),
   })
 
-describe('POST /api/v1/site/churches/[churchId]/donations', () => {
+describe('POST /api/v1/site/donations', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     m.requiredWebAuth.mockResolvedValue({
@@ -43,13 +42,13 @@ describe('POST /api/v1/site/churches/[churchId]/donations', () => {
       }),
     )
 
-    const res = await POST(req(body), params as never)
+    const res = await POST(req(body))
 
     expect(res.status).toBe(401)
     expect(m.initiateDonation).not.toHaveBeenCalled()
   })
 
-  it('derives giver and church server-side and forwards the Idempotency-Key', async () => {
+  it('takes the church from the body, the giver from the session, and forwards the Idempotency-Key', async () => {
     const fixture = {
       sessionId: 'cs_1',
       url: 'https://checkout.stripe.test/cs_1',
@@ -60,22 +59,29 @@ describe('POST /api/v1/site/churches/[churchId]/donations', () => {
     }
     m.initiateDonation.mockResolvedValue(fixture)
 
-    const res = (await POST(req(body, { 'idempotency-key': 'idem-1' }), params as never))!
+    const res = (await POST(req({ ...body, category: 'pantry' }, { 'idempotency-key': 'idem-1' })))!
 
     expect(res.status).toBe(200)
     expect(m.initiateDonation).toHaveBeenCalledWith({
       churchId: 'c1',
       userId: 'u1',
-      input: expect.objectContaining({ amountMinor: 1000, currency: 'eur', frequency: 'monthly' }),
+      input: expect.objectContaining({
+        amountMinor: 1000,
+        currency: 'eur',
+        frequency: 'monthly',
+        category: 'pantry',
+      }),
       idempotencyKey: 'idem-1',
     })
+    // The church is consumed by the route, never re-validated as gift input.
+    expect(m.initiateDonation.mock.calls[0][0].input).not.toHaveProperty('churchId')
     expect((await res.json()).result).toEqual(fixture)
   })
 
   it('generates a key when the caller sends none', async () => {
     m.initiateDonation.mockResolvedValue({ sessionId: 'cs_2', url: 'https://x.test/cs_2' })
 
-    const res = (await POST(req(body), params as never))!
+    const res = (await POST(req(body)))!
 
     expect(res.status).toBe(200)
     expect(m.initiateDonation.mock.calls[0][0].idempotencyKey).toEqual(expect.any(String))
@@ -84,7 +90,7 @@ describe('POST /api/v1/site/churches/[churchId]/donations', () => {
   it('maps a disabled integration to 503 DONATIONS_NOT_READY', async () => {
     m.initiateDonation.mockRejectedValue(new NotImplementedError('STRIPE.createCheckoutSession'))
 
-    const res = (await POST(req(body), params as never))!
+    const res = (await POST(req(body)))!
 
     expect(res.status).toBe(503)
     expect((await res.json()).error_code).toBe('DONATIONS_NOT_READY')
@@ -100,20 +106,22 @@ describe('POST /api/v1/site/churches/[churchId]/donations', () => {
       }),
     )
 
-    const res = (await POST(req(body), params as never))!
+    const res = (await POST(req(body)))!
 
     expect(res.status).toBe(400)
     expect((await res.json()).error_code).toBe('CHURCH_NOT_ELIGIBLE')
   })
 
-  it('rejects unknown fields and bad amounts with 422', async () => {
+  it('rejects unknown fields, bad amounts and host-shaped church ids with 422', async () => {
     for (const payload of [
-      { ...body, churchId: 'c2' },
+      { ...body, churchId: '../../admin' },
+      { ...body, churchId: '' },
       { ...body, userId: 'u2' },
       { ...body, amountMinor: 0 },
       { ...body, frequency: 'weekly' },
+      { ...body, category: 'tithe' },
     ]) {
-      const res = (await POST(req(payload), params as never))!
+      const res = (await POST(req(payload)))!
       expect(res.status).toBe(422)
     }
     expect(m.initiateDonation).not.toHaveBeenCalled()

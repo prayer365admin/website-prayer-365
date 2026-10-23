@@ -13,7 +13,7 @@ export default function SiteFooter({ legalOnly = false }: { legalOnly?: boolean 
   const parishLinks = [
     [t('footerParishTallinn'), '/churches'],
     [t('footerParishHelsinki'), '/churches'],
-    [t('footerParishDiaconal'), '/giving'],
+    [t('footerParishDiaconal'), '/donate'],
     [t('footerParishYouth'), '/events'],
   ] as const
 

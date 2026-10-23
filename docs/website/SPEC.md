@@ -96,24 +96,22 @@ No separate database schema needed. The website reads existing Prisma models.
 
 ## 4. Page route map
 
-| Route                         | Screen          | Auth   | Backend called (controller)                                                                  |
-| ----------------------------- | --------------- | ------ | -------------------------------------------------------------------------------------------- |
-| `/`                           | Home (W06)      | Yes    | `getHome`                                                                                    |
-| `/login`                      | Sign In (W01)   | Public | NextAuth credentials                                                                         |
-| `/register`                   | Register (W02)  | Public | `registerUser`                                                                               |
-| `/verify-email`               | Verify (W03)    | Public | `verifyEmail`                                                                                |
-| `/forgot-password`            | Forgot (W04)    | Public | Send reset email                                                                             |
-| `/reset-password`             | Reset (W04)     | Public | `resetPassword`                                                                              |
-| `/customer/setup`             | Setup (W05)     | Yes    | Patch locale + main/follow                                                                   |
-| `/churches`                   | Directory (W07) | Yes    | `listPublicChurches` (search, radius, denomination, language, quick filters)                 |
-| `/churches/:churchId`         | Profile (W08)   | Yes    | `getPublicChurch` (gallery, staff), `listPublicEvents`, `listPublicAnnouncements`, `getHome` |
-| `/churches/:churchId/prayers` | Prayers (W09)   | Yes    | `listPublishedPrayers`                                                                       |
-| `/prayers/:prayerId`          | Prayer (W10)    | Yes    | `getPublishedPrayer`                                                                         |
-| `/giving`                     | Giving entry    | Yes    | Resolves the main parish and redirects to `/donate/:churchId`, else `/churches` (WB-41)      |
-| `/donate`                     | Donate entry    | Yes    | Resolves the main parish, else a flagship / first approved parish, else `/churches` (WB-41)  |
-| `/donate/:churchId`           | Donation (W11)  | Yes    | Site donation controller to Stripe                                                           |
-| `/donate/result`              | Result (W12)    | Yes    | Donor / attempt status                                                                       |
-| `/customer`                   | Profile (W13)   | Yes    | `getMe` / `patchMe` / avatar upload                                                          |
+| Route                         | Screen          | Auth   | Backend called (controller)                                                                                              |
+| ----------------------------- | --------------- | ------ | ------------------------------------------------------------------------------------------------------------------------ |
+| `/`                           | Home (W06)      | Yes    | `getHome`                                                                                                                |
+| `/login`                      | Sign In (W01)   | Public | NextAuth credentials                                                                                                     |
+| `/register`                   | Register (W02)  | Public | `registerUser`                                                                                                           |
+| `/verify-email`               | Verify (W03)    | Public | `verifyEmail`                                                                                                            |
+| `/forgot-password`            | Forgot (W04)    | Public | Send reset email                                                                                                         |
+| `/reset-password`             | Reset (W04)     | Public | `resetPassword`                                                                                                          |
+| `/customer/setup`             | Setup (W05)     | Yes    | Patch locale + main/follow                                                                                               |
+| `/churches`                   | Directory (W07) | Yes    | `listPublicChurches` (search, radius, denomination, language, quick filters)                                             |
+| `/churches/:churchId`         | Profile (W08)   | Yes    | `getPublicChurch` (gallery, staff), `listPublicEvents`, `listPublicAnnouncements`, `getHome`                             |
+| `/churches/:churchId/prayers` | Prayers (W09)   | Yes    | `listPublishedPrayers`                                                                                                   |
+| `/prayers/:prayerId`          | Prayer (W10)    | Yes    | `getPublishedPrayer`                                                                                                     |
+| `/donate`                     | Donation (W11)  | Yes    | `?church={slug}` names the beneficiary; bare `/donate` resolves the Main Church, else a gated beneficiary picker (WB-41) |
+| `/donate/result`              | Result (W12)    | Yes    | Donor / attempt status                                                                                                   |
+| `/customer`                   | Profile (W13)   | Yes    | `getMe` / `patchMe` / avatar upload                                                                                      |
 
 Routing guard: any website page except the four public account pages requires
 a session; unauthenticated visitors go to `/login`. Content is never rendered

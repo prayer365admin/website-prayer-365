@@ -224,10 +224,10 @@ describe('WB3 Home devotional hero', () => {
     expect(screen.getByText('Beneficiary: Hope Church')).toBeTruthy()
     expect(screen.getByText('Next: November 15, 2026')).toBeTruthy()
     expect(screen.getByRole('link', { name: /Manage Giving/ }).getAttribute('href')).toBe(
-      '/donate/church-1',
+      '/donate?church=church-1',
     )
     expect(screen.getByRole('link', { name: 'One-time Offering' }).getAttribute('href')).toBe(
-      '/donate/church-1?frequency=one_time',
+      '/donate?church=church-1&frequency=one_time',
     )
   })
 

@@ -4,12 +4,18 @@ import { NotImplementedError } from '@/utils/not-implemented-error'
 const m = vi.hoisted(() => ({
   create: vi.fn(),
   retrieve: vi.fn(),
+  subRetrieve: vi.fn(),
+  subCancel: vi.fn(),
+  subList: vi.fn(),
+  portalCreate: vi.fn(),
   constructorArgs: vi.fn(),
 }))
 
 vi.mock('stripe', () => ({
   default: class {
     checkout = { sessions: { create: m.create, retrieve: m.retrieve } }
+    subscriptions = { retrieve: m.subRetrieve, cancel: m.subCancel, list: m.subList }
+    billingPortal = { sessions: { create: m.portalCreate } }
     constructor(...args: unknown[]) {
       m.constructorArgs(...args)
     }
@@ -88,12 +94,143 @@ describe('STRIPE.createCheckoutSession', () => {
     expect(params.subscription_data).toBeUndefined()
   })
 
+  it('carries the ministry category into transaction metadata', async () => {
+    m.create.mockResolvedValue({ id: 'cs_4', url: 'https://checkout.test/cs_4' })
+
+    await STRIPE.createCheckoutSession({
+      ...request,
+      frequency: 'one_time',
+      userId: 'u1',
+      category: 'pantry',
+    })
+
+    const [params] = m.create.mock.calls[0]
+    expect(params.metadata).toEqual({ churchId: 'c1', userId: 'u1', category: 'pantry' })
+    // The giver's designation must reach the charge itself, not just the session.
+    expect(params.payment_intent_data).toEqual({
+      metadata: { churchId: 'c1', userId: 'u1', category: 'pantry' },
+    })
+  })
+
   it('fails loudly when Stripe returns no checkout url', async () => {
     m.create.mockResolvedValue({ id: 'cs_3', url: null })
 
     await expect(
       STRIPE.createCheckoutSession({ ...request, frequency: 'one_time' }),
     ).rejects.toMatchObject({ code: 502, error_code: 'STRIPE_SESSION_URL_MISSING' })
+  })
+})
+
+describe('STRIPE.createBillingPortalSession', () => {
+  it('opens the hosted portal for the customer with the in-app return url', async () => {
+    m.portalCreate.mockResolvedValue({ url: 'https://billing.stripe.test/p_1' })
+
+    const result = await STRIPE.createBillingPortalSession({
+      customerId: 'cus_1',
+      returnUrl: 'https://site.test/donate?church=st-john',
+    })
+
+    expect(m.portalCreate).toHaveBeenCalledWith({
+      customer: 'cus_1',
+      return_url: 'https://site.test/donate?church=st-john',
+    })
+    expect(result).toEqual({ url: 'https://billing.stripe.test/p_1' })
+  })
+
+  it('fails loudly when Stripe returns no portal url', async () => {
+    m.portalCreate.mockResolvedValue({ url: null })
+
+    await expect(
+      STRIPE.createBillingPortalSession({ customerId: 'cus_1', returnUrl: 'https://site.test/x' }),
+    ).rejects.toMatchObject({ code: 502, error_code: 'STRIPE_PORTAL_URL_MISSING' })
+  })
+})
+
+describe('STRIPE.retrieveSubscription', () => {
+  it('maps the customer id the billing portal needs', async () => {
+    m.subRetrieve.mockResolvedValue({
+      id: 'sub_1',
+      status: 'active',
+      customer: { id: 'cus_1' },
+      items: { data: [{ price: { unit_amount: 1000, currency: 'eur' } }] },
+      metadata: { churchId: 'c1' },
+    })
+
+    const sub = await STRIPE.retrieveSubscription('sub_1')
+
+    expect(m.subRetrieve).toHaveBeenCalledWith('sub_1')
+    expect(sub).toEqual({
+      id: 'sub_1',
+      status: 'active',
+      customer: 'cus_1',
+      canceledAt: null,
+      cancelAt: null,
+      cancelAtPeriodEnd: false,
+      plan: { amount: 1000, currency: 'eur' },
+      metadata: { churchId: 'c1' },
+    })
+  })
+
+  it('keeps a string customer as-is', async () => {
+    m.subRetrieve.mockResolvedValue({
+      id: 'sub_2',
+      status: 'past_due',
+      customer: 'cus_2',
+      items: { data: [] },
+      metadata: {},
+    })
+
+    const sub = await STRIPE.retrieveSubscription('sub_2')
+
+    expect(sub.customer).toBe('cus_2')
+    expect(sub.plan).toBeUndefined()
+  })
+
+  it('maps cancellation timestamps and period-end flags', async () => {
+    m.subRetrieve.mockResolvedValue({
+      id: 'sub_3',
+      status: 'active',
+      customer: 'cus_3',
+      canceled_at: 1792737150,
+      cancel_at: 1795170189,
+      cancel_at_period_end: false,
+      items: { data: [] },
+      metadata: {},
+    })
+
+    const sub = await STRIPE.retrieveSubscription('sub_3')
+
+    expect(sub.canceledAt).toBe(1792737150)
+    expect(sub.cancelAt).toBe(1795170189)
+    expect(sub.cancelAtPeriodEnd).toBe(true)
+  })
+})
+
+describe('STRIPE.cancelOtherChurchSubscriptions', () => {
+  it('cancels active subscriptions matching the church except the current one', async () => {
+    m.subList.mockResolvedValue({
+      data: [
+        { id: 'sub_new', metadata: { churchId: 'c1' } },
+        { id: 'sub_prior', metadata: { churchId: 'c1' } },
+        { id: 'sub_other_church', metadata: { churchId: 'other-church' } },
+      ],
+    })
+    m.subCancel.mockResolvedValue({ id: 'sub_prior', status: 'canceled' })
+
+    const canceled = await STRIPE.cancelOtherChurchSubscriptions({
+      customerId: 'cus_1',
+      churchId: 'c1',
+      currentSubscriptionId: 'sub_new',
+    })
+
+    expect(m.subList).toHaveBeenCalledWith({
+      customer: 'cus_1',
+      status: 'active',
+      limit: 20,
+    })
+    expect(m.subCancel).toHaveBeenCalledTimes(1)
+    expect(m.subCancel).toHaveBeenCalledWith('sub_prior')
+    expect(canceled).toEqual(['sub_prior'])
   })
 })
 

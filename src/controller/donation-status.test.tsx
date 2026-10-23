@@ -19,7 +19,7 @@ vi.mock('@/providers/donation', () => ({
   GET_MY_DONATION_ATTEMPT: m.GET_MY_DONATION_ATTEMPT,
   GET_CHECKOUT_RECEIPT: m.GET_CHECKOUT_RECEIPT,
 }))
-vi.mock('@/providers/stripe', () => ({ STRIPE: {} }))
+vi.mock('@/providers/stripe', () => ({ STRIPE: {}, isStripeEnabled: () => false }))
 
 import { getDonationStatus, getMyDonationOverview } from './donation'
 

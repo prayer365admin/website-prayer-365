@@ -57,7 +57,7 @@ export default function SiteTopBar({
   const generalLinks = [
     { href: '/churches', label: t('headerDiscoverChurches') },
     { href: '/events', label: t('headerEvents') },
-    { href: '/giving', label: t('headerGiving') },
+    { href: '/donate', label: t('headerGiving') },
     { href: '/prayers', label: t('headerPrayers') },
   ]
 

@@ -404,6 +404,38 @@ describe('payment-sync-job controller', () => {
     expect(sub?.provider_status).toBe('canceled')
   })
 
+  it('marks subscription canceled when customer.subscription.updated has canceled_at', async () => {
+    const subId = `sub_test_${crypto.randomUUID()}`
+    const { job: job1 } = createJob({
+      eventType: 'customer.subscription.created',
+      dataObject: {
+        id: subId,
+        status: 'active',
+        plan: { amount: 2500, currency: 'eur' },
+        metadata: { churchId },
+      },
+    })
+    const { job: job2 } = createJob({
+      eventType: 'customer.subscription.updated',
+      dataObject: {
+        id: subId,
+        status: 'active',
+        canceled_at: 1792737150,
+        cancel_at: 1795170189,
+        plan: { amount: 2500, currency: 'eur' },
+        metadata: { churchId },
+      },
+    })
+
+    await processPaymentSyncJob(job1.id, 'req_sub_create')
+    let sub = subscriptions.find((s) => s.provider_subscription_id === subId)
+    expect(sub?.provider_status).toBe('active')
+
+    await processPaymentSyncJob(job2.id, 'req_sub_update_cancel')
+    sub = subscriptions.find((s) => s.provider_subscription_id === subId)
+    expect(sub?.provider_status).toBe('canceled')
+  })
+
   it('successfully processes charge.refunded', async () => {
     const chId = `ch_test_${crypto.randomUUID()}`
     const piId = `pi_ref_${crypto.randomUUID()}`

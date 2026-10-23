@@ -327,7 +327,7 @@ describe('DO-09: Platform Account Resolution and Security Constraints', () => {
         sessionId: 'cs_test_delegate',
         url: 'https://checkout.stripe.com/pay/cs_test_delegate',
       })
-      const input = { amountMinor: 6000, currency: 'eur', frequency: 'monthly' }
+      const input = { amountMinor: 6000, currency: 'eur', frequency: 'monthly', category: 'organ' }
       const res = await initiateDonation({ churchId, input })
 
       expect(createSpy).toHaveBeenCalledWith(
@@ -336,6 +336,7 @@ describe('DO-09: Platform Account Resolution and Security Constraints', () => {
           amountMinor: 6000,
           currency: 'eur',
           frequency: 'monthly',
+          category: 'organ',
         }),
       )
       expect(res.sessionId).toBe('cs_test_delegate')

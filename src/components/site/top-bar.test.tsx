@@ -85,7 +85,7 @@ describe('SiteTopBar', () => {
 
     expect(link(SITE_MESSAGES.en.headerDiscoverChurches).getAttribute('href')).toBe('/churches')
     expect(link(SITE_MESSAGES.en.headerEvents).getAttribute('href')).toBe('/events')
-    expect(link(SITE_MESSAGES.en.headerGiving).getAttribute('href')).toBe('/giving')
+    expect(link(SITE_MESSAGES.en.headerGiving).getAttribute('href')).toBe('/donate')
     expect(link(SITE_MESSAGES.en.headerPrayers).getAttribute('href')).toBe('/prayers')
     expect(link(SITE_MESSAGES.en.headerSearch).getAttribute('href')).toBe('/search')
     expect(link(SITE_MESSAGES.en.headerNotifications).getAttribute('href')).toBe('/notifications')

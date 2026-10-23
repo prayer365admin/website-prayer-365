@@ -11,6 +11,7 @@ import {
   FINALIZE_PAYMENT_SYNC_JOB,
 } from '@/providers/payment-sync'
 import { STRIPE, isStripeEnabled } from '@/providers/stripe'
+import { CANCEL_OTHER_CHURCH_SUBSCRIPTIONS } from '@/providers/donation'
 
 const MAX_ATTEMPTS = 3
 const REFUND_MAX_ATTEMPTS = 10
@@ -297,13 +298,18 @@ export const processPaymentSyncJob = async (
       const sub = obj as any
       const amount = Number(sub.plan?.amount ?? sub.items?.data?.[0]?.price?.unit_amount ?? 0)
       const currency = String(sub.plan?.currency ?? sub.items?.data?.[0]?.price?.currency ?? 'usd')
+      const isCanceled =
+        sub.status === 'canceled' ||
+        Boolean(sub.canceled_at) ||
+        Boolean(sub.cancel_at) ||
+        Boolean(sub.cancel_at_period_end)
       await UPSERT_DONATION_SUBSCRIPTION({
         churchId,
         userId: payerUserId,
         providerSubscriptionId: String(sub.id),
         amountMinor: amount,
         currency: currency,
-        providerStatus: String(sub.status),
+        providerStatus: isCanceled ? 'canceled' : String(sub.status),
         eventCreated,
       })
     } else if (payload.eventType === 'customer.subscription.deleted') {
@@ -321,7 +327,17 @@ export const processPaymentSyncJob = async (
         eventCreated,
       })
     } else if (payload.eventType === 'checkout.session.completed') {
-      // See SPEC: handle if needed
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const session = obj as any
+      if (session.mode === 'subscription' && session.subscription && payerUserId && churchId) {
+        const subId =
+          typeof session.subscription === 'string' ? session.subscription : session.subscription.id
+        await CANCEL_OTHER_CHURCH_SUBSCRIPTIONS({
+          userId: payerUserId,
+          churchId,
+          currentSubscriptionId: String(subId),
+        })
+      }
     } else if (payload.eventType === 'invoice.payment_succeeded') {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const inv = obj as any

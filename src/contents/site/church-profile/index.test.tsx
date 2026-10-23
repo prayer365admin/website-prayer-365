@@ -233,7 +233,9 @@ describe('ContentsSiteChurchProfile', () => {
     expect(btn50.getAttribute('aria-pressed')).toBe('false')
 
     // WB-41: the CTA hands off to the church's real donate page.
-    expect(screen.getByRole('link', { name: 'Donate' }).getAttribute('href')).toBe('/donate/c1')
+    expect(screen.getByRole('link', { name: 'Donate' }).getAttribute('href')).toBe(
+      '/donate?church=c1',
+    )
   })
 
   it('renders pastoral care office contact links with tel: and mailto: hrefs', async () => {
@@ -252,7 +254,7 @@ describe('ContentsSiteChurchProfile', () => {
     expect(phoneLink.getAttribute('href')).toBe('tel:+372 123 4567')
   })
 
-  it('renders donation banner with CTA linking to /donate', async () => {
+  it('renders donation banner with CTA linking to the church donate page', async () => {
     axiosMock.get.mockResolvedValueOnce({
       data: resolveGet(church),
     })
@@ -266,7 +268,7 @@ describe('ContentsSiteChurchProfile', () => {
     ).toBeTruthy()
     const donateLink = screen.getByRole('link', { name: 'Support This Parish' })
     expect(donateLink).toBeTruthy()
-    expect(donateLink.getAttribute('href')).toBe('/donate')
+    expect(donateLink.getAttribute('href')).toBe('/donate?church=c1')
   })
 
   it('renders cover image when coverUrl is provided', async () => {
@@ -340,7 +342,9 @@ describe('ContentsSiteChurchProfile', () => {
 
     expect(await screen.findByRole('heading', { level: 1, name: 'Grace' })).toBeTruthy()
 
-    expect(screen.getByRole('link', { name: 'Donate' }).getAttribute('href')).toBe('/donate/c1')
+    expect(screen.getByRole('link', { name: 'Donate' }).getAttribute('href')).toBe(
+      '/donate?church=c1',
+    )
   })
 
   it('renders sanctuary gallery tiles with captions from data.gallery', async () => {
