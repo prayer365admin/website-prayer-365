@@ -1,40 +1,76 @@
 import nodemailer, { Transporter } from 'nodemailer'
 import type { SendMailOptions } from 'nodemailer'
+import { SESv2Client, SendEmailCommand } from '@aws-sdk/client-sesv2'
 import path from 'path'
 import fs from 'fs'
 import { GeneralError } from '@/utils/general-error'
 import dayjs from 'dayjs'
 import { sendMailRequest } from '@/models/send-mail'
 
-let transport: Transporter
 const mailProvider = process.env.MAIL_PROVIDER || 'mailtrap'
 
-// With MailTrap
-if (mailProvider === 'mailtrap') {
-  transport = nodemailer.createTransport({
-    host: 'sandbox.smtp.mailtrap.io',
-    port: 2525,
-    auth: {
-      user: process.env.MAILTRAP_USER,
-      pass: process.env.MAILTRAP_PASSWORD,
-    },
+/**
+ * Builds the transport for one provider. `MAIL_PROVIDER` selects it, so moving
+ * between SES, Mailgun and Mailtrap is an environment change, not a code change.
+ */
+export function createMailTransport(provider: string, env = process.env): Transporter {
+  // With Amazon SES (API, not the SMTP interface: it reuses the IAM keys the app
+  // already holds for S3). nodemailer 10 expects SESv2 — `{ sesClient,
+  // SendEmailCommand }`; the older `{ ses, aws }` shape is rejected at send time.
+  // The identity is per-region: SES_REGION must match where the domain was verified.
+  if (provider === 'ses') {
+    return nodemailer.createTransport({
+      SES: {
+        sesClient: new SESv2Client({ region: env.SES_REGION ?? env.AWS_REGION }),
+        SendEmailCommand,
+      },
+    })
+  }
+
+  // With MailGun
+  if (provider === 'mailgun') {
+    return nodemailer.createTransport({
+      host: 'smtp.mailgun.org',
+      port: 587,
+      secure: false,
+      auth: {
+        user: env.MAILGUN_USER,
+        pass: env.MAILGUN_PASSWORD,
+      },
+      tls: {
+        rejectUnauthorized: false,
+      },
+    })
+  }
+
+  // With MailTrap
+  if (provider === 'mailtrap') {
+    return nodemailer.createTransport({
+      host: 'sandbox.smtp.mailtrap.io',
+      port: 2525,
+      auth: {
+        user: env.MAILTRAP_USER,
+        pass: env.MAILTRAP_PASSWORD,
+      },
+    })
+  }
+
+  // An unknown value used to leave `transport` undefined, so the first send died
+  // with a TypeError (`Cannot read properties of undefined`) far from the cause.
+  throw new GeneralError({
+    error: 'mail provider not supported',
+    error_code: 'MAIL_PROVIDER_UNSUPPORTED',
+    details: `MAIL_PROVIDER="${provider}" has no transport. Use mailtrap, mailgun or ses.`,
+    code: 500,
   })
 }
 
-// With MailGun
-if (mailProvider === 'mailgun') {
-  transport = nodemailer.createTransport({
-    host: 'smtp.mailgun.org',
-    port: 587,
-    secure: false,
-    auth: {
-      user: process.env.MAILGUN_USER,
-      pass: process.env.MAILGUN_PASSWORD,
-    },
-    tls: {
-      rejectUnauthorized: false,
-    },
-  })
+let transport: Transporter | undefined
+
+/** Built on the first send, so a bad MAIL_PROVIDER cannot break the module import. */
+function getTransport(): Transporter {
+  if (!transport) transport = createMailTransport(mailProvider)
+  return transport
 }
 
 export default async function sendMail(request: sendMailRequest) {
@@ -73,7 +109,7 @@ export default async function sendMail(request: sendMailRequest) {
   }
 
   try {
-    await transport.sendMail(mailOptions)
+    await getTransport().sendMail(mailOptions)
   } catch (error) {
     throw error
   }

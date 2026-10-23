@@ -1,0 +1,85 @@
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+
+/*
+ * The mailer picks its transport from MAIL_PROVIDER. These tests lock the provider
+ * contract: SES uses the SESv2 shape nodemailer 10 requires, the SMTP branches stay
+ * intact, and an unknown value fails loudly instead of crashing at the first send.
+ */
+
+const createTransport = vi.hoisted(() => vi.fn(() => ({ sendMail: vi.fn() })))
+const sesClient = vi.hoisted(() => vi.fn())
+const sendEmailCommand = vi.hoisted(() => class SendEmailCommand {})
+
+vi.mock('nodemailer', () => ({
+  default: { createTransport },
+  createTransport,
+}))
+
+vi.mock('@aws-sdk/client-sesv2', () => ({
+  SESv2Client: sesClient,
+  SendEmailCommand: sendEmailCommand,
+}))
+
+import { createMailTransport } from '@/controller/mail'
+import { GeneralError } from '@/utils/general-error'
+
+const env = (values: Record<string, string>) => values as unknown as NodeJS.ProcessEnv
+
+describe('createMailTransport', () => {
+  beforeEach(() => {
+    createTransport.mockClear()
+    sesClient.mockClear()
+  })
+
+  it('builds the SESv2 transport for MAIL_PROVIDER=ses', () => {
+    createMailTransport('ses', env({ SES_REGION: 'eu-north-1' }))
+
+    expect(sesClient).toHaveBeenCalledWith({ region: 'eu-north-1' })
+    expect(createTransport).toHaveBeenCalledWith({
+      SES: { sesClient: expect.anything(), SendEmailCommand: sendEmailCommand },
+    })
+  })
+
+  it('falls back to AWS_REGION when SES_REGION is not set', () => {
+    createMailTransport('ses', env({ AWS_REGION: 'ap-southeast-1' }))
+
+    expect(sesClient).toHaveBeenCalledWith({ region: 'ap-southeast-1' })
+  })
+
+  it('keeps the mailgun SMTP transport', () => {
+    createMailTransport('mailgun', env({ MAILGUN_USER: 'u', MAILGUN_PASSWORD: 'p' }))
+
+    expect(createTransport).toHaveBeenCalledWith(
+      expect.objectContaining({
+        host: 'smtp.mailgun.org',
+        port: 587,
+        auth: { user: 'u', pass: 'p' },
+      }),
+    )
+  })
+
+  it('keeps the mailtrap SMTP transport', () => {
+    createMailTransport('mailtrap', env({ MAILTRAP_USER: 'u', MAILTRAP_PASSWORD: 'p' }))
+
+    expect(createTransport).toHaveBeenCalledWith(
+      expect.objectContaining({
+        host: 'sandbox.smtp.mailtrap.io',
+        port: 2525,
+        auth: { user: 'u', pass: 'p' },
+      }),
+    )
+  })
+
+  it('fails loudly on an unknown provider', () => {
+    let thrown: unknown
+    try {
+      createMailTransport('sendgrid')
+    } catch (error) {
+      thrown = error
+    }
+
+    expect(thrown).toBeInstanceOf(GeneralError)
+    expect((thrown as GeneralError).error_code).toBe('MAIL_PROVIDER_UNSUPPORTED')
+    expect(createTransport).not.toHaveBeenCalled()
+  })
+})
