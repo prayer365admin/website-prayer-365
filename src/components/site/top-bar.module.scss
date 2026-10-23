@@ -490,6 +490,21 @@
   line-height: 26px !important;
 }
 
+.notificationButton {
+  position: relative;
+}
+
+.notificationDot {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 8px;
+  height: 8px;
+  border: 0;
+  border-radius: 50%;
+  background: var(--color-danger-500);
+}
+
 @media (max-width: 1120px) {
   .inner {
     display: flex;

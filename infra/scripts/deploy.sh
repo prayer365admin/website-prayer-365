@@ -205,12 +205,14 @@ STORAGE_MODE="$(printf '%s' "$CFG" | sed -E 's/.*"storage":\{"mode":"([a-z]+)".*
 DB_MODE="$(printf '%s' "$CFG" | sed -E 's/.*"database":\{"mode":"([a-z]+)".*/\1/')"
 NET_MODE="$(printf '%s' "$CFG" | sed -E 's/.*"network":\{"mode":"([a-z]+)".*/\1/')"
 WORKERS_ENABLED="$(printf '%s' "$CFG" | sed -E 's/.*"workers":\{"enabled":(true|false).*/\1/')"
+SES_DOMAIN="$(cfg_str "$CFG" domain)"
 
 printf '  %-14s %s\n' "environment" "$ENV_NAME"
 printf '  %-14s %s\n' "region" "$REGION"
 printf '  %-14s %s\n' "storage" "$STORAGE_MODE"
 printf '  %-14s %s\n' "database" "$DB_MODE"
 printf '  %-14s %s\n' "network" "$NET_MODE"
+printf '  %-14s %s\n' "email (SES)" "$SES_DOMAIN"
 printf '  %-14s %s\n' "workers" "enabled=$WORKERS_ENABLED"
 printf '  %-14s %s\n' "on destroy" "removalPolicy=$REMOVAL"
 
@@ -274,8 +276,12 @@ checklist() {
   if [ "$STORAGE_MODE" = "existing" ]; then
     info "storage: reuses an existing bucket, so no bucket check (mode=existing)"
   else
-    bucket="$(aws s3api head-bucket --bucket "prayer365-${ENV_NAME}-media" 2>/dev/null && echo yes)"
-    [ -n "$bucket" ]; mark_exit "$?" "media bucket prayer365-${ENV_NAME}-media"
+    # list-buckets, not head-bucket: head-bucket has no output shape, so any
+    # invalid default output in ~/.aws/config (e.g. `output = JSON`) makes it fail
+    # with "Unknown output type" and the bucket looks missing.
+    bucket="$(aws s3api list-buckets $CLI_ARGS \
+      --query "Buckets[?Name=='prayer365-${ENV_NAME}-media'].Name" --output text 2>/dev/null)"
+    [ -n "$bucket" ] && [ "$bucket" != "None" ]; mark_exit "$?" "media bucket prayer365-${ENV_NAME}-media"
   fi
   param_exists "/prayer365/${ENV_NAME}/bucket-name"
   mark_exit "$?" "SSM parameter /prayer365/${ENV_NAME}/bucket-name"
@@ -296,6 +302,11 @@ checklist() {
     param_exists "/prayer365/${ENV_NAME}/nat-egress-ip"
     mark_exit "$?" "fixed NAT egress IP parameter (network.mode=vpc)"
   fi
+
+  # SES domain identity: without it the app's transactional mail cannot be sent.
+  ses_verified="$(aws sesv2 get-email-identity --email-identity "$SES_DOMAIN" $CLI_ARGS \
+    --query 'VerifiedForSendingStatus' --output text 2>/dev/null)"
+  [ "$ses_verified" = "True" ]; mark_exit "$?" "SES domain identity ${SES_DOMAIN} verified"
 
   SECRET_TOTAL=0; SECRET_WITH_VALUE=0
   for suffix in database-url elevenlabs-api-key stripe-secret-key stripe-webhook-secret mail-credentials; do

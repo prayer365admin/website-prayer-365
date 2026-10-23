@@ -8,6 +8,7 @@ import { useSiteI18n } from '@/i18n/site-i18n'
 import type { MobileMe, MobileMyChurch } from '@/models/mobile'
 import {
   ArrowRightOutlined,
+  BellOutlined,
   CheckOutlined,
   DownOutlined,
   HomeOutlined,
@@ -23,6 +24,9 @@ import { useState } from 'react'
 import s from './top-bar.module.scss'
 
 export type SiteHeaderVariant = 'auth' | 'general'
+
+// Hidden until the notifications page exists; flip to show the bell again.
+const SHOW_NOTIFICATIONS = false
 
 /** True when the path is the link target or a page below it. */
 const isPathWithin = (pathname: string, href: string) =>
@@ -276,6 +280,16 @@ export default function SiteTopBar({
             >
               <MenuOutlined />
             </button>
+          )}
+          {SHOW_NOTIFICATIONS && variant === 'general' && (
+            <Link
+              aria-label={t('headerNotifications')}
+              className={`${s.iconButton} ${s.notificationButton}`}
+              href="/notifications"
+            >
+              <BellOutlined />
+              <span aria-hidden className={s.notificationDot} />
+            </Link>
           )}
         </div>
       </div>

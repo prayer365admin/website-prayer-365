@@ -15,11 +15,11 @@
 
 The AWS side of PRAYER 365 is defined in code in the `infra/` folder of this repository.
 
-| Component | Stack                     | What it creates                                                                                                                                                   |
-| --------- | ------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Storage   | `prayer365-<env>-storage` | Media bucket (only when `storage.mode: 'create'`); otherwise it only publishes the existing bucket name                                                           |
-| Data      | `prayer365-<env>-data`    | SQS job queue + dead-letter queue, five Secrets Manager containers, and (when `database.mode: 'create'`) a VPC with a NAT instance and an RDS PostgreSQL instance |
-| Workers   | `prayer365-<env>-workers` | Dispatcher Lambda, consumer Lambda, SQS event source, dispatch schedule, log groups and three alarms                                                              |
+| Component | Stack                     | What it creates                                                                                                                                                                                                                                          |
+| --------- | ------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Storage   | `prayer365-<env>-storage` | Media bucket (only when `storage.mode: 'create'`); otherwise it only publishes the existing bucket name                                                                                                                                                  |
+| Data      | `prayer365-<env>-data`    | SQS job queue + dead-letter queue, five Secrets Manager containers, the SES domain identity, the app IAM user + key pair for Vercel (client environments), and (when `database.mode: 'create'`) a VPC with a NAT instance and an RDS PostgreSQL instance |
+| Workers   | `prayer365-<env>-workers` | Dispatcher Lambda, consumer Lambda, SQS event source, dispatch schedule, log groups and three alarms                                                                                                                                                     |
 
 The web application and its API stay on **Vercel**. The two runtimes share only the database:
 Vercel writes an `outbox_jobs` row in the same transaction as the business change, and the Lambda
@@ -43,10 +43,42 @@ flowchart LR
 One config file per deployment target: `infra/config/environments/<name>.ts`, kept in the registry in
 `infra/config/index.ts`. Select it with `-c env=<name>` or `PRAYER365_ENV`.
 
-| Environment      | Account                               | Database                                                        | Storage                                  | Network                          | Purpose                                                                                |
-| ---------------- | ------------------------------------- | --------------------------------------------------------------- | ---------------------------------------- | -------------------------------- | -------------------------------------------------------------------------------------- |
-| `catatia`        | 430118850592 (shared company account) | External — DigitalOcean managed PostgreSQL                      | Reuses `bucket-catatia`                  | `public` (Lambdas outside a VPC) | Current target, and the throw-away account for deploy tests (`removalPolicy: destroy`) |
-| `client-example` | 000000000000 (placeholder)            | RDS PostgreSQL 16, `db.t4g.micro`, 20 GB, single-AZ (free tier) | Dedicated `prayer365-<env>-media` bucket | `vpc` + fixed egress IP          | Template to copy for a client account                                                  |
+| Environment      | Account                               | Database                                                                                     | Storage                                  | Network                                           | Purpose                                                                                |
+| ---------------- | ------------------------------------- | -------------------------------------------------------------------------------------------- | ---------------------------------------- | ------------------------------------------------- | -------------------------------------------------------------------------------------- |
+| `catatia`        | 430118850592 (shared company account) | External — DigitalOcean managed PostgreSQL                                                   | Reuses `bucket-catatia`                  | `public` (Lambdas outside a VPC)                  | Current target, and the throw-away account for deploy tests (`removalPolicy: destroy`) |
+| `client-example` | 000000000000 (placeholder)            | RDS PostgreSQL 16, `db.t4g.micro`, 20 GB, single-AZ (free tier)                              | Dedicated `prayer365-<env>-media` bucket | `vpc` + fixed egress IP                           | Template to copy for a client account                                                  |
+| `prayer-365`     | 007091975568 (client-owned)           | RDS PostgreSQL 16, `db.t4g.micro`, 20 GB, single-AZ, **public** (`publiclyAccessible: true`) | Own `prayer365-prayer-365-media` bucket  | `vpc` — Lambdas in private subnets + NAT instance | Client production environment (deployed 23 October 2026)                               |
+
+### Public vs private database
+
+`database.publiclyAccessible` decides two things at once: the subnet the instance is created in
+(PUBLIC → public subnets, PRIVATE → private subnets) and its security group rule.
+
+| Value   | Subnet  | Security group              | Who can connect                                                                                                                                                                             |
+| ------- | ------- | --------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `true`  | public  | 5432 open to `0.0.0.0/0`    | Anything on the internet, including Vercel. TLS (`sslmode=require`) plus the RDS-generated password are the only guard — a deliberate temporary posture, like the public media bucket (D13) |
+| `false` | private | 5432 from the VPC CIDR only | The worker Lambdas in the same VPC. A web app on Vercel **cannot** connect                                                                                                                  |
+
+The stack used to hardcode `false`; a client whose web app runs on Vercel therefore needs `true`, because
+Vercel has no fixed egress IPs to allow-list. Whichever value is chosen, the data stack now emits an
+explicit security-group rule — the construct's default group has **no** inbound rules, so a private
+instance was previously reachable by nothing at all.
+
+### Email (SES)
+
+`email` names the sending domain for the environment. `mode: 'existing'` adopts a domain already verified
+in that account's SES (`catatia.com`); `mode: 'create'` creates the identity and the stack prints
+`SesDomain`, `SesMailFromDomain` and the three `SesDkimToken*` pairs that the domain owner has to publish.
+The data stack also writes `/prayer365/<env>/ses-domain`. Records, verification commands and the SES
+sandbox limitation are in **docs/admin/SES-DNS.md**; `deploy.sh --check` reports whether the identity is
+verified.
+
+The app sends through SES with `MAIL_PROVIDER=ses` (plus `MAIL_FROM` and `SES_REGION`); Mailtrap and
+Mailgun stay selectable through the same variable, and an unknown value fails with
+`MAIL_PROVIDER_UNSUPPORTED` instead of crashing at the first send. Credentials come from the app IAM user
+the data stack creates for client environments (`prayer365-<env>-app`, key pair in
+`/prayer365/<env>/app-credentials`, S3 scoped to the media bucket and SES scoped to the identity). catatia
+keeps using the shared account's existing user.
 
 ### Database location is configuration, not code
 
@@ -461,12 +493,40 @@ a non-current version — so testing a _new_ job means creating a fresh prayer t
 
 ---
 
+### 7.6 Deployment record — `prayer-365` (client account 007091975568, 23 October 2026)
+
+| #   | Step                                                                                                 | Result                                                                                                                 |
+| --- | ---------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
+| 0   | profile `prayer-365` (IAM user `catatia_dev`, `AdministratorAccess`) → `aws sts get-caller-identity` | account 007091975568, region `eu-north-1`; empty account (0 stacks, buckets, secrets, RDS)                             |
+| 1   | `infra/config/environments/prayer-365.ts` + the registry line                                        | `print-config.ts --list` → catatia, client-example, prayer-365                                                         |
+| 2   | `bunx cdk bootstrap aws://007091975568/eu-north-1`                                                   | CDKToolkit `CREATE_COMPLETE` (assets + container-assets buckets)                                                       |
+| 3   | `PRAYER365_ENV=prayer-365 bun run deploy:storage`                                                    | ✅ 26 s; bucket `prayer365-prayer-365-media`                                                                           |
+| 4   | `PRAYER365_ENV=prayer-365 bun run deploy:data`                                                       | ✅ ~5 min: queue pair, five secret containers, VPC, NAT instance + EIP `13.49.140.221`, public RDS `available`         |
+| 5   | seed `/prayer365/prayer-365/database-url`                                                            | master user + generated password read from the CDK-created `PostgresSecret<hash>-<suffix>` secret; value never printed |
+| 6   | `DATABASE_URL=… bunx prisma migrate deploy`                                                          | direct connection (public instance, no SSM tunnel): 29 migrations applied, status "up to date"                         |
+| 7   | `PRAYER365_ENV=prayer-365 bun run deploy:workers`                                                    | ✅ 2 Lambdas, EventBridge rule `rate(1 minute)` `ENABLED`, 3 alarms `OK`                                               |
+| 8   | `aws lambda invoke --function-name prayer365-prayer-365-dispatcher`                                  | `StatusCode 200`, payload `{"scanned":0,…}`, log `job_dispatch_tick` — the Lambda reaches the new RDS instance         |
+
+Checklist after step 8: **16/17**. The one gap is `elevenlabs-api-key` (still the CDK-generated
+placeholder) — the client's ElevenLabs, Stripe and mail values are not in hand yet, and because Lambda
+environment variables from Secrets Manager are resolved at deploy time, the worker stack must be
+redeployed once they are seeded.
+
+Two defects were found and fixed during this deployment:
+
+| #   | Defect                                                               | Cause / fix                                                                                                                                                                                                                                                                                                                                                       |
+| --- | -------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1   | `deploy.sh` reported the media bucket as missing although it existed | the check used `aws s3api head-bucket`, which takes no `--output`; an invalid default output in `~/.aws/config` (`output = JSON`, uppercase — the CLI only accepts lowercase) made it fail with `Unknown output type: JSON`. The check now uses `aws s3api list-buckets`, and the profile was corrected with `aws configure set output json --profile prayer-365` |
+| 2   | A private RDS instance would have been reachable by nothing          | the RDS construct's default security group has no inbound rules. The data stack now always adds one: the VPC CIDR for a private instance, `0.0.0.0/0` for a public one                                                                                                                                                                                            |
+
+---
+
 ## 8. Known limitations
 
-| #   | Item                                                    | Note                                                                                                                                        |
-| --- | ------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
-| 1   | Media is world-readable                                 | Deliberate for now (SPEC §10.4.1 / D13). A distributed object URL cannot be revoked. Revisit before production                              |
-| 2   | Deploy role uses broad permissions                      | `cdk deploy` needs IAM write access. Only the account owner runs deploys today; scope the role down before a second operator or CI is added |
-| 3   | Client environments need credentials even to synthesize | The VPC + NAT instance does an AMI lookup; `cdk context` caches it after the first successful run                                           |
-| 4   | `notification.send` has no worker                       | Documented in section 5; the dispatcher skips it on purpose                                                                                 |
-| 5   | One environment (catatia) today                         | Staging and production separation means adding a second config file, not code changes                                                       |
+| #   | Item                                                    | Note                                                                                                                                                                                                                                             |
+| --- | ------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| 1   | Media is world-readable                                 | **Accepted permanently** (client decision 2026-10-21, D13): public reads for every purpose, no signed reads, no expiring URLs. A distributed object URL cannot be revoked, so withdrawn content may still be fetchable by an old link — accepted |
+| 2   | Deploy role uses broad permissions                      | `cdk deploy` needs IAM write access. Only the account owner runs deploys today; scope the role down before a second operator or CI is added                                                                                                      |
+| 3   | Client environments need credentials even to synthesize | The VPC + NAT instance does an AMI lookup; `cdk context` caches it after the first successful run                                                                                                                                                |
+| 4   | `notification.send` has no worker                       | Documented in section 5; the dispatcher skips it on purpose                                                                                                                                                                                      |
+| 5   | One environment (catatia) today                         | Staging and production separation means adding a second config file, not code changes                                                                                                                                                            |

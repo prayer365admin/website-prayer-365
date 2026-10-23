@@ -83,6 +83,7 @@ export const SITE_MESSAGES = {
     headerNoChurches: 'No churches available',
     headerBrowseChurches: 'Browse churches',
     headerSearch: 'Search',
+    headerNotifications: 'Notifications',
     headerSignIn: 'Sign In',
     headerSpiritualWalk: 'Spiritual Walk',
     headerPrimaryNav: 'Primary navigation',
@@ -555,6 +556,11 @@ export const SITE_MESSAGES = {
     donateManagePause: 'Pause or Modify Monthly Pledge',
     donateManageCertificate: 'Download Annual Tax Certificate (PDF)',
     donateComingSoon: 'Coming soon',
+    donateAnnualReportTitle: 'Annual Report & Statements',
+    donateAnnualReportBody:
+      'Quietly email me once each January with my aggregated parish statements and community ministry review.',
+    donateTrustBody:
+      'Prayer 365 will never send unsolicited donation solicitations, telemarketing, or guilt-based campaigns.',
     donateSpotlightPill: 'Faith Action Spotlight',
     donateSpotlightCaption: "St. John's Parish Saturday Hospitality Service",
     donateSpotlightTitle: '142 Warm Meals Served This Past Saturday',
@@ -795,6 +801,7 @@ export const SITE_MESSAGES = {
     headerNoChurches: 'Kogudusi ei ole saadaval',
     headerBrowseChurches: 'Sirvi kogudusi',
     headerSearch: 'Otsi',
+    headerNotifications: 'Teavitused',
     headerSignIn: 'Logi sisse',
     headerSpiritualWalk: 'Vaimulik teekond',
     headerPrimaryNav: 'Peamine navigatsioon',
@@ -1207,6 +1214,11 @@ export const SITE_MESSAGES = {
     donateManagePause: 'Peata või muuda igakuist pühendumust',
     donateManageCertificate: 'Laadi alla aastane maksutõend (PDF)',
     donateComingSoon: 'Tulemas',
+    donateAnnualReportTitle: 'Aastaaruanne ja väljavõtted',
+    donateAnnualReportBody:
+      'Saada mulle vaikselt igal jaanuaril koondatud koguduse väljavõtted ja kogukonna teenistuse ülevaade.',
+    donateTrustBody:
+      'Prayer 365 ei saada kunagi soovimatuid annetusüleskutseid, telefonimüüki ega süütunnet tekitavaid kampaaniaid.',
     donateSpotlightPill: 'Usu tegevuse esileht',
     donateSpotlightCaption: 'Püha Johannese koguduse laupäevane külalislahkus',
     donateSpotlightTitle: '142 sooja söögikorda eelmisel laupäeval',
@@ -1418,6 +1430,7 @@ export const SITE_MESSAGES = {
     headerNoChurches: 'Inga församlingar tillgängliga',
     headerBrowseChurches: 'Bläddra bland församlingar',
     headerSearch: 'Sök',
+    headerNotifications: 'Aviseringar',
     headerSignIn: 'Logga in',
     headerSpiritualWalk: 'Andlig vandring',
     headerPrimaryNav: 'Huvudnavigering',
@@ -1834,6 +1847,11 @@ export const SITE_MESSAGES = {
     donateManagePause: 'Pausa eller ändra månatligt löfte',
     donateManageCertificate: 'Ladda ner årligt skatteintyg (PDF)',
     donateComingSoon: 'Kommer snart',
+    donateAnnualReportTitle: 'Årsredovisning och utdrag',
+    donateAnnualReportBody:
+      'Maila mig tyst varje januari mina samlade församlingsutdrag och en genomgång av gemenskapens verksamhet.',
+    donateTrustBody:
+      'Prayer 365 skickar aldrig oombedda gåvoförfrågningar, telefonförsäljning eller kampanjer som spelar på skuldkänslor.',
     donateSpotlightPill: 'Tro i handling',
     donateSpotlightCaption: 'S:t Johannes församlings lördagsgästfrihet',
     donateSpotlightTitle: '142 varma måltider i lördags',
@@ -2045,6 +2063,7 @@ export const SITE_MESSAGES = {
     headerNoChurches: 'Seurakuntia ei ole saatavilla',
     headerBrowseChurches: 'Selaa seurakuntia',
     headerSearch: 'Haku',
+    headerNotifications: 'Ilmoitukset',
     headerSignIn: 'Kirjaudu sisään',
     headerSpiritualWalk: 'Hengellinen vaellus',
     headerPrimaryNav: 'Päänavigaatio',
@@ -2462,6 +2481,11 @@ export const SITE_MESSAGES = {
     donateManagePause: 'Keskeytä tai muuta kuukausisitoumusta',
     donateManageCertificate: 'Lataa vuosittainen verotodistus (PDF)',
     donateComingSoon: 'Tulossa pian',
+    donateAnnualReportTitle: 'Vuosikertomus ja otteet',
+    donateAnnualReportBody:
+      'Lähetä minulle hiljaa joka tammikuu kootut seurakuntaotteet ja katsaus yhteisön työhön.',
+    donateTrustBody:
+      'Prayer 365 ei koskaan lähetä pyytämättömiä lahjoituspyyntöjä, puhelinmyyntiä tai syyllisyyteen vetoavia kampanjoita.',
     donateSpotlightPill: 'Usko teoissa',
     donateSpotlightCaption: 'Pyhän Johanneksen seurakunnan lauantain vieraanvaraisuus',
     donateSpotlightTitle: '142 lämmintä ateriaa viime lauantaina',
