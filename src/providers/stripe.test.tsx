@@ -249,6 +249,8 @@ describe('STRIPE.retrieveCheckoutSession', () => {
     expect(session).toEqual({
       id: 'cs_1',
       mode: 'payment',
+      status: null,
+      paymentStatus: null,
       payment_intent: 'pi_1',
       subscription: 'sub_1',
       metadata: { churchId: 'c1' },

@@ -227,7 +227,16 @@ export const getDonationStatus = async ({
   if (query.sessionId && isStripeEnabled()) {
     try {
       const session = await STRIPE.retrieveCheckoutSession(query.sessionId)
-      if (session.mode === 'subscription' && session.subscription) {
+      const metadataToSync: Record<string, string> = {
+        churchId: church.id,
+        userId,
+      }
+      if (session.metadata?.category) metadataToSync.category = session.metadata.category
+      if (session.payment_intent) {
+        await STRIPE.updatePaymentIntentMetadata(session.payment_intent, metadataToSync)
+      }
+      const isPaid = session.paymentStatus === 'paid' || session.status === 'complete'
+      if (isPaid && session.mode === 'subscription' && session.subscription) {
         const currentSubId = session.subscription
         await UPSERT_DONATION_SUBSCRIPTION({
           churchId: church.id,
@@ -262,7 +271,7 @@ export const getDonationStatus = async ({
             currentSubscriptionId: currentSubId,
           })
         }
-      } else if (session.mode === 'payment') {
+      } else if (isPaid && session.mode === 'payment') {
         const paymentId = session.payment_intent || session.id
         await UPSERT_DONATION_PAYMENT({
           churchId: church.id,

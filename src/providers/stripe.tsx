@@ -117,6 +117,15 @@ export interface StripeSubscription {
 export interface StripeBillingPortalSession {
   url: string
 }
+export interface StripeCheckoutSession {
+  id: string
+  mode: string
+  status?: string | null
+  paymentStatus?: string | null
+  payment_intent?: string
+  subscription?: string
+  metadata?: Record<string, string>
+}
 
 export interface StripeCharge {
   id: string
@@ -125,14 +134,6 @@ export interface StripeCharge {
   currency: string
   status: string
   payment_intent?: string | { id: string }
-}
-
-export interface StripeCheckoutSession {
-  id: string
-  mode: string
-  payment_intent?: string
-  subscription?: string
-  metadata?: Record<string, string>
 }
 
 export interface StripeInvoice {
@@ -203,6 +204,8 @@ export const STRIPE = {
     return {
       id: session.id,
       mode: session.mode,
+      status: session.status ?? null,
+      paymentStatus: session.payment_status ?? null,
       payment_intent:
         typeof session.payment_intent === 'string'
           ? session.payment_intent
@@ -342,5 +345,23 @@ export const STRIPE = {
       }
     }
     return canceled
+  },
+  /** Attach or update metadata on a PaymentIntent in Stripe. */
+  async updatePaymentIntentMetadata(id: string, metadata: Record<string, string>): Promise<void> {
+    ensureEnabled('retrievePaymentIntent')
+    await makeStripe()
+      .paymentIntents.update(id, { metadata })
+      .catch((err) => {
+        logger.warn('failed_to_update_payment_intent_metadata', { id, err })
+      })
+  },
+  /** Attach or update metadata on a Charge in Stripe. */
+  async updateChargeMetadata(id: string, metadata: Record<string, string>): Promise<void> {
+    ensureEnabled('retrieveCharge')
+    await makeStripe()
+      .charges.update(id, { metadata })
+      .catch((err) => {
+        logger.warn('failed_to_update_charge_metadata', { id, err })
+      })
   },
 }

@@ -263,6 +263,9 @@ export const processPaymentSyncJob = async (
         status: 'PAID',
         paidAt: providerPaidAt,
       })
+      if (isStripeEnabled() && metadata && Object.keys(metadata).length > 0) {
+        await STRIPE.updateChargeMetadata(ch.id, metadata as Record<string, string>)
+      }
     } else if (payload.eventType === 'charge.failed') {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const ch = obj as any
@@ -353,6 +356,11 @@ export const processPaymentSyncJob = async (
         paidAt: providerPaidAt,
         providerSubscriptionId: extractSubscriptionId(inv),
       })
+      if (isStripeEnabled() && metadata && Object.keys(metadata).length > 0) {
+        if (typeof pi === 'string' && pi.startsWith('pi_')) {
+          await STRIPE.updatePaymentIntentMetadata(pi, metadata as Record<string, string>)
+        }
+      }
     } else if (payload.eventType === 'invoice.payment_failed') {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const inv = obj as any
