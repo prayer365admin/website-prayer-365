@@ -6,6 +6,7 @@ import { SitePrayerDetail } from '@/models/site-prayer'
 import { ArrowRightOutlined, PhoneOutlined } from '@ant-design/icons'
 import Image from 'next/image'
 import Link from 'next/link'
+import { stripAudioTags } from '@/utils/strip-audio-tags'
 
 const card = 'rounded-2xl bg-white shadow-[0_8px_30px_rgba(24,74,140,0.08)]'
 const softButton =
@@ -76,7 +77,7 @@ export function PrayerDetailSidebar({ detail }: { detail: SitePrayerDetail }) {
               >
                 <span className="min-w-0 flex-1">
                   <span className="block truncate text-sm font-semibold text-primary-900">
-                    {relatedPrayer.title}
+                    {stripAudioTags(relatedPrayer.title)}
                   </span>
                   <span className="mt-1 block truncate text-xs text-neutral-500">
                     {relatedPrayer.churchName}

@@ -169,6 +169,7 @@ export default function ContentsSiteChurchDirectory() {
 
   const activeId = selectedId ?? data?.[0]?.id
   const selectedChurch = (data ?? []).find((c) => c.id === activeId)
+  const mapRegion = [selectedChurch?.district, selectedChurch?.city].filter(Boolean).join(', ')
 
   return (
     <div className="bg-[#F7F9FB]">
@@ -449,7 +450,8 @@ export default function ContentsSiteChurchDirectory() {
                 <div className="pointer-events-auto flex items-center gap-2 rounded-full border border-[#ECEEF0] bg-white/90 px-3.5 py-1.5 shadow-sm backdrop-blur-md">
                   <CompassIcon className="text-[13px] text-[#2F7AD2]" aria-hidden="true" />
                   <span className="text-[11px] font-bold tracking-wider text-[#414752] uppercase">
-                    TALLINN DIOCESE • SANCTUARY MAP
+                    {mapRegion ? `${mapRegion} • ` : ''}
+                    {t('sanctuaryMap')}
                   </span>
                 </div>
               </div>

@@ -4,7 +4,7 @@ import { GeneralError } from '@/utils/general-error'
 import { auditPayload } from '@/utils/audit'
 import { fromKind } from '@/providers/request'
 import { S3_PUBLIC_URL } from '@/providers/s3'
-import { sanctuaryRangesFor } from '@/utils/sanctuary-hours'
+import { isSanctuaryOpenNow } from '@/utils/sanctuary-hours'
 import {
   MobileAnnouncementListQuery,
   MobileCheckInAck,
@@ -177,61 +177,11 @@ export function haversineKm(lat1: number, lng1: number, lat2: number, lng2: numb
     Math.sin(dLat / 2) ** 2 + Math.cos(rad(lat1)) * Math.cos(rad(lat2)) * Math.sin(dLng / 2) ** 2
   return Math.round(R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a)) * 10) / 10
 }
-const WEEKDAY_MAP: Record<string, number> = {
-  Mon: 1,
-  Tue: 2,
-  Wed: 3,
-  Thu: 4,
-  Fri: 5,
-  Sat: 6,
-  Sun: 7,
-}
-
-/** Wall-clock weekday (1–7) and minute-of-day in the church timezone (UTC fallback). */
-export function churchClock(
-  timezone: string,
-  now: Date,
-): { weekday: number; minutes: number } | null {
-  const format = (tz: string) =>
-    new Intl.DateTimeFormat('en-CA', {
-      timeZone: tz,
-      hour: '2-digit',
-      minute: '2-digit',
-      hour12: false,
-      weekday: 'short',
-    })
-  let parts: Intl.DateTimeFormatPart[]
-  try {
-    parts = format(timezone).formatToParts(now)
-  } catch {
-    parts = format('UTC').formatToParts(now)
-  }
-
-  const weekdayStr = parts.find((p) => p.type === 'weekday')?.value?.replace('.', '')
-  const weekday = weekdayStr ? WEEKDAY_MAP[weekdayStr] : undefined
-  if (!weekday) return null
-
-  const rawHour = Number(parts.find((p) => p.type === 'hour')?.value ?? 0)
-  const hour = rawHour === 24 ? 0 : rawHour
-  const minute = Number(parts.find((p) => p.type === 'minute')?.value ?? 0)
-  return { weekday, minutes: hour * 60 + minute }
-}
-
 /**
  * `open_now` (website SPEC §5.3 / §6.2): true when the current church-local time
  * falls inside a `sanctuary_hours` window. No schedule → closed.
  */
-export function isOpenNow(
-  timezone: string,
-  sanctuaryHours: string | null | undefined,
-  now: Date,
-): boolean {
-  const clock = churchClock(timezone, now)
-  if (!clock) return false
-  return sanctuaryRangesFor(sanctuaryHours, clock.weekday).some(
-    (r) => clock.minutes >= r.start && clock.minutes <= r.end,
-  )
-}
+export const isOpenNow = isSanctuaryOpenNow
 
 /** Approximate lat/lng box for a radius, so the DB is not scanned in full. */
 const radiusBox = (query: MobileChurchListQuery): Prisma.ChurchWhereInput => {

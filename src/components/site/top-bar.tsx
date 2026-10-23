@@ -25,8 +25,11 @@ import s from './top-bar.module.scss'
 export type SiteHeaderVariant = 'auth' | 'general'
 
 /** True when the path is the link target or a page below it. */
-const isActivePath = (pathname: string, href: string) =>
+const isPathWithin = (pathname: string, href: string) =>
   pathname === href || pathname.startsWith(`${href}/`)
+
+const isActivePath = (pathname: string, href: string) =>
+  isPathWithin(pathname, href) || (href === '/giving' && isPathWithin(pathname, '/donate'))
 
 export default function SiteTopBar({
   variant = 'general',

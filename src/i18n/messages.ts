@@ -36,6 +36,7 @@ export const SITE_MESSAGES = {
     heroRegion: 'Tallinn, Harju & Gulf of Finland',
     heroSubtitle:
       'Find welcoming congregations, service schedules, and quiet sanctuaries across the Baltic region.',
+    sanctuaryMap: 'Sanctuary Map',
     congregationsListed: 'welcoming congregations listed',
     withinDistance: 'Within 10 km',
     allDenominations: 'All Denominations',
@@ -117,6 +118,7 @@ export const SITE_MESSAGES = {
     sanctuaryHours: 'Sanctuary Hours for Private Devotion',
     sacredSpaceQuietTime: 'Sacred Space & Quiet Time',
     keepersOnDuty: 'Sanctuary Keepers on Duty',
+    sanctuaryClosedNow: 'Currently closed',
     worshipServices: 'Worship Services & Regular Liturgies',
     prayerLists: 'Prayer Lists',
     guidedContemplation: 'GUIDED CONTEMPLATION',
@@ -746,6 +748,7 @@ export const SITE_MESSAGES = {
     heroRegion: 'Tallinn, Harju ja Soome laht',
     heroSubtitle:
       'Leia sõbralikke kogudusi, jumalateenistuste graafikuid ja rahulikke pühakodasid Balti regioonis.',
+    sanctuaryMap: 'Pühakodade kaart',
     congregationsListed: 'sõbralikku kogudust loetletud',
     withinDistance: 'Kuni 10 km',
     allDenominations: 'Kõik suunad',
@@ -827,6 +830,7 @@ export const SITE_MESSAGES = {
     sanctuaryHours: 'Pühakoja lahtiolekuajad vaikseks palveks',
     sacredSpaceQuietTime: 'Püha ruum ja vaikne aeg',
     keepersOnDuty: 'Kirikuvalvurid kohal',
+    sanctuaryClosedNow: 'Praegu suletud',
     worshipServices: 'Jumalateenistused ja regulaarsed liturgiad',
     prayerLists: 'Palvenimekirjad',
     guidedContemplation: 'JUHATATUD MÕTISKLUS',
@@ -1367,6 +1371,7 @@ export const SITE_MESSAGES = {
     heroRegion: 'Tallinn, Harju & Finska viken',
     heroSubtitle:
       'Hitta välkomnande församlingar, gudstjänsttider och lugna helgedomar i Östersjöregionen.',
+    sanctuaryMap: 'Karta över helgedomar',
     congregationsListed: 'vänliga församlingar listade',
     withinDistance: 'Inom 10 km',
     allDenominations: 'Alla samfund',
@@ -1448,6 +1453,7 @@ export const SITE_MESSAGES = {
     sanctuaryHours: 'Helgedomens öppettider för enskild andakt',
     sacredSpaceQuietTime: 'Heligt rum och stilla stund',
     keepersOnDuty: 'Kyrkovärdar i tjänst',
+    sanctuaryClosedNow: 'Stängt just nu',
     worshipServices: 'Gudstjänster och regelbundna liturgier',
     prayerLists: 'Bönelistor',
     guidedContemplation: 'VÄGLEDD KONTEMPLATION',
@@ -1991,6 +1997,7 @@ export const SITE_MESSAGES = {
     heroRegion: 'Tallinna, Harju ja Suomenlahti',
     heroSubtitle:
       'Löydä vieraanvaraisia seurakuntia, jumalanpalvelusaikoja ja rauhallisia pyhäkköjä Baltian alueelta.',
+    sanctuaryMap: 'Pyhäkkökartta',
     congregationsListed: 'vieraanvaraista seurakuntaa listattu',
     withinDistance: 'Enintään 10 km',
     allDenominations: 'Kaikki suuntaukset',
@@ -2073,6 +2080,7 @@ export const SITE_MESSAGES = {
     sanctuaryHours: 'Pyhäkön aukioloajat hiljentymiseen',
     sacredSpaceQuietTime: 'Pyhä tila ja hiljainen hetki',
     keepersOnDuty: 'Kirkkoväki paikalla',
+    sanctuaryClosedNow: 'Suljettu juuri nyt',
     worshipServices: 'Jumalanpalvelukset ja säännölliset liturgiat',
     prayerLists: 'Rukouslistat',
     guidedContemplation: 'OHJATTU HILJENTYMINEN',

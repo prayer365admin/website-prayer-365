@@ -15,7 +15,8 @@ import { DownOutlined, SearchOutlined } from '@ant-design/icons'
 import { ConfigProvider, Select, SelectProps } from 'antd'
 import Link from 'next/link'
 import { useEffect, useState } from 'react'
-import { readingMinutes } from './data'
+import { prayerDurationMinutes } from './data'
+import { prayerTextForDisplay } from '@/utils/rich-text-plain'
 
 const FilterSelect = ({
   id,
@@ -42,22 +43,26 @@ const metaIcon = 'bg-[#B0B6BF]'
 const PrayerCard = ({ prayer }: { prayer: SitePrayerArchiveItem }) => {
   const { t } = useSiteI18n()
   const format = prayer.audio ? t('prayerArchiveAudioAvailable') : t('prayerArchiveTextAvailable')
+  const minutes = prayerDurationMinutes(prayer.body, prayer.audio?.durationSeconds)
+  const prayerTitle = prayerTextForDisplay(prayer.title)
+  const quote = prayerTextForDisplay(prayer.body)
   return (
     <article className="flex h-full flex-col rounded-2xl bg-white p-4 shadow-[0_8px_30px_rgba(24,74,140,0.08)]">
-      <div className="flex items-start justify-between gap-3">
+      <div className="flex items-start gap-3">
         <span className="rounded-full bg-[#C2D9FF] px-2.5 py-1 text-xs text-blue-800">
-          {format} · {t('prayerArchiveMinutes', { minutes: readingMinutes(prayer.body) })}
+          {format} · {t('prayerArchiveMinutes', { minutes })}
         </span>
-        <MaskIcon className="bg-blue-800" size={16} src="/icons/icon-bookmark.svg" />
       </div>
       <h3 className="mt-4 text-base font-semibold leading-normal text-primary-900">
-        {prayer.title}
+        {prayerTitle}
       </h3>
       <p className="mt-2 line-clamp-3 text-sm leading-[1.6] text-neutral-600">
         {excerpt(prayer.introduction, prayer.body)}
       </p>
       <blockquote className="mt-4 rounded-lg bg-primary-100 p-4 font-font_quote text-base italic leading-[1.3] text-blue-800">
-        <p className="line-clamp-3">“{excerpt(prayer.body, prayer.title, 145)}”</p>
+        <p className="line-clamp-3" title={quote}>
+          “{quote}”
+        </p>
       </blockquote>
       <div className="mt-auto pt-5">
         <Pastor prayer={prayer} />
@@ -69,7 +74,7 @@ const PrayerCard = ({ prayer }: { prayer: SitePrayerArchiveItem }) => {
           <span aria-hidden>•</span>
           <span className="inline-flex items-center gap-1.5">
             <MaskIcon className={metaIcon} size={12} src="/icons/icon-music.svg" />
-            {t('prayerArchiveMinutes', { minutes: readingMinutes(prayer.body) })}
+            {t('prayerArchiveMinutes', { minutes })}
           </span>
           {prayer.audio && (
             <>

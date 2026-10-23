@@ -30,6 +30,16 @@ const DAY_NAMES: Array<[RegExp, number]> = [
   [/^(sun|sunday)$/, 7],
 ]
 
+const WEEKDAY_MAP: Record<string, number> = {
+  Mon: 1,
+  Tue: 2,
+  Wed: 3,
+  Thu: 4,
+  Fri: 5,
+  Sat: 6,
+  Sun: 7,
+}
+
 /** Weekdays covered by a block label. `null` = no day restriction (every day). */
 const weekdaysForTitle = (title: string): number[] | null => {
   const t = title.trim().toLowerCase()
@@ -142,6 +152,49 @@ export function sanctuaryRangesFor(raw: string | null | undefined, weekday: numb
     }
   }
   return ranges
+}
+
+/** Wall-clock weekday (1–7) and minute-of-day in an IANA timezone. */
+export function sanctuaryClock(
+  timezone: string,
+  now: Date,
+): { weekday: number; minutes: number } | null {
+  const formatter = (timeZone: string) =>
+    new Intl.DateTimeFormat('en-CA', {
+      timeZone,
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false,
+      weekday: 'short',
+    })
+  let parts: Intl.DateTimeFormatPart[]
+  try {
+    parts = formatter(timezone).formatToParts(now)
+  } catch {
+    parts = formatter('UTC').formatToParts(now)
+  }
+
+  const weekdayName = parts.find((part) => part.type === 'weekday')?.value.replace('.', '')
+  const weekday = weekdayName ? WEEKDAY_MAP[weekdayName] : undefined
+  if (!weekday) return null
+
+  const rawHour = Number(parts.find((part) => part.type === 'hour')?.value ?? 0)
+  const hour = rawHour === 24 ? 0 : rawHour
+  const minute = Number(parts.find((part) => part.type === 'minute')?.value ?? 0)
+  return { weekday, minutes: hour * 60 + minute }
+}
+
+/** True only while the church is inside one of today's stored sanctuary windows. */
+export function isSanctuaryOpenNow(
+  timezone: string,
+  sanctuaryHours: string | null | undefined,
+  now = new Date(),
+): boolean {
+  const clock = sanctuaryClock(timezone, now)
+  if (!clock) return false
+  return sanctuaryRangesFor(sanctuaryHours, clock.weekday).some(
+    (range) => clock.minutes >= range.start && clock.minutes <= range.end,
+  )
 }
 
 /** Latest closing time in the schedule (`10:00–18:30 daily` → `18:30`). */

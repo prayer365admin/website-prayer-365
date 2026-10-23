@@ -27,7 +27,12 @@ const item = (id: string, title: string, audio: boolean) => ({
   body: 'Do not be anxious.\n\nBring every request in prayer.',
   languageCode: 'en',
   audio: audio
-    ? { prayerAudioId: 'audio-1', url: 'https://cdn.test/prayer.mp3', approvedAt: '' }
+    ? {
+        prayerAudioId: 'audio-1',
+        url: 'https://cdn.test/prayer.mp3',
+        approvedAt: '',
+        durationSeconds: 125,
+      }
     : null,
 })
 
@@ -68,6 +73,7 @@ describe('PrayerDetail', () => {
         ?.includes('dynamic-prayer.jpg'),
     ).toBe(true)
     expect(screen.getByText('Audio player without transcript')).toBeTruthy()
+    expect(screen.getByText(/Audio prayer · 3 min/)).toBeTruthy()
     expect(
       screen.getByRole('link', { name: /View: Hope Church \(Tallinn\)/ }).getAttribute('href'),
     ).toBe('/churches/church-1')
@@ -105,5 +111,42 @@ describe('PrayerDetail', () => {
     expect(screen.queryByText(/Audio player/)).toBeNull()
     expect(screen.queryByRole('heading', { name: 'Related Prayers by Churches' })).toBeNull()
     expect(screen.queryByText('Church phone number')).toBeNull()
+  })
+
+  it('renders introduction rich text on the prayer detail page', () => {
+    renderDetail({
+      ...detail,
+      prayer: {
+        ...detail.prayer,
+        introduction:
+          '<p>Take\u00a0a\u00a0<strong>quiet\u00a0breath</strong>.</p><blockquote>Be\u00a0still.</blockquote>',
+        body: '<p>Truth\u00a0and\u00a0love.</p>',
+      },
+    })
+
+    const section = screen.getByRole('heading', { name: /Introductions/ }).closest('section')
+    expect(section?.querySelector('strong')?.textContent).toBe('quiet breath')
+    expect(section?.querySelector('blockquote')?.textContent).toBe('Be still.')
+    expect(section?.textContent).not.toContain('\u00a0')
+    expect(screen.getAllByText('Truth and love.').length).toBeGreaterThanOrEqual(2)
+  })
+
+  it('never exposes ElevenLabs cues in the prayer reader', () => {
+    renderDetail({
+      ...detail,
+      prayer: {
+        ...detail.prayer,
+        title: '[calm] Peace in Uncertain Times',
+        introduction: '<p>[warm] Take a <strong>quiet breath</strong>.</p>',
+        body: '<p>[softly] Do not be anxious.</p><p>[pause] Bring every request in prayer.</p>',
+      },
+      related: [{ ...detail.related[0]!, title: '[gentle] Resting in the Shadow' }],
+    })
+
+    expect(screen.getByRole('heading', { level: 1, name: 'Peace in Uncertain Times' })).toBeTruthy()
+    expect(screen.getAllByText('Take a ', { exact: false }).length).toBeGreaterThanOrEqual(2)
+    expect(screen.getByText('Do not be anxious.')).toBeTruthy()
+    expect(screen.getByRole('link', { name: /Resting in the Shadow/ })).toBeTruthy()
+    expect(screen.queryByText(/\[(?:calm|warm|softly|pause|gentle)\]/i)).toBeNull()
   })
 })

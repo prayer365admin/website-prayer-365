@@ -2,6 +2,7 @@ import { db } from '@/utils/db-connection'
 import { S3_PUBLIC_URL } from '@/providers/s3'
 import { stripAudioTags } from '@/utils/strip-audio-tags'
 import { sanitizePrayerRichText } from '@/utils/sanitize-prayer-rich-text'
+import { generatedAudioDurationSeconds, prayerDurationMinutes } from '@/utils/prayer-duration'
 import {
   SitePrayerArchive,
   SitePrayerArchiveItem,
@@ -23,9 +24,6 @@ type PublishedRow = {
 
 const includes = (value: string | null, search: string) =>
   Boolean(value?.toLocaleLowerCase().includes(search))
-
-const readingMinutes = (text: string) =>
-  Math.max(1, Math.round(text.trim().split(/\s+/).length / 150))
 
 const publishedSelect = {
   id: true,
@@ -53,7 +51,7 @@ const toItems = async (prayers: PublishedRow[]): Promise<SitePrayerArchiveItem[]
         where: { id: { in: versionIds } },
         include: {
           pastor: { include: { image_asset: { select: { object_key: true } } } },
-          selected_audio: { include: { asset: { select: { object_key: true } } } },
+          selected_audio: { include: { asset: { select: { object_key: true, byte_size: true } } } },
         },
       })
     : []
@@ -77,6 +75,7 @@ const toItems = async (prayers: PublishedRow[]): Promise<SitePrayerArchiveItem[]
     const assignment = churchPastorByKey.get(`${prayer.church_id}:${version.pastor_id}`)
     const imageKey = assignment?.image_asset?.object_key ?? version.pastor.image_asset?.object_key
     const selectedAudio = version.selected_audio
+    const durationSeconds = generatedAudioDurationSeconds(selectedAudio?.asset?.byte_size)
     const audioUrl =
       selectedAudio?.status === 'APPROVED' && selectedAudio.asset
         ? S3_PUBLIC_URL({ key: selectedAudio.asset.object_key })
@@ -104,6 +103,7 @@ const toItems = async (prayers: PublishedRow[]): Promise<SitePrayerArchiveItem[]
                 prayerAudioId: selectedAudio.id,
                 url: audioUrl,
                 approvedAt: selectedAudio.approved_at?.toISOString() ?? '',
+                ...(durationSeconds ? { durationSeconds } : {}),
               }
             : null,
       },
@@ -218,7 +218,7 @@ export const GET_SITE_PRAYER_ARCHIVE = async ({
     if (query.format === 'audio' && !prayer.audio) return false
     if (query.format === 'text' && prayer.audio) return false
 
-    const minutes = readingMinutes(prayer.body)
+    const minutes = prayerDurationMinutes(prayer.body, prayer.audio?.durationSeconds)
     if (query.duration === 'short' && minutes >= 3) return false
     if (query.duration === 'medium' && (minutes < 3 || minutes > 5)) return false
     if (query.duration === 'long' && minutes < 6) return false

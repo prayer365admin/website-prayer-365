@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest'
-import { plainTextToRichText, richTextToPlainText } from './rich-text-plain'
+import {
+  plainTextToRichText,
+  prayerTextForDisplay,
+  richTextFirstSentence,
+  richTextToPlainText,
+} from './rich-text-plain'
 
 describe('prayer rich-text conversion', () => {
   it('converts formatted HTML into clean narration text', () => {
@@ -14,5 +19,19 @@ describe('prayer rich-text conversion', () => {
     expect(plainTextToRichText('Be <still> & pray.\nAmen.')).toBe(
       '<p>Be &lt;still&gt; &amp; pray.<br>Amen.</p>',
     )
+  })
+
+  it('extracts one complete sentence from formatted prayer text', () => {
+    expect(
+      richTextFirstSentence(
+        '<p>Be still and know that grace is near.</p><p>This sentence is not included.</p>',
+      ),
+    ).toBe('Be still and know that grace is near.')
+  })
+
+  it('normalizes prayer display text and removes ElevenLabs cues', () => {
+    expect(
+      prayerTextForDisplay('<p>[warm] Be <strong>still</strong>.</p><p>[pause] Amen.</p>'),
+    ).toBe('Be still. Amen.')
   })
 })

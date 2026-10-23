@@ -144,6 +144,23 @@ describe('SiteTopBar', () => {
     expect(link(SITE_MESSAGES.en.headerPrayers).className).toContain('activeNavigationLink')
   })
 
+  it.each(['/donate', '/donate/c1', '/donate/result'])(
+    'keeps Giving & Stewardship active on %s',
+    (pathname) => {
+      pathnameMock.mockReturnValue(pathname)
+
+      renderWithProviders(
+        <SiteI18nProvider initialLocale="en">
+          <SiteTopBar />
+        </SiteI18nProvider>,
+      )
+
+      const givingLink = link(SITE_MESSAGES.en.headerGiving)
+      expect(givingLink.getAttribute('aria-current')).toBe('page')
+      expect(givingLink.className).toContain('activeNavigationLink')
+    },
+  )
+
   it('shows the selected prayer church and switches the archive from the header', async () => {
     pathnameMock.mockReturnValue('/prayers')
     searchParamsMock.get.mockImplementation((key) => (key === 'churchId' ? 'c2' : null))

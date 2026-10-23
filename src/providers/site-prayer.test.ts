@@ -67,7 +67,7 @@ beforeEach(() => {
         id: 'a1',
         status: 'APPROVED',
         approved_at: new Date('2026-10-15T07:00:00Z'),
-        asset: { object_key: 'audio.mp3' },
+        asset: { object_key: 'audio.mp3', byte_size: BigInt(2_000_000) },
       },
     },
     {
@@ -107,6 +107,7 @@ describe('GET_SITE_PRAYER_ARCHIVE', () => {
 
     expect(archive.featured?.id).toBe('p1')
     expect(archive.featured?.audio?.url).toBe('https://cdn.test/audio.mp3')
+    expect(archive.featured?.audio?.durationSeconds).toBe(125)
     expect(archive.result.map((item) => item.id)).toEqual(['p3'])
     expect(archive.total).toBe(1)
     expect(archive.selectedChurchId).toBe('c1')

@@ -4,7 +4,7 @@ import BoxContainer from '@/components/container/boxed'
 import RichTextContent from '@/components/common/rich-text-content'
 import { HandHeartIcon } from '@/components/icon/hand-heart'
 import { FeaturedPrayer } from '@/components/site/prayer/featured-prayer'
-import { readingMinutes } from '@/contents/site/prayers/data'
+import { prayerDurationMinutes } from '@/contents/site/prayers/data'
 import { useSiteI18n } from '@/i18n/site-i18n'
 import { SitePrayerDetail } from '@/models/site-prayer'
 import { ArrowRightOutlined } from '@ant-design/icons'
@@ -12,6 +12,7 @@ import Image from 'next/image'
 import Link from 'next/link'
 import { ReactNode } from 'react'
 import { PrayerDetailSidebar } from './sidebar'
+import { stripAudioTags } from '@/utils/strip-audio-tags'
 
 const card = 'rounded-2xl bg-white shadow-[0_8px_30px_rgba(24,74,140,0.08)]'
 
@@ -45,14 +46,18 @@ export default function PrayerDetail({
 }) {
   const { t } = useSiteI18n()
   const { prayer, church } = detail
+  const prayerTitle = stripAudioTags(prayer.title)
+  const prayerIntroduction = prayer.introduction && stripAudioTags(prayer.introduction)
+  const prayerBody = stripAudioTags(prayer.body)
   // Body copy at a comfortable reading measure.
   const readingClass = 'text-base max-w-[68ch]'
   const format = prayer.audio ? t('prayerArchiveAudioAvailable') : t('prayerArchiveTextAvailable')
+  const minutes = prayerDurationMinutes(prayer.body, prayer.audio?.durationSeconds)
   return (
     <BoxContainer containerClassName="flex flex-col gap-6 py-6 md:gap-8 md:py-8 lg:gap-9">
       <FeaturedPrayer
         detail
-        eyebrow={`${format} · ${t('prayerArchiveMinutes', { minutes: readingMinutes(prayer.body) })}`}
+        eyebrow={`${format} · ${t('prayerArchiveMinutes', { minutes })}`}
         prayer={prayer}
         userId={userId}
       />
@@ -60,21 +65,21 @@ export default function PrayerDetail({
       <div className="grid gap-6 md:gap-8 lg:grid-cols-[minmax(0,757.33fr)_minmax(0,362.67fr)] lg:gap-9">
         <div className="flex min-w-0 flex-col gap-6">
           <article className={card}>
-            {prayer.introduction && (
+            {prayerIntroduction && (
               <Section index={1} title={t('prayerDetailSection1')}>
                 <div className="rounded-xl bg-primary-100 p-4 mb-4">
                   <RichTextContent
                     className={`leading-relaxed text-neutral-600 ${readingClass}`}
-                    html={prayer.introduction}
+                    html={prayerIntroduction}
                   />
                 </div>
               </Section>
             )}
 
-            <Section index={prayer.introduction ? 2 : 1} title={t('prayerDetailSection2')}>
+            <Section index={prayerIntroduction ? 2 : 1} title={t('prayerDetailSection2')}>
               <figure className="relative mb-6 aspect-[724/288] overflow-hidden rounded-xl bg-primary-900">
                 <Image
-                  alt={prayer.title}
+                  alt={prayerTitle}
                   className="object-cover"
                   fill
                   sizes="(min-width: 1024px) 720px, 100vw"
@@ -85,14 +90,12 @@ export default function PrayerDetail({
                   <span className="text-[10px] font-semibold uppercase tracking-[2px] text-white/80">
                     {t('prayerDetailSanctuary', { church: church.name })}
                   </span>
-                  <span className="mt-1 block text-lg font-semibold sm:text-xl">
-                    {prayer.title}
-                  </span>
+                  <span className="mt-1 block text-lg font-semibold sm:text-xl">{prayerTitle}</span>
                 </figcaption>
               </figure>
               <RichTextContent
                 className={`mb-4 leading-relaxed text-neutral-600 ${readingClass}`}
-                html={prayer.body}
+                html={prayerBody}
               />
             </Section>
           </article>

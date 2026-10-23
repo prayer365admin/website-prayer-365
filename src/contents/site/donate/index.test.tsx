@@ -66,10 +66,19 @@ describe('ContentsSiteDonate (W11)', () => {
     renderScreen()
 
     expect(screen.getByRole('heading', { level: 1, name: /support god's work/i })).toBeTruthy()
+    expect(
+      screen
+        .getByRole('heading', { level: 2, name: 'Make an Offering' })
+        .closest('section')
+        ?.classList.contains('self-start'),
+    ).toBe(true)
     expect(screen.getByText('Quiet & Private')).toBeTruthy()
     expect(screen.getByText('Tax-Exempt')).toBeTruthy()
     expect(screen.getByText('100%')).toBeTruthy()
     expect(screen.queryByText('Annual Report & Statements')).toBeNull()
+    const stewardshipPill = screen.getByText('REVERENT & TRANSPARENT STEWARDSHIP').parentElement
+    expect(stewardshipPill?.classList.contains('w-fit')).toBe(true)
+    expect(stewardshipPill?.classList.contains('self-start')).toBe(true)
   })
 
   it('shows the route church as the fixed beneficiary and marks the registered parish', () => {

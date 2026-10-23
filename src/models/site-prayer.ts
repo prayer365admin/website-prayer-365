@@ -31,6 +31,8 @@ export type SitePrayerArchiveItem = {
     prayerAudioId: string
     url: string
     approvedAt: string
+    /** Derived from the persisted generated MP3 asset size (128 kbps). */
+    durationSeconds?: number
   } | null
 }
 

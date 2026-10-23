@@ -44,7 +44,7 @@ export default function ContentsSiteHome({
           {SHOW_EVENTS_AND_ANNOUNCEMENTS && (
             <UpcomingGatherings events={home.latestEvents} timeZone={home.mainChurch?.timezone} />
           )}
-          <ScriptureOfDay />
+          <ScriptureOfDay prayer={home.latestPrayers[1]} />
         </div>
         <div className="flex min-w-0 flex-col gap-6">
           <SpiritualHabits

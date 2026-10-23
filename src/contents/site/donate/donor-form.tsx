@@ -126,7 +126,7 @@ export function DonorForm({
   return (
     <section
       aria-labelledby="donate-form-title"
-      className="min-w-0 rounded-2xl bg-white shadow-[0_1px_2px_rgba(0,0,0,0.05)]"
+      className="min-w-0 self-start rounded-2xl bg-white shadow-[0_1px_2px_rgba(0,0,0,0.05)]"
     >
       <div className="border-b border-neutral-200 p-4">
         <h2

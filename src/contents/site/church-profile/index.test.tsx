@@ -293,17 +293,63 @@ describe('ContentsSiteChurchProfile', () => {
     expect(screen.getByText('Wheelchair access')).toBeTruthy()
   })
 
-  it('renders scripture banner with quote and uppercase reference', async () => {
-    axiosMock.get.mockResolvedValueOnce({
-      data: resolveGet(church),
+  it('renders the latest published parish prayer in the closing reflection', async () => {
+    axiosMock.get.mockImplementation(async (url: string) => {
+      if (url.includes('/prayers')) {
+        return {
+          data: resolveGet([
+            {
+              id: 'p-reflection',
+              slug: 'peace-today',
+              churchId: 'c1',
+              publishedAt: '2026-10-23T08:00:00.000Z',
+              version: {
+                prayerVersionId: 'pv-reflection',
+                versionNumber: 1,
+                pastorId: 'pastor-1',
+                pastorName: 'Pastor Demo Tamm',
+                title: 'Peace for today',
+                introduction: null,
+                body: '<p>[warm] Scripture meditation on Psalm 46.</p><p>Be still and know that grace is near.</p><p>[softly] This additional sentence remains in the quote.</p>',
+                languageCode: 'en',
+              },
+              audio: null,
+            },
+          ]),
+        }
+      }
+      if (url.includes('/events') || url.includes('/announcements')) {
+        return { data: resolveGet([], 0) }
+      }
+      if (url.includes('/home')) return { data: resolveGet({ mainChurch: null }) }
+      return { data: resolveGet(church) }
     })
 
     renderProfile()
 
-    expect(
-      await screen.findByText('“Where two or three gather in my name, there am I with them.”'),
-    ).toBeTruthy()
-    expect(screen.getByText(/MATTHEW 18:20/i)).toBeTruthy()
+    const reflection = await screen.findByText(
+      '“Scripture meditation on Psalm 46. Be still and know that grace is near. This additional sentence remains in the quote.”',
+    )
+    expect(reflection).toBeTruthy()
+    expect(reflection.classList.contains('line-clamp-3')).toBe(true)
+    expect(reflection.getAttribute('title')).toBe(
+      'Scripture meditation on Psalm 46. Be still and know that grace is near. This additional sentence remains in the quote.',
+    )
+    expect(reflection.textContent).not.toContain('[warm]')
+    expect(reflection.textContent).not.toContain('[softly]')
+    expect(screen.getByText(/PEACE FOR TODAY • PASTOR DEMO TAMM/i)).toBeTruthy()
+    expect(screen.queryByText(/MATTHEW 18:20/i)).toBeNull()
+  })
+
+  it('shows a real closed status instead of claiming sanctuary keepers are present', async () => {
+    axiosMock.get.mockResolvedValueOnce({
+      data: resolveGet({ ...church, sanctuaryHours: 'By appointment' }),
+    })
+
+    renderProfile()
+
+    expect(await screen.findByText('Currently closed')).toBeTruthy()
+    expect(screen.queryByText('Sanctuary Keepers on Duty')).toBeNull()
   })
 
   it('renders cover image when coverUrl is provided', async () => {
@@ -671,9 +717,9 @@ describe('ContentsSiteChurchProfile', () => {
           prayerVersionId: 'pv1',
           versionNumber: 1,
           pastorId: 'pas1',
-          title: 'Peace in Uncertain Times',
+          title: '[calm] Peace in Uncertain Times',
           introduction:
-            'Scripture meditation on Philippians 4:6–7 • Led by Pastor Daniel Carter, Hope Church',
+            '<p>[warm] Scripture meditation on <strong>Philippians 4:6–7</strong> • Led by Pastor Daniel Carter, Hope Church</p>',
           body: 'Do not be anxious about anything...',
           languageCode: 'et',
         },
@@ -699,11 +745,14 @@ describe('ContentsSiteChurchProfile', () => {
 
     expect(await screen.findByText('Peace in Uncertain Times')).toBeTruthy()
     expect(screen.getByText('GUIDED CONTEMPLATION')).toBeTruthy()
-    expect(
-      screen.getByText(
-        'Scripture meditation on Philippians 4:6–7 • Led by Pastor Daniel Carter, Hope Church',
-      ),
-    ).toBeTruthy()
+    const introduction = screen.getByText(
+      'Scripture meditation on Philippians 4:6–7 • Led by Pastor Daniel Carter, Hope Church',
+    )
+    expect(introduction.tagName).toBe('P')
+    expect(introduction.classList.contains('line-clamp-2')).toBe(true)
+    expect(introduction.classList.contains('[overflow-wrap:anywhere]')).toBe(true)
+    expect(introduction.textContent).not.toContain('<strong>')
+    expect(screen.queryByText(/\[(?:calm|warm)\]/i)).toBeNull()
     expect(screen.getByRole('button', { name: 'All' })).toBeTruthy()
     expect(screen.getByRole('button', { name: 'Eucharist' })).toBeTruthy()
     expect(screen.getByRole('button', { name: 'Contemplative' })).toBeTruthy()
@@ -720,17 +769,13 @@ describe('ContentsSiteChurchProfile', () => {
     expect(screen.getByRole('slider', { name: 'Audio progress' })).toBeTruthy()
     expect(screen.getByRole('button', { name: 'Pause' })).toBeTruthy()
 
-    // Shows exactly 3 audio action buttons: Download, Transcript, and Save (no Mute button)
+    // Prayer save/bookmark is hidden on the public site.
     expect(screen.getByRole('link', { name: 'Download Audio' })).toBeTruthy()
     expect(screen.getByRole('button', { name: 'View Transcript' })).toBeTruthy()
-    const saveBtn = screen.getByRole('button', { name: 'Save' })
-    expect(saveBtn).toBeTruthy()
+    expect(screen.queryByRole('button', { name: 'Save' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Saved' })).toBeNull()
     expect(screen.queryByRole('button', { name: 'Mute' })).toBeNull()
     expect(screen.queryByRole('button', { name: 'Unmute' })).toBeNull()
-
-    // Toggle save
-    await user.click(saveBtn)
-    expect(screen.getByRole('button', { name: 'Saved' })).toBeTruthy()
 
     // Open transcript modal
     const transcriptBtn = screen.getByRole('button', { name: 'View Transcript' })

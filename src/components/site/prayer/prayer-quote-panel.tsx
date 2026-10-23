@@ -5,7 +5,7 @@ import { useSiteI18n } from '@/i18n/site-i18n'
 import { HeartOutlined, ShareAltOutlined } from '@ant-design/icons'
 import Image from 'next/image'
 import { useState } from 'react'
-import { richTextToPlainText } from '@/utils/rich-text-plain'
+import { prayerTextForDisplay } from '@/utils/rich-text-plain'
 
 export type PrayerQuote = {
   id: string
@@ -16,7 +16,7 @@ export type PrayerQuote = {
   churchName: string
 }
 
-const quoteText = (body: string) => richTextToPlainText(body).replace(/\s+/g, ' ').trim()
+const quoteText = prayerTextForDisplay
 
 const excerpt = (body: string) => {
   const source = quoteText(body)
@@ -77,7 +77,10 @@ export default function PrayerQuotePanel({
                 className="mt-1 shrink-0 self-start !text-white"
                 style={{ fontSize: 20 }}
               />
-              <blockquote className="line-clamp-5 min-w-0 flex-1 break-words font-font_quote text-[clamp(1.5rem,2.2vw,2rem)] italic leading-[1.25] text-white [overflow-wrap:anywhere]">
+              <blockquote
+                className="line-clamp-5 min-w-0 flex-1 break-words font-font_quote text-[clamp(1.5rem,2.2vw,2rem)] italic leading-[1.25] text-white [overflow-wrap:anywhere]"
+                title={quoteText(prayer.body)}
+              >
                 {quoteText(prayer.body)}
               </blockquote>
             </div>

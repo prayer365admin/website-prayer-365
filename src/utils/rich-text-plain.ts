@@ -1,3 +1,5 @@
+import { stripAudioTags } from './strip-audio-tags'
+
 const decodeEntity = (entity: string) => {
   const named: Record<string, string> = {
     amp: '&',
@@ -25,6 +27,16 @@ export const richTextToPlainText = (value: string) =>
     .replace(/[ \t]+\n/g, '\n')
     .replace(/\n{3,}/g, '\n\n')
     .trim()
+
+/** Returns one complete sentence from prayer HTML without adding truncation marks. */
+export const richTextFirstSentence = (value: string) => {
+  const text = richTextToPlainText(value).replace(/\s+/g, ' ').trim()
+  return text.match(/^.*?[.!?](?=\s|$)/)?.[0] ?? text
+}
+
+/** Reader-safe one-line text for prayer titles, previews, quotes, and accessible labels. */
+export const prayerTextForDisplay = (value: string) =>
+  stripAudioTags(richTextToPlainText(value)).replace(/\s+/g, ' ').trim()
 
 const escapeHtml = (value: string) =>
   value.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')

@@ -24,8 +24,8 @@ const home = (audioUrl: string | null = null): MobileHome => ({
         versionNumber: 1,
         pastorId: 'pastor-1',
         pastorName: 'Daniel Mäkinen',
-        title: 'Peace in uncertain times',
-        introduction: 'A reflection for today',
+        title: '[calm] Peace in uncertain times',
+        introduction: '<p>[warm] A <strong>reflection</strong> for today</p>',
         body: 'Do not be anxious about anything.',
         languageCode: 'en',
       },
@@ -38,6 +38,24 @@ const home = (audioUrl: string | null = null): MobileHome => ({
             approvedAt: '2026-10-15T05:00:00.000Z',
           }
         : null,
+    },
+    {
+      id: 'prayer-2',
+      slug: 'grace-for-today',
+      churchId: 'church-1',
+      churchName: 'Hope Church',
+      publishedAt: '2026-10-14T06:00:00.000Z',
+      version: {
+        prayerVersionId: 'version-2',
+        versionNumber: 1,
+        pastorId: 'pastor-2',
+        pastorName: 'Anna Saar',
+        title: '[softly] Grace for today',
+        introduction: null,
+        body: '<p>[warm] Grace meets us in every quiet moment.</p><p>[pause] This second sentence stays visible.</p>',
+        languageCode: 'en',
+      },
+      audio: null,
     },
   ],
 })
@@ -114,8 +132,31 @@ describe('WB3 Home devotional hero', () => {
 
     expect(screen.getByRole('heading', { name: /Good morning, Anna/i })).toBeTruthy()
     expect(screen.getByRole('heading', { name: 'Peace in uncertain times' })).toBeTruthy()
+    const introduction = screen.getByText(
+      (_, element) =>
+        element?.tagName === 'P' &&
+        element.textContent?.replace(/\s+/g, ' ').trim() === 'A reflection for today · Hope Church',
+    )
+    expect(introduction.classList.contains('[overflow-wrap:anywhere]')).toBe(true)
+    expect(introduction.parentElement?.classList.contains('flex-1')).toBe(true)
+    expect(screen.queryByText(/<strong>/)).toBeNull()
     expect(screen.getByText('Daniel Mäkinen')).toBeTruthy()
     expect(screen.getAllByText('Hope Church').length).toBeGreaterThan(0)
+    const scripture = screen
+      .getByRole('heading', { name: 'Scripture of the day' })
+      .closest('section')!
+    const scriptureQuote = within(scripture).getByText(
+      '“Grace meets us in every quiet moment. This second sentence stays visible.”',
+    )
+    expect(scriptureQuote.classList.contains('line-clamp-3')).toBe(true)
+    expect(scriptureQuote.getAttribute('title')).toBe(
+      'Grace meets us in every quiet moment. This second sentence stays visible.',
+    )
+    expect(within(scripture).getByText('Grace for today')).toBeTruthy()
+    expect(scriptureQuote.textContent).not.toContain('[warm]')
+    expect(scriptureQuote.textContent).not.toContain('[pause]')
+    expect(screen.getByText('Peace in uncertain times')).toBeTruthy()
+    expect(screen.queryByText(/4,280 parishioners/)).toBeNull()
     for (const name of [
       'Play prayer audio',
       'Go back 10 seconds',
@@ -174,9 +215,9 @@ describe('WB3 Home devotional hero', () => {
     ).toBeNull()
   })
 
-  it('renders the image quote as normalized text clamped to five lines', () => {
+  it('renders the liturgical-focus image quote as cleaned text clamped to five lines', () => {
     const data = home()
-    data.latestPrayers[0]!.version.body = `${'God, thank you for the promise of grace. '.repeat(6)}\n\nThank you, God.`
+    data.latestPrayers[0]!.version.body = `[warm] ${'God, thank you for the promise of grace. '.repeat(6)}\n\n[pause] Thank you, God.`
     renderHome(data)
 
     const quotePanel = screen.getByAltText('Misty Nordic lake at sunrise').parentElement!
@@ -184,6 +225,8 @@ describe('WB3 Home devotional hero', () => {
     expect(quote.classList.contains('line-clamp-5')).toBe(true)
     expect(quote.textContent).not.toContain('\n')
     expect(quote.textContent).toContain('Thank you, God.')
+    expect(quote.textContent).not.toContain('[warm]')
+    expect(quote.textContent).not.toContain('[pause]')
   })
 
   it('renders the directory empty state when no eligible prayer exists', () => {

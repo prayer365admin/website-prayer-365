@@ -26,7 +26,12 @@ const prayer = (id: string, audio: boolean, title = 'Morning gratitude') => ({
   body: 'Do not be anxious about anything; bring every request in prayer.',
   languageCode: 'en',
   audio: audio
-    ? { prayerAudioId: 'audio-1', url: 'https://cdn.test/prayer.mp3', approvedAt: '' }
+    ? {
+        prayerAudioId: 'audio-1',
+        url: 'https://cdn.test/prayer.mp3',
+        approvedAt: '',
+        durationSeconds: 125,
+      }
     : null,
 })
 
@@ -95,6 +100,24 @@ describe('PrayerArchive', () => {
     expect(screen.queryByText(/Year [ABC]/)).toBeNull()
     expect(screen.queryByText('Consecutive Days in Prayer')).toBeNull()
     expect(screen.queryByText(/Believers Praying Today/)).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Share prayer' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Saving prayers is not available yet' })).toBeNull()
+  })
+
+  it('cleans ElevenLabs cues and clamps complete card quotes to three lines', () => {
+    const tagged = {
+      ...prayer('tagged', false, '[calm] Evening stillness'),
+      introduction: '<p>[warm] Rest in God.</p>',
+      body: '<p>[softly] First sentence.</p><p>[pause] Second sentence remains.</p>',
+    }
+    renderArchive(archive([tagged]))
+
+    expect(screen.getByRole('heading', { name: 'Evening stillness' })).toBeTruthy()
+    expect(screen.getByText('Rest in God.')).toBeTruthy()
+    const quote = screen.getByText('“First sentence. Second sentence remains.”')
+    expect(quote.classList.contains('line-clamp-3')).toBe(true)
+    expect(quote.getAttribute('title')).toBe('First sentence. Second sentence remains.')
+    expect(screen.queryByText(/\[(?:calm|warm|softly|pause)\]/i)).toBeNull()
   })
 
   it('debounces search and fetches filtered prayers from the server without navigation', async () => {

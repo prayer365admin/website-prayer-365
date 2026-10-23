@@ -50,7 +50,7 @@ export function DonateHero() {
       <div className="relative rounded-xl bg-primary-100 p-3.5 sm:p-5 md:p-6">
         <div className="mx-auto flex w-full max-w-[896px] flex-col gap-4">
           <div className="flex flex-col gap-2.5 sm:gap-3">
-            <span className="inline-flex min-h-[26px] max-w-full items-center gap-1.5 rounded-full bg-white px-3 py-1 text-[11px] font-medium leading-none text-blue-800 sm:px-4 sm:text-xs">
+            <span className="inline-flex min-h-[26px] w-fit max-w-full self-start items-center gap-1.5 rounded-full bg-white px-3 py-1 text-[11px] font-medium leading-none text-blue-800 sm:px-4 sm:text-xs">
               <HandHeartIcon className="shrink-0" style={{ fontSize: 12, color: '#2F7AD2' }} />
               <span className="truncate">{t('donateEyebrow')}</span>
             </span>
