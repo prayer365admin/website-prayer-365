@@ -26,7 +26,6 @@ vi.mock('@/providers/s3', () => ({ S3_PUBLIC_URL: s3.S3_PUBLIC_URL }))
 
 import {
   churchLocalDate,
-  isOpenNow,
   CREATE_CHECKIN,
   UPDATE_ME_PROFILE,
   GET_HOME,
@@ -243,7 +242,6 @@ describe('GET_PUBLIC_CHURCH — admin profile reflected in mobile contract', () 
       contacts: { email: 'office@grace.ee', phone: '+372 555' },
       website: 'https://grace.ee',
       social_links: [{ label: 'site', url: 'https://grace.ee' }],
-      accessibility: 'Step-free entrance',
       cover_asset_id: 'm1',
       churchLanguages: [{ language_code: 'et' }, { language_code: 'en' }],
       serviceTimes: [
@@ -268,8 +266,6 @@ describe('GET_PUBLIC_CHURCH — admin profile reflected in mobile contract', () 
     expect(result?.coordinates).toEqual({ latitude: 59.437, longitude: 24.754 })
     expect(result?.contacts).toEqual({ email: 'office@grace.ee', phone: '+372 555' })
     expect(result?.website).toBe('https://grace.ee')
-    expect(result?.socialLinks).toEqual([{ label: 'site', url: 'https://grace.ee' }])
-    expect(result?.accessibility).toBe('Step-free entrance')
     expect(result?.coverAssetId).toBe('m1')
     expect(result?.languageCodes).toEqual(['et', 'en'])
     expect(result?.serviceTimes[0].weekday).toBe(1)
@@ -419,12 +415,11 @@ describe('GET_PUBLIC_CHURCH — admin profile reflected in mobile contract', () 
     }
   })
 
-  it('emits sanctuaryHours and resolves deaneryName when parent kind is DEANERY', async () => {
+  it('resolves deaneryName when parent kind is DEANERY', async () => {
     db.church.findFirst.mockResolvedValueOnce({
       id: 'c1',
       name: 'Grace',
       timezone: 'UTC',
-      sanctuary_hours: '10:00–18:30 daily',
       churchLanguages: [],
       serviceTimes: [],
       org_node: {
@@ -436,7 +431,6 @@ describe('GET_PUBLIC_CHURCH — admin profile reflected in mobile contract', () 
     })
 
     const result = await GET_PUBLIC_CHURCH({ churchId: 'c1' })
-    expect(result?.sanctuaryHours).toBe('10:00–18:30 daily')
     expect(result?.deaneryName).toBe('Tallinn Deanery')
   })
 
@@ -454,9 +448,7 @@ describe('GET_PUBLIC_CHURCH — admin profile reflected in mobile contract', () 
       contacts: { email: null, phone: null },
       website: null,
       social_links: [],
-      accessibility: null,
       cover_asset_id: null,
-      sanctuary_hours: null,
       churchLanguages: [],
       serviceTimes: [],
       galleryItems: [],
@@ -472,12 +464,11 @@ describe('GET_PUBLIC_CHURCH — admin profile reflected in mobile contract', () 
     expect(withoutStyle?.churchStyle).toBeNull()
   })
 
-  it('emits null for deaneryName and sanctuaryHours when absent or parent is not DEANERY', async () => {
+  it('emits null for deaneryName when absent or parent is not DEANERY', async () => {
     db.church.findFirst.mockResolvedValueOnce({
       id: 'c1',
       name: 'Grace',
       timezone: 'UTC',
-      sanctuary_hours: null,
       churchLanguages: [],
       serviceTimes: [],
       org_node: {
@@ -489,7 +480,6 @@ describe('GET_PUBLIC_CHURCH — admin profile reflected in mobile contract', () 
     })
 
     const result = await GET_PUBLIC_CHURCH({ churchId: 'c1' })
-    expect(result?.sanctuaryHours).toBeNull()
     expect(result?.deaneryName).toBeNull()
   })
 
@@ -506,9 +496,7 @@ describe('GET_PUBLIC_CHURCH — admin profile reflected in mobile contract', () 
       contacts: { email: null, phone: null },
       website: null,
       social_links: [],
-      accessibility: null,
       cover_asset_id: null,
-      sanctuary_hours: null,
       churchLanguages: [],
       serviceTimes: [],
       galleryItems: [],
@@ -554,7 +542,6 @@ describe('GET_PUBLIC_CHURCH — admin profile reflected in mobile contract', () 
     expect(churchModel).toBeDefined()
     const fieldNames = (churchModel?.fields ?? []).map((f) => f.name)
 
-    expect(fieldNames.includes('sanctuary_hours')).toBe(true)
     expect(fieldNames.includes('donation_options')).toBe(true)
     expect(fieldNames.includes('galleryItems')).toBe(true)
     expect(fieldNames.includes('pastors')).toBe(true)
@@ -639,44 +626,6 @@ describe('LIST_PUBLIC_CHURCHES — discovery search by name or city', () => {
         where: expectedWhere,
       }),
     )
-  })
-})
-
-describe('isOpenNow (sanctuary_hours windows)', () => {
-  it('returns true when the church-local time is inside a daily window', () => {
-    const now = new Date('2026-10-11T10:00:00Z') // Sunday 10:00 UTC
-    expect(isOpenNow('UTC', '10:00–18:30 daily', now)).toBe(true)
-  })
-
-  it('returns false outside the window', () => {
-    const now = new Date('2026-10-11T20:00:00Z') // Sunday 20:00 UTC
-    expect(isOpenNow('UTC', '10:00–18:30 daily', now)).toBe(false)
-  })
-
-  it('returns false when the church has no sanctuary hours', () => {
-    const now = new Date('2026-10-11T10:00:00Z')
-    expect(isOpenNow('UTC', null, now)).toBe(false)
-    expect(isOpenNow('UTC', '', now)).toBe(false)
-  })
-
-  it('applies weekday labels from a multi-segment schedule', () => {
-    const hours = 'Mon–Fri 10:00–18:30 • Sat 11:00–16:00 • Sun 09:00–19:00'
-    // 2026-10-10 is Saturday, 2026-10-11 is Sunday
-    expect(isOpenNow('UTC', hours, new Date('2026-10-10T10:00:00Z'))).toBe(false) // before Sat 11:00
-    expect(isOpenNow('UTC', hours, new Date('2026-10-10T12:00:00Z'))).toBe(true) // inside Sat
-    expect(isOpenNow('UTC', hours, new Date('2026-10-11T20:00:00Z'))).toBe(false) // after Sun 19:00
-  })
-
-  it('uses the church wall clock, not UTC', () => {
-    // 2026-10-11 is EEST (UTC+3): 08:00 UTC = 11:00 Tallinn
-    const now = new Date('2026-10-11T08:00:00Z')
-    expect(isOpenNow('Europe/Tallinn', '10:00–18:30 daily', now)).toBe(true)
-    expect(isOpenNow('UTC', '10:00–18:30 daily', now)).toBe(false)
-  })
-
-  it('falls back to UTC for an unknown timezone', () => {
-    const now = new Date('2026-10-11T10:00:00Z')
-    expect(isOpenNow('Not/AZone', '10:00–18:30 daily', now)).toBe(true)
   })
 })
 
@@ -851,46 +800,6 @@ describe('LIST_PUBLIC_CHURCHES — directory filters (WB-25)', () => {
     expect(res.result[2].distanceKm).toBeNull()
   })
 
-  it('filters by open_now in-memory using the sanctuary_hours windows', async () => {
-    try {
-      vi.useFakeTimers()
-      // Sunday 11:00 in Europe/Tallinn (UTC+3) -> instant is 08:00 UTC
-      vi.setSystemTime(new Date('2026-10-11T08:00:00Z'))
-
-      // Row 1: open 10:00–18:30 -> open now (11:00 local)
-      const rowInside = summaryRow({
-        id: 'c-open',
-        timezone: 'Europe/Tallinn',
-        sanctuary_hours: '10:00–18:30 daily',
-      })
-      // Row 2: no sanctuary hours -> closed
-      const rowNoHours = summaryRow({
-        id: 'c-empty',
-        timezone: 'Europe/Tallinn',
-        sanctuary_hours: null,
-      })
-      // Row 3: Sat-only schedule -> closed on Sunday
-      const rowOutside = summaryRow({
-        id: 'c-closed',
-        timezone: 'Europe/Tallinn',
-        sanctuary_hours: 'Sat 11:00–16:00',
-      })
-
-      db.church.findMany.mockResolvedValueOnce([rowInside, rowNoHours, rowOutside])
-
-      const res = await LIST_PUBLIC_CHURCHES({
-        query: { open_now: true, page: 1, limit: 10 },
-      })
-
-      expect(db.church.count).not.toHaveBeenCalled()
-      expect(res.total).toBe(1)
-      expect(res.result).toHaveLength(1)
-      expect(res.result[0].id).toBe('c-open')
-    } finally {
-      vi.useRealTimers()
-    }
-  })
-
   it('combines search, denomination, language, quick filters, and in-memory radius', async () => {
     const insideRow = summaryRow({
       id: 'c-match',
@@ -979,23 +888,6 @@ describe('LIST_PUBLIC_CHURCHES — directory filters (WB-25)', () => {
     expect(db.church.count).toHaveBeenCalledWith({ where: expectedWhere })
     expect(res.total).toBe(0)
     expect(res.result).toEqual([])
-  })
-
-  it('returns accessibility as an array of items split by delimiter instead of joined string', async () => {
-    const row = summaryRow({
-      accessibility: 'Level wheelchair access • Hearing loop • Braille hymnals',
-    })
-    db.$transaction.mockResolvedValueOnce([1, [row]])
-
-    const res = await LIST_PUBLIC_CHURCHES({
-      query: { page: 1, limit: 10 },
-    })
-
-    expect(res.result[0].accessibility).toEqual([
-      'Level wheelchair access',
-      'Hearing loop',
-      'Braille hymnals',
-    ])
   })
 
   it('projects churchStyle on the summary and omits the field when unset', async () => {

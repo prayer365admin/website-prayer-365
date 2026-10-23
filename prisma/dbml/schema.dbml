@@ -172,12 +172,9 @@ Table churches {
   contacts Json [not null]
   website String
   social_links Json [not null]
-  accessibility String
   sunday_live_stream Boolean
   taize_chants Boolean
   youth_ministry Boolean
-  sanctuary_hours String
-  diaconal_programs Json
   donation_options Json [note: '* MB-03 donation presets: `{ currency, presetsMinor[], monthlyEnabled }` (null until an admin fills it).']
   approved_by String
   approved_by_user user

@@ -46,7 +46,6 @@ const church = {
   },
   website: 'https://grace.ee',
   socialLinks: [],
-  accessibility: 'Wheelchair access',
   coverAssetId: null,
   coverUrl: 'https://cdn.test/cover.jpg',
   languageCodes: ['et', 'en'],
@@ -801,5 +800,59 @@ describe('ContentsSiteChurchProfile', () => {
     const followingButton = await screen.findByRole('button', { name: 'Unfollow Grace' })
     expect((followingButton as HTMLButtonElement).disabled).toBe(true)
     expect(within(followingButton).getByText('Following')).toBeTruthy()
+  })
+
+  it('renders Set as Main Church button and calls patch me API on click when not primary parish', async () => {
+    const user = userEvent.setup()
+    axiosMock.get.mockImplementation(async (url: string) => {
+      if (url.includes('/events')) return { data: resolveGet([], 0) }
+      if (url.includes('/announcements')) return { data: resolveGet([], 0) }
+      if (url.includes('/home')) return { data: resolveGet({ mainChurch: null }) }
+      if (url.includes('/me/churches')) return { data: resolveGet([]) }
+      return { data: resolveGet(church) }
+    })
+    axiosMock.patch.mockResolvedValueOnce({
+      data: resolveGet({ id: 'u1', mainChurchId: 'c1' }),
+    })
+
+    renderProfile('c1')
+
+    const setMainButton = await screen.findByRole('button', { name: 'Set as Main Church' })
+    expect(setMainButton).toBeTruthy()
+    expect((setMainButton as HTMLButtonElement).disabled).toBe(false)
+
+    await user.click(setMainButton)
+    expect(axiosMock.patch).toHaveBeenCalledWith('/api/v1/site/me', { mainChurchId: 'c1' })
+  })
+
+  it('renders disabled Main Church button when church is already the primary parish', async () => {
+    axiosMock.get.mockImplementation(async (url: string) => {
+      if (url.includes('/events')) return { data: resolveGet([], 0) }
+      if (url.includes('/announcements')) return { data: resolveGet([], 0) }
+      if (url.includes('/home')) return { data: resolveGet({ mainChurch: { id: 'c1' } }) }
+      if (url.includes('/me/churches')) {
+        return {
+          data: resolveGet([
+            {
+              churchId: 'c1',
+              churchName: 'Grace',
+              isMain: true,
+              isFollowed: true,
+              city: 'Tallinn',
+              address: 'Main St 1',
+              coverAssetId: null,
+              coverUrl: null,
+            },
+          ]),
+        }
+      }
+      return { data: resolveGet(church) }
+    })
+
+    renderProfile('c1')
+
+    const mainChurchButton = await screen.findByRole('button', { name: 'Main Church' })
+    expect(mainChurchButton).toBeTruthy()
+    expect((mainChurchButton as HTMLButtonElement).disabled).toBe(true)
   })
 })

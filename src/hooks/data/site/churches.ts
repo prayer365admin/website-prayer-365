@@ -18,7 +18,6 @@ export const useSiteChurches = ({
   denomination,
   language,
   sunday_live_stream,
-  open_now,
   taize_chants,
   youth_ministry,
   page,
@@ -31,7 +30,6 @@ export const useSiteChurches = ({
   denomination?: string
   language?: string
   sunday_live_stream?: boolean
-  open_now?: boolean
   taize_chants?: boolean
   youth_ministry?: boolean
   page: number
@@ -52,7 +50,6 @@ export const useSiteChurches = ({
       denomination ?? '',
       language ?? '',
       sunday_live_stream ?? '',
-      open_now ?? '',
       taize_chants ?? '',
       youth_ministry ?? '',
       page,
@@ -67,7 +64,6 @@ export const useSiteChurches = ({
       if (denomination) params.denomination = denomination
       if (language) params.language = language
       if (sunday_live_stream !== undefined) params.sunday_live_stream = sunday_live_stream
-      if (open_now !== undefined) params.open_now = open_now
       if (taize_chants !== undefined) params.taize_chants = taize_chants
       if (youth_ministry !== undefined) params.youth_ministry = youth_ministry
       const res = await axios.get('/api/v1/site/churches', { params })

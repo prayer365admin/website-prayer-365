@@ -41,7 +41,6 @@ const profile = {
   website: null,
   socialLinks: [],
   languageCodes: ['et'],
-  accessibility: null,
   coverAssetId: null,
   status: 'APPROVED',
   version: 3,

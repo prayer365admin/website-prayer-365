@@ -490,18 +490,4 @@ describe('ContentsSiteChurchDirectory', () => {
     const directionPath = container.querySelector('path[d^="M2.5625 9.75L3.49219"]')
     expect(directionPath).toBeTruthy()
   })
-
-  it('does not render "Open until" when sanctuary hours are present', async () => {
-    const summaryWithHours = {
-      ...summaryA,
-      sanctuaryHours: '10:00–19:00 daily',
-    }
-    axiosMock.get.mockResolvedValueOnce({
-      data: resolveGet([summaryWithHours], 1),
-    })
-
-    renderDirectory()
-    await screen.findAllByText('Grace')
-    expect(screen.queryByText(/Open until/i)).toBeNull()
-  })
 })

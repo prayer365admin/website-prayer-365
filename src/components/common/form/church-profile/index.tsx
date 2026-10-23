@@ -3,7 +3,6 @@
 import {
   Alert,
   Button,
-  Card,
   Col,
   Empty,
   Form,
@@ -38,8 +37,6 @@ import { useChurchPastorAssignments } from '@/hooks/data/central'
 import { useMediaUpload } from '@/hooks/data/media-upload'
 import { ChurchPastorSummary } from '@/models/pastor'
 import { useAccessPermission } from '@/hooks/data/access-permission'
-import { MobileDiaconalProgram } from '@/models/mobile'
-
 dayjs.extend(customParseFormat)
 
 interface FormChurchProfileTabsProps {
@@ -74,11 +71,6 @@ const toPayload = (
       ...(r.label?.trim() ? { label: r.label.trim() } : {}),
       ...(r.languageCode ? { languageCode: r.languageCode } : {}),
     }))
-
-import { parseSanctuaryHours, serializeSanctuaryHours } from '@/utils/sanctuary-hours'
-import type { SanctuaryScheduleItem } from '@/utils/sanctuary-hours'
-
-export type { SanctuaryScheduleItem }
 
 export default function FormChurchProfileTabs({
   initialValues,
@@ -147,21 +139,11 @@ export default function FormChurchProfileTabs({
   }
   const contacts = (initialValues.contacts ?? {}) as { email?: string; phone?: string }
   const socialLinks = (initialValues.socialLinks ?? []) as Array<{ label: string; url: string }>
-  const accessibilityList = initialValues.accessibility
-    ? initialValues.accessibility
-        .split(' • ')
-        .map((s) => s.trim())
-        .filter(Boolean)
-    : []
-  const sanctuarySchedule = parseSanctuaryHours(initialValues.sanctuaryHours)
 
   const handleSubmit = async () => {
     // @ts-expect-error schedule is part of the form values but not the profile input type
     const { schedule, ...rawValues } = await form.validateFields()
-    const values = rawValues as ChurchProfileInput & {
-      accessibilityList?: string[]
-      sanctuarySchedule?: SanctuaryScheduleItem[]
-    }
+    const values = rawValues as ChurchProfileInput
     const {
       id: _id,
       status: _status,
@@ -185,47 +167,14 @@ export default function FormChurchProfileTabs({
     if (contactsPayload.email === null) delete contactsPayload.email
     if (contactsPayload.phone === null) delete contactsPayload.phone
 
-    const accessItems: string[] = (values.accessibilityList ?? [])
-      .flatMap((s: string) => (typeof s === 'string' ? s.split('\n').map((x) => x.trim()) : []))
-      .filter(Boolean)
-    const accessibility =
-      accessItems.length > 0
-        ? accessItems.join(' • ')
-        : typeof values.accessibility === 'string' && values.accessibility.trim()
-          ? values.accessibility.trim()
-          : null
-
-    const sanctuaryHours =
-      serializeSanctuaryHours(values.sanctuarySchedule ?? []) ??
-      (typeof values.sanctuaryHours === 'string' && values.sanctuaryHours.trim()
-        ? values.sanctuaryHours.trim()
-        : null)
-
-    const {
-      accessibilityList: _al,
-      sanctuarySchedule: _ss,
-      accessibility: _acc,
-      sanctuaryHours: _sh,
-      ...cleanValues
-    } = values
+    const cleanValues = values
 
     const payload = {
       ...baseProfile,
       ...cleanValues,
       address: addressPayload,
       contacts: contactsPayload,
-      accessibility,
       coverAssetId: coverAsset.assetId ?? null,
-      sanctuaryHours,
-      diaconalPrograms: (values.diaconalPrograms ?? [])
-        .filter((p: MobileDiaconalProgram) => p && p.title?.trim())
-        .map((p: MobileDiaconalProgram) => ({
-          title: p.title.trim(),
-          description: p.description?.trim() || '',
-          badgeText: p.badgeText?.trim() || '',
-          metaText: p.metaText?.trim() || '',
-          icon: p.icon || 'utensils',
-        })),
       galleryItems: galleryItems.map((g, idx) => ({
         id: g.id,
         mediaAssetId: g.mediaAssetId,
@@ -326,147 +275,6 @@ export default function FormChurchProfileTabs({
                   ))}
                 </Select>
               </Form.Item>
-            </Col>
-          </Row>
-
-          <Row gutter={24} className="mt-6 border-t border-[#DDE0E4] pt-6">
-            {/* Left column: Accessibility information */}
-            <Col span={12}>
-              <div className="mb-4">
-                <Typography.Title level={4}>
-                  <label htmlFor="accessibility-input-0">Accessibility information</label>
-                </Typography.Title>
-                <Typography.Text type="secondary" className="block text-xs">
-                  Add individual facility features. Displayed with dedicated icons on the public
-                  profile without typing any delimiters.
-                </Typography.Text>
-              </div>
-
-              <Form.List name="accessibilityList">
-                {(fields, { add, remove }) => (
-                  <div className="space-y-2">
-                    {fields.map(({ key, name, ...restField }) => (
-                      <div key={key} className="flex items-center gap-2">
-                        <Form.Item
-                          {...restField}
-                          name={name}
-                          noStyle
-                          rules={[{ required: true, message: 'Please enter facility feature' }]}
-                        >
-                          <Input
-                            aria-label={
-                              name === 0
-                                ? 'Accessibility information'
-                                : `Facility feature #${name + 1}`
-                            }
-                            placeholder="e.g. Level wheelchair access via South Portico ramp"
-                          />
-                        </Form.Item>
-                        <Button
-                          type="text"
-                          danger
-                          icon={<DeleteOutlined />}
-                          onClick={() => remove(name)}
-                        />
-                      </div>
-                    ))}
-                    <Button type="dashed" onClick={() => add('')} block icon={<PlusOutlined />}>
-                      Add Facility Feature
-                    </Button>
-                  </div>
-                )}
-              </Form.List>
-            </Col>
-
-            {/* Right column: Sanctuary Hours for Private Devotion */}
-            <Col span={12}>
-              <div className="mb-4">
-                <Typography.Title level={4}>Sanctuary Hours for Private Devotion</Typography.Title>
-                <Typography.Text type="secondary" className="block text-xs">
-                  Configure individual schedule blocks with days, opening hours, and devotion notes
-                  displayed in the sanctuary hours grid.
-                </Typography.Text>
-              </div>
-
-              <Form.List name="sanctuarySchedule">
-                {(fields, { add, remove }) => (
-                  <div className="space-y-4">
-                    {fields.map(({ key, name, ...restField }) => (
-                      <Card
-                        key={key}
-                        size="small"
-                        title={`Schedule Block #${name + 1}`}
-                        extra={
-                          <Button
-                            type="text"
-                            danger
-                            icon={<DeleteOutlined />}
-                            onClick={() => remove(name)}
-                          >
-                            Remove
-                          </Button>
-                        }
-                        className="border border-[#DDE0E4] bg-[#FAFAFB]"
-                      >
-                        <Row gutter={12}>
-                          <Col span={12}>
-                            <Form.Item
-                              {...restField}
-                              name={[name, 'title']}
-                              label="Days / Label"
-                              rules={[{ required: true, message: 'Please enter schedule label' }]}
-                            >
-                              <Input placeholder="e.g. Monday - Friday / Saturday" />
-                            </Form.Item>
-                          </Col>
-                          <Col span={12}>
-                            <Form.Item
-                              {...restField}
-                              name={[name, 'time']}
-                              label={name === 0 ? 'Sanctuary hours (private devotion)' : 'Hours'}
-                              rules={[{ required: true, message: 'Please enter opening hours' }]}
-                            >
-                              <Input
-                                aria-label={
-                                  name === 0 ? 'Sanctuary hours (private devotion)' : 'Hours'
-                                }
-                                placeholder="e.g. 10:00 – 18:30"
-                              />
-                            </Form.Item>
-                          </Col>
-                        </Row>
-
-                        <Form.Item
-                          {...restField}
-                          name={[name, 'description']}
-                          label="Devotion & Access Notes"
-                          className="!mb-0"
-                        >
-                          <Input.TextArea
-                            rows={2}
-                            placeholder="e.g. Altar steps & Nave open. Votive candles and prayer request scrolls provided."
-                          />
-                        </Form.Item>
-                      </Card>
-                    ))}
-
-                    <Button
-                      type="dashed"
-                      onClick={() =>
-                        add({
-                          title: '',
-                          time: '',
-                          description: '',
-                        })
-                      }
-                      block
-                      icon={<PlusOutlined />}
-                    >
-                      Add Schedule Block
-                    </Button>
-                  </div>
-                )}
-              </Form.List>
             </Col>
           </Row>
         </>
@@ -785,126 +593,6 @@ export default function FormChurchProfileTabs({
         </div>
       ),
     },
-    {
-      key: 'diaconal-programs',
-      label: 'Diaconal Programs',
-      forceRender: true,
-      children: (
-        <div className="space-y-6">
-          <div>
-            <Typography.Title level={4}>Diaconal Ministry & Community Care</Typography.Title>
-            <Typography.Text type="secondary">
-              Community care, soup kitchens, refugee assistance, and volunteer programs displayed on
-              the public church profile.
-            </Typography.Text>
-          </div>
-
-          <Form.List name="diaconalPrograms">
-            {(fields, { add, remove }) => (
-              <div className="space-y-4">
-                {fields.map(({ key, name, ...restField }) => (
-                  <Card
-                    key={key}
-                    size="small"
-                    title={`Program #${name + 1}`}
-                    extra={
-                      <Button
-                        type="text"
-                        danger
-                        icon={<DeleteOutlined />}
-                        onClick={() => remove(name)}
-                      >
-                        Remove
-                      </Button>
-                    }
-                    className="border border-[#DDE0E4] bg-[#FAFAFB]"
-                  >
-                    <Row gutter={16}>
-                      <Col span={16}>
-                        <Form.Item
-                          {...restField}
-                          name={[name, 'title']}
-                          label="Program Title"
-                          rules={[{ required: true, message: 'Please input program title' }]}
-                        >
-                          <Input placeholder="e.g. Crypt Warm Meals & Winter Shelter" />
-                        </Form.Item>
-                      </Col>
-                      <Col span={8}>
-                        <Form.Item {...restField} name={[name, 'icon']} label="Program Icon">
-                          <Select>
-                            <Select.Option value="utensils">
-                              Utensils (Meals & Shelter)
-                            </Select.Option>
-                            <Select.Option value="users-group">
-                              Users Group (Refugee & Community Care)
-                            </Select.Option>
-                          </Select>
-                        </Form.Item>
-                      </Col>
-                    </Row>
-
-                    <Row gutter={16}>
-                      <Col span={24}>
-                        <Form.Item
-                          {...restField}
-                          name={[name, 'description']}
-                          label="Program Description"
-                          rules={[{ required: true, message: 'Please input program description' }]}
-                        >
-                          <Input.TextArea
-                            rows={3}
-                            placeholder="Describe the diaconal service, operating days, and community impact."
-                          />
-                        </Form.Item>
-                      </Col>
-                    </Row>
-
-                    <Row gutter={16}>
-                      <Col span={12}>
-                        <Form.Item
-                          {...restField}
-                          name={[name, 'badgeText']}
-                          label="Status / Volunteer Badge"
-                        >
-                          <Input placeholder="e.g. Volunteer shifts available / Active Support Network" />
-                        </Form.Item>
-                      </Col>
-                      <Col span={12}>
-                        <Form.Item
-                          {...restField}
-                          name={[name, 'metaText']}
-                          label="Ministry Lead / Beneficiary Count"
-                        >
-                          <Input placeholder="e.g. Led by Deacon Tiit / 34 Families inCare" />
-                        </Form.Item>
-                      </Col>
-                    </Row>
-                  </Card>
-                ))}
-
-                <Button
-                  type="dashed"
-                  onClick={() =>
-                    add({
-                      title: '',
-                      description: '',
-                      badgeText: '',
-                      metaText: '',
-                      icon: 'utensils',
-                    })
-                  }
-                  block
-                  icon={<PlusOutlined />}
-                >
-                  Add Diaconal Program
-                </Button>
-              </div>
-            )}
-          </Form.List>
-        </div>
-      ),
-    },
   ]
 
   return (
@@ -916,9 +604,6 @@ export default function FormChurchProfileTabs({
           address,
           contacts,
           socialLinks,
-          accessibilityList: accessibilityList.length > 0 ? accessibilityList : [''],
-          sanctuarySchedule,
-          diaconalPrograms: initialValues.diaconalPrograms ?? [],
           schedule: toRows(serviceTimes),
         }}
         form={form}

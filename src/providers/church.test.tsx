@@ -68,7 +68,6 @@ describe('Church Provider', () => {
         contacts: null,
         website: null,
         social_links: null,
-        accessibility: null,
         cover_asset_id: null,
         version: 1,
         churchLanguages: [{ language_code: 'en' }],
@@ -128,7 +127,6 @@ describe('Church Provider', () => {
         contacts: null,
         website: null,
         social_links: null,
-        accessibility: null,
         cover_asset_id: null,
         version: 4,
         churchLanguages: [{ language_code: 'en' }],
@@ -194,8 +192,6 @@ describe('Church Provider', () => {
         contacts: {},
         website: null,
         social_links: [],
-        accessibility: null,
-        sanctuary_hours: '10:00–18:30 daily',
         cover_asset_id: null,
         version: 4,
         churchLanguages: [],
@@ -224,7 +220,6 @@ describe('Church Provider', () => {
       expect(tx.churchGalleryItem.createMany).toHaveBeenCalledWith({
         data: [{ church_id: 'c1', media_asset_id: 'm1', caption: 'Altar', order_index: 0 }],
       })
-      expect(result.sanctuaryHours).toBe('10:00–18:30 daily')
       expect(result.galleryItems).toEqual([
         {
           id: 'g1',
@@ -251,7 +246,6 @@ describe('Church Provider', () => {
         contacts: null,
         website: null,
         social_links: null,
-        accessibility: null,
         cover_asset_id: null,
         version: 4,
         churchLanguages: [],

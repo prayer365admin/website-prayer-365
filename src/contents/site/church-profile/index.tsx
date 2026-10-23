@@ -7,7 +7,7 @@ import { WaveformIcon } from '@/components/icon/waveform'
 import { HandHeartIcon } from '@/components/icon/hand-heart'
 import { useSiteChurchPrayers, useSiteChurchProfile } from '@/hooks/data/site/churches'
 import { useSiteHome } from '@/hooks/data/site/home'
-import { useMyChurches } from '@/hooks/data/site/me'
+import { useMe, useMyChurches } from '@/hooks/data/site/me'
 import { useSiteI18n } from '@/i18n/site-i18n'
 import type { MobilePublishedPrayer } from '@/models/mobile'
 import {
@@ -246,10 +246,21 @@ export default function ContentsSiteChurchProfile({ slug }: { slug: string }) {
   const churchRelation = list.find((c) => c?.churchId === data?.id)
   const isFollowed = Boolean(churchRelation?.isFollowed || isPrimaryParish)
 
+  const { onPatch, patching: setMainPending } = useMe()
+
   const handleToggleFollow = async () => {
     if (isPrimaryParish || !data?.id) return
     try {
       await onFollow({ churchId: data.id, isFollowed: !isFollowed })
+    } catch {
+      // query error handled by react-query
+    }
+  }
+
+  const handleSetMainChurch = async () => {
+    if (isPrimaryParish || !data?.id) return
+    try {
+      await onPatch({ mainChurchId: data.id })
     } catch {
       // query error handled by react-query
     }
@@ -315,6 +326,8 @@ export default function ContentsSiteChurchProfile({ slug }: { slug: string }) {
         isFollowed={isFollowed}
         isFollowPending={followPending}
         onToggleFollow={handleToggleFollow}
+        isSetMainPending={setMainPending}
+        onSetMainChurch={handleSetMainChurch}
       />
 
       {/* 2. Main content grid */}

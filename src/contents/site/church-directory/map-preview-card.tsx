@@ -17,10 +17,6 @@ export default function MapPreviewCard({ church }: { church: MobileChurchSummary
   const denomination = formatDenomination(church.denomination)
   const addressText = church.addressLine1 ?? church.district ?? church.city
   const distanceText = church.distanceKm != null ? `${church.distanceKm} km away` : null
-  const accessibility =
-    church.accessibility && church.accessibility.length > 0
-      ? church.accessibility.join(' & ')
-      : null
 
   const destination =
     church.latitude != null && church.longitude != null
@@ -122,12 +118,6 @@ export default function MapPreviewCard({ church }: { church: MobileChurchSummary
                 />
               )}
               <span>{formatServiceTime(church.serviceTimes)}</span>
-            </div>
-          )}
-
-          {accessibility && (
-            <div className="pl-5 text-xs text-[#5B6370]">
-              <span>{accessibility}</span>
             </div>
           )}
         </div>

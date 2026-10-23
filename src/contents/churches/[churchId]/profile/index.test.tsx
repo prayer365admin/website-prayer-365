@@ -24,7 +24,6 @@ const profile = {
   website: null,
   socialLinks: [],
   languageCodes: ['en', 'et'],
-  accessibility: 'Ramp access',
   coverAssetId: null,
   status: 'APPROVED',
   version: 3,
@@ -139,7 +138,6 @@ describe('Church Profile Screen', () => {
       expect(screen.getByPlaceholderText('Example Church')).toBeTruthy()
       expect(screen.getByLabelText('Denomination')).toBeTruthy()
       expect(screen.getByLabelText('Languages')).toBeTruthy()
-      expect(screen.getByLabelText('Accessibility information')).toBeTruthy()
 
       expect(screen.getByDisplayValue('Grace')).toBeTruthy()
     })

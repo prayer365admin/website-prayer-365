@@ -4,7 +4,6 @@ import { GeneralError } from '@/utils/general-error'
 import { auditPayload } from '@/utils/audit'
 import { fromKind } from '@/providers/request'
 import { S3_PUBLIC_URL } from '@/providers/s3'
-import { sanctuaryRangesFor } from '@/utils/sanctuary-hours'
 import {
   MobileAnnouncementListQuery,
   MobileCheckInAck,
@@ -14,7 +13,6 @@ import {
   MobileHome,
   MobileMyChurch,
   MobilePrayerListQuery,
-  MobileDiaconalProgram,
   MobileDonationOptionsSchema,
   MobilePublicAnnouncement,
   MobilePublicChurch,
@@ -122,8 +120,6 @@ const toSummary = (
     latitude: unknown
     longitude: unknown
     description?: string | null
-    accessibility?: string | string[] | null
-    sanctuary_hours?: string | null
     pastors?: Array<{ pastor: { name: string } }>
     serviceTimes?: Array<{ weekday: number; local_time: Date; label: string | null }>
   },
@@ -152,15 +148,6 @@ const toSummary = (
   if (addr?.line2) summary.district = addr.line2
   if (c.church_style) summary.churchStyle = c.church_style
   if (c.description) summary.description = c.description
-  if (c.accessibility) {
-    summary.accessibility = Array.isArray(c.accessibility)
-      ? c.accessibility
-      : c.accessibility
-          .split(' • ')
-          .map((s) => s.trim())
-          .filter(Boolean)
-  }
-  if (c.sanctuary_hours) summary.sanctuaryHours = c.sanctuary_hours
   if (c.pastors?.[0]?.pastor?.name) summary.pastorName = c.pastors[0].pastor.name
   if (c.serviceTimes?.length) {
     summary.serviceTimes = c.serviceTimes
@@ -223,22 +210,6 @@ export function churchClock(
   return { weekday, minutes: hour * 60 + minute }
 }
 
-/**
- * `open_now` (website SPEC §5.3 / §6.2): true when the current church-local time
- * falls inside a `sanctuary_hours` window. No schedule → closed.
- */
-export function isOpenNow(
-  timezone: string,
-  sanctuaryHours: string | null | undefined,
-  now: Date,
-): boolean {
-  const clock = churchClock(timezone, now)
-  if (!clock) return false
-  return sanctuaryRangesFor(sanctuaryHours, clock.weekday).some(
-    (r) => clock.minutes >= r.start && clock.minutes <= r.end,
-  )
-}
-
 /** Approximate lat/lng box for a radius, so the DB is not scanned in full. */
 const radiusBox = (query: MobileChurchListQuery): Prisma.ChurchWhereInput => {
   if (query.radius_km === undefined) return {}
@@ -287,7 +258,6 @@ const mapPublicChurch = (
     contacts: unknown
     website: string | null
     social_links: unknown
-    accessibility: string | null
     cover_asset_id: string | null
     churchLanguages: { language_code: string }[]
     serviceTimes: {
@@ -296,7 +266,6 @@ const mapPublicChurch = (
       label: string | null
       language_code: string | null
     }[]
-    sanctuary_hours?: string | null
     pastors?: Array<{
       pastoral_role: string
       image_asset?: { object_key: string | null } | null
@@ -314,7 +283,6 @@ const mapPublicChurch = (
       parent: { kind: string; name: string } | null
     } | null
     church_style?: string | null
-    diaconal_programs?: unknown
     donation_options?: unknown
   },
   lat?: number,
@@ -348,10 +316,9 @@ const mapPublicChurch = (
     socialLinks: Array.isArray(c.social_links)
       ? (c.social_links as Array<{ label: string; url: string }>)
       : [],
-    accessibility: c.accessibility,
     coverAssetId: c.cover_asset_id,
-    languageCodes: c.churchLanguages.map((l) => l.language_code),
-    serviceTimes: c.serviceTimes.map((s) => ({
+    languageCodes: (c.churchLanguages ?? []).map((l) => l.language_code),
+    serviceTimes: (c.serviceTimes ?? []).map((s) => ({
       weekday: s.weekday,
       // HH:MM church wall clock (Europe/Tallinn etc. via church.timezone)
       localTime: s.local_time.toISOString().slice(11, 16),
@@ -361,7 +328,6 @@ const mapPublicChurch = (
     distanceKm,
     pastorName: c.pastors?.[0]?.pastor?.name ?? null,
     pastorRole: c.pastors?.[0]?.pastoral_role ?? null,
-    sanctuaryHours: c.sanctuary_hours ?? null,
     gallery: (c.galleryItems ?? []).map((g) => ({
       assetId: g.media_asset?.id ?? '',
       url: galleryUrlFor(g.media_asset),
@@ -378,9 +344,6 @@ const mapPublicChurch = (
     })),
     deaneryName: c.org_node?.parent?.kind === 'DEANERY' ? c.org_node.parent.name : null,
     churchStyle: c.church_style ?? null,
-    diaconalPrograms: Array.isArray(c.diaconal_programs)
-      ? (c.diaconal_programs as MobileDiaconalProgram[])
-      : [],
     // Admin-entered JSON: an unparsable legacy blob must degrade to "no options"
     // so the website falls back to its documented defaults rather than crashing.
     donationOptions: MobileDonationOptionsSchema.safeParse(c.donation_options).data,
@@ -398,10 +361,7 @@ export const LIST_PUBLIC_CHURCHES = async ({
 }): Promise<{ result: MobileChurchSummary[]; total: number }> => {
   const where = churchListWhere(query)
   const inMemory =
-    query.radius_km !== undefined ||
-    query.open_now === true ||
-    (query.latitude !== undefined && query.longitude !== undefined)
-
+    query.radius_km !== undefined || (query.latitude !== undefined && query.longitude !== undefined)
   if (!inMemory) {
     const [total, rows] = await db.$transaction([
       db.church.count({ where }),
@@ -421,8 +381,6 @@ export const LIST_PUBLIC_CHURCHES = async ({
           latitude: true,
           longitude: true,
           description: true,
-          accessibility: true,
-          sanctuary_hours: true,
           pastors: {
             include: { pastor: { select: { name: true } } },
             take: 1,
@@ -462,8 +420,6 @@ export const LIST_PUBLIC_CHURCHES = async ({
       latitude: true,
       longitude: true,
       description: true,
-      accessibility: true,
-      sanctuary_hours: true,
       timezone: true,
       pastors: {
         include: { pastor: { select: { name: true } } },
@@ -487,13 +443,6 @@ export const LIST_PUBLIC_CHURCHES = async ({
   if (query.radius_km !== undefined) {
     pairs = pairs.filter(
       (p) => p.summary.distanceKm !== null && p.summary.distanceKm <= query.radius_km!,
-    )
-  }
-
-  if (query.open_now === true) {
-    const now = new Date()
-    pairs = pairs.filter((p) =>
-      isOpenNow(p.row.timezone ?? 'UTC', p.row.sanctuary_hours ?? null, now),
     )
   }
 
@@ -804,7 +753,6 @@ export const GET_HOME = async ({ userId }: { userId: string }): Promise<MobileHo
           cover_asset_id: true,
           latitude: true,
           longitude: true,
-          sanctuary_hours: true,
         },
       })
     : []

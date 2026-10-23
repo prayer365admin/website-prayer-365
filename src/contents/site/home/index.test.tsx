@@ -57,7 +57,6 @@ const mainChurch = {
   contacts: { email: null, phone: null },
   website: null,
   socialLinks: [],
-  accessibility: null,
   coverAssetId: null,
   coverUrl: null,
   languageCodes: ['et'],

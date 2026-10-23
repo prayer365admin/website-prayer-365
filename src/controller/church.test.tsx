@@ -80,7 +80,6 @@ const input = {
   website: null,
   socialLinks: [],
   languageCodes: ['en'],
-  accessibility: null,
   coverAssetId: null,
 }
 
@@ -313,7 +312,7 @@ describe('patchChurchProfile', () => {
     ).rejects.toMatchObject({ code: 422, error_code: 'INVALID_GALLERY_ASSET' })
   })
 
-  it('passes galleryItems and sanctuary_hours through to UPDATE_CHURCH_PROFILE', async () => {
+  it('passes galleryItems through to UPDATE_CHURCH_PROFILE', async () => {
     vi.mocked(GET_CHURCH_VERSION).mockResolvedValue(3 as never)
     vi.mocked(GET_AVAILABLE_LANGUAGE_CODES).mockResolvedValue(new Set(['en']) as never)
     vi.mocked(GET_CHURCH_READY_IMAGE).mockResolvedValue({ id: 'm1' } as never)
@@ -325,7 +324,6 @@ describe('patchChurchProfile', () => {
       churchIds: scope,
       input: {
         ...input,
-        sanctuaryHours: '10:00–18:30 daily',
         galleryItems: [{ mediaAssetId: 'm1', caption: 'Altar', orderIndex: 0 }],
       },
       requestId: 'r',
@@ -336,7 +334,5 @@ describe('patchChurchProfile', () => {
         galleryItems: [{ mediaAssetId: 'm1', caption: 'Altar', orderIndex: 0 }],
       }),
     )
-    const payload = vi.mocked(UPDATE_CHURCH_PROFILE).mock.calls[0][0].payload
-    expect(payload.sanctuary_hours).toBe('10:00–18:30 daily')
   })
 })

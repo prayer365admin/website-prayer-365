@@ -10,26 +10,6 @@ const SECOND_CHURCH_NODE_NAME = 'Tartu Demo Church Node'
 
 const seedSlug = (text: string) => customSlugify({ text, isExists: false })
 
-// Comprehensive profile data for Tallinn Demo Church matching W08 design
-export const DEMO_DIACONAL_PROGRAMS = [
-  {
-    title: 'Crypt Warm Meals & Winter Shelter',
-    description:
-      'Operating Tuesdays and Thursdays since 1993. Over 180 hot meals prepared each session for vulnerable elderly neighbors and unhoused community members.',
-    badgeText: 'Volunteer shifts available',
-    metaText: 'Led by Deacon Tiit',
-    icon: 'utensils',
-  },
-  {
-    title: 'Baltic Refugee Resettlement Circle',
-    description:
-      'Language partner pairings, trauma- informed pastoral chaplaincy, and school supply distribution for newly arrived families from eastern conflict regions.',
-    badgeText: 'Active Support Network',
-    metaText: '34 Families inCare',
-    icon: 'users-group',
-  },
-]
-
 export const TALLINN_CHURCH_PROFILE = {
   status: 'APPROVED' as const,
   timezone: 'Europe/Tallinn',
@@ -55,12 +35,9 @@ export const TALLINN_CHURCH_PROFILE = {
     { label: 'Facebook', url: 'https://facebook.com/tallinnatoomkirik' },
     { label: 'YouTube', url: 'https://youtube.com/@tallinnatoomkirik' },
   ],
-  accessibility: 'Wheelchair accessible sanctuary & level threshold',
   sunday_live_stream: true,
   taize_chants: true,
   youth_ministry: true,
-  sanctuary_hours: '10:00–18:30 daily',
-  diaconal_programs: DEMO_DIACONAL_PROGRAMS,
 }
 
 export const TALLINN_SERVICE_TIMES = [
@@ -112,7 +89,6 @@ export const TARTU_CHURCH_PROFILE = {
   },
   website: 'https://tartujaani.ee',
   social_links: [{ label: 'Facebook', url: 'https://facebook.com/tartujaani' }],
-  accessibility: 'Wheelchair accessible entrance & ramp, induction loop in nave',
   sunday_live_stream: true,
   taize_chants: true,
   youth_ministry: true,
@@ -285,30 +261,9 @@ export const ST_JOHNS_CHURCH_PROFILE = {
     { label: 'Facebook', url: 'https://facebook.com/tallinnajaanikirik' },
     { label: 'YouTube', url: 'https://youtube.com/@tallinnajaanikirik' },
   ],
-  accessibility:
-    'Level wheelchair access via South Portico ramp • Induction hearing loop tuned in nave pews 4–18 • Braille hymnals & large-print service booklets • Quiet room & family creche with audio relay • Crypt fellowship hall & tea room after liturgy',
   sunday_live_stream: true,
   taize_chants: true,
   youth_ministry: true,
-  sanctuary_hours: 'Mon–Fri 10:00–18:30 • Sat 11:00–16:00 • Sun 09:00–19:00',
-  diaconal_programs: [
-    {
-      title: 'Crypt Warm Meals & Winter Shelter',
-      description:
-        'Operating Tuesdays and Thursdays since 1993. Over 180 hot meals prepared each session for vulnerable elderly neighbors and unhoused community members.',
-      badgeText: 'Volunteer shifts available',
-      metaText: 'Led by Deacon Tiit',
-      icon: 'utensils',
-    },
-    {
-      title: 'Baltic Refugee Resettlement Circle',
-      description:
-        'Language partner pairings, trauma- informed pastoral chaplaincy, and school supply distribution for newly arrived families from eastern conflict regions.',
-      badgeText: 'Active Support Network',
-      metaText: '34 Families inCare',
-      icon: 'users-group',
-    },
-  ],
 }
 
 export const ST_JOHNS_SERVICE_TIMES = [
@@ -838,11 +793,9 @@ export const ST_OLAFS_CHURCH_PROFILE = {
   },
   website: 'https://oleviste.ee',
   social_links: [{ label: 'Facebook', url: 'https://facebook.com/olevistekirik' }],
-  accessibility: 'Level entrance via side aisle, induction hearing loop',
   sunday_live_stream: true,
   taize_chants: false,
   youth_ministry: true,
-  sanctuary_hours: '10:00–18:00 daily',
 }
 
 export const PARNU_CHURCH_NAME = "Pärnu St. Elizabeth's Church"
@@ -869,11 +822,9 @@ export const PARNU_CHURCH_PROFILE = {
   },
   website: 'https://eliisabet.ee',
   social_links: [{ label: 'Facebook', url: 'https://facebook.com/eliisabetikogudus' }],
-  accessibility: 'Wheelchair ramp at main portal, level nave access',
   sunday_live_stream: false,
   taize_chants: true,
   youth_ministry: false,
-  sanctuary_hours: '11:00–17:00 daily',
 }
 
 export const seedAdditionalChurches = async () => {

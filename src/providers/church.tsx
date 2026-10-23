@@ -10,7 +10,6 @@ import {
 } from '@/models/church'
 import { fromClassification, fromKind, requestVisibilityWhere } from '@/providers/request'
 import { S3_PUBLIC_URL } from '@/providers/s3'
-import type { MobileDiaconalProgram } from '@/models/mobile'
 
 /*
  * Church data adapter (Tasks 12/13). UPPER_SNAKE_CASE, single-responsibility.
@@ -94,10 +93,7 @@ const mapProfile = (
     contacts: unknown
     website: string | null
     social_links: unknown
-    accessibility: string | null
-    sanctuary_hours?: string | null
     cover_asset_id: string | null
-    diaconal_programs?: unknown
     version: number
     galleryItems?: Array<{
       id: string
@@ -125,11 +121,6 @@ const mapProfile = (
     contacts: row.contacts,
     website: row.website,
     socialLinks: row.social_links,
-    accessibility: row.accessibility,
-    sanctuaryHours: row.sanctuary_hours ?? null,
-    diaconalPrograms: Array.isArray(row.diaconal_programs)
-      ? (row.diaconal_programs as MobileDiaconalProgram[])
-      : [],
     coverAssetId: row.cover_asset_id,
     galleryItems: (row.galleryItems ?? []).map((g) => ({
       id: g.id,

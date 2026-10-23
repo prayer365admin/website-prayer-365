@@ -56,7 +56,6 @@ describe('GET /api/v1/site/churches/[churchId]', () => {
       },
       website: 'https://grace.ee',
       socialLinks: [],
-      accessibility: 'Wheelchair access',
       coverAssetId: null,
       coverUrl: 'https://cdn.test/cover.jpg',
       languageCodes: ['et', 'en'],

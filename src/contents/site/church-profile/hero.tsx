@@ -4,6 +4,7 @@ import { useState } from 'react'
 import Image from 'next/image'
 import { CheckOutlined, LoadingOutlined, ShareAltOutlined } from '@ant-design/icons'
 import { BookmarkPlusIcon } from '@/components/icon/bookmark-plus'
+import { ChurchIcon } from '@/components/icon/church'
 import { DirectionIcon } from '@/components/icon/direction'
 import { useSiteI18n } from '@/i18n/site-i18n'
 import type { MobilePublicChurch } from '@/models/mobile'
@@ -14,14 +15,17 @@ interface HeroProps {
   isFollowed?: boolean
   isFollowPending?: boolean
   onToggleFollow?: () => void
+  isSetMainPending?: boolean
+  onSetMainChurch?: () => void
 }
-
 export function Hero({
   church,
   isPrimaryParish,
   isFollowed = false,
   isFollowPending = false,
   onToggleFollow,
+  isSetMainPending = false,
+  onSetMainChurch,
 }: HeroProps) {
   const { t } = useSiteI18n()
   const [failedSrcs, setFailedSrcs] = useState<Record<string, boolean>>({})
@@ -182,6 +186,30 @@ export function Hero({
                   <BookmarkPlusIcon className="h-5 w-5" />
                 )}
                 <span>{isFollowed ? t('profileFollowing') : t('profileFollow')}</span>
+              </button>
+            )}
+            {onSetMainChurch && (
+              <button
+                type="button"
+                onClick={onSetMainChurch}
+                disabled={isSetMainPending || isPrimaryParish}
+                aria-pressed={isPrimaryParish}
+                aria-label={isPrimaryParish ? t('mainChurch') : t('setAsMainChurch')}
+                title={isPrimaryParish ? t('primaryParish') : undefined}
+                className={
+                  isPrimaryParish
+                    ? 'inline-flex h-12 items-center gap-2 rounded-xl border border-white/30 bg-black/30 px-5 text-sm font-semibold text-white backdrop-blur-md transition-colors sm:text-base opacity-75 cursor-default'
+                    : 'inline-flex h-12 items-center gap-2 rounded-xl border border-white/30 bg-black/30 px-5 text-sm font-semibold text-white backdrop-blur-md transition-colors hover:bg-black/50 disabled:cursor-not-allowed disabled:opacity-50 sm:text-base'
+                }
+              >
+                {isSetMainPending ? (
+                  <LoadingOutlined className="text-base" />
+                ) : isPrimaryParish ? (
+                  <CheckOutlined className="text-base" />
+                ) : (
+                  <ChurchIcon className="text-base" />
+                )}
+                <span>{isPrimaryParish ? t('mainChurch') : t('setAsMainChurch')}</span>
               </button>
             )}
             <a

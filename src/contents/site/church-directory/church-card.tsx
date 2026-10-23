@@ -42,7 +42,6 @@ export default function ChurchCard({
   // one — the thumbnail badge already shows the denomination acronym.
   const churchStyle = church.churchStyle ?? null
   const denomination = formatDenomination(church.denomination)
-  const accessibilityText = church.accessibility?.[0] ?? null
   const quote = church.description || null
   const destination =
     church.latitude != null && church.longitude != null
@@ -148,7 +147,7 @@ export default function ChurchCard({
         </div>
       </div>
 
-      {/* Footer: accessibility + View details; featured card adds quote and
+      {/* Footer: View details; featured card adds quote and
           Directions / View details rows (FIGMA 2032:2942);
           regular card stops after the View-details line (FIGMA 2032:2992). */}
       <div className="flex flex-col gap-3 p-4">
@@ -158,22 +157,15 @@ export default function ChurchCard({
             <p className="font-font_quote italic text-sm leading-[130%] text-[#0B4497]">{quote}</p>
           </div>
         )}
-        {(accessibilityText || !featured) && (
-          <div className="flex items-center justify-between gap-4">
-            {accessibilityText && (
-              <span className="text-xs text-[#5B6370]">{accessibilityText}</span>
-            )}
-            {!featured && (
-              <Link
-                href={churchProfileHref}
-                className={`flex shrink-0 items-center gap-1.5 text-sm font-semibold text-primary_color hover:underline whitespace-nowrap ${
-                  accessibilityText ? '' : 'ml-auto'
-                }`}
-              >
-                <span className="whitespace-nowrap">{t('viewDetails')}</span>
-                <ArrowRightTailIcon aria-hidden="true" className="text-sm shrink-0" />
-              </Link>
-            )}
+        {!featured && (
+          <div className="flex items-center justify-end">
+            <Link
+              href={churchProfileHref}
+              className="flex shrink-0 items-center gap-1.5 text-sm font-semibold text-primary_color hover:underline whitespace-nowrap ml-auto"
+            >
+              <span className="whitespace-nowrap">{t('viewDetails')}</span>
+              <ArrowRightTailIcon aria-hidden="true" className="text-sm shrink-0" />
+            </Link>
           </div>
         )}
 
