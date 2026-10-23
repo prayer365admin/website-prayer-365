@@ -56,7 +56,12 @@ const notFoundChurch = () =>
   })
 
 /** Church must exist AND be APPROVED for any mobile read/write. */
-const activeChurchWhere = (id: string): Prisma.ChurchWhereInput => ({
+const activeChurchWhere = (slug: string): Prisma.ChurchWhereInput => ({
+  slug,
+  status: APPROVED,
+})
+
+const activeChurchWhereId = (id: string): Prisma.ChurchWhereInput => ({
   id,
   status: APPROVED,
 })
@@ -108,6 +113,7 @@ const toCoordinates = (
 const toSummary = (
   c: {
     id: string
+    slug?: string
     name: string
     denomination: string | null
     church_style?: string | null
@@ -132,6 +138,7 @@ const toSummary = (
   }
   const summary: Omit<MobileChurchSummary, 'coverUrl'> = {
     id: c.id,
+    slug: c.slug,
     name: c.name,
     denomination: c.denomination,
     city,
@@ -269,6 +276,7 @@ const churchListWhere = (query: MobileChurchListQuery): Prisma.ChurchWhereInput 
 const mapPublicChurch = (
   c: {
     id: string
+    slug?: string
     name: string
     denomination: string | null
     description: string | null
@@ -322,6 +330,7 @@ const mapPublicChurch = (
   }
   return {
     id: c.id,
+    slug: c.slug ?? c.id,
     name: c.name,
     denomination: c.denomination,
     description: c.description,
@@ -403,6 +412,7 @@ export const LIST_PUBLIC_CHURCHES = async ({
         orderBy: [{ name: 'asc' }, { id: 'asc' }],
         select: {
           id: true,
+          slug: true,
           name: true,
           denomination: true,
           church_style: true,
@@ -443,6 +453,7 @@ export const LIST_PUBLIC_CHURCHES = async ({
     take: MAX_FILTER_ROWS,
     select: {
       id: true,
+      slug: true,
       name: true,
       denomination: true,
       church_style: true,
@@ -502,16 +513,19 @@ export const LIST_PUBLIC_CHURCHES = async ({
 }
 
 export const GET_PUBLIC_CHURCH = async ({
+  slug,
   churchId,
   lat,
   lng,
 }: {
-  churchId: string
+  slug?: string
+  churchId?: string
   lat?: number
   lng?: number
 }): Promise<MobilePublicChurch | null> => {
+  const targetSlug = slug ?? churchId ?? ''
   const row = await db.church.findFirst({
-    where: activeChurchWhere(churchId),
+    where: activeChurchWhere(targetSlug),
     include: {
       churchLanguages: { select: { language_code: true } },
       serviceTimes: {
@@ -647,7 +661,7 @@ export const UPDATE_ME_PROFILE = async ({
     if (mainChurchId === undefined) return
     if (mainChurchId) {
       const church = await tx.church.findFirst({
-        where: activeChurchWhere(mainChurchId),
+        where: activeChurchWhereId(mainChurchId),
         select: { id: true },
       })
       if (!church) throw notFoundChurch()
@@ -682,6 +696,7 @@ export const LIST_MY_CHURCHES = async ({
       church: {
         select: {
           id: true,
+          slug: true,
           name: true,
           address: true,
           cover_asset_id: true,
@@ -696,6 +711,7 @@ export const LIST_MY_CHURCHES = async ({
       .map((r) =>
         withCover({
           churchId: r.church.id,
+          slug: r.church.slug,
           churchName: r.church.name,
           city: (r.church.address as { city?: string } | null)?.city ?? null,
           address: churchAddressLabel(r.church.address),
@@ -717,7 +733,7 @@ export const SET_FOLLOW = async ({
   isFollowed: boolean
 }): Promise<{ churchId: string; isFollowed: boolean } | null> => {
   const church = await db.church.findFirst({
-    where: activeChurchWhere(churchId),
+    where: activeChurchWhereId(churchId),
     select: { id: true },
   })
   if (!church) return null
@@ -736,6 +752,11 @@ export const GET_HOME = async ({ userId }: { userId: string }): Promise<MobileHo
       is_main: true,
       is_followed: true,
       church_id: true,
+      church: {
+        select: {
+          slug: true,
+        },
+      },
     },
     orderBy: [{ is_main: 'desc' }],
   })
@@ -750,7 +771,7 @@ export const GET_HOME = async ({ userId }: { userId: string }): Promise<MobileHo
   let latestEvents: MobilePublicEvent[] = []
   let latestAnnouncements: MobilePublicAnnouncement[] = []
   if (mainRow) {
-    mainChurch = await GET_PUBLIC_CHURCH({ churchId: mainRow.church_id })
+    mainChurch = await GET_PUBLIC_CHURCH({ slug: mainRow.church?.slug ?? mainRow.church_id })
     if (mainChurch) {
       latestEvents = (
         await LIST_PUBLIC_EVENTS({ churchId: mainRow.church_id, query: { page: 1, limit: 3 } })
@@ -775,6 +796,7 @@ export const GET_HOME = async ({ userId }: { userId: string }): Promise<MobileHo
         where: { id: { in: followedIds }, status: APPROVED },
         select: {
           id: true,
+          slug: true,
           name: true,
           denomination: true,
           church_style: true,
@@ -1190,7 +1212,7 @@ export const CREATE_CHECKIN = async ({
   requestId: string
 }): Promise<MobileCheckInAck> => {
   const church = await db.church.findFirst({
-    where: activeChurchWhere(churchId),
+    where: activeChurchWhereId(churchId),
     select: { id: true, timezone: true },
   })
   if (!church) throw notFoundChurch()

@@ -16,6 +16,7 @@ const me: MobileMe = {
 const churches: MobileMyChurch[] = [
   {
     churchId: 'c1',
+    slug: 'tallinn-demo',
     churchName: 'Tallinn Demo Church',
     city: 'Tallinn',
     address: null,

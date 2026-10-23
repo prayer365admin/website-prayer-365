@@ -261,7 +261,7 @@ export const GET_MY_ACTIVE_GIFT = async ({
 export const GET_CHURCH_LABEL = async ({ churchId }: { churchId: string }) => {
   return db.church.findUnique({
     where: { id: churchId },
-    select: { id: true, name: true },
+    select: { id: true, slug: true, name: true },
   })
 }
 

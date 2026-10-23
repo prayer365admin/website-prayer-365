@@ -1,7 +1,7 @@
 import { SiteI18nProvider } from '@/i18n/site-i18n'
 import { SitePrayerArchive, SitePrayerArchiveQuery } from '@/models/site-prayer'
 import { pushMock, renderWithProviders } from '@/test/frontend/render'
-import { fireEvent, screen } from '@testing-library/react'
+import { act, fireEvent, screen } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 import PrayerArchive from '.'
 
@@ -148,5 +148,47 @@ describe('PrayerArchive', () => {
 
     expect(screen.queryByText(/Audio player/)).toBeNull()
     expect(screen.getAllByText(/Text prayer/).length).toBeGreaterThan(0)
+  })
+  it('submits search and navigates to filtered page', () => {
+    renderArchive({
+      result: [prayer('grid-1', false)],
+      featured: null,
+      total: 1,
+      page: 1,
+      limit: 6,
+      totalPages: 1,
+      churches: [{ value: 'church-1', label: 'Hope Church' }],
+      languages: ['en'],
+    })
+
+    const input = screen.getByPlaceholderText(/Search by scripture/i)
+    fireEvent.change(input, { target: { value: 'gratitude' } })
+    fireEvent.submit(input.closest('form')!)
+
+    expect(pushMock).toHaveBeenCalledWith('/prayers?search=gratitude')
+  })
+  it('debounces live search while typing without pressing submit', () => {
+    vi.useFakeTimers()
+    renderArchive({
+      result: [prayer('grid-1', false)],
+      featured: null,
+      total: 1,
+      page: 1,
+      limit: 6,
+      totalPages: 1,
+      churches: [{ value: 'church-1', label: 'Hope Church' }],
+      languages: ['en'],
+    })
+
+    const input = screen.getByPlaceholderText(/Search by scripture/i)
+    fireEvent.change(input, { target: { value: 'pe' } })
+    fireEvent.change(input, { target: { value: 'peace' } })
+    expect(pushMock).not.toHaveBeenCalled()
+
+    act(() => {
+      vi.advanceTimersByTime(500)
+    })
+    expect(pushMock).toHaveBeenCalledWith('/prayers?search=peace')
+    vi.useRealTimers()
   })
 })

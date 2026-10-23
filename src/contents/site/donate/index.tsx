@@ -12,6 +12,7 @@ import { DonateTransparency } from './transparency'
 /** W11 Giving & Stewardship Portal (WB-41). Server page supplies the church, the giver's own ledger and the flag. */
 export default function ContentsSiteDonate({
   churchId,
+  slug,
   churchName,
   isMainParish,
   donationOptions,
@@ -21,6 +22,7 @@ export default function ContentsSiteDonate({
   oneTime = false,
 }: {
   churchId: string
+  slug?: string
   churchName: string
   isMainParish: boolean
   donationOptions?: MobileDonationOptions
@@ -37,6 +39,7 @@ export default function ContentsSiteDonate({
         <div className="grid min-w-0 gap-8 lg:grid-cols-[minmax(0,658.67fr)_minmax(0,461.33fr)]">
           <DonorForm
             churchId={churchId}
+            slug={slug}
             churchName={churchName}
             isMainParish={isMainParish}
             options={donationOptions ?? DONATION_FALLBACK_OPTIONS}

@@ -192,6 +192,7 @@ export type DonationStatusQuery = z.infer<typeof DonationStatusQuerySchema>
 export const DonationStatusSchema = z.object({
   state: z.enum(['confirmed', 'pending', 'failed']),
   churchId: z.string(),
+  churchSlug: z.string().nullable().optional(),
   churchName: z.string(),
   amountMinor: z.number().int(),
   currency: z.string(),
@@ -216,7 +217,14 @@ export type DonationInitiateResult = {
 /** Status a browser can read from the JSON route (dates travel as ISO strings). */
 export type DonationStatusView = Pick<
   DonationStatus,
-  'state' | 'churchId' | 'churchName' | 'amountMinor' | 'currency' | 'frequency' | 'receiptSeen'
+  | 'state'
+  | 'churchId'
+  | 'churchSlug'
+  | 'churchName'
+  | 'amountMinor'
+  | 'currency'
+  | 'frequency'
+  | 'receiptSeen'
 >
 
 /** One currency's slice of the giver's own paid giving in a calendar year. */

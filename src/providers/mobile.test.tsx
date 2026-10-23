@@ -308,13 +308,13 @@ describe('GET_PUBLIC_CHURCH — admin profile reflected in mobile contract', () 
     expect(result).toBeNull()
   })
 
-  it('queries with status APPROVED and church id in where-clause', async () => {
+  it('queries with status APPROVED and church slug in where-clause', async () => {
     db.church.findFirst.mockResolvedValueOnce(null)
-    await GET_PUBLIC_CHURCH({ churchId: 'c1' })
+    await GET_PUBLIC_CHURCH({ slug: 'c1' })
     expect(db.church.findFirst).toHaveBeenCalledWith(
       expect.objectContaining({
         where: expect.objectContaining({
-          id: 'c1',
+          slug: 'c1',
           status: 'APPROVED',
         }),
       }),

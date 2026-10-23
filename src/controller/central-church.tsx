@@ -139,6 +139,7 @@ export const updateChurch = async ({
   if (payload.version !== church.version) throw stale()
 
   const updated = await dbTransaction(async (tx) => {
+    // slug is set once at creation; church renames deliberately do not change the public URL.
     const row = await UPDATE_CHURCH(
       {
         churchId,

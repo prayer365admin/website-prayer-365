@@ -44,6 +44,7 @@ const parseMinor = (raw: string) => {
 /** W11 left column: the whole offering form and its checkout hand-off. */
 export function DonorForm({
   churchId,
+  slug,
   churchName,
   isMainParish,
   options,
@@ -52,6 +53,7 @@ export function DonorForm({
   oneTime = false,
 }: {
   churchId: string
+  slug?: string
   churchName: string
   isMainParish: boolean
   options: MobileDonationOptions
@@ -113,7 +115,7 @@ export function DonorForm({
           // Stripe substitutes the session id; the result page re-reads the
           // outcome from our ledger, never from these values.
           successUrl: `${origin}/donate/result?session_id={CHECKOUT_SESSION_ID}&churchId=${churchId}&amountMinor=${amountMinor}&currency=${currency}&frequency=${frequency}`,
-          cancelUrl: `${origin}/donate/${churchId}`,
+          cancelUrl: `${origin}/donate/${slug ?? churchId}`,
         },
       })
       redirectExternal(result.url)
@@ -158,7 +160,12 @@ export function DonorForm({
             notFoundContent={t('noChurchesFound')}
             onChange={(nextChurchId: string) => {
               if (nextChurchId && nextChurchId !== churchId) {
-                router.push(`/donate/${nextChurchId}`)
+                const nextChurch =
+                  frequentChurches.find((c) => c.id === nextChurchId) ??
+                  searchResults.find((c) => c.id === nextChurchId)
+                router.push(
+                  `/donate/${(nextChurch as { slug?: string } | undefined)?.slug ?? nextChurchId}`,
+                )
               }
             }}
             options={churchSelectOptions}

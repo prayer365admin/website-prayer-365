@@ -45,7 +45,12 @@ export default function ContentsSiteHome({
             mainChurch={home.mainChurch}
           />
           <PrayerPetition church={home.mainChurch} />
-          <Stewardship churchId={home.mainChurch?.id ?? null} gift={gift} nextGiftAt={nextGiftAt} />
+          <Stewardship
+            churchId={home.mainChurch?.id ?? null}
+            churchSlug={home.mainChurch?.slug ?? null}
+            gift={gift}
+            nextGiftAt={nextGiftAt}
+          />
           <BrandQuote />
         </div>
       </div>

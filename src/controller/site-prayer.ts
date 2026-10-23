@@ -9,11 +9,14 @@ export const getSitePrayerArchive = ({
   userId,
   query,
   fixedChurchId,
+  fixedChurchSlug,
 }: {
   userId: string
   query: SitePrayerArchiveQuery
   fixedChurchId?: string
-}): Promise<SitePrayerArchive> => GET_SITE_PRAYER_ARCHIVE({ userId, query, fixedChurchId })
+  fixedChurchSlug?: string
+}): Promise<SitePrayerArchive> =>
+  GET_SITE_PRAYER_ARCHIVE({ userId, query, fixedChurchId, fixedChurchSlug })
 
 /** Published prayer of any approved church, or null (page renders 404). */
 export const getSitePrayerDetail = ({

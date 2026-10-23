@@ -37,7 +37,7 @@ export const SITE_MESSAGES = {
     heroSubtitle:
       'Find welcoming congregations, service schedules, and quiet sanctuaries across the Baltic region.',
     congregationsListed: 'welcoming congregations listed',
-    withinDistance: 'Within 10 km',
+    withinDistance: 'All Distance',
     allDenominations: 'All Denominations',
     quickFilters: 'Quick filters',
     allLanguages: 'All Languages',
@@ -146,6 +146,12 @@ export const SITE_MESSAGES = {
       "Your tithes and gifts sustain the sanctuary's open doors, choir, organ maintenance, and daily warm meals for Baltic refugees.",
     customAmount: 'Custom amount',
     giveViaBanklink: 'Give via Baltic Banklink / Card',
+    donationBannerBody:
+      'Support the sacred heritage, community meals, and ongoing pastoral ministry of this parish.',
+    donationBannerCta: 'Support This Parish',
+    directoryDonationBannerBody:
+      'Support the sacred heritage, community meals, and ongoing pastoral ministry of local churches.',
+    directoryDonationBannerCta: 'Support Local Churches',
     facilitiesAccess: 'Sanctuary Facilities & Access',
     parishNoticeBoard: 'Parish Notice Board',
     bulletin: 'Bulletin (PDF)',
@@ -753,7 +759,7 @@ export const SITE_MESSAGES = {
     heroSubtitle:
       'Leia sõbralikke kogudusi, jumalateenistuste graafikuid ja rahulikke pühakodasid Balti regioonis.',
     congregationsListed: 'sõbralikku kogudust loetletud',
-    withinDistance: 'Kuni 10 km',
+    withinDistance: 'Kõik vahemaad',
     allDenominations: 'Kõik suunad',
     quickFilters: 'Kiirfiltrid',
     allLanguages: 'Kõik keeled',
@@ -862,6 +868,12 @@ export const SITE_MESSAGES = {
       'Sinu annetused toetavad pühakoja avatud uksi, koori, orelihooldust ja igapäevaseid sooje eineid abivajajatele.',
     customAmount: 'Muu summa',
     giveViaBanklink: 'Anneta pangalingi või kaardiga',
+    donationBannerBody:
+      'Toeta selle koguduse sakraalset pärandit, kogukonnaeineid ja igapäevast hingehoidu.',
+    donationBannerCta: 'Toeta kogudust',
+    directoryDonationBannerBody:
+      'Toeta kohalike koguduste sakraalset pärandit, kogukonnaeineid ja igapäevast hingehoidu.',
+    directoryDonationBannerCta: 'Toeta kohalikke kogudusi',
     facilitiesAccess: 'Pühakoja mugavused ja ligipääs',
     parishNoticeBoard: 'Koguduse teadetetahvel',
     bulletin: 'Teateleht (PDF)',
@@ -1381,7 +1393,7 @@ export const SITE_MESSAGES = {
     heroSubtitle:
       'Hitta välkomnande församlingar, gudstjänsttider och lugna helgedomar i Östersjöregionen.',
     congregationsListed: 'vänliga församlingar listade',
-    withinDistance: 'Inom 10 km',
+    withinDistance: 'Alla avstånd',
     allDenominations: 'Alla samfund',
     quickFilters: 'Snabbfilter',
     allLanguages: 'Alla språk',
@@ -1490,6 +1502,12 @@ export const SITE_MESSAGES = {
       'Dina gåvor upprätthåller helgedomens öppna dörrar, kören, orgelunderhållet och dagliga måltider för behövande.',
     customAmount: 'Annat belopp',
     giveViaBanklink: 'Ge via banklänk eller kort',
+    donationBannerBody:
+      'Stöd denna församlings sakrala kulturarv, gemenskapsmåltider och pågående pastorala arbete.',
+    donationBannerCta: 'Stöd församlingen',
+    directoryDonationBannerBody:
+      'Stöd lokala församlingars sakrala kulturarv, gemenskapsmåltider och pågående pastorala arbete.',
+    directoryDonationBannerCta: 'Stöd lokala församlingar',
     facilitiesAccess: 'Helgedomens faciliteter och tillgänglighet',
     parishNoticeBoard: 'Församlingens anslagstavla',
     bulletin: 'Församlingsblad (PDF)',
@@ -2012,7 +2030,7 @@ export const SITE_MESSAGES = {
     heroSubtitle:
       'Löydä vieraanvaraisia seurakuntia, jumalanpalvelusaikoja ja rauhallisia pyhäkköjä Baltian alueelta.',
     congregationsListed: 'vieraanvaraista seurakuntaa listattu',
-    withinDistance: 'Enintään 10 km',
+    withinDistance: 'Kaikki etäisyydet',
     allDenominations: 'Kaikki suuntaukset',
     quickFilters: 'Pikasuodattimet',
     allLanguages: 'Kaikki kielet',
@@ -2122,6 +2140,12 @@ export const SITE_MESSAGES = {
       'Lahjoituksesi tukevat pyhäkön avoimia ovia, kuoroa, urkujen huoltoa ja päivittäisiä lämpimiä aterioita apua tarvitseville.',
     customAmount: 'Muu summa',
     giveViaBanklink: 'Lahjoita pankkilinkillä tai kortilla',
+    donationBannerBody:
+      'Tue tämän seurakunnan sakraaliperintöä, yhteisöaterioita ja jatkuvaa sielunhoitotyötä.',
+    donationBannerCta: 'Tue seurakuntaa',
+    directoryDonationBannerBody:
+      'Tue paikallisten seurakuntien sakraaliperintöä, yhteisöaterioita ja jatkuvaa sielunhoitotyötä.',
+    directoryDonationBannerCta: 'Tue paikallisia seurakuntia',
     facilitiesAccess: 'Pyhäkön tilat ja esteettömyys',
     parishNoticeBoard: 'Seurakunnan ilmoitustaulu',
     bulletin: 'Seurakuntalehti (PDF)',

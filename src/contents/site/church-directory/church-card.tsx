@@ -1,11 +1,14 @@
 import { useSiteI18n } from '@/i18n/site-i18n'
 import { MobileChurchSummary } from '@/models/mobile'
 import { formatDenomination } from '@/utils/denomination'
-import { CalendarOutlined, CheckCircleFilled, RightOutlined, UserOutlined } from '@ant-design/icons'
+import { CheckCircleFilled } from '@ant-design/icons'
 import Image from 'next/image'
 import Link from 'next/link'
-import { closingTime } from '@/utils/sanctuary-hours'
-
+import { CalendarWeekIcon } from '@/components/icon/calendar-week'
+import { DirectionIcon } from '@/components/icon/direction'
+import { UserTieIcon } from '@/components/icon/user-tie'
+import { ArrowRightTailIcon } from '@/components/icon/arrow-right-tail'
+import { formatServiceTime } from '@/utils/service-time'
 /** Small "✓ EELK" chip overlaid on the thumbnail, per FIGMA ChurchArticle body. */
 function ThumbnailDenominationBadge({ label }: { label: string }) {
   return (
@@ -41,9 +44,23 @@ export default function ChurchCard({
   const denomination = formatDenomination(church.denomination)
   const accessibilityText = church.accessibility?.[0] ?? null
   const quote = church.description || null
+  const destination =
+    church.latitude != null && church.longitude != null
+      ? `${church.latitude},${church.longitude}`
+      : encodeURIComponent(
+          [church.name, church.addressLine1, church.district, church.city]
+            .filter(Boolean)
+            .join(', '),
+        )
+  const routeUrl = `https://www.google.com/maps/dir/?api=1&destination=${destination}`
+  const churchProfileHref = church.slug
+    ? `/churches/${church.slug}`
+    : church.id
+      ? `/churches/${church.id}`
+      : '#'
   return (
     <article
-      className={`flex flex-col rounded-2xl bg-white ${
+      className={`flex flex-col rounded-2xl bg-white font-font_text ${
         featured
           ? 'shadow-[0_12px_36px_-8px_rgba(0,92,173,0.08)] ring-2 ring-inset ring-primary_color'
           : 'shadow-[0_1px_2px_rgba(0,0,0,0.05)]'
@@ -117,14 +134,14 @@ export default function ChurchCard({
           <div className="flex flex-col gap-1 pt-1">
             {church.pastorName && (
               <div className="flex items-center gap-1.5 text-xs text-[#5B6370]">
-                <UserOutlined className="text-primary_color" aria-hidden="true" />
+                <UserTieIcon className="text-[13px] text-[#2F7AD2] shrink-0" aria-hidden="true" />
                 <span>{church.pastorName}</span>
               </div>
             )}
             {church.serviceTimes && (
-              <div className="flex items-center gap-1.5 text-xs text-[#005CAD]">
-                <CalendarOutlined aria-hidden="true" />
-                <p className="font-semibold">{church.serviceTimes}</p>
+              <div className="flex items-center gap-1.5 font-font_text text-xs font-semibold leading-[150%] text-[#2F7AD2]">
+                <CalendarWeekIcon className="text-[13px] shrink-0" aria-hidden="true" />
+                <span>{formatServiceTime(church.serviceTimes)}</span>
               </div>
             )}
           </div>
@@ -132,7 +149,7 @@ export default function ChurchCard({
       </div>
 
       {/* Footer: accessibility + View details; featured card adds quote and
-          Directions / Details & bulletin / Open until rows (FIGMA 2032:2942);
+          Directions / View details rows (FIGMA 2032:2942);
           regular card stops after the View-details line (FIGMA 2032:2992). */}
       <div className="flex flex-col gap-3 p-4">
         {featured && quote && (
@@ -141,54 +158,45 @@ export default function ChurchCard({
             <p className="font-font_quote italic text-sm leading-[130%] text-[#0B4497]">{quote}</p>
           </div>
         )}
-
-        <div className="flex items-center justify-between gap-4">
-          {accessibilityText && <span className="text-xs text-[#5B6370]">{accessibilityText}</span>}
-          <Link
-            href={`/churches/${church.id}`}
-            className={`flex shrink-0 items-center gap-1 text-sm font-semibold text-primary_color hover:underline whitespace-nowrap ${
-              accessibilityText ? '' : 'ml-auto'
-            }`}
-          >
-            <span className="whitespace-nowrap">{t('viewDetails')}</span>
-            <RightOutlined aria-hidden="true" className="text-xs shrink-0" />
-          </Link>
-        </div>
+        {(accessibilityText || !featured) && (
+          <div className="flex items-center justify-between gap-4">
+            {accessibilityText && (
+              <span className="text-xs text-[#5B6370]">{accessibilityText}</span>
+            )}
+            {!featured && (
+              <Link
+                href={churchProfileHref}
+                className={`flex shrink-0 items-center gap-1.5 text-sm font-semibold text-primary_color hover:underline whitespace-nowrap ${
+                  accessibilityText ? '' : 'ml-auto'
+                }`}
+              >
+                <span className="whitespace-nowrap">{t('viewDetails')}</span>
+                <ArrowRightTailIcon aria-hidden="true" className="text-sm shrink-0" />
+              </Link>
+            )}
+          </div>
+        )}
 
         {featured && (
-          <div className="flex flex-col gap-3 pt-1 sm:flex-row sm:items-center sm:justify-between">
+          <div className="pt-1">
             <div className="grid grid-cols-2 gap-2 sm:flex sm:items-center">
-              <Link
-                href={`/churches/${church.id}`}
+              <a
+                href={routeUrl}
+                target="_blank"
+                rel="noopener noreferrer"
                 className="flex h-10 items-center justify-center gap-2 rounded-xl bg-primary_color px-4 text-sm font-semibold text-white shadow-sm transition hover:opacity-90 whitespace-nowrap"
               >
-                <span aria-hidden="true" className="text-xs">
-                  ◈
-                </span>
+                <DirectionIcon className="text-lg shrink-0" aria-hidden="true" />
                 <span className="whitespace-nowrap">{t('directions')}</span>
-              </Link>
+              </a>
               <Link
-                href={`/churches/${church.id}`}
+                href={churchProfileHref}
                 className="flex h-10 items-center justify-center gap-2 rounded-xl border border-primary_color bg-white px-4 text-sm font-semibold text-primary_color transition hover:bg-gray-50 whitespace-nowrap"
               >
-                <span aria-hidden="true" className="text-xs">
-                  ◈
-                </span>
-                <span className="whitespace-nowrap">{t('detailsAndBulletin')}</span>
+                <DirectionIcon className="text-lg shrink-0" aria-hidden="true" />
+                <span className="whitespace-nowrap">{t('viewDetails')}</span>
               </Link>
             </div>
-
-            {/* FIGMA "Open until" block: hidden when the church has no hours. */}
-            {(() => {
-              const closing = church.sanctuaryHours ? closingTime(church.sanctuaryHours) : null
-              if (!closing) return null
-              return (
-                <div className="flex flex-col text-right">
-                  <span className="text-xs leading-tight text-[#067958]">{t('openUntil')}</span>
-                  <span className="text-sm font-bold leading-tight text-[#067958]">{closing}</span>
-                </div>
-              )
-            })()}
           </div>
         )}
       </div>

@@ -58,7 +58,7 @@ export function PrayerDetailSidebar({ detail }: { detail: SitePrayerDetail }) {
               {prayer.pastorBio}
             </p>
           )}
-          <Link className={`mt-4 ${softButton}`} href={`/churches/${church.id}`}>
+          <Link className={`mt-4 ${softButton}`} href={`/churches/${church.slug}`}>
             {t('prayerDetailViewChurch', {
               church: church.city ? `${church.name} (${church.city})` : church.name,
             })}
@@ -109,7 +109,7 @@ export function PrayerDetailSidebar({ detail }: { detail: SitePrayerDetail }) {
             <h2 className="text-xl font-semibold text-primary-900">{t('prayerDetailArc')}</h2>
             <Link
               className="inline-flex items-center gap-2 text-xs font-medium text-primary-500"
-              href={`/churches/${church.id}/prayers`}
+              href={`/churches/${church.slug}/prayers`}
             >
               {t('prayerDetailSeeArc')} <ArrowRightOutlined />
             </Link>

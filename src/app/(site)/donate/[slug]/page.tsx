@@ -13,20 +13,18 @@ export default async function Page({
   params,
   searchParams,
 }: {
-  params: Promise<{ churchId: string }>
+  params: Promise<{ slug: string }>
   searchParams: Promise<Record<string, string | string[] | undefined>>
 }) {
   const web = await requiredWebAuth().catch(() => null)
   if (!web) redirect('/login')
 
-  const { churchId } = await params
+  const { slug } = await params
   // Home "One-time Offering" deep link.
   const oneTime = (await searchParams).frequency === 'one_time'
   const userId = web.session.user.user_id
   const [church, overview, myChurches] = await Promise.all([
-    getPublicChurch({ churchId, query: validate(MobileChurchListQuerySchema, {}) }).catch(
-      () => null,
-    ),
+    getPublicChurch({ slug, query: validate(MobileChurchListQuerySchema, {}) }).catch(() => null),
     getMyDonationOverview({ userId }),
     listMyChurches({ userId }),
   ])
@@ -35,6 +33,7 @@ export default async function Page({
   return (
     <ContentsSiteDonate
       churchId={church.id}
+      slug={church.slug}
       churchName={church.name}
       donationOptions={church.donationOptions}
       oneTime={oneTime}

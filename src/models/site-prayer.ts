@@ -32,7 +32,7 @@ export type SitePrayerArchiveItem = {
   } | null
 }
 
-export type SitePrayerArchiveOption = { value: string; label: string }
+export type SitePrayerArchiveOption = { value: string; label: string; slug?: string }
 
 export type SitePrayerArchive = {
   result: SitePrayerArchiveItem[]
@@ -47,6 +47,6 @@ export type SitePrayerArchive = {
 
 export type SitePrayerDetail = {
   prayer: SitePrayerArchiveItem
-  church: { id: string; name: string; city: string | null }
+  church: { id: string; slug: string; name: string; city: string | null }
   related: SitePrayerArchiveItem[]
 }

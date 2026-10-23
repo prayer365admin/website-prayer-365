@@ -92,7 +92,7 @@ describe('SiteTopBar', () => {
   })
 
   it('marks the current page and its sub-pages in the navigation', () => {
-    pathnameMock.mockReturnValue('/churches/c1/prayers')
+    pathnameMock.mockReturnValue('/churches/st-johns/prayers')
 
     renderWithProviders(
       <SiteI18nProvider initialLocale="en">

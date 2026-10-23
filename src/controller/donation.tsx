@@ -208,6 +208,7 @@ export const getDonationStatus = async ({
 
   const base = {
     churchId: church.id,
+    churchSlug: church.slug,
     churchName: church.name,
     amountMinor: query.amountMinor,
     currency: query.currency.toUpperCase(),

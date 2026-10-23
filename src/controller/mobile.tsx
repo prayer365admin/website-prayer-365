@@ -75,14 +75,17 @@ export const listPublicChurches = async ({
 }): Promise<{ result: MobileChurchSummary[]; total: number }> => LIST_PUBLIC_CHURCHES({ query })
 
 export const getPublicChurch = async ({
+  slug,
   churchId,
   query,
 }: {
-  churchId: string
+  slug?: string
+  churchId?: string
   query: MobileChurchListQuery
 }): Promise<MobilePublicChurch> => {
+  const target = slug ?? churchId ?? ''
   const row = await GET_PUBLIC_CHURCH({
-    churchId,
+    slug: target,
     lat: query.latitude,
     lng: query.longitude,
   })
@@ -161,16 +164,19 @@ export const setFollow = async ({
 // ---------------------------------------------------------------------------
 
 export const listPublishedPrayers = async ({
+  slug,
   churchId,
   query,
 }: {
-  churchId: string
+  slug?: string
+  churchId?: string
   query: MobileChurchListQuery
 }): Promise<{ result: MobilePublishedPrayer[]; total: number }> => {
-  const church = await GET_PUBLIC_CHURCH({ churchId })
+  const target = slug ?? churchId ?? ''
+  const church = await GET_PUBLIC_CHURCH({ slug: target })
   if (!church) throw notFoundChurch()
   return LIST_PUBLISHED_PRAYERS({
-    churchId,
+    churchId: church.id,
     query: { page: query.page, limit: query.limit },
   })
 }
@@ -190,31 +196,37 @@ export const getPublishedPrayer = async ({
 // ---------------------------------------------------------------------------
 
 export const listPublicEvents = async ({
+  slug,
   churchId,
   query,
 }: {
-  churchId: string
+  slug?: string
+  churchId?: string
   query: MobileChurchListQuery
 }): Promise<{ result: MobilePublicEvent[]; total: number }> => {
-  const church = await GET_PUBLIC_CHURCH({ churchId })
+  const target = slug ?? churchId ?? ''
+  const church = await GET_PUBLIC_CHURCH({ slug: target })
   if (!church) throw notFoundChurch()
   return LIST_PUBLIC_EVENTS({
-    churchId,
+    churchId: church.id,
     query: { page: query.page, limit: query.limit, category: query.search },
   })
 }
 
 export const listPublicAnnouncements = async ({
+  slug,
   churchId,
   query,
 }: {
-  churchId: string
+  slug?: string
+  churchId?: string
   query: MobileChurchListQuery
 }): Promise<{ result: MobilePublicAnnouncement[]; total: number }> => {
-  const church = await GET_PUBLIC_CHURCH({ churchId })
+  const target = slug ?? churchId ?? ''
+  const church = await GET_PUBLIC_CHURCH({ slug: target })
   if (!church) throw notFoundChurch()
   return LIST_PUBLIC_ANNOUNCEMENTS({
-    churchId,
+    churchId: church.id,
     query: { page: query.page, limit: query.limit },
   })
 }
@@ -237,18 +249,21 @@ const rateLimited = () =>
 
 export const submitRequest = async ({
   userId,
+  slug,
   churchId,
   input,
   idempotencyKey,
   requestId,
 }: {
   userId: string
-  churchId: string
+  slug?: string
+  churchId?: string
   input: MobileRequestInput
   idempotencyKey?: string
   requestId: string
 }): Promise<MobileRequestAck> => {
-  const church = await GET_PUBLIC_CHURCH({ churchId })
+  const target = slug ?? churchId ?? ''
+  const church = await GET_PUBLIC_CHURCH({ slug: target })
   if (!church) throw notFoundChurch()
   if (input.kind === 'prayer' && !input.subject?.trim()) throw invalidSubject()
 
@@ -260,7 +275,7 @@ export const submitRequest = async ({
     actorKey: `user:${userId}`,
     operation: 'request.submit',
     key: idempotencyKey ?? '',
-    requestBody: { churchId, ...input },
+    requestBody: { churchId: church.id, ...input },
     run: async (tx) => {
       // Only fresh submissions reach here, so replays never count against the
       // limit. Throwing rolls back the transaction: no row, no idempotency record.
@@ -270,7 +285,7 @@ export const submitRequest = async ({
       const recent = await COUNT_RECENT_USER_REQUESTS({ userId, since, tx })
       if (recent >= getRequestLimit()) throw rateLimited()
       const created = await CREATE_USER_REQUEST({
-        churchId,
+        churchId: church.id,
         userId,
         data: input,
         requestId,

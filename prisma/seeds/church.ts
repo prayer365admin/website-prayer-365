@@ -1,4 +1,5 @@
 import { db } from '../../src/utils/db-connection'
+import customSlugify from '../../src/utils/slugify'
 import { DEMO_CHURCH_NAME, DEMO_CHURCH_NODE_NAME, getAdminUser } from './test-context'
 
 // Second church for multi-church manual-testing (CH-04 selector needs >= 2
@@ -6,6 +7,8 @@ import { DEMO_CHURCH_NAME, DEMO_CHURCH_NODE_NAME, getAdminUser } from './test-co
 // account (prayer_church_admin) scoped to Tallinn only.
 const SECOND_CHURCH_NAME = 'Tartu Demo Church'
 const SECOND_CHURCH_NODE_NAME = 'Tartu Demo Church Node'
+
+const seedSlug = (text: string) => customSlugify({ text, isExists: false })
 
 // Comprehensive profile data for Tallinn Demo Church matching W08 design
 export const DEMO_DIACONAL_PROGRAMS = [
@@ -159,6 +162,7 @@ export const seedChurches = async () => {
       data: {
         org_node_id: node.id,
         name: DEMO_CHURCH_NAME,
+        slug: seedSlug(DEMO_CHURCH_NAME),
         approved_by: admin.id,
         approved_at: new Date(),
         ...TALLINN_CHURCH_PROFILE,
@@ -220,6 +224,7 @@ export const seedSecondChurch = async () => {
       data: {
         org_node_id: node.id,
         name: SECOND_CHURCH_NAME,
+        slug: seedSlug(SECOND_CHURCH_NAME),
         approved_by: admin.id,
         approved_at: new Date(),
         ...TARTU_CHURCH_PROFILE,
@@ -508,6 +513,7 @@ export const seedStJohnsChurch = async () => {
       data: {
         org_node_id: node.id,
         name: ST_JOHNS_CHURCH_NAME,
+        slug: seedSlug(ST_JOHNS_CHURCH_NAME),
         approved_by: admin.id,
         approved_at: new Date(),
         ...ST_JOHNS_CHURCH_PROFILE,
@@ -900,6 +906,7 @@ export const seedAdditionalChurches = async () => {
       data: {
         org_node_id: node.id,
         name: ST_OLAFS_CHURCH_NAME,
+        slug: seedSlug(ST_OLAFS_CHURCH_NAME),
         approved_by: admin.id,
         approved_at: new Date(),
         ...ST_OLAFS_CHURCH_PROFILE,
@@ -925,6 +932,7 @@ export const seedAdditionalChurches = async () => {
       data: {
         org_node_id: node.id,
         name: PARNU_CHURCH_NAME,
+        slug: seedSlug(PARNU_CHURCH_NAME),
         approved_by: admin.id,
         approved_at: new Date(),
         ...PARNU_CHURCH_PROFILE,

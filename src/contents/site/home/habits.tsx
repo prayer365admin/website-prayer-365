@@ -54,10 +54,26 @@ export default function SpiritualHabits({
 }) {
   const { t } = useSiteI18n()
   const churches = [
-    ...(mainChurch ? [{ id: mainChurch.id, name: mainChurch.name, city: null, isMain: true }] : []),
+    ...(mainChurch
+      ? [
+          {
+            id: mainChurch.id,
+            slug: mainChurch.slug,
+            name: mainChurch.name,
+            city: null,
+            isMain: true,
+          },
+        ]
+      : []),
     ...followedChurches
       .filter((church) => church.id !== mainChurch?.id)
-      .map((church) => ({ id: church.id, name: church.name, city: church.city, isMain: false })),
+      .map((church) => ({
+        id: church.id,
+        slug: church.slug,
+        name: church.name,
+        city: church.city,
+        isMain: false,
+      })),
   ]
 
   return (
@@ -94,7 +110,7 @@ export default function SpiritualHabits({
             <li key={church.id}>
               <Link
                 className="flex items-center justify-between gap-3 rounded-lg border border-neutral-200 px-3 py-2 text-sm text-primary-900 transition hover:border-primary-300"
-                href={`/churches/${church.id}`}
+                href={`/churches/${church.slug ?? church.id}`}
               >
                 <span className="truncate">{church.name}</span>
                 {church.isMain ? (

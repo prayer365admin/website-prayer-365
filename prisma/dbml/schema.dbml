@@ -158,6 +158,7 @@ Table churches {
   org_node_id String [unique, not null]
   org_node org_nodes [not null]
   name String [not null]
+  slug String [unique, not null, note: '* Public URL slug, e.g. st-johns-church. Generated with customSlugify; immutable after approval.']
   status ChurchStatus [not null, default: 'PENDING']
   timezone String [not null]
   description String

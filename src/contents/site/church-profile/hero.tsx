@@ -2,12 +2,7 @@
 
 import { useState } from 'react'
 import Image from 'next/image'
-import {
-  CheckOutlined,
-  FileTextOutlined,
-  LoadingOutlined,
-  ShareAltOutlined,
-} from '@ant-design/icons'
+import { CheckOutlined, LoadingOutlined, ShareAltOutlined } from '@ant-design/icons'
 import { BookmarkPlusIcon } from '@/components/icon/bookmark-plus'
 import { DirectionIcon } from '@/components/icon/direction'
 import { useSiteI18n } from '@/i18n/site-i18n'
@@ -92,17 +87,6 @@ export function Hero({
 
       {/* Top action bar */}
       <div className="absolute right-4 top-4 z-10 flex items-center gap-3 sm:right-6 sm:top-6">
-        {church.website && (
-          <a
-            href={church.website}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex h-10 items-center gap-2 rounded-xl bg-black/30 px-4 text-xs font-semibold text-white backdrop-blur-md transition-colors hover:bg-black/45 sm:h-12 sm:text-sm"
-          >
-            <FileTextOutlined className="text-sm sm:text-base" />
-            <span>{t('bulletin')}</span>
-          </a>
-        )}
         <button
           type="button"
           onClick={handleShare}

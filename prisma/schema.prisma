@@ -304,6 +304,8 @@ model Church {
   org_node_id      String       @unique
   org_node         OrgNode      @relation(fields: [org_node_id], references: [id])
   name             String
+  /** Public URL slug, e.g. st-johns-church. Generated with customSlugify; immutable after approval. */
+  slug             String       @unique
   status           ChurchStatus @default(PENDING)
   timezone         String
   description      String?

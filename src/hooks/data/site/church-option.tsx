@@ -17,8 +17,9 @@ export const useChurchOptions = (search: string) => {
     const id = setTimeout(() => setDebounced(search.trim()), SEARCH_DEBOUNCE_MS)
     return () => clearTimeout(id)
   }, [search])
+  const isDebouncing = search.trim() !== debounced
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isFetching } = useQuery({
     queryKey: [...queryKey, debounced],
     queryFn: async () => {
       const result = await axios.get(baseUrl, { params: debounced ? { search: debounced } : {} })
@@ -27,7 +28,7 @@ export const useChurchOptions = (search: string) => {
     placeholderData: keepPreviousData,
   })
 
-  return { data: data ?? [], loading: isLoading }
+  return { data: data ?? [], loading: isLoading || isFetching || isDebouncing }
 }
 
 export const useFrequentChurches = () => {

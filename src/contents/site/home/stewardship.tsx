@@ -13,18 +13,20 @@ export function Stewardship({
   gift,
   nextGiftAt = null,
   churchId,
+  churchSlug,
 }: {
   gift: MyActiveGift | null
   /** Estimated next monthly charge, from the donation overview. */
   nextGiftAt?: Date | null
   /** Main parish: where giving goes when there is no active gift yet. */
   churchId: string | null
+  churchSlug?: string | null
 }) {
   const { locale, t } = useSiteI18n()
-  const targetId = gift?.churchId ?? churchId
+  const targetSlug = churchSlug ?? gift?.churchId ?? churchId
   // No gift and no main parish: there is no church to give to yet, so send them to find one.
-  const donateHref = targetId ? `/donate/${targetId}` : '/churches'
-  const oneTimeHref = targetId ? `${donateHref}?frequency=one_time` : '/churches'
+  const donateHref = targetSlug ? `/donate/${targetSlug}` : '/churches'
+  const oneTimeHref = targetSlug ? `${donateHref}?frequency=one_time` : '/churches'
 
   return (
     <section aria-labelledby="home-stewardship-title" className={homeCardThinShadowClassName}>

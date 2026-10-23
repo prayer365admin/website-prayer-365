@@ -64,7 +64,7 @@ export default function SiteTopBar({
   const churchMenu: MenuProps['items'] = churches.length
     ? churches.map((church) => ({
         key: church.churchId,
-        label: <Link href={`/churches/${church.churchId}`}>{church.churchName}</Link>,
+        label: <Link href={`/churches/${church.slug}`}>{church.churchName}</Link>,
       }))
     : [
         {

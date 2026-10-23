@@ -2,20 +2,19 @@
 
 import Image from 'next/image'
 import Link from 'next/link'
-import { UserOutlined } from '@ant-design/icons'
+import { UserTieIcon } from '@/components/icon/user-tie'
 import { useSiteI18n } from '@/i18n/site-i18n'
 import { formatDenomination } from '@/utils/denomination'
-import { closingTime } from '@/utils/sanctuary-hours'
 import { ChurchIcon } from '@/components/icon/church'
 import { DirectionIcon } from '@/components/icon/direction'
 import { CalendarWeekIcon } from '@/components/icon/calendar-week'
 import { VerifyIcon } from '@/components/icon/verify'
+import { formatServiceTime } from '@/utils/service-time'
 import type { MobileChurchSummary } from '@/models/mobile'
 
 export default function MapPreviewCard({ church }: { church: MobileChurchSummary }) {
   const { t } = useSiteI18n()
   const denomination = formatDenomination(church.denomination)
-  const closeTime = closingTime(church.sanctuaryHours)
   const addressText = church.addressLine1 ?? church.district ?? church.city
   const distanceText = church.distanceKm != null ? `${church.distanceKm} km away` : null
   const accessibility =
@@ -34,7 +33,7 @@ export default function MapPreviewCard({ church }: { church: MobileChurchSummary
   const routeUrl = `https://www.google.com/maps/dir/?api=1&destination=${destination}`
 
   return (
-    <div className="rounded-2xl border border-[#ECEEF0] bg-white/95 p-4 shadow-[0_20px_25px_-5px_rgba(0,0,0,0.1),0_8px_10px_-6px_rgba(0,0,0,0.1)] backdrop-blur-xl transition">
+    <div className="rounded-2xl border border-[#ECEEF0] bg-white/95 p-4 shadow-[0_20px_25px_-5px_rgba(0,0,0,0.1),0_8px_10px_-6px_rgba(0,0,0,0.1)] backdrop-blur-xl transition font-font_text">
       {/* Header row */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-3">
@@ -78,16 +77,10 @@ export default function MapPreviewCard({ church }: { church: MobileChurchSummary
           </div>
         </div>
 
-        {/* Status & Profile Button */}
-        <div className="flex items-center justify-between gap-3 sm:justify-end">
-          {closeTime && (
-            <div className="flex flex-col text-left sm:text-right">
-              <span className="text-[11px] text-[#5B6370]">{t('openUntil')}</span>
-              <span className="text-xs font-bold text-[#16A34A]">{closeTime}</span>
-            </div>
-          )}
+        {/* Profile Button */}
+        <div className="flex items-center justify-end">
           <Link
-            href={`/churches/${church.id}`}
+            href={church.slug ? `/churches/${church.slug}` : '#'}
             className="flex h-8 shrink-0 items-center gap-1.5 rounded-lg border border-primary_color/40 bg-white px-3 text-xs font-semibold text-primary_color shadow-xs transition hover:bg-primary_color hover:text-white"
           >
             <ChurchIcon className="text-[12px]" aria-hidden="true" />
@@ -101,10 +94,7 @@ export default function MapPreviewCard({ church }: { church: MobileChurchSummary
         <div className="flex flex-col gap-1 text-xs text-[#5B6370]">
           {church.pastorName && (
             <div className="flex items-center gap-2">
-              <UserOutlined
-                className="text-[13px] text-primary_color shrink-0"
-                aria-hidden="true"
-              />
+              <UserTieIcon className="text-[13px] text-[#2F7AD2] shrink-0" aria-hidden="true" />
               <span>{church.pastorName}</span>
             </div>
           )}
@@ -121,7 +111,7 @@ export default function MapPreviewCard({ church }: { church: MobileChurchSummary
 
           {church.serviceTimes && (
             <div
-              className={`text-xs font-medium text-[#2F7AD2] ${
+              className={`font-font_text text-xs font-semibold leading-[150%] text-[#2F7AD2] ${
                 church.churchStyle ? 'pl-5' : 'flex items-center gap-2'
               }`}
             >
@@ -131,7 +121,7 @@ export default function MapPreviewCard({ church }: { church: MobileChurchSummary
                   aria-hidden="true"
                 />
               )}
-              <span>{church.serviceTimes}</span>
+              <span>{formatServiceTime(church.serviceTimes)}</span>
             </div>
           )}
 

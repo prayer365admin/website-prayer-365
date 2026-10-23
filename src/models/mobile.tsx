@@ -59,6 +59,7 @@ export const MobileServiceTimeSchema = z
 /** Public summary row in discovery lists. */
 export const MobileChurchSummarySchema = z.object({
   id: z.string(),
+  slug: z.string().optional(),
   name: z.string(),
   denomination: z.string().nullable(),
   /** Worship-style / highlight pill on directory cards; null hides the pill. */
@@ -127,6 +128,7 @@ export type MobileDonationOptions = z.infer<typeof MobileDonationOptionsSchema>
 /** Public church profile — deliberately omits approved_by/at, status gates, payment. */
 export const MobilePublicChurchSchema = z.object({
   id: z.string(),
+  slug: z.string(),
   name: z.string(),
   denomination: z.string().nullable(),
   churchStyle: z.string().nullable().optional(),
@@ -224,6 +226,7 @@ export type SiteMePatch = z.infer<typeof SiteMePatchSchema>
 
 export const MobileMyChurchSchema = z.object({
   churchId: z.string(),
+  slug: z.string(),
   churchName: z.string(),
   city: z.string().nullable(),
   address: z.string().nullable(),

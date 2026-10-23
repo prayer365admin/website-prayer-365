@@ -119,10 +119,12 @@ export const GET_SITE_PRAYER_ARCHIVE = async ({
   userId,
   query,
   fixedChurchId,
+  fixedChurchSlug,
 }: {
   userId: string
   query: SitePrayerArchiveQuery
   fixedChurchId?: string
+  fixedChurchSlug?: string
 }): Promise<SitePrayerArchive> => {
   const relationships = await db.userChurch.findMany({
     where: {
@@ -130,25 +132,32 @@ export const GET_SITE_PRAYER_ARCHIVE = async ({
       OR: [{ is_main: true }, { is_followed: true }],
       church: { status: APPROVED },
     },
-    select: { church_id: true, church: { select: { name: true } } },
+    select: { church_id: true, church: { select: { name: true, slug: true } } },
     orderBy: { church: { name: 'asc' } },
   })
 
   const relationshipChurches = Array.from(
-    new Map(relationships.map((row) => [row.church_id, row.church.name])).entries(),
-  ).map(([value, label]) => ({ value, label }))
+    new Map(
+      relationships.map((row) => [row.church_id, { name: row.church.name, slug: row.church.slug }]),
+    ).entries(),
+  ).map(([value, info]) => ({ value, label: info.name, slug: info.slug }))
 
   let scopedChurches = relationshipChurches
-  if (fixedChurchId) {
+  if (fixedChurchSlug || fixedChurchId) {
     const fixed = await db.church.findFirst({
-      where: { id: fixedChurchId, status: APPROVED },
-      select: { id: true, name: true },
+      where: fixedChurchSlug
+        ? { slug: fixedChurchSlug, status: APPROVED }
+        : { id: fixedChurchId, status: APPROVED },
+      select: { id: true, slug: true, name: true },
     })
-    scopedChurches = fixed ? [{ value: fixed.id, label: fixed.name }] : []
+    scopedChurches = fixed ? [{ value: fixed.id, label: fixed.name, slug: fixed.slug }] : []
   }
 
   const allowedIds = scopedChurches.map((church) => church.value)
-  const selectedChurchId = fixedChurchId || query.churchId
+  const selectedChurchId =
+    scopedChurches.length === 1 && (fixedChurchSlug || fixedChurchId)
+      ? scopedChurches[0].value
+      : fixedChurchId || query.churchId
   const churchIds = selectedChurchId
     ? allowedIds.includes(selectedChurchId)
       ? [selectedChurchId]
@@ -227,7 +236,7 @@ export const GET_SITE_PRAYER_DETAIL = async ({
     toItems([row]),
     db.church.findUnique({
       where: { id: row.church_id },
-      select: { id: true, name: true, address: true },
+      select: { id: true, slug: true, name: true, address: true },
     }),
     db.prayer.findMany({
       where: { church_id: row.church_id, id: { not: row.id }, ...publishedWhere },
@@ -243,6 +252,7 @@ export const GET_SITE_PRAYER_DETAIL = async ({
     prayer,
     church: {
       id: church.id,
+      slug: church.slug,
       name: church.name,
       city: address?.city ?? null,
     },

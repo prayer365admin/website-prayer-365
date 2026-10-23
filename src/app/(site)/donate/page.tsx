@@ -15,8 +15,8 @@ export default async function Page() {
 
   const churches = await listMyChurches({ userId: web.session.user.user_id })
   const main = churches.find((row) => row.isMain) ?? churches[0] ?? null
-  if (main) {
-    redirect(`/donate/${main.churchId}`)
+  if (main?.slug) {
+    redirect(`/donate/${main.slug}`)
   }
 
   const preferred = await listPublicChurches({
@@ -30,5 +30,5 @@ export default async function Page() {
       })
     ).result[0]
 
-  redirect(fallback ? `/donate/${fallback.id}` : '/churches')
+  redirect(fallback?.slug ? `/donate/${fallback.slug}` : '/churches')
 }

@@ -12,13 +12,13 @@ export default async function ChurchPrayerArchivePage({
   params,
   searchParams,
 }: {
-  params: Promise<{ churchId: string }>
+  params: Promise<{ slug: string }>
   searchParams: SearchParams
 }) {
   const web = await requiredWebAuth().catch(() => null)
   if (!web) redirect('/login')
 
-  const [{ churchId }, raw] = await Promise.all([params, searchParams])
+  const [{ slug }, raw] = await Promise.all([params, searchParams])
   const query = SitePrayerArchiveQuerySchema.parse({
     page: first(raw.page),
     limit: 6,
@@ -29,13 +29,13 @@ export default async function ChurchPrayerArchivePage({
   const archive = await getSitePrayerArchive({
     userId: web.session.user.user_id,
     query,
-    fixedChurchId: churchId,
+    fixedChurchSlug: slug,
   })
 
   return (
     <PrayerArchive
       archive={archive}
-      basePath={`/churches/${churchId}/prayers`}
+      basePath={`/churches/${slug}/prayers`}
       fixedChurchName={archive.churches[0]?.label}
       query={query}
     />

@@ -10,11 +10,12 @@ import {
   SitePrayerArchiveQuery,
 } from '@/models/site-prayer'
 import { siteFilterTheme } from '@/config/antdTheme'
-import { DownOutlined, SearchOutlined } from '@ant-design/icons'
+import { DownOutlined, LoadingOutlined, SearchOutlined } from '@ant-design/icons'
 import { ConfigProvider, Select, SelectProps } from 'antd'
 import Image from 'next/image'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
+import { useEffect, useState, useTransition } from 'react'
 import { PRAYER_COMMUNITY, PRAYER_TOPIC_CHIPS, lectionaryYear, readingMinutes } from './data'
 
 const FilterSelect = ({
@@ -117,9 +118,28 @@ export default function PrayerArchive({
 }) {
   const { locale, t } = useSiteI18n()
   const router = useRouter()
+  const [isPending, startTransition] = useTransition()
+  const [prevSearch, setPrevSearch] = useState(query.search ?? '')
+  const [searchValue, setSearchValue] = useState(query.search ?? '')
+
+  if (prevSearch !== (query.search ?? '')) {
+    setPrevSearch(query.search ?? '')
+    setSearchValue(query.search ?? '')
+  }
   // Filters are URL-driven: a change navigates to page 1 of the new result set.
   const applyFilter = (patch: Partial<SitePrayerArchiveQuery>) =>
-    router.push(queryHref(basePath, { ...query, ...patch }, 1))
+    startTransition(() => {
+      router.push(queryHref(basePath, { ...query, ...patch }, 1))
+    })
+
+  useEffect(() => {
+    const trimmed = searchValue.trim()
+    if (trimmed === (query.search ?? '').trim()) return
+    const timer = setTimeout(() => {
+      applyFilter({ search: trimmed })
+    }, 500)
+    return () => clearTimeout(timer)
+  }, [searchValue, query.search])
   const languageName = (code: string) =>
     new Intl.DisplayNames([locale], { type: 'language' }).of(code) ?? code.toUpperCase()
   const from = archive.total === 0 ? 0 : (archive.page - 1) * archive.limit + 1
@@ -166,7 +186,15 @@ export default function PrayerArchive({
           </div>
         </div>
 
-        <form className="relative z-20 mt-4" method="get">
+        <form
+          className="relative z-20 mt-4"
+          method="get"
+          onSubmit={(e) => {
+            e.preventDefault()
+            const trimmed = searchValue.trim()
+            applyFilter({ search: trimmed })
+          }}
+        >
           {query.churchId && <input name="churchId" type="hidden" value={query.churchId} />}
           {query.language && <input name="language" type="hidden" value={query.language} />}
           {query.format !== 'all' && <input name="format" type="hidden" value={query.format} />}
@@ -174,12 +202,16 @@ export default function PrayerArchive({
             <span className="sr-only">{t('prayerArchiveSearch')}</span>
             <SearchOutlined className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-neutral-600" />
             <input
-              className="h-12 w-full rounded-lg border border-neutral-400 bg-white pl-10 pr-4 text-sm text-primary-900 outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-300/30"
-              defaultValue={query.search}
+              className="h-12 w-full rounded-lg border border-neutral-400 bg-white pl-10 pr-10 text-sm text-primary-900 outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-300/30"
               name="search"
+              onChange={(e) => setSearchValue(e.target.value)}
               placeholder={t('prayerArchiveSearch')}
               type="search"
+              value={searchValue}
             />
+            {isPending && (
+              <LoadingOutlined className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-primary-500" />
+            )}
           </label>
           <div className="mt-4 flex items-center gap-2 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden [mask-image:linear-gradient(to_right,#000_92%,transparent)]">
             <button
@@ -274,7 +306,11 @@ export default function PrayerArchive({
             <FeaturedPrayer eyebrow={t('prayerArchiveFeatured')} prayer={archive.featured} />
           )}
 
-          <section aria-labelledby="prayer-collection-title">
+          <section
+            aria-busy={isPending}
+            aria-labelledby="prayer-collection-title"
+            className={`transition-opacity duration-200 ${isPending ? 'pointer-events-none opacity-50' : ''}`}
+          >
             <div className="flex flex-wrap items-end justify-between gap-3">
               <div>
                 <h2

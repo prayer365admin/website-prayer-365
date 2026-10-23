@@ -32,7 +32,7 @@ const item = (id: string, title: string, audio: boolean) => ({
 
 const detail: SitePrayerDetail = {
   prayer: item('prayer-1', 'Peace in Uncertain Times', true),
-  church: { id: 'church-1', name: 'Hope Church', city: 'Tallinn' },
+  church: { id: 'church-1', slug: 'hope-church', name: 'Hope Church', city: 'Tallinn' },
   related: [item('prayer-2', 'Resting in the Shadow', false)],
 }
 
@@ -55,7 +55,7 @@ describe('PrayerDetail', () => {
     expect(screen.getByText('Audio player without transcript')).toBeTruthy()
     expect(
       screen.getByRole('link', { name: /View: Hope Church \(Tallinn\)/ }).getAttribute('href'),
-    ).toBe('/churches/church-1')
+    ).toBe('/churches/hope-church')
     expect(screen.getByRole('link', { name: /Resting in the Shadow/ }).getAttribute('href')).toBe(
       '/prayers/prayer-2',
     )

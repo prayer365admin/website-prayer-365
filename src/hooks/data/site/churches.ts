@@ -80,24 +80,24 @@ export const useSiteChurches = ({
   return {
     data: query.data?.result,
     total: query.data?.total,
-    loading: query.isLoading,
+    loading: query.isLoading || query.isFetching,
     isFetching: query.isFetching,
     error: query.error,
     retry: query.refetch,
   }
 }
 
-export const useSiteChurchProfile = (churchId: string) => {
+export const useSiteChurchProfile = (slug: string) => {
   const { data: session } = useSession()
   const userId = session?.user?.user_id
 
   const query = useQuery({
-    queryKey: ['site', 'church', userId, churchId],
+    queryKey: ['site', 'church', userId, slug],
     queryFn: async () => {
-      const res = await axios.get(`/api/v1/site/churches/${churchId}`)
+      const res = await axios.get(`/api/v1/site/churches/${slug}`)
       return res.data.result as MobilePublicChurch
     },
-    enabled: !!userId && !!churchId,
+    enabled: !!userId && !!slug,
   })
 
   return {
@@ -108,20 +108,20 @@ export const useSiteChurchProfile = (churchId: string) => {
   }
 }
 
-export const useSiteChurchEvents = (churchId: string) => {
+export const useSiteChurchEvents = (slug: string) => {
   const { data: session } = useSession()
   const userId = session?.user?.user_id
 
   const query = useQuery({
-    queryKey: ['site', 'churches', churchId, 'events', userId],
+    queryKey: ['site', 'churches', slug, 'events', userId],
     queryFn: async () => {
-      const res = await axios.get(`/api/v1/site/churches/${churchId}/events`)
+      const res = await axios.get(`/api/v1/site/churches/${slug}/events`)
       return {
         events: (res.data.result ?? []) as MobilePublicEvent[],
         total: (res.data.total ?? 0) as number,
       }
     },
-    enabled: !!userId && !!churchId,
+    enabled: !!userId && !!slug,
   })
 
   return {
@@ -133,20 +133,20 @@ export const useSiteChurchEvents = (churchId: string) => {
   }
 }
 
-export const useSiteChurchAnnouncements = (churchId: string) => {
+export const useSiteChurchAnnouncements = (slug: string) => {
   const { data: session } = useSession()
   const userId = session?.user?.user_id
 
   const query = useQuery({
-    queryKey: ['site', 'churches', churchId, 'announcements', userId],
+    queryKey: ['site', 'churches', slug, 'announcements', userId],
     queryFn: async () => {
-      const res = await axios.get(`/api/v1/site/churches/${churchId}/announcements`)
+      const res = await axios.get(`/api/v1/site/churches/${slug}/announcements`)
       return {
         announcements: (res.data.result ?? []) as MobilePublicAnnouncement[],
         total: (res.data.total ?? 0) as number,
       }
     },
-    enabled: !!userId && !!churchId,
+    enabled: !!userId && !!slug,
   })
 
   return {
@@ -158,14 +158,14 @@ export const useSiteChurchAnnouncements = (churchId: string) => {
   }
 }
 
-export const useSiteChurchPrayers = (churchId: string) => {
+export const useSiteChurchPrayers = (slug: string) => {
   const { data: session } = useSession()
   const userId = session?.user?.user_id
 
   const query = useQuery({
-    queryKey: ['site', 'churches', churchId, 'prayers', userId],
+    queryKey: ['site', 'churches', slug, 'prayers', userId],
     queryFn: async () => {
-      const res = await axios.get(`/api/v1/site/churches/${churchId}/prayers?page=1&limit=10`)
+      const res = await axios.get(`/api/v1/site/churches/${slug}/prayers?page=1&limit=10`)
       const raw = res.data?.result
       const prayers = Array.isArray(raw) ? (raw as MobilePublishedPrayer[]) : []
       return {
@@ -173,7 +173,7 @@ export const useSiteChurchPrayers = (churchId: string) => {
         total: (res.data?.total ?? prayers.length) as number,
       }
     },
-    enabled: !!userId && !!churchId,
+    enabled: !!userId && !!slug,
   })
 
   return {

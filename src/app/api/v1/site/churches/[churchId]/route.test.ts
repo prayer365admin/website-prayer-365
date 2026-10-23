@@ -80,6 +80,7 @@ describe('GET /api/v1/site/churches/[churchId]', () => {
     expect(res.status).toBe(200)
     expect(m.getPublicChurch).toHaveBeenCalledWith({
       churchId: 'c1',
+      slug: 'c1',
       query: { page: 1, limit: 25 },
     })
     expect(body.success).toBe(true)
