@@ -1,6 +1,14 @@
 import { auth } from '@/auth'
 import { GET_USER_BY_ID } from '@/providers/user'
+import { cache } from 'react'
 import { GeneralError } from './general-error'
+
+/**
+ * One live-user read per request. The `(site)` layout and the page inside it both
+ * revalidate, and React's request-scoped cache collapses them into a single DB
+ * query (outside a React render, e.g. an API route, it simply calls through).
+ */
+const getUserOnce = cache((userId: string) => GET_USER_BY_ID({ user_id: userId }))
 
 /**
  * Website (customer) session guard — SPEC §2.2 / §9.
@@ -27,7 +35,7 @@ export default async function requiredWebAuth() {
     throw unauthorized()
   }
 
-  const user = await GET_USER_BY_ID({ user_id: session.user.user_id })
+  const user = await getUserOnce(session.user.user_id)
   const active = user && user.status === 'active' && user.auth_version === session.user.auth_version
 
   if (!active) {

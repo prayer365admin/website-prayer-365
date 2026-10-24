@@ -24,8 +24,20 @@ rawUrl.searchParams.delete('sslmode')
 
 const isLocal = ['localhost', '127.0.0.1', '::1'].includes(rawUrl.hostname)
 
+// Serverless (Vercel) / Lambda: every function instance builds its OWN pool, so
+// the pg default of 10 connections per instance exhausts a 25-connection managed
+// Postgres (DigitalOcean, 22 usable + 5 taken by internal agents) after ~2
+// instances. 3 is enough for the parallel queries one request runs at a time.
+const POOL_MAX = 3
+
 const adapter = new PrismaPg({
   connectionString: rawUrl.toString(),
+  max: POOL_MAX,
+  // release connections fast so frozen/scale-down instances stop holding slots
+  idleTimeoutMillis: 10_000,
+  // fail with a clear pool error instead of queueing forever under saturation
+  connectionTimeoutMillis: 10_000,
+  allowExitOnIdle: true,
   // managed Postgres (self-signed): encrypt, don't pin CA.
   // local Postgres has no SSL listener.
   ...(isLocal ? {} : { ssl: { rejectUnauthorized: false } }),

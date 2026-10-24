@@ -4,16 +4,16 @@ import SessionAccessGuard from '@/components/site/session-access-guard'
 import { SiteI18nProvider } from '@/i18n/site-i18n'
 import redirectAuthenticatedCustomer from '@/utils/redirect-authenticated-customer'
 import { getSiteLocale } from '@/utils/site-locale'
-import { getLatestPlayableSitePrayer } from '@/controller/site-prayer'
-import { getFellowshipMemberCount } from '@/controller/user'
+import { getCachedLoginExtras } from '@/utils/site-public-cache'
 
 // Customer sign-in (W01). Staff use /admin/login.
 export default async function Page() {
   await redirectAuthenticatedCustomer()
-  const [locale, prayer, memberCount] = await Promise.all([
+  // The aside's prayer + member count are decorative: read from the shared data
+  // cache so the form is not blocked behind two DB round trips on every visit.
+  const [locale, { prayer, memberCount }] = await Promise.all([
     getSiteLocale(),
-    getLatestPlayableSitePrayer().catch(() => null),
-    getFellowshipMemberCount().catch(() => null),
+    getCachedLoginExtras(),
   ])
 
   return (

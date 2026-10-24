@@ -16,6 +16,9 @@ const {
   redirectAuthenticatedCustomer: vi.fn(),
 }))
 vi.mock('next/headers', () => ({ cookies }))
+// unstable_cache needs a Next runtime cache; in unit tests it is a passthrough so
+// the cached read still hits the mocked controllers.
+vi.mock('next/cache', () => ({ unstable_cache: (fn: unknown) => fn }))
 vi.mock('@/controller/site-prayer', () => ({ getLatestPlayableSitePrayer }))
 vi.mock('@/controller/user', () => ({ getFellowshipMemberCount }))
 vi.mock('@/utils/redirect-authenticated-customer', () => ({
