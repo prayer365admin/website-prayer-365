@@ -76,19 +76,19 @@
   text-align: center;
 }
 
-.menuItem:not(.disabledMenuItem):hover {
+.menuItem:hover {
   border-color: var(--color-primary-500);
   background: var(--color-primary-500);
   color: white;
 }
 
-.menuItem:not(.disabledMenuItem):active {
+.menuItem:active {
   border-color: var(--color-primary-300);
   background: var(--color-primary-300);
   color: white;
 }
 
-.menuItem:not(.disabledMenuItem):focus-visible,
+.menuItem:focus-visible,
 .activeMenuItem:focus-visible {
   outline: 2px solid var(--color-primary-500);
   outline-offset: 2px;
@@ -108,12 +108,6 @@
 .activeMenuItem:active {
   border-color: var(--color-primary-300);
   background: var(--color-primary-300);
-}
-
-.disabledMenuItem {
-  cursor: not-allowed;
-  color: var(--color-neutral-200);
-  user-select: none;
 }
 
 .quote {

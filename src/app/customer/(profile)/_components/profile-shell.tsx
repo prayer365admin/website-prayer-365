@@ -74,8 +74,9 @@ export default function ProfileShell({ children }: { children: ReactNode }) {
     <div className={s.shell}>
       <aside className={s.sidebar}>
         <nav aria-label={t('profileNavLabel')}>
-          {profileMenu.map(({ href, icon: Icon, iconSize, labelKey, ready }) =>
-            ready ? (
+          {profileMenu
+            .filter((item) => item.ready)
+            .map(({ href, icon: Icon, iconSize, labelKey }) => (
               <Link
                 aria-current={pathname === href ? 'page' : undefined}
                 className={pathname === href ? s.activeMenuItem : s.menuItem}
@@ -85,19 +86,7 @@ export default function ProfileShell({ children }: { children: ReactNode }) {
                 <Icon aria-hidden style={{ fontSize: iconSize }} />
                 <span>{t(labelKey)}</span>
               </Link>
-            ) : (
-              <span
-                aria-disabled="true"
-                className={`${s.menuItem} ${s.disabledMenuItem}`}
-                key={href}
-                title={t('profileMenuComingSoon')}
-              >
-                <Icon aria-hidden style={{ fontSize: iconSize }} />
-                <span>{t(labelKey)}</span>
-                <span className="sr-only"> — {t('profileMenuComingSoon')}</span>
-              </span>
-            ),
-          )}
+            ))}
         </nav>
 
         <section className={s.quote}>

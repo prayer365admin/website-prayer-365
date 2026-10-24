@@ -14,6 +14,20 @@ describe('ProfileShell', () => {
     m.signOut.mockReset()
   })
 
+  it('only links to profile sections that are live', () => {
+    render(
+      <ProfileShell>
+        <div>Profile content</div>
+      </ProfileShell>,
+    )
+
+    expect(screen.getByRole('link', { name: 'Personal Profile' })).toBeTruthy()
+    expect(screen.getByRole('link', { name: 'Church Affiliations' })).toBeTruthy()
+    expect(screen.getByRole('link', { name: 'Sacramental Privacy' })).toBeTruthy()
+    expect(screen.queryByText('Notifications')).toBeNull()
+    expect(screen.queryByText('Giving & Stewardship')).toBeNull()
+  })
+
   it('shows a loading state while signing out and orders the button after the content', () => {
     m.signOut.mockReturnValue(new Promise(() => undefined))
     const { container } = render(
