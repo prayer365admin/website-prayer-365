@@ -3,6 +3,15 @@
 import { useMainNotification } from '@/hooks/ui/notification'
 import { GeneralHooks } from '@/models/general-hook'
 import { HierarchyNode, NodeCreate, NodeUpdate } from '@/models/hierarchy'
+import type {
+  ChurchCreate,
+  ChurchDetail,
+  ChurchListItem,
+  ChurchPurge,
+  ChurchSummary,
+  ChurchUpdate,
+} from '@/models/central-church'
+import type { ChurchStatus } from '@prisma/client'
 import {
   CountryCreate,
   CountryData,
@@ -75,8 +84,7 @@ const usePastorNotifications = () => {
     if (axios.isAxiosError(error)) {
       const status = error.response?.status
       const data = error.response?.data as
-        | { error_code?: string; details?: string; message?: string }
-        | undefined
+        { error_code?: string; details?: string; message?: string } | undefined
       if (data?.error_code === 'STALE_VERSION') {
         antdNotification.error({
           title: 'Version Conflict',
@@ -186,7 +194,7 @@ export const usePastors = ({
 export const useCentralChurches = (enabled = true) => {
   const { data: session } = useSession()
   return useQuery({
-    queryKey: ['central', 'church-options', session?.user.user_id],
+    queryKey: churchKeys.options(session?.user.user_id),
     queryFn: async () => {
       const response = await axios.get('/api/v1/admin/central/churches', {
         params: { page: 1, limit: 100, order_by: 'name', order_direction: 'asc' },
@@ -586,5 +594,177 @@ export const useRoleAssignments = ({
     error: query.error,
     onCreate: create.mutateAsync,
     onRevoke: revoke.mutateAsync,
+  }
+}
+
+// --- Central church administration (F14CC / plan 020): list, setup, lifecycle, purge ---
+
+const centralChurchesUrl = '/api/v1/admin/central/churches'
+
+export const churchKeys = {
+  lists: (userId: string | undefined) => ['central', 'churches', userId] as const,
+  details: (userId: string | undefined) => ['central', 'church', userId] as const,
+  detail: (userId: string | undefined, churchId: string) =>
+    [...churchKeys.details(userId), churchId] as const,
+  options: (userId: string | undefined) => ['central', 'church-options', userId] as const,
+}
+
+/**
+ * Every church mutation touches the list, the detail, the church-option picker
+ * and — because create/purge add or remove an OrgNode — the hierarchy tree.
+ */
+const invalidateChurchCaches = async ({
+  queryClient,
+  userId,
+  churchId,
+}: {
+  queryClient: QueryClient
+  userId: string | undefined
+  churchId?: string
+}) => {
+  await Promise.all([
+    queryClient.invalidateQueries({ queryKey: churchKeys.lists(userId) }),
+    queryClient.invalidateQueries({ queryKey: churchKeys.options(userId) }),
+    queryClient.invalidateQueries({ queryKey: orgKeys.hierarchy(userId) }),
+    ...(churchId
+      ? [queryClient.invalidateQueries({ queryKey: churchKeys.detail(userId, churchId) })]
+      : [queryClient.invalidateQueries({ queryKey: churchKeys.details(userId) })]),
+  ])
+}
+
+export type CentralChurchListOptions = Pick<
+  GeneralHooks,
+  'search' | 'enableFetch' | 'page' | 'limit'
+> & {
+  status?: ChurchStatus
+}
+
+export const useCentralChurchList = ({
+  search,
+  status,
+  enableFetch = true,
+  page = 1,
+  limit = 10,
+}: CentralChurchListOptions = {}) => {
+  const { data: session } = useSession()
+  const userId = session?.user.user_id
+
+  const query = useQuery({
+    queryKey: [...churchKeys.lists(userId), { search, status, page, limit }],
+    queryFn: async () => {
+      const response = await axios.get(centralChurchesUrl, {
+        params: {
+          page,
+          limit,
+          order_by: 'created_at',
+          order_direction: 'desc',
+          ...(status ? { status } : {}),
+          ...(search?.trim() ? { search: search.trim() } : {}),
+        },
+      })
+      return {
+        result: response.data.result as ChurchListItem[],
+        total: response.data.total as number,
+      }
+    },
+    enabled: enableFetch,
+  })
+
+  return {
+    data: query.data?.result,
+    total: query.data?.total,
+    loading: query.isLoading,
+    error: query.error,
+    refetch: query.refetch,
+  }
+}
+
+export const useCreateCentralChurch = () => {
+  const { data: session } = useSession()
+  const userId = session?.user.user_id
+  const queryClient = useQueryClient()
+  const { notification, mutationError } = useOrgNotifications()
+
+  const create = useMutation({
+    mutationFn: async (payload: ChurchCreate) => {
+      const response = await axios.post(centralChurchesUrl, payload)
+      return response.data.result as ChurchSummary
+    },
+    onSuccess: async () => {
+      await invalidateChurchCaches({ queryClient, userId })
+      notification({ type: 'success', entity: 'Church', action: 'created' })
+    },
+    onError: (error) => mutationError(error, 'Church', 'create'),
+  })
+
+  return { onCreate: create.mutateAsync, loading: create.isPending }
+}
+
+export type ChurchLifecycleAction = 'approve' | 'suspend' | 'archive'
+
+/** Purge is id-addressed rather than hook-addressed: the list page deletes a row it has not opened. */
+export const usePurgeCentralChurch = () => {
+  const { data: session } = useSession()
+  const userId = session?.user.user_id
+  const queryClient = useQueryClient()
+  const { notification, mutationError } = useOrgNotifications()
+
+  const purge = useMutation({
+    mutationFn: async ({ churchId, payload }: { churchId: string; payload: ChurchPurge }) =>
+      axios.delete(`${centralChurchesUrl}/${churchId}`, { data: payload }),
+    onSuccess: async (_result, { churchId }) => {
+      await invalidateChurchCaches({ queryClient, userId, churchId })
+      notification({ type: 'success', entity: 'Church', action: 'deleted' })
+    },
+    onError: (error) => mutationError(error, 'Church', 'delete'),
+  })
+
+  return { onPurge: purge.mutateAsync, loading: purge.isPending }
+}
+
+export const useCentralChurch = (churchId: string) => {
+  const { data: session } = useSession()
+  const userId = session?.user.user_id
+  const queryClient = useQueryClient()
+  const { notification, mutationError } = useOrgNotifications()
+  const detailKey = churchKeys.detail(userId, churchId)
+
+  const query = useQuery({
+    queryKey: detailKey,
+    queryFn: async () => {
+      const response = await axios.get(`${centralChurchesUrl}/${churchId}`)
+      return response.data.result as ChurchDetail
+    },
+    enabled: Boolean(churchId),
+  })
+
+  const update = useMutation({
+    mutationFn: async (payload: ChurchUpdate) =>
+      axios.patch(`${centralChurchesUrl}/${churchId}`, payload),
+    onSuccess: async () => {
+      await invalidateChurchCaches({ queryClient, userId, churchId })
+      notification({ type: 'success', entity: 'Church', action: 'updated' })
+    },
+    onError: (error) => mutationError(error, 'Church', 'update'),
+  })
+
+  const lifecycle = useMutation({
+    mutationFn: async ({ action, version }: { action: ChurchLifecycleAction; version: number }) =>
+      axios.post(`${centralChurchesUrl}/${churchId}/${action}`, { version }),
+    onSuccess: async (_result, { action }) => {
+      await invalidateChurchCaches({ queryClient, userId, churchId })
+      notification({ type: 'success', entity: 'Church', action })
+    },
+    onError: (error) => mutationError(error, 'Church', 'update'),
+  })
+
+  return {
+    data: query.data,
+    loading: query.isLoading,
+    error: query.error,
+    saving: update.isPending || lifecycle.isPending,
+    refetch: query.refetch,
+    onUpdate: update.mutateAsync,
+    onLifecycle: lifecycle.mutateAsync,
   }
 }

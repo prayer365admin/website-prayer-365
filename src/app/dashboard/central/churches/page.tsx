@@ -1,3 +1,10 @@
+import ContentsCentralChurches from '@/contents/central/churches'
+import { Fragment } from 'react'
+
 export default function Page() {
-  return <>Central Churches</>
+  return (
+    <Fragment>
+      <ContentsCentralChurches />
+    </Fragment>
+  )
 }

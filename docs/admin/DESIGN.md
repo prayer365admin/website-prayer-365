@@ -265,7 +265,9 @@ Pending churches remain hidden from public discovery. Church suspension/archive 
 
 Show lifecycle actions only when applicable and permitted. New church creation reuses this form without existing-record actions. Archive is not hard deletion. Exact creation fields and suspension/archive effects remain decision points.
 
-**Page mapping:** `/dashboard/central/churches/:churchId; creation panel on church list`.
+Deletion: a church that was approved, or that holds any content, financial, membership, media or role-assignment row, is removed by **archive**, never deleted. A church that is still Pending and has no such rows may be purged — the screen asks the operator to type the church name, and the API refuses anything else (`409 CHURCH_HAS_CONTENT`).
+
+**Page mapping:** `/dashboard/central/churches/:churchId`; creation on `/dashboard/central/churches/create` (the "New church" action of the list screen).
 
 ### S17 — Staff List
 

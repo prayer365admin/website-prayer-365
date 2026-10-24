@@ -4,7 +4,9 @@ import type { ChurchStatus } from '@prisma/client'
 /*
  * Central church DTOs (SPEC §8.3 / Tasks 17-18). Creation transactionally
  * writes an OrgNode (CHURCH) plus a PENDING Church. Lifecycle approve /
- * suspend / archive carry a `version` for concurrency; no hard delete.
+ * suspend / archive carry a `version` for concurrency. Removal is archive for
+ * any church with history; `ChurchPurgeSchema` covers the one hard delete —
+ * a never-approved church with no dependent rows (plan 020 / D-A).
  */
 
 const coords = z
@@ -57,6 +59,16 @@ export const ChurchVersionSchema = z.object({
 })
 export type ChurchVersion = z.infer<typeof ChurchVersionSchema>
 
+/**
+ * Hard delete (purge) of a church. Only legal while the church is PENDING and
+ * has no dependent rows; the typed name is a fat-finger guard, not a lookup.
+ */
+export const ChurchPurgeSchema = z.object({
+  version: z.number().int().positive(),
+  confirmName: z.string().trim().min(1),
+})
+export type ChurchPurge = z.infer<typeof ChurchPurgeSchema>
+
 export interface ChurchSummary {
   id: string
   orgNodeId: string
@@ -66,6 +78,38 @@ export interface ChurchSummary {
   description: string | null
   denomination: string | null
   church_style: string | null
+  version: number
+  createdAt: string
+}
+
+/** One row on the central church list (S15). */
+export interface ChurchListItem extends ChurchSummary {
+  /** Country registry name, when the chain reaches a COUNTRY node. */
+  country: string | null
+  countryCode: string | null
+  /** Ancestor org nodes, outermost first (e.g. ['Diocese of X', 'Deanery Y']). */
+  organization: string[]
+}
+
+/** Central church setup detail (S16 form source). */
+export interface ChurchDetail {
+  id: string
+  orgNodeId: string
+  name: string
+  status: ChurchStatus
+  timezone: string
+  description: string | null
+  denomination: string | null
+  church_style: string | null
+  latitude: number | null
+  longitude: number | null
+  sunday_live_stream: boolean | null
+  taize_chants: boolean | null
+  youth_ministry: boolean | null
+  country: string | null
+  countryCode: string | null
+  organization: string[]
+  approvedAt: string | null
   version: number
   createdAt: string
 }

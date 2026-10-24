@@ -210,6 +210,31 @@ DESIGN S17–S19 | SPEC §3, §14 | FEATURE F1/F8
 
 Covered by Churches (overview/selector) and Regional dashboards. No separate module.
 
+## F14CC — Central Church Administration (list, setup, lifecycle, purge)
+
+DESIGN S15–S16 | SPEC §8.3 central church endpoints | FEATURE F8
+
+Adding a church and removing a church live here. The backend (create/list/get/patch/approve/
+suspend/archive) already existed; this module adds the two screens, the delete path and the
+permission it needs. Delete means **purge** of a church that was never approved and holds no
+dependent rows — every church with history is archived instead (SPEC §4).
+
+| ID    | Task                                                                                                                                                                                                                                      | Done |
+| ----- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---- |
+| CC-01 | DB/Permissions: `delete` added to the `prayer_church` catalogue entry and granted to `prayer_global_admin` only (re-run seeds; `skipDuplicates` + grant `set` are idempotent)                                                             | ✓    |
+| CC-02 | API: `DELETE A/central/churches/:churchId` — purge guards (pending-only, typed name, version, zero dependents), church row + org node removed in one transaction, audit `church.purge`                                                    | ✓    |
+| CC-03 | API: `GET A/central/churches` rows carry country + org path (Diocese / Deanery); `GET …/:churchId` returns the full setup detail for the form                                                                                             | ✓    |
+| CC-04 | Hooks: `hooks/data/central.tsx` — central church list/detail/create/update/lifecycle/purge with userId-scoped keys and cross-invalidation (list, options, hierarchy, detail)                                                              | ✓    |
+| CC-05 | Screen: S15 list (`/dashboard/central/churches`) — Church/Country/Organization/State/Action columns, name search, state filter, pagination, New church, Delete (pending only)                                                             | ✓    |
+| CC-06 | Screen: S16 create+edit (`/dashboard/central/churches/create`, `…/:churchId`) — name, hierarchy placement (Country › Diocese › Deanery), timezone, profile basics, denomination, worship style, coordinates (closes MB-18), feature flags | ✓    |
+| CC-07 | Screen: S16 lifecycle — Approve / Suspend / Archive behind a confirmation that states the visibility effect, each carrying the loaded `version`; links to the church profile and pastors                                                  | ✓    |
+| CC-08 | Tests: purge guard branches (404/stale/non-pending/name/content), list projection, route permission, org-path helper, list + setup screens (delete hidden when not pending, create payload, version on save)                              | ✓    |
+| CC-09 | Docs: SPEC §3 permission row, §4 deletion rule, §8.3 DELETE row; DESIGN S15/S16 deletion note; this section                                                                                                                               | ✓    |
+
+Known limits recorded with this module: edition of `address`/`contacts`/cover stays on the church
+profile screen (S04); moving an existing church to another deanery is done in Central → Hierarchy;
+suspension effects still follow open decision D2.
+
 ## X — Cross-Cutting Platform Tasks
 
 Not feature-bound; unblocks everything.
@@ -256,7 +281,7 @@ All rows ☐ unless marked. Register any new `M/` route with OpenAPI + tests.
 | MB-15 | **Password recovery (mobile)**: `POST M/auth/forgot-password` + `POST M/auth/reset-password` — deep-link reset, soft-success, incremental 429 cooldown (1→3→5→10 min max).                                                                                                                                                                                                                                                                                            | Accounts+Onboarding                          | ✓    |
 | MB-16 | **Mobile avatar**: `PATCH M/me` accepts + persists `profilePicture` (existing `user.profile_picture`); `POST M/me/avatar` signs a user-scoped S3 upload (image-only ≤8MB, no media_asset).                                                                                                                                                                                                                                                                            | Profile (P-03a / F3)                         | ✓    |
 | MB-17 | **Church cover URL**: stable public `coverUrl` (S3 public base URL via `S3_PUBLIC_URL` — no signature, no expiry) on `MobileChurchSummary` / `MobileMyChurch` / `MobilePublicChurch`; `null` when there is no READY IMAGE asset. Bucket is public-read **permanently** (client decision 2026-10-21 / SPEC §10.4.1 / D13).                                                                                                                                             | Home (H1) + Church profile (CP1)             | ✓    |
-| MB-18 | **Church coordinates UI**: the central-church create/edit form has no latitude/longitude fields, so coordinates can only be set through the API. Add the pair (validated both-or-neither, same rule as `ChurchCreateSchema`/`ChurchUpdateSchema`) to the form.                                                                                                                                                                                                        | Discovery map data (D3)                      | ☐    |
+| MB-18 | **Church coordinates UI**: the central-church create/edit form has no latitude/longitude fields, so coordinates can only be set through the API. Add the pair (validated both-or-neither, same rule as `ChurchCreateSchema`/`ChurchUpdateSchema`) to the form. Delivered by F14CC CC-06 (`/dashboard/central/churches/create` + `…/:churchId`).                                                                                                                       | Discovery map data (D3)                      | ✓    |
 
 **Build order (parallel):** MB-10/11/12/13/14 are pure DTO additions to already-live routes —
 fast, independent, no auth dependency. MB-04/05 build on the existing notification provider.
@@ -278,7 +303,8 @@ without a joint announce, because the mobile `api.ts` layer maps to the built sh
 4. F5EV Events, F6AN Announcements, F7RQ Requests
 5. F8DO Donations, F9ANL Analytics/Regions, F10NO Notifications
 6. F11ORG Organization
-7. Cross-cutting X items alongside UI QA (X-01/02/03 early, X-09/10/11 last)
+7. F14CC Central Church Administration — the only screen that can add or remove a church; unblocks every church-scoped feature and closes MB-18
+8. Cross-cutting X items alongside UI QA (X-01/02/03 early, X-09/10/11 last)
 
 ## Open Decisions Blocking Completion (do not guess — confirm with owner)
 

@@ -38,7 +38,9 @@ const ANY_CRUD = (subject: string, actions = 'read,create,update,delete'): Praye
  */
 export const PRAYER_CATALOGUE: PrayerGrant[] = [
   // Church & organization
-  ...ANY_CRUD('prayer_church', 'read,create,update'), // no delete
+  // `delete` here means PURGE of a pending church with no dependent rows
+  // (plan 020 / SPEC §4); it never cascades over content or financial records.
+  ...ANY_CRUD('prayer_church'),
   { subject: 'prayer_church_lifecycle', actions: 'read,update', scope: 'ANY' },
   ...ANY_CRUD('prayer_pastor'),
   ...ANY_CRUD('prayer_service_time', 'read,create,update,delete'),
@@ -98,7 +100,7 @@ export const PRAYER_ROLES: PrayerRole[] = [
   {
     name: 'prayer_global_admin',
     grants: [
-      { subject: 'prayer_church', actions: 'read,create,update', scope: 'ANY' },
+      { subject: 'prayer_church', actions: 'read,create,update,delete', scope: 'ANY' },
       { subject: 'prayer_church_lifecycle', actions: 'update', scope: 'ANY' },
       { subject: 'prayer_pastor', actions: 'read,create,update,delete', scope: 'ANY' },
       { subject: 'prayer_prayer', actions: 'read,create,update', scope: 'ANY' },

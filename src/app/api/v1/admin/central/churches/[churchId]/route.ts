@@ -1,7 +1,7 @@
 import { NextRequest } from 'next/server'
 import { z } from 'zod'
-import { getChurch, updateChurch } from '@/controller/central-church'
-import { ChurchUpdateSchema } from '@/models/central-church'
+import { getChurch, purgeChurch, updateChurch } from '@/controller/central-church'
+import { ChurchPurgeSchema, ChurchUpdateSchema } from '@/models/central-church'
 import { registerPath } from '@/utils/openapi'
 import requiredAuth from '@/utils/required-auth'
 import { requiredScope } from '@/utils/required-scope'
@@ -36,6 +36,17 @@ registerPath({
     }),
   },
   responses: [{ status: 200, description: 'Updated church', schema: z.object({ id: z.string() }) }],
+})
+
+registerPath({
+  path: '/admin/central/churches/{churchId}',
+  method: 'delete',
+  summary: 'Purge a pending church that has no dependent records',
+  request: {
+    params: [{ name: 'churchId', in: 'path', schema: z.string() }],
+    body: ChurchPurgeSchema,
+  },
+  responses: [{ status: 204, description: 'Church purged' }],
 })
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ churchId: string }> }) {
@@ -73,6 +84,29 @@ export async function PATCH(
     const payload = validate(ChurchUpdateSchema, body)
     const result = await updateChurch({ churchId, payload, actorId, requestId: genRequestId() })
     return ok(result, 'Church updated', 200)
+  } catch (e) {
+    return httpError(e)
+  }
+}
+
+export async function DELETE(
+  req: NextRequest,
+  { params }: { params: Promise<{ churchId: string }> },
+) {
+  try {
+    const { session } = await requiredAuth(req)
+    const actorId = session.user.user_id
+    await requiredScope({
+      userId: actorId,
+      central: true,
+      subject: 'prayer_church',
+      action: 'delete',
+    })
+    const { churchId } = await params
+    const body = await req.json().catch(() => ({}))
+    const payload = validate(ChurchPurgeSchema, body)
+    await purgeChurch({ churchId, payload, actorId, requestId: genRequestId() })
+    return new Response(null, { status: 204 })
   } catch (e) {
     return httpError(e)
   }

@@ -25,7 +25,7 @@ export const GET_CHURCHES = async ({
     ...(status ? { status } : {}),
     ...(search ? { name: { contains: search, mode: 'insensitive' as const } } : {}),
   }
-  const [total, rows] = await db.$transaction([
+  const [total, rows, nodes] = await Promise.all([
     db.church.count({ where }),
     db.church.findMany({
       where,
@@ -34,22 +34,147 @@ export const GET_CHURCHES = async ({
       orderBy: { created_at: order_direction },
       include: { org_node: { select: { id: true } } },
     }),
+    GET_ORG_NODE_MAP(),
   ])
   return {
     total,
-    result: rows.map((c) => ({
-      id: c.id,
-      orgNodeId: c.org_node_id,
-      name: c.name,
-      status: c.status,
-      timezone: c.timezone,
-      description: c.description,
-      denomination: c.denomination,
-      version: c.version,
-      createdAt: c.created_at.toISOString(),
-    })),
+    result: rows.map((c) => {
+      const path = churchOrgPath(nodes, c.org_node_id)
+      return {
+        id: c.id,
+        orgNodeId: c.org_node_id,
+        name: c.name,
+        status: c.status,
+        timezone: c.timezone,
+        description: c.description,
+        denomination: c.denomination,
+        church_style: c.church_style,
+        ...path,
+        version: c.version,
+        createdAt: c.created_at.toISOString(),
+      }
+    }),
   }
 }
+
+export type OrgNodeRow = {
+  id: string
+  parent_id: string | null
+  kind: OrgNodeKind
+  name: string
+  country_code: string | null
+}
+
+/**
+ * The org tree is small (global → country → diocese → deanery → church nodes),
+ * so one read serves every row of a page. Deep nested `include`s are avoided on
+ * purpose: Prisma 7 here runs `@prisma/adapter-pg`, which rejects
+ * `relationLoadStrategy`, so each include level is its own round trip.
+ */
+export const GET_ORG_NODE_MAP = async (): Promise<Map<string, OrgNodeRow>> => {
+  const nodes = await db.orgNode.findMany({
+    select: { id: true, parent_id: true, kind: true, name: true, country_code: true },
+  })
+  return new Map(nodes.map((n) => [n.id, n]))
+}
+
+/** Country + organization labels for the S15 columns and the S16 header. */
+export const churchOrgPath = (
+  nodes: Map<string, OrgNodeRow>,
+  orgNodeId: string,
+): { country: string | null; countryCode: string | null; organization: string[] } => {
+  const chain: OrgNodeRow[] = []
+  let cursor = nodes.get(orgNodeId)?.parent_id ?? null
+  while (cursor) {
+    const node = nodes.get(cursor)
+    if (!node) break
+    chain.unshift(node)
+    cursor = node.parent_id
+  }
+  const countryNode = chain.find((n) => n.kind === 'COUNTRY')
+  return {
+    country: countryNode?.name ?? null,
+    countryCode:
+      countryNode?.country_code ?? chain.find((n) => n.country_code)?.country_code ?? null,
+    organization: chain
+      .filter((n) => n.kind === 'DIOCESE' || n.kind === 'DEANERY')
+      .map((n) => n.name),
+  }
+}
+
+/**
+ * Every table that blocks a hard delete. A church that was ever approved — or
+ * that holds a single prayer, event, member link or donation — must be archived
+ * instead of purged (SPEC §4 deletion policy, plan 020 D-A).
+ */
+export const COUNT_CHURCH_DEPENDENTS = async ({
+  churchId,
+  orgNodeId,
+}: {
+  churchId: string
+  orgNodeId: string
+}) => {
+  const [
+    prayers,
+    events,
+    announcements,
+    requests,
+    serviceTimes,
+    churchPastors,
+    voiceProfiles,
+    mediaAssets,
+    galleryItems,
+    donations,
+    donationSubscriptions,
+    checkIns,
+    analyticsEvents,
+    userChurches,
+    roleAssignments,
+  ] = await db.$transaction([
+    db.prayer.count({ where: { church_id: churchId } }),
+    db.event.count({ where: { church_id: churchId } }),
+    db.announcement.count({ where: { church_id: churchId } }),
+    db.request.count({ where: { church_id: churchId } }),
+    db.serviceTime.count({ where: { church_id: churchId } }),
+    db.churchPastor.count({ where: { church_id: churchId } }),
+    db.voiceProfile.count({ where: { church_id: churchId } }),
+    db.mediaAsset.count({ where: { church_id: churchId } }),
+    db.churchGalleryItem.count({ where: { church_id: churchId } }),
+    db.donation.count({ where: { church_id: churchId } }),
+    db.donationSubscription.count({ where: { church_id: churchId } }),
+    db.checkIn.count({ where: { church_id: churchId } }),
+    db.analyticsEvent.count({ where: { church_id: churchId } }),
+    db.userChurch.count({ where: { church_id: churchId } }),
+    db.roleAssignment.count({ where: { org_node_id: orgNodeId } }),
+  ])
+  return {
+    prayers,
+    events,
+    announcements,
+    requests,
+    serviceTimes,
+    churchPastors,
+    voiceProfiles,
+    mediaAssets,
+    galleryItems,
+    donations,
+    donationSubscriptions,
+    checkIns,
+    analyticsEvents,
+    userChurches,
+    roleAssignments,
+  }
+}
+
+export const DELETE_CHURCH_ROW = async (
+  { churchId }: { churchId: string },
+  tx: Prisma.TransactionClient = db,
+) => tx.church.delete({ where: { id: churchId } })
+
+export const DELETE_ORG_NODE_ROW = async (
+  { orgNodeId }: { orgNodeId: string },
+  tx: Prisma.TransactionClient = db,
+) => tx.orgNode.delete({ where: { id: orgNodeId } })
 
 export const GET_CHURCH_BY_ID = async ({ churchId }: { churchId: string }) =>
   db.church.findUnique({
