@@ -1,6 +1,7 @@
 'use client'
 
 import BoxContainer from '@/components/container/boxed'
+import { DonationBanner } from '@/components/site/donation-banner'
 import { FeaturedPrayer, Pastor, excerpt } from '@/components/site/prayer/featured-prayer'
 import MaskIcon from '@/components/site/mask-icon'
 import { siteFilterTheme } from '@/config/antdTheme'
@@ -365,33 +366,13 @@ export default function PrayerArchive({
             </div>
           </nav>
 
-          <section className="rounded-2xl bg-[linear-gradient(135deg,rgba(194,217,255,0.4)_0%,rgba(255,255,255,0.45)_100%)] p-4 shadow-[0_4px_24px_-4px_#005CAD0F,0_1px_2px_0_#0000000D,-1px_-1px_2px_0_#FFFFFF]">
-            <div className="flex flex-col justify-between gap-5 rounded-xl bg-primary-100 p-4 lg:flex-row lg:items-center">
-              <div className="flex gap-4 sm:gap-6">
-                <span className="flex size-12 shrink-0 items-center justify-center rounded-xl bg-primary-500">
-                  <MaskIcon className="bg-white" size={22} src="/icons/Icon-giving.svg" />
-                </span>
-                <div>
-                  <p className="text-xs font-semibold uppercase tracking-[0.16em] text-blue-800">
-                    {t('prayerArchiveStewardshipLabel')}
-                  </p>
-                  <h2 className="font-font_text text-lg font-semibold leading-[1.5] text-primary-900 sm:text-xl">
-                    {t('donateTitle')}
-                  </h2>
-                  <p className="mt-2 font-font_text text-base font-normal leading-6 text-neutral-600">
-                    {t('donateFormSubtitle')}
-                  </p>
-                </div>
-              </div>
-              <Link
-                className="inline-flex h-12 shrink-0 items-center justify-center gap-2 rounded-xl border border-primary-600 bg-primary-500 px-6 text-base font-medium text-white lg:w-[266px]"
-                href="/giving"
-              >
-                {t('headerGiving')}
-                <MaskIcon className="bg-white" size={18} src="/icons/Icon-arrow-right.svg" />
-              </Link>
-            </div>
-          </section>
+          <DonationBanner
+            body={t('donateFormSubtitle')}
+            ctaLabel={t('headerGiving')}
+            eyebrow={t('prayerArchiveStewardshipLabel')}
+            href="/donate"
+            title={t('donateTitle')}
+          />
         </>
       )}
     </BoxContainer>

@@ -32,8 +32,7 @@ const SHOW_NOTIFICATIONS = false
 const isPathWithin = (pathname: string, href: string) =>
   pathname === href || pathname.startsWith(`${href}/`)
 
-const isActivePath = (pathname: string, href: string) =>
-  isPathWithin(pathname, href) || (href === '/giving' && isPathWithin(pathname, '/donate'))
+const isActivePath = (pathname: string, href: string) => isPathWithin(pathname, href)
 
 export default function SiteTopBar({
   variant = 'general',

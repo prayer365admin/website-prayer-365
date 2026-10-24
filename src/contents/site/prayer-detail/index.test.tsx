@@ -89,7 +89,7 @@ describe('PrayerDetail', () => {
     )
     expect(screen.getByRole('heading', { name: 'Donations / Stewardship' })).toBeTruthy()
     expect(screen.getByRole('link', { name: /Donate/ }).getAttribute('href')).toBe(
-      '/donate/church-1',
+      '/donate?church=hope-church',
     )
   })
 

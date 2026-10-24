@@ -2,14 +2,12 @@
 
 import BoxContainer from '@/components/container/boxed'
 import RichTextContent from '@/components/common/rich-text-content'
-import { HandHeartIcon } from '@/components/icon/hand-heart'
+import { DonationBanner } from '@/components/site/donation-banner'
 import { FeaturedPrayer } from '@/components/site/prayer/featured-prayer'
 import { prayerDurationMinutes } from '@/contents/site/prayers/data'
 import { useSiteI18n } from '@/i18n/site-i18n'
 import { SitePrayerDetail } from '@/models/site-prayer'
-import { ArrowRightOutlined } from '@ant-design/icons'
 import Image from 'next/image'
-import Link from 'next/link'
 import { ReactNode } from 'react'
 import { PrayerDetailSidebar } from './sidebar'
 import { stripAudioTags } from '@/utils/strip-audio-tags'
@@ -100,28 +98,12 @@ export default function PrayerDetail({
             </Section>
           </article>
 
-          <section className="flex flex-col gap-4 rounded-2xl bg-[linear-gradient(135deg,#163B66,#0E294A)] p-5 text-white shadow-[0_8px_30px_rgba(24,74,140,0.08)] sm:flex-row sm:items-center sm:justify-between">
-            <div className="flex min-w-0 items-start gap-4">
-              <span className="flex size-12 shrink-0 items-center justify-center rounded-xl bg-white/15">
-                <HandHeartIcon className="text-2xl" />
-              </span>
-              <div>
-                <h2 className="text-xl font-semibold text-white">
-                  {t('prayerArchiveStewardshipLabel')}
-                </h2>
-                <p className="mt-1 max-w-[58ch] text-sm leading-6 text-white/80">
-                  {t('prayerDetailDonationBody', { church: church.name })}
-                </p>
-              </div>
-            </div>
-            <Link
-              className="inline-flex h-11 shrink-0 items-center justify-center gap-2 rounded-lg bg-white px-5 text-sm font-semibold text-primary-900 transition hover:bg-primary-100"
-              href={`/donate/${church.id}`}
-            >
-              {t('donate')}
-              <ArrowRightOutlined />
-            </Link>
-          </section>
+          <DonationBanner
+            body={t('prayerDetailDonationBody', { church: church.name })}
+            ctaLabel={t('donate')}
+            href={`/donate?church=${church.slug}`}
+            title={t('prayerArchiveStewardshipLabel')}
+          />
         </div>
 
         <PrayerDetailSidebar detail={detail} />

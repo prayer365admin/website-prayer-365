@@ -90,7 +90,7 @@ describe('PrayerArchive', () => {
     expect(screen.queryByLabelText('Parish / Church')).toBeNull()
     expect(screen.getByText('Donations / Stewardship')).toBeTruthy()
     expect(screen.getByRole('link', { name: 'Giving & Stewardship' }).getAttribute('href')).toBe(
-      '/giving',
+      '/donate',
     )
     expect(
       screen
