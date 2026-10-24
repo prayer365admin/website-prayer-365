@@ -129,6 +129,16 @@ export const PrayerOutputSchema = z.object({
   textApproved: z.boolean(),
 })
 
+/** Central (cross-church) row: the church list item plus the church name (plan 023). */
+export const CentralPrayerOutputSchema = PrayerOutputSchema.extend({ churchName: z.string() })
+
+/** Central list filters: the church list query plus an optional church narrowing. */
+export const CentralPrayerListQuerySchema = PrayerListQuerySchema.extend({
+  churchId: z.string().optional(),
+})
+
+export type CentralPrayerListQuery = z.infer<typeof CentralPrayerListQuerySchema>
+
 export type PrayerOutput = {
   id: string
   churchId: string
@@ -139,6 +149,8 @@ export type PrayerOutput = {
   scheduled: { prayerVersionId: string; scheduledAt: string } | null
   textApproved: boolean
 }
+
+export type CentralPrayerOutput = PrayerOutput & { churchName: string }
 
 export const PrayerAudioOutputSchema = z.object({
   id: z.string(),

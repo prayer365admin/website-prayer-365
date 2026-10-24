@@ -136,12 +136,20 @@ export const requiredScope = async ({
   }
 
   // Sensitive grant: church-local subject requires the grant DIRECTLY at the church node.
+  // A GLOBAL assignment counts as church-local (plan 023): the only roles that carry
+  // a church-local subject are the super admin (`administrator`, every permission row)
+  // and the dedicated reader role, and a platform admin must not be able to see LESS
+  // than a church-level reader.
   if (churchLocalGrant && churchId) {
     const nodeRow = await db.church.findUnique({
       where: { id: churchId },
       select: { org_node_id: true },
     })
-    const ok = nodeRow && covering.some((a) => a.org_node_id === nodeRow.org_node_id)
+    const ok =
+      nodeRow &&
+      covering.some(
+        (a) => a.org_node_id === nodeRow.org_node_id || nodeKind.get(a.org_node_id) === 'GLOBAL',
+      )
     if (!ok) {
       throw new GeneralError({
         code: 403,

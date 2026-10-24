@@ -8,6 +8,7 @@ const db = vi.hoisted(() => ({
 vi.mock('@/utils/db-connection', () => ({ db }))
 
 import { LIST_CHURCH_OPTIONS, LIST_FREQUENT_CHURCHES } from './church-option'
+import { CUSTOMER_ACCOUNT_FILTER } from '@/utils/customer-role'
 
 const church = (id: string, city?: string) => ({
   id,
@@ -52,7 +53,13 @@ describe('LIST_FREQUENT_CHURCHES', () => {
     expect(db.userChurch.groupBy).toHaveBeenCalledWith(
       expect.objectContaining({
         by: ['church_id'],
-        where: { OR: [{ is_followed: true }, { is_main: true }], church: { status: 'APPROVED' } },
+        where: {
+          OR: [{ is_followed: true }, { is_main: true }],
+          church: { status: 'APPROVED' },
+          // Plan 022: staff accounts that follow/pick a parish must not influence
+          // the follower ranking.
+          user: CUSTOMER_ACCOUNT_FILTER,
+        },
         take: 4,
       }),
     )

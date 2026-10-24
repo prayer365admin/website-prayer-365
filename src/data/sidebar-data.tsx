@@ -96,6 +96,13 @@ const DashboardItems = (router: ReturnType<typeof useRouter>): MenuProps['items'
         },
       },
       {
+        key: '/dashboard/central/prayers',
+        label: 'Prayers',
+        onClick: () => {
+          router.push('/dashboard/central/prayers')
+        },
+      },
+      {
         key: '/dashboard/central/pastors',
         label: 'Pastors',
         onClick: () => {

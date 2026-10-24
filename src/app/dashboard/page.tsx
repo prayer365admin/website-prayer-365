@@ -1,3 +1,5 @@
+import ContentsOverview from '@/contents/dashboard/overview'
+
 export default function Page() {
-  return <>Testing page</>
+  return <ContentsOverview variant="home" />
 }

@@ -74,9 +74,11 @@ export const PRAYER_CATALOGUE: PrayerGrant[] = [
   { subject: 'prayer_platform_statistics', actions: 'read', scope: 'ANY' },
 
   // Central registry
+  // `delete` on country/language is a real hard delete, refused with 409 while
+  // any church / user still references the code (controller guard).
   ...ANY_CRUD('prayer_hierarchy', 'read,create,update'),
-  ...ANY_CRUD('prayer_country', 'read,create,update'),
-  ...ANY_CRUD('prayer_language', 'read,create,update'),
+  ...ANY_CRUD('prayer_country', 'read,create,update,delete'),
+  ...ANY_CRUD('prayer_language', 'read,create,update,delete'),
 
   // Staff / roles / permissions
   ...ANY_CRUD('prayer_administrator', 'read,create,update'),
@@ -118,8 +120,8 @@ export const PRAYER_ROLES: PrayerRole[] = [
       { subject: 'prayer_attendance', actions: 'read', scope: 'ANY' },
       { subject: 'prayer_platform_statistics', actions: 'read', scope: 'ANY' },
       { subject: 'prayer_hierarchy', actions: 'read,create,update', scope: 'ANY' },
-      { subject: 'prayer_country', actions: 'read,create,update', scope: 'ANY' },
-      { subject: 'prayer_language', actions: 'read,create,update', scope: 'ANY' },
+      { subject: 'prayer_country', actions: 'read,create,update,delete', scope: 'ANY' },
+      { subject: 'prayer_language', actions: 'read,create,update,delete', scope: 'ANY' },
       { subject: 'prayer_administrator', actions: 'read,create,update', scope: 'ANY' },
       { subject: 'prayer_role', actions: 'read,update', scope: 'ANY' },
       { subject: 'prayer_permission', actions: 'read', scope: 'ANY' },

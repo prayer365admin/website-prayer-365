@@ -1,6 +1,7 @@
 import { Prisma, ChurchStatus, OrgNodeKind } from '@prisma/client'
 import { db } from '@/utils/db-connection'
 import { buildChurchSlug } from '@/utils/build-church-slug'
+import { CUSTOMER_ACCOUNT_FILTER } from '@/utils/customer-role'
 
 /*
  * Central church provider (Tasks 17-18). The controller orchestrates the
@@ -144,7 +145,7 @@ export const COUNT_CHURCH_DEPENDENTS = async ({
     db.donationSubscription.count({ where: { church_id: churchId } }),
     db.checkIn.count({ where: { church_id: churchId } }),
     db.analyticsEvent.count({ where: { church_id: churchId } }),
-    db.userChurch.count({ where: { church_id: churchId } }),
+    db.userChurch.count({ where: { church_id: churchId, user: CUSTOMER_ACCOUNT_FILTER } }),
     db.roleAssignment.count({ where: { org_node_id: orgNodeId } }),
   ])
   return {

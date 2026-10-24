@@ -5,6 +5,8 @@ import { LanguageIcon } from '@/components/icon/language'
 import { SITE_LOCALES, SITE_LOCALE_NAMES, SiteLocale } from '@/config/site-locale'
 import { useMe, useMyChurches } from '@/hooks/data/site/me'
 import { useSiteI18n } from '@/i18n/site-i18n'
+import { isCustomerRole } from '@/utils/customer-role'
+import { STAFF_HOME } from '@/utils/constant'
 import type { MobileMe, MobileMyChurch } from '@/models/mobile'
 import {
   ArrowRightOutlined,
@@ -181,13 +183,15 @@ export default function SiteTopBar({
     </>
   )
 
-  // Signed in: the profile photo (or a user icon) links to the customer profile, where sign-out lives.
+  // Signed in: a STAFF session goes to the dashboard (it has no customer profile
+  // data), a customer goes to their profile, where sign-out lives.
+  const staffSession = Boolean(session?.user) && !isCustomerRole(session?.user?.role)
   const accountControl =
     session?.user || me ? (
       <Link
-        aria-label={t('account')}
+        aria-label={staffSession ? t('headerDashboard') : t('account')}
         className={`${s.iconButton} ${s.accountButton}`}
-        href="/customer"
+        href={staffSession ? STAFF_HOME : '/customer'}
       >
         {me?.profilePicture ? (
           <Avatar alt="" className={s.accountAvatar} shape="square" src={me.profilePicture} />

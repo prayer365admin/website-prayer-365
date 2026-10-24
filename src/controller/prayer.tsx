@@ -3,7 +3,7 @@ import { sanitizePrayerRichText } from '@/utils/sanitize-prayer-rich-text'
 import { richTextToPlainText } from '@/utils/rich-text-plain'
 import { withIdempotency } from '@/utils/idempotency'
 import { auditPayload } from '@/utils/audit'
-import { GET_AVAILABLE_LANGUAGE_CODES } from '@/providers/church'
+import { GET_AVAILABLE_LANGUAGE_CODES, GET_CHURCH_NAMES } from '@/providers/church'
 import { GET_CHURCH_PASTOR } from '@/providers/pastor'
 import {
   APPROVE_TEXT,
@@ -15,6 +15,8 @@ import {
   SCHEDULE_PRAYER,
 } from '@/providers/prayer'
 import {
+  CentralPrayerListQuery,
+  CentralPrayerOutput,
   PrayerActionInput,
   PrayerInput,
   PrayerListQuery,
@@ -135,6 +137,37 @@ export const listPrayers = async ({
   churchIds: Set<string>
   query: PrayerListQuery
 }): Promise<{ result: PrayerOutput[]; total: number }> => LIST_PRAYERS({ churchIds, query })
+
+/**
+ * Central (cross-church) prayer list (plan 023). Reuses the church list query with
+ * the caller's whole central subtree; a `churchId` filter only NARROWS inside that
+ * scope, so it can never reach a church outside the caller's coverage.
+ */
+export const listCentralPrayers = async ({
+  churchIds,
+  query,
+}: {
+  churchIds: Set<string>
+  query: CentralPrayerListQuery
+}): Promise<{ result: CentralPrayerOutput[]; total: number }> => {
+  const scope = query.churchId
+    ? churchIds.has(query.churchId)
+      ? new Set([query.churchId])
+      : new Set<string>()
+    : churchIds
+  const { result, total } = await LIST_PRAYERS({ churchIds: scope, query })
+  if (result.length === 0) return { result: [], total }
+
+  const names = await GET_CHURCH_NAMES({ ids: Array.from(new Set(result.map((p) => p.churchId))) })
+  const nameById = new Map(names.map((c) => [c.id, c.name]))
+  return {
+    result: result.map((prayer) => ({
+      ...prayer,
+      churchName: nameById.get(prayer.churchId) ?? '-',
+    })),
+    total,
+  }
+}
 
 export const getPrayer = async ({
   churchIds,

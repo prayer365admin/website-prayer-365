@@ -61,6 +61,22 @@ describe('SiteTopBar', () => {
     expect(screen.queryByText('Sign out')).toBeNull()
   })
 
+  // Plan 022: a staff session's account button points at the dashboard, not the
+  // customer profile (which redirects staff away anyway).
+  it('points the account link at the dashboard for a staff session', async () => {
+    sessionMock.mockReturnValue({
+      data: { user: { user_id: 'u1', role: { id: 'r1', name: 'administrator' } } },
+      status: 'authenticated',
+    })
+    renderWithProviders(
+      <SiteI18nProvider initialLocale="en">
+        <SiteTopBar />
+      </SiteI18nProvider>,
+    )
+
+    await waitFor(() => expect(link('Dashboard').getAttribute('href')).toBe('/dashboard'))
+  })
+
   it('renders the server-loaded avatar before the client session resolves', () => {
     sessionMock.mockReturnValue({ data: null, status: 'loading' })
     renderWithProviders(

@@ -5,7 +5,8 @@ import { RoleType } from '@prisma/client'
 import { db } from '@/utils/db-connection'
 import keywordSearch from '@/utils/keyword-search'
 import { Prisma } from '@prisma/client'
-import { CUSTOMER_ROLE, isCustomerRole } from '@/utils/customer-role'
+import { CUSTOMER_ACCOUNT_FILTER, CUSTOMER_ROLE, isCustomerRole } from '@/utils/customer-role'
+import { ADMINISTRATOR_ROLE } from '@/utils/constant'
 
 const data = 'user'
 
@@ -18,7 +19,7 @@ export const COUNT_ACTIVE_CUSTOMERS = (): Promise<number> =>
     where: {
       deleted_at: null,
       status: 'active',
-      OR: [{ role_id: null }, { role: { is: { name: CUSTOMER_ROLE } } }],
+      ...CUSTOMER_ACCOUNT_FILTER,
     },
   })
 
@@ -33,12 +34,18 @@ export const GET_USERS = async ({
   order_direction,
   search,
   role,
-}: GeneralQueryParams & { role?: string }) => {
+  status,
+}: GeneralQueryParams & { role?: string; status?: string }) => {
   const offset = page && limit && (page - 1) * limit
 
   const filter: Prisma.UserWhereInput = {
     role: { is: { name: { not: CUSTOMER_ROLE } } },
     ...(role ? { role_id: role } : {}),
+    ...(status === 'active'
+      ? { status: 'active', deleted_at: null }
+      : status === 'inactive'
+        ? { NOT: { status: 'active', deleted_at: null } }
+        : {}),
     ...(search && {
       OR: [
         ...keywordSearch({ keyword: search, name: 'name' }),
@@ -365,11 +372,43 @@ export const DELETE_USER = async ({ user_id }: { user_id: string }) => {
 }
 
 /** D1: bump `auth_version` on password change / account disable → invalidates all outstanding tokens. */
-export const INCREMENT_AUTH_VERSION = async ({ user_id }: { user_id: string }) => {
-  const result = await db.user.update({
+export const INCREMENT_AUTH_VERSION = async (
+  { user_id }: { user_id: string },
+  tx: Prisma.TransactionClient = db,
+) => {
+  const result = await tx.user.update({
     data: { auth_version: { increment: 1 } },
     where: { id: user_id },
     select: { id: true, auth_version: true },
   })
   return result
 }
+
+/**
+ * Soft delete (plan 023): status inactive + deleted_at keeps the row (history,
+ * foreign keys) while both guards and login refuse a non-active account.
+ */
+export const DEACTIVATE_USER = async (
+  { user_id }: { user_id: string },
+  tx: Prisma.TransactionClient = db,
+) =>
+  tx.user.update({
+    where: { id: user_id },
+    data: { status: 'inactive', deleted_at: new Date() },
+    omit: SAFE,
+  })
+
+/** Other ACTIVE accounts bound to the super-admin role (last-admin guard). */
+export const COUNT_ACTIVE_ADMINS = async ({
+  excludeUserId,
+}: {
+  excludeUserId: string
+}): Promise<number> =>
+  db.user.count({
+    where: {
+      id: { not: excludeUserId },
+      deleted_at: null,
+      status: 'active',
+      role: { is: { name: ADMINISTRATOR_ROLE } },
+    },
+  })

@@ -4,7 +4,7 @@ import AddButton from '@/components/common/add-button'
 import SearchInput from '@/components/common/search-input'
 import RoleFilter from '@/components/common/select/role/filter'
 import { useUsers } from '@/hooks/data/user'
-import { Table, TablePaginationConfig } from 'antd'
+import { Table, TablePaginationConfig, Select } from 'antd'
 import { useRouter } from 'next/navigation'
 import { Fragment, useState } from 'react'
 import { UserColumns } from './columns'
@@ -14,6 +14,8 @@ export default function ContentsUserManagementUser() {
 
   const [searchValue, setSearchValue] = useState<string | undefined>('')
   const [roleValue, setRoleValue] = useState<string | undefined>(undefined)
+  // Plan 023: deactivated accounts stay in the list, so they need a marker + filter.
+  const [statusValue, setStatusValue] = useState<string | undefined>(undefined)
   const [sort, setSort] = useState<{ orderBy: string; orderDirection: 'asc' | 'desc' }>({
     orderBy: 'created_at',
     orderDirection: 'desc',
@@ -39,6 +41,7 @@ export default function ContentsUserManagementUser() {
     limit: pageSize,
     page: page,
     role: roleValue,
+    status: statusValue,
   })
 
   const columns = UserColumns({ onDelete: deleteUser })
@@ -49,6 +52,22 @@ export default function ContentsUserManagementUser() {
           <div className="flex gap-4">
             <div className="w-[200px]">
               <RoleFilter value={roleValue} setValue={setRoleValue} />
+            </div>
+            <div className="w-[160px]">
+              <Select
+                allowClear
+                className="w-full"
+                placeholder="Filter status"
+                value={statusValue}
+                onChange={(value) => {
+                  setStatusValue(value)
+                  setPage(1)
+                }}
+                options={[
+                  { value: 'active', label: 'Active' },
+                  { value: 'inactive', label: 'Inactive' },
+                ]}
+              />
             </div>
             <div className="w-[50%]">
               <SearchInput setValue={setSearchValue} setPage={setPage} setPageSize={setPageSize} />

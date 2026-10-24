@@ -187,6 +187,8 @@ export const ChurchListQuerySchema = z.object({
   search: z.string().trim().max(200).optional(),
   order_by: z.enum(['name', 'created_at']).default('name'),
   order_direction: z.enum(['asc', 'desc']).default('asc'),
+  /** Optional lifecycle filter: the super admin's list covers every status. */
+  status: z.enum(['PENDING', 'APPROVED', 'SUSPENDED', 'ARCHIVED']).optional(),
 })
 
 export type ChurchListQuery = z.infer<typeof ChurchListQuerySchema>

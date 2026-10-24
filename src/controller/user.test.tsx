@@ -7,27 +7,52 @@ vi.mock('@/providers/user', () => ({
   COUNT_ACTIVE_CUSTOMERS: vi.fn(),
   UPDATE_USER: vi.fn(),
   INCREMENT_AUTH_VERSION: vi.fn(),
+  DEACTIVATE_USER: vi.fn(),
+  COUNT_ACTIVE_ADMINS: vi.fn(),
 }))
 
 vi.mock('@/utils/hash', () => ({
   hashSecret: vi.fn(async ({ secret }: { secret: string }) => `hashed:${secret}`),
 }))
 
+vi.mock('@/providers/role-assignment', () => ({
+  GET_ACTIVE_ASSIGNMENT: vi.fn(),
+  GET_ROLE_BY_KEY: vi.fn(),
+}))
+
+vi.mock('@/providers/scope', () => ({
+  GET_GLOBAL_ORG_NODE: vi.fn(),
+}))
+
+vi.mock('./role-assignment', () => ({
+  createRoleAssignment: vi.fn(),
+}))
+
+vi.mock('@/utils/db-transaction', () => ({
+  dbTransaction: (fn: (tx: unknown) => unknown) => fn({ auditLog: { create: vi.fn() } }),
+}))
+
 import {
   createUser,
+  deactivateUser,
   getFellowshipMemberCount,
   getUserByEmail,
   getUserById,
   updateUser,
 } from './user'
 import {
+  COUNT_ACTIVE_ADMINS,
   COUNT_ACTIVE_CUSTOMERS,
   CREATE_USER,
+  DEACTIVATE_USER,
   GET_USER_BY_EMAIL,
   GET_USER_BY_ID,
   INCREMENT_AUTH_VERSION,
   UPDATE_USER,
 } from '@/providers/user'
+import { GET_ACTIVE_ASSIGNMENT, GET_ROLE_BY_KEY } from '@/providers/role-assignment'
+import { GET_GLOBAL_ORG_NODE } from '@/providers/scope'
+import { createRoleAssignment } from './role-assignment'
 import { hashSecret } from '@/utils/hash'
 
 const mockUser = { id: 'u1', email: 'a@b.com', name: 'A', role_id: null }
@@ -152,5 +177,148 @@ describe('updateUser', () => {
   it('drops password key when not provided', async () => {
     await updateUser({ user_id: 'u1', payload: { name: 'B' } })
     expect(UPDATE_USER).toHaveBeenCalledWith({ user_id: 'u1', payload: { name: 'B' } })
+  })
+})
+
+describe('super-admin scope assignment (tenancy layer)', () => {
+  beforeEach(() => vi.clearAllMocks())
+
+  const stubAdmin = (roleName = 'administrator', hasAssignment = false) => {
+    vi.mocked(CREATE_USER).mockResolvedValue({ id: 'u1' } as never)
+    vi.mocked(UPDATE_USER).mockResolvedValue({ id: 'u1' } as never)
+    vi.mocked(GET_USER_BY_ID).mockResolvedValue({ id: 'u1', role: { name: roleName } } as never)
+    vi.mocked(GET_GLOBAL_ORG_NODE).mockResolvedValue({ id: 'g1' } as never)
+    vi.mocked(GET_ROLE_BY_KEY).mockResolvedValue({ id: 'r-admin' } as never)
+    vi.mocked(GET_ACTIVE_ASSIGNMENT).mockResolvedValue(
+      (hasAssignment ? { id: 'a1' } : null) as never,
+    )
+    vi.mocked(createRoleAssignment).mockResolvedValue({ id: 'a1' } as never)
+  }
+
+  it('creates the GLOBAL assignment when a user is created as administrator', async () => {
+    stubAdmin()
+    await createUser({
+      email: 'a@b.com',
+      name: 'A',
+      password: 'Strong@123',
+      role_id: 'r-admin',
+      actorId: 'actor-1',
+      requestId: 'req-1',
+    })
+    expect(createRoleAssignment).toHaveBeenCalledWith({
+      payload: { userId: 'u1', roleKey: 'administrator', orgNodeId: 'g1' },
+      actorId: 'actor-1',
+      requestId: 'req-1',
+    })
+  })
+
+  it('does not touch assignments for any other role', async () => {
+    stubAdmin('prayer_church_admin')
+    await createUser({ email: 'a@b.com', name: 'A', password: 'Strong@123', role_id: 'r2' })
+    expect(createRoleAssignment).not.toHaveBeenCalled()
+  })
+
+  it('is idempotent: an existing GLOBAL assignment is left alone', async () => {
+    stubAdmin('administrator', true)
+    await createUser({ email: 'a@b.com', name: 'A', password: 'Strong@123', role_id: 'r-admin' })
+    expect(createRoleAssignment).not.toHaveBeenCalled()
+  })
+
+  it('never fails user creation when the assignment cannot be created', async () => {
+    stubAdmin()
+    vi.mocked(createRoleAssignment).mockRejectedValue(
+      Object.assign(new Error('escalation denied'), { error_code: 'ESCALATION_DENIED' }),
+    )
+    await expect(
+      createUser({ email: 'a@b.com', name: 'A', password: 'Strong@123', role_id: 'r-admin' }),
+    ).resolves.toMatchObject({ id: 'u1' })
+  })
+
+  it('reconciles the assignment when a user is promoted to administrator', async () => {
+    stubAdmin()
+    await updateUser({
+      user_id: 'u1',
+      payload: { role_id: 'r-admin' } as never,
+      actorId: 'actor-1',
+      requestId: 'req-2',
+    })
+    expect(createRoleAssignment).toHaveBeenCalledWith(
+      expect.objectContaining({ payload: expect.objectContaining({ userId: 'u1' }) }),
+    )
+  })
+
+  it('skips the assignment path when the update does not change the role', async () => {
+    stubAdmin()
+    await updateUser({ user_id: 'u1', payload: { name: 'B' } })
+    expect(GET_USER_BY_ID).not.toHaveBeenCalled()
+    expect(createRoleAssignment).not.toHaveBeenCalled()
+  })
+})
+
+describe('deactivateUser (soft delete)', () => {
+  beforeEach(() => vi.clearAllMocks())
+
+  const activeUser = {
+    id: 'u2',
+    status: 'active',
+    deleted_at: null,
+    role: { name: 'prayer_pastor' },
+  }
+
+  it('sets status inactive, bumps auth_version and audits', async () => {
+    vi.mocked(GET_USER_BY_ID).mockResolvedValue(activeUser as never)
+    vi.mocked(DEACTIVATE_USER).mockResolvedValue({ id: 'u2', status: 'inactive' } as never)
+    vi.mocked(INCREMENT_AUTH_VERSION).mockResolvedValue({ id: 'u2' } as never)
+
+    await deactivateUser({ user_id: 'u2', actorId: 'u1', requestId: 'req' })
+
+    expect(DEACTIVATE_USER).toHaveBeenCalledWith({ user_id: 'u2' }, expect.anything())
+    expect(INCREMENT_AUTH_VERSION).toHaveBeenCalledWith({ user_id: 'u2' }, expect.anything())
+  })
+
+  it('refuses to deactivate your own account', async () => {
+    vi.mocked(GET_USER_BY_ID).mockResolvedValue(activeUser as never)
+    await expect(
+      deactivateUser({ user_id: 'u1', actorId: 'u1', requestId: 'req' }),
+    ).rejects.toMatchObject({ code: 409, error_code: 'CANNOT_DEACTIVATE_SELF' })
+  })
+
+  it('refuses an already inactive account', async () => {
+    vi.mocked(GET_USER_BY_ID).mockResolvedValue({ ...activeUser, status: 'inactive' } as never)
+    await expect(
+      deactivateUser({ user_id: 'u2', actorId: 'u1', requestId: 'req' }),
+    ).rejects.toMatchObject({ code: 409, error_code: 'ALREADY_INACTIVE' })
+  })
+
+  it('refuses to remove the last active super admin', async () => {
+    vi.mocked(GET_USER_BY_ID).mockResolvedValue({
+      ...activeUser,
+      role: { name: 'administrator' },
+    } as never)
+    vi.mocked(COUNT_ACTIVE_ADMINS).mockResolvedValue(0)
+
+    await expect(
+      deactivateUser({ user_id: 'u2', actorId: 'u1', requestId: 'req' }),
+    ).rejects.toMatchObject({ code: 409, error_code: 'LAST_ADMIN' })
+  })
+
+  it('deactivates a super admin while another one stays active', async () => {
+    vi.mocked(GET_USER_BY_ID).mockResolvedValue({
+      ...activeUser,
+      role: { name: 'administrator' },
+    } as never)
+    vi.mocked(COUNT_ACTIVE_ADMINS).mockResolvedValue(1)
+    vi.mocked(DEACTIVATE_USER).mockResolvedValue({ id: 'u2' } as never)
+    vi.mocked(INCREMENT_AUTH_VERSION).mockResolvedValue({ id: 'u2' } as never)
+
+    await deactivateUser({ user_id: 'u2', actorId: 'u1', requestId: 'req' })
+    expect(DEACTIVATE_USER).toHaveBeenCalled()
+  })
+
+  it('404s an unknown user', async () => {
+    vi.mocked(GET_USER_BY_ID).mockResolvedValue(null as never)
+    await expect(
+      deactivateUser({ user_id: 'nope', actorId: 'u1', requestId: 'req' }),
+    ).rejects.toMatchObject({ code: 404, error_code: 'USER_NOT_FOUND' })
   })
 })

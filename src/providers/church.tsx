@@ -9,6 +9,7 @@ import {
   ChurchProfileOutput,
 } from '@/models/church'
 import { fromClassification, fromKind, requestVisibilityWhere } from '@/providers/request'
+import { CUSTOMER_ACCOUNT_FILTER } from '@/utils/customer-role'
 import { S3_PUBLIC_URL } from '@/providers/s3'
 
 /*
@@ -18,6 +19,16 @@ import { S3_PUBLIC_URL } from '@/providers/s3'
  */
 
 const toIds = (churchIds: Set<string>) => Array.from(churchIds)
+
+/** Church id → name, for cross-church lists that must show which church a row belongs to. */
+export const GET_CHURCH_NAMES = async ({
+  ids,
+}: {
+  ids: string[]
+}): Promise<{ id: string; name: string }[]> =>
+  ids.length === 0
+    ? []
+    : db.church.findMany({ where: { id: { in: ids } }, select: { id: true, name: true } })
 
 /** Paginated list of the caller's assigned churches, scoped by churchIds. */
 export const GET_CHURCHES = async ({
@@ -31,6 +42,7 @@ export const GET_CHURCHES = async ({
   const where: Prisma.ChurchWhereInput = {
     id: { in: ids },
     ...(query.search ? { name: { contains: query.search, mode: 'insensitive' } } : {}),
+    ...(query.status ? { status: query.status } : {}),
   }
   const orderBy =
     query.order_by === 'name'
@@ -312,7 +324,7 @@ export const GET_CHURCH_OVERVIEW = async ({
     db.announcement.count({
       where: { church_id: churchId, published_at: { not: null }, deleted_at: null },
     }),
-    db.userChurch.count({ where: { church_id: churchId } }),
+    db.userChurch.count({ where: { church_id: churchId, user: CUSTOMER_ACCOUNT_FILTER } }),
     db.mediaAsset.count({ where: { church_id: churchId } }),
   ])
   const agg: ChurchOverview['aggregates'] = {

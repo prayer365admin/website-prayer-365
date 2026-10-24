@@ -1,7 +1,7 @@
-import { updateUser } from '@/controller/user'
+import { deactivateUser, updateUser } from '@/controller/user'
 import { UserPayloadUpdateModel } from '@/models/user'
 import { GET_USER_BY_ID } from '@/providers/user'
-import { ok, httpError } from '@/utils/response'
+import { ok, httpError, requestId } from '@/utils/response'
 import { registerPath } from '@/utils/openapi'
 import { GeneralError } from '@/utils/general-error'
 import requiredAuth from '@/utils/required-auth'
@@ -56,7 +56,7 @@ export async function PUT(req: NextRequest, segmentData: { params: Params }) {
   const params = await segmentData.params
   const id = params.id
   try {
-    const { permission } = await requiredAuth(req)
+    const { session, permission } = await requiredAuth(req)
 
     if (!permission.updateAny('prayer_administrator').granted) {
       return httpError(
@@ -69,7 +69,24 @@ export async function PUT(req: NextRequest, segmentData: { params: Params }) {
       )
     }
 
-    const result = await updateUser({ user_id: id, payload })
+    const existing = await GET_USER_BY_ID({ user_id: id })
+    if (!existing) {
+      return httpError(
+        new GeneralError({
+          code: 404,
+          error: 'NOT_FOUND',
+          error_code: 'USER_NOT_FOUND',
+          details: 'User not found.',
+        }),
+      )
+    }
+
+    const result = await updateUser({
+      user_id: id,
+      payload,
+      actorId: session.user.user_id,
+      requestId: requestId(),
+    })
     return ok(result, `Successfully update data with id ${id}!`)
   } catch (error) {
     return httpError(error)
@@ -97,6 +114,37 @@ registerPath({
     { status: 404, description: 'User not found' },
   ],
 })
+
+/**
+ * DELETE /api/v1/users/:id — DEACTIVATE (soft delete, plan 023). The dashboard's
+ * Users list calls this, so the label there is "Deactivate", not "Delete".
+ */
+export async function DELETE(req: NextRequest, segmentData: { params: Params }) {
+  const params = await segmentData.params
+  try {
+    const { session, permission } = await requiredAuth(req)
+
+    if (!permission.deleteAny('user_management_user').granted) {
+      return httpError(
+        new GeneralError({
+          code: 403,
+          error: 'UNAUTHORIZED',
+          error_code: 'NOT_ALLOWED',
+          details: 'This account is not allowed for this action.',
+        }),
+      )
+    }
+
+    const result = await deactivateUser({
+      user_id: params.id,
+      actorId: session.user.user_id,
+      requestId: requestId(),
+    })
+    return ok(protect(result), `Successfully deactivated user ${params.id}!`)
+  } catch (error) {
+    return httpError(error)
+  }
+}
 
 registerPath({
   path: '/users/{id}',

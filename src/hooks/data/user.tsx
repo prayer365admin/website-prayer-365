@@ -17,16 +17,20 @@ export const useUsers = ({
   orderBy,
   orderDirection,
   role,
-}: GeneralHooks & { role?: string }) => {
+  status,
+}: GeneralHooks & { role?: string; status?: string }) => {
   const queryClient = useQueryClient()
   const notification = useMainNotification()
   const paginationQuery = `limit=${limit && limit !== 'ALL' ? limit : ''}&page=${limit && limit !== 'ALL' ? page : ''}&order_by=${orderBy}&order_direction=${orderDirection}`
   const roleQuery = role ? `&role=${role}` : ''
+  const statusQuery = status ? `&status=${encodeURIComponent(status)}` : ''
 
   const { data: data, isLoading: fetchLoading } = useQuery({
-    queryKey: [queryKey, queryString, paginationQuery, role],
+    queryKey: [queryKey, queryString, paginationQuery, role, status],
     queryFn: async () => {
-      const result = await axios.get(`${baseUrl}?${queryString}&${paginationQuery}${roleQuery}`)
+      const result = await axios.get(
+        `${baseUrl}?${queryString}&${paginationQuery}${roleQuery}${statusQuery}`,
+      )
       return {
         result: result.data.result as UserDataModel[],
         total: result.data.total as number,

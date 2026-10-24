@@ -1,6 +1,6 @@
 import { createUser } from '@/controller/user'
 import { GET_USERS } from '@/providers/user'
-import { ok, list, httpError } from '@/utils/response'
+import { ok, list, httpError, requestId } from '@/utils/response'
 import { registerPath } from '@/utils/openapi'
 import { GeneralError } from '@/utils/general-error'
 import { validate } from '@/utils/validate'
@@ -60,7 +60,7 @@ const createUserSchema = z.object({
 
 export async function POST(req: NextRequest) {
   try {
-    const { permission } = await requiredAuth(req)
+    const { session, permission } = await requiredAuth(req)
 
     if (!permission.createAny('prayer_administrator').granted) {
       return httpError(
@@ -82,6 +82,8 @@ export async function POST(req: NextRequest) {
       name: data.name,
       password: data.password,
       role_id: data.role_id,
+      actorId: session.user.user_id,
+      requestId: requestId(),
     })
 
     return ok(protect(result), 'Successfully create new user!', 201)
@@ -116,7 +118,8 @@ registerPath({
 registerPath({
   path: '/users',
   method: 'post',
-  summary: 'Create staff (role_id rejected, password never returned)',
+  summary:
+    'Create staff (password never returned). Role `administrator` also gets its GLOBAL scope assignment automatically.',
   request: {
     body: createUserSchema,
   },

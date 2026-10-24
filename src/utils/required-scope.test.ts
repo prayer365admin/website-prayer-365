@@ -172,10 +172,10 @@ describe('requiredScope', () => {
     expect(r.scope.kind).toBe('country')
   })
 
-  it('denies private request via ancestor grant (needs church-local grant)', async () => {
+  it('denies private request via a sub-global ancestor grant (needs church-local grant)', async () => {
     mockScopeData = scopeData({
       assignments: [
-        grant('prayer_global_admin', GLOBAL.id, [
+        grant('prayer_diocese_admin', DIOCESE.id, [
           { subject: 'prayer_private_request', actions: 'read', scope: 'ANY' },
         ]),
       ],
@@ -188,6 +188,25 @@ describe('requiredScope', () => {
         churchLocalGrant: true,
       }),
     ).rejects.toMatchObject({ code: 403 })
+  })
+
+  // Plan 023: the super admin (GLOBAL assignment) must not see less than a
+  // church-level reader, so a GLOBAL cover also satisfies churchLocalGrant.
+  it('allows private request with a GLOBAL assignment (super admin)', async () => {
+    mockScopeData = scopeData({
+      assignments: [
+        grant('administrator', GLOBAL.id, [
+          { subject: 'prayer_private_request', actions: 'read', scope: 'ANY' },
+        ]),
+      ],
+    })
+    const r = await call({
+      churchId: 'church-a',
+      subject: 'prayer_private_request',
+      action: 'read',
+      churchLocalGrant: true,
+    })
+    expect(r.churchIds).toEqual(new Set(['church-a']))
   })
 
   it('allows private request with a church-local grant', async () => {

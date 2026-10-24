@@ -1,7 +1,7 @@
 import ActionsTable from '@/components/common/actions-table'
 import { UserDataModel } from '@/models/user'
 import { ACTION_COLUMN_WIDTH, ADDITIONAL_COLUMN_CONFIG, ID_COLUMN_WIDTH } from '@/utils/constant'
-import { TableProps } from 'antd'
+import { TableProps, Tag } from 'antd'
 import { useRouter } from 'next/navigation'
 
 export const UserColumns = ({ onDelete }: { onDelete: (id: string) => void }) => {
@@ -22,6 +22,17 @@ export const UserColumns = ({ onDelete }: { onDelete: (id: string) => void }) =>
       render: (text, record) => record.role?.name ?? '-',
     },
     {
+      key: 'status',
+      dataIndex: 'status',
+      title: 'Status',
+      // Plan 023: accounts are deactivated, not deleted, so their state matters here.
+      render: (_text, record) => (
+        <Tag color={record.status === 'active' && !record.deleted_at ? 'green' : 'default'}>
+          {record.status === 'active' && !record.deleted_at ? 'active' : 'inactive'}
+        </Tag>
+      ),
+    },
+    {
       key: 'actions',
       title: 'Actions',
       width: ACTION_COLUMN_WIDTH,
@@ -29,9 +40,11 @@ export const UserColumns = ({ onDelete }: { onDelete: (id: string) => void }) =>
       render: (_text, record) => {
         return (
           <ActionsTable
-            entity="role"
+            entity="user"
             details={record.name}
-            actions="deleting"
+            // Deactivate (soft delete) — the label drives the confirm modal wording.
+            actions="deactivating"
+            permissionSubject="user_management_user"
             onEdit={() => {
               router.push(`/dashboard/user-management/user/${record.id}`)
             }}

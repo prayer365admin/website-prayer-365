@@ -23,16 +23,20 @@ export const useChurches = ({
   orderBy,
   orderDirection,
   search,
-}: GeneralHooks & { search?: string }) => {
+  status,
+}: GeneralHooks & { search?: string; status?: string }) => {
   const { data: session } = useSession()
   const userId = session?.user.user_id
   const paginationQuery = `limit=${limit && limit !== 'ALL' ? limit : ''}&page=${limit && limit !== 'ALL' ? page : ''}&order_by=${orderBy}&order_direction=${orderDirection}`
   const searchQuery = search ? `&search=${encodeURIComponent(search)}` : ''
+  const statusQuery = status ? `&status=${encodeURIComponent(status)}` : ''
 
   const query = useQuery({
-    queryKey: ['churches', userId, queryString, paginationQuery, search],
+    queryKey: ['churches', userId, queryString, paginationQuery, search, status],
     queryFn: async () => {
-      const result = await axios.get(`${baseUrl}?${queryString}&${paginationQuery}${searchQuery}`)
+      const result = await axios.get(
+        `${baseUrl}?${queryString}&${paginationQuery}${searchQuery}${statusQuery}`,
+      )
       return {
         result: result.data.result as ChurchSummary[],
         total: result.data.total as number,

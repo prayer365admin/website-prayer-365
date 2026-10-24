@@ -2,6 +2,20 @@ import { EventCategory } from '@/models/event'
 
 export const ID_COLUMN_WIDTH = 80
 export const ACTION_COLUMN_WIDTH = 125
+
+/**
+ * The platform super-admin role (SPEC §3.3). Seeded to hold EVERY permission row,
+ * and the single role that gets the automatic GLOBAL org assignment when a staff
+ * account is created with it (`controller/user` → `ensureGlobalAdminAssignment`).
+ */
+export const ADMINISTRATOR_ROLE = 'administrator'
+
+/**
+ * Where a STAFF session belongs on the web app: the customer website is for
+ * customers only (plan 022), so /customer* redirects here and the site header's
+ * account button points here for a staff session.
+ */
+export const STAFF_HOME = '/dashboard'
 export const ADDITIONAL_COLUMN_CONFIG: {
   align: 'center' | 'left' | 'right'
   ellipsis: boolean
