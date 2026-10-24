@@ -304,15 +304,35 @@ describe('GET_PUBLIC_CHURCH — admin profile reflected in mobile contract', () 
     expect(result).toBeNull()
   })
 
-  it('queries with status APPROVED and church slug in where-clause', async () => {
+  it('queries by id OR slug with status APPROVED, so both identifiers resolve', async () => {
     db.church.findFirst.mockResolvedValueOnce(null)
-    await GET_PUBLIC_CHURCH({ slug: 'c1' })
+    await GET_PUBLIC_CHURCH({ slug: 'grace-church' })
     expect(db.church.findFirst).toHaveBeenCalledWith(
       expect.objectContaining({
-        where: expect.objectContaining({
-          slug: 'c1',
+        where: {
           status: 'APPROVED',
-        }),
+          OR: [{ id: 'grace-church' }, { slug: 'grace-church' }],
+        },
+      }),
+    )
+  })
+
+  it('resolves a church UUID — the only identifier the mobile clients send', async () => {
+    const uuid = '01a0f73b-7860-75cc-a58d-febcab0ac0f7'
+    db.church.findFirst.mockResolvedValueOnce({
+      id: uuid,
+      name: 'Tallinn Demo Church',
+      timezone: 'Europe/Tallinn',
+      churchLanguages: [],
+      serviceTimes: [],
+    })
+
+    const result = await GET_PUBLIC_CHURCH({ churchId: uuid })
+
+    expect(result?.id).toBe(uuid)
+    expect(db.church.findFirst).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { status: 'APPROVED', OR: [{ id: uuid }, { slug: uuid }] },
       }),
     )
   })

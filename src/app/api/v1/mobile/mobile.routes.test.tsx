@@ -22,6 +22,7 @@ import {
   checkIn,
   getHome,
   getMe,
+  getPublicChurch,
   patchMe,
   recordAnalyticsEvents,
   setFollow,
@@ -30,6 +31,7 @@ import {
 import { createMobileAvatar } from '@/controller/mobile-avatar'
 import { GeneralError } from '@/utils/general-error'
 import { GET as GET_CHURCHES } from './churches/route'
+import { GET as GET_CHURCH_PROFILE } from './churches/[churchId]/route'
 import { GET as GET_ME, PATCH as PATCH_ME } from './me/route'
 import { POST as POST_AVATAR } from './me/avatar/route'
 import { PUT as PUT_FOLLOW } from './me/follows/[churchId]/route'
@@ -322,5 +324,46 @@ describe('home — MB-10 typed projection', () => {
     expect(body.result.latestAnnouncements).toEqual([])
     expect(body.result).not.toHaveProperty('main')
     expect(getHome).toHaveBeenCalledWith({ userId: 'u1' })
+  })
+})
+
+describe('church profile — identifier passthrough (the app sends a UUID, links send a slug)', () => {
+  it('GET /mobile/churches/:churchId requires authentication (401)', async () => {
+    vi.mocked(requiredAuth).mockRejectedValue(UNAUTH)
+    const res = (await GET_CHURCH_PROFILE(new NextRequest('http://x/churches/c1'), churchParams))!
+    expect(res.status).toBe(401)
+  })
+
+  it('passes the route segment through as the church id — never rewritten or slugified', async () => {
+    const uuid = '01a0f73b-7860-75cc-a58d-febcab0ac0f7'
+    vi.mocked(requiredAuth).mockResolvedValue(authUser('u1')() as never)
+    vi.mocked(getPublicChurch).mockResolvedValue({ id: uuid, name: 'Tallinn Demo Church' } as never)
+
+    const res = (await GET_CHURCH_PROFILE(new NextRequest(`http://x/churches/${uuid}`), {
+      params: Promise.resolve({ churchId: uuid }),
+    }))!
+    const body = await res.json()
+
+    expect(res.status).toBe(200)
+    expect(body.result.id).toBe(uuid)
+    expect(getPublicChurch).toHaveBeenCalledWith({ churchId: uuid, query: { page: 1, limit: 25 } })
+  })
+
+  it('answers 404 when the church is not resolvable (the pre-fix behaviour for every UUID)', async () => {
+    vi.mocked(requiredAuth).mockResolvedValue(authUser('u1')() as never)
+    vi.mocked(getPublicChurch).mockRejectedValue(
+      new GeneralError({
+        code: 404,
+        error: 'NOT_FOUND',
+        error_code: 'RESOURCE_NOT_FOUND',
+        details: 'Church not found or not available.',
+      }),
+    )
+
+    const res = (await GET_CHURCH_PROFILE(new NextRequest('http://x/churches/missing'), {
+      params: Promise.resolve({ churchId: 'missing' }),
+    }))!
+
+    expect(res.status).toBe(404)
   })
 })

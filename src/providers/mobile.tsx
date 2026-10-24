@@ -55,14 +55,22 @@ const notFoundChurch = () =>
   })
 
 /** Church must exist AND be APPROVED for any mobile read/write. */
-const activeChurchWhere = (slug: string): Prisma.ChurchWhereInput => ({
-  slug,
-  status: APPROVED,
-})
-
 const activeChurchWhereId = (id: string): Prisma.ChurchWhereInput => ({
   id,
   status: APPROVED,
+})
+
+/*
+ * A public church addressed by EITHER identifier. Route params are named
+ * `:churchId`, and the mobile clients only ever hold `id` (folders: church
+ * profile, prayers, events, announcements), while website URLs and share links
+ * carry `slug`. Resolving on only one of the two made every id-addressed call a
+ * 404 — the URL segment is an opaque identifier, so accept both. `id` and `slug`
+ * are both unique, so an OR can never return the wrong church.
+ */
+const activeChurchWhereAny = (identifier: string): Prisma.ChurchWhereInput => ({
+  status: APPROVED,
+  OR: [{ id: identifier }, { slug: identifier }],
 })
 
 /* ── Church cover URLs (MB-17) ───────────────────────────────────────────────
@@ -473,9 +481,9 @@ export const GET_PUBLIC_CHURCH = async ({
   lat?: number
   lng?: number
 }): Promise<MobilePublicChurch | null> => {
-  const targetSlug = slug ?? churchId ?? ''
+  const target = slug ?? churchId ?? ''
   const row = await db.church.findFirst({
-    where: activeChurchWhere(targetSlug),
+    where: activeChurchWhereAny(target),
     include: {
       churchLanguages: { select: { language_code: true } },
       serviceTimes: {
