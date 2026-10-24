@@ -59,6 +59,7 @@ export const MobileServiceTimeSchema = z
 /** Public summary row in discovery lists. */
 export const MobileChurchSummarySchema = z.object({
   id: z.string(),
+  slug: z.string().optional(),
   name: z.string(),
   denomination: z.string().nullable(),
   /** Worship-style / highlight pill on directory cards; null hides the pill. */
@@ -77,8 +78,6 @@ export const MobileChurchSummarySchema = z.object({
   description: z.string().nullable().optional(),
   pastorName: z.string().nullable().optional(),
   serviceTimes: z.string().nullable().optional(),
-  accessibility: z.array(z.string()).optional(),
-  sanctuaryHours: z.string().nullable().optional(),
 })
 
 export type MobileChurchSummary = z.infer<typeof MobileChurchSummarySchema>
@@ -101,16 +100,6 @@ export const MobileChurchStaffSchema = z.object({
 
 export type MobileChurchStaff = z.infer<typeof MobileChurchStaffSchema>
 
-export const MobileDiaconalProgramSchema = z.object({
-  title: z.string(),
-  description: z.string(),
-  badgeText: z.string(),
-  metaText: z.string(),
-  icon: z.string().optional(),
-})
-
-export type MobileDiaconalProgram = z.infer<typeof MobileDiaconalProgramSchema>
-
 /**
  * MB-03 `DonationOptions`: the preset amounts and cadence a church accepts.
  * Stored as the church's `donation_options` JSON column; presets stay in minor
@@ -127,6 +116,7 @@ export type MobileDonationOptions = z.infer<typeof MobileDonationOptionsSchema>
 /** Public church profile — deliberately omits approved_by/at, status gates, payment. */
 export const MobilePublicChurchSchema = z.object({
   id: z.string(),
+  slug: z.string(),
   name: z.string(),
   denomination: z.string().nullable(),
   churchStyle: z.string().nullable().optional(),
@@ -137,7 +127,6 @@ export const MobilePublicChurchSchema = z.object({
   contacts: MobilePublicContactsSchema,
   website: z.string().nullable(),
   socialLinks: z.array(MobileSocialLinkSchema),
-  accessibility: z.string().nullable(),
   coverAssetId: z.string().nullable(),
   coverUrl: z.string().nullable(),
   languageCodes: z.array(z.string()),
@@ -145,11 +134,9 @@ export const MobilePublicChurchSchema = z.object({
   distanceKm: z.number().nullable(),
   pastorName: z.string().nullable().optional(),
   pastorRole: z.string().nullable().optional(),
-  sanctuaryHours: z.string().nullable().optional(),
   gallery: z.array(MobileChurchGalleryItemSchema).optional(),
   staff: z.array(MobileChurchStaffSchema).optional(),
   deaneryName: z.string().nullable().optional(),
-  diaconalPrograms: z.array(MobileDiaconalProgramSchema).optional(),
   donationOptions: MobileDonationOptionsSchema.optional(),
 })
 
@@ -175,7 +162,6 @@ export const MobileChurchListQuerySchema = z.object({
   denomination: z.string().trim().max(100).optional(),
   language: z.string().trim().min(2).max(10).optional(),
   sunday_live_stream: booleanish.optional(),
-  open_now: booleanish.optional(),
   taize_chants: booleanish.optional(),
   youth_ministry: booleanish.optional(),
 })
@@ -224,6 +210,7 @@ export type SiteMePatch = z.infer<typeof SiteMePatchSchema>
 
 export const MobileMyChurchSchema = z.object({
   churchId: z.string(),
+  slug: z.string(),
   churchName: z.string(),
   city: z.string().nullable(),
   address: z.string().nullable(),

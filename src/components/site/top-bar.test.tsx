@@ -99,7 +99,7 @@ describe('SiteTopBar', () => {
     ).toEqual([
       [SITE_MESSAGES.en.headerDiscoverChurches, '/churches'],
       [SITE_MESSAGES.en.headerPrayers, '/prayers'],
-      [SITE_MESSAGES.en.headerGiving, '/giving'],
+      [SITE_MESSAGES.en.headerGiving, '/donate'],
     ])
     expect(screen.queryByRole('link', { name: SITE_MESSAGES.en.headerEvents })).toBeNull()
     expect(screen.queryByRole('link', { name: SITE_MESSAGES.en.headerSearch })).toBeNull()
@@ -107,7 +107,7 @@ describe('SiteTopBar', () => {
   })
 
   it('marks the current page and its sub-pages in the navigation', () => {
-    pathnameMock.mockReturnValue('/churches/c1/prayers')
+    pathnameMock.mockReturnValue('/churches/st-johns/prayers')
 
     renderWithProviders(
       <SiteI18nProvider initialLocale="en">
@@ -167,6 +167,7 @@ describe('SiteTopBar', () => {
     const churches = [
       {
         churchId: 'c1',
+        slug: 'hope-church',
         churchName: 'Hope Church',
         city: null,
         address: null,
@@ -177,6 +178,7 @@ describe('SiteTopBar', () => {
       },
       {
         churchId: 'c2',
+        slug: 'grace-church',
         churchName: 'Grace Church',
         city: null,
         address: null,
@@ -245,6 +247,7 @@ describe('SiteTopBar', () => {
           initialChurches={[
             {
               churchId: 'c1',
+              slug: 'hope-church',
               churchName: 'Hope Church',
               city: 'Tallinn',
               address: null,
@@ -274,7 +277,7 @@ describe('SiteTopBar', () => {
   })
 
   it('opens a menu drawer with the navigation links for small screens', async () => {
-    pathnameMock.mockReturnValue('/giving')
+    pathnameMock.mockReturnValue('/donate')
     renderWithProviders(
       <SiteI18nProvider initialLocale="en">
         <SiteTopBar />

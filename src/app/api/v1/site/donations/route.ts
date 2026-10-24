@@ -1,5 +1,5 @@
 import { NextRequest } from 'next/server'
-import { DonationInputSchema } from '@/models/donation'
+import { SiteDonationInitiateSchema } from '@/models/donation'
 import { initiateDonation } from '@/controller/donation'
 import requiredWebAuth from '@/utils/required-webauth'
 import { GeneralError } from '@/utils/general-error'
@@ -8,22 +8,19 @@ import { ok, httpError } from '@/utils/response'
 import { validate } from '@/utils/validate'
 
 /*
- * POST /api/v1/site/churches/:churchId/donations — website checkout start (WB-40).
+ * POST /api/v1/site/donations — website checkout start (WB-40).
  *
- * Cookie-session twin of the mobile donation route: the session user is the
- * giver, the route path is the church, and the shared `initiateDonation`
- * controller owns eligibility, validation and the provider call. The website
- * adds no Stripe code of its own. A disabled integration surfaces as 503
- * DONATIONS_NOT_READY (the W11 "not ready" state), never as a fake success.
+ * The church travels in the body and the giver comes from the session, so the
+ * browser can neither address another parish nor name another giver. The shared
+ * `initiateDonation` controller owns eligibility, validation and the provider
+ * call; the website adds no Stripe code of its own. A disabled integration
+ * surfaces as 503 DONATIONS_NOT_READY (the W11 "not ready" state), never as a
+ * fake success.
  */
-export async function POST(
-  req: NextRequest,
-  { params }: { params: Promise<{ churchId: string }> },
-) {
+export async function POST(req: NextRequest) {
   try {
     const { session } = await requiredWebAuth()
-    const { churchId } = await params
-    const input = validate(DonationInputSchema, await req.json())
+    const { churchId, ...input } = validate(SiteDonationInitiateSchema, await req.json())
     const result = await initiateDonation({
       churchId,
       userId: session.user.user_id,

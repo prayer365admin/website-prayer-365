@@ -262,14 +262,6 @@ export const patchChurchProfile = async ({
     contacts: input.contacts,
     website: input.website || null,
     social_links: input.socialLinks,
-    accessibility: input.accessibility ?? null,
-    sanctuary_hours: input.sanctuaryHours ?? null,
-    diaconal_programs:
-      input.diaconalPrograms !== undefined
-        ? input.diaconalPrograms === null
-          ? Prisma.JsonNull
-          : (input.diaconalPrograms as unknown as Prisma.InputJsonValue)
-        : undefined,
     cover_asset_id: coverAssetId,
   }
 

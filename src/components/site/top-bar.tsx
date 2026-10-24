@@ -73,7 +73,7 @@ export default function SiteTopBar({
   const generalLinks = [
     { href: '/churches', label: t('headerDiscoverChurches') },
     { href: '/prayers', label: t('headerPrayers') },
-    { href: '/giving', label: t('headerGiving') },
+    { href: '/donate', label: t('headerGiving') },
   ]
 
   const churchLinks = churches.length
@@ -92,8 +92,8 @@ export default function SiteTopBar({
               isPrayerArchive
                 ? pathname === '/prayers'
                   ? `/prayers?churchId=${encodeURIComponent(church.churchId)}`
-                  : `/churches/${church.churchId}/prayers`
-                : `/churches/${church.churchId}`
+                  : `/churches/${church.slug}/prayers`
+                : `/churches/${church.slug}`
             }
             key={church.churchId}
             onClick={closeChurchMenu}

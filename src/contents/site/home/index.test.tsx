@@ -77,7 +77,6 @@ const mainChurch = {
   contacts: { email: null, phone: null },
   website: null,
   socialLinks: [],
-  accessibility: null,
   coverAssetId: null,
   coverUrl: null,
   languageCodes: ['et'],
@@ -316,10 +315,44 @@ describe('WB3 Home devotional hero', () => {
     expect(screen.getByText('Beneficiary: Hope Church')).toBeTruthy()
     expect(screen.getByText('Next: November 15, 2026')).toBeTruthy()
     expect(screen.getByRole('link', { name: /Manage Giving/ }).getAttribute('href')).toBe(
-      '/donate/church-1',
+      '/donate?church=church-1',
     )
     expect(screen.getByRole('link', { name: 'One-time Offering' }).getAttribute('href')).toBe(
-      '/donate/church-1?frequency=one_time',
+      '/donate?church=church-1&frequency=one_time',
+    )
+  })
+
+  it('renders the latest transaction done across any church and hides Active Gift pill', () => {
+    const latestTransaction = {
+      id: 'd1',
+      amountMinor: 2500,
+      currency: 'EUR',
+      paidAt: new Date('2026-10-23T07:23:00.000Z'),
+      isMonthly: false,
+      churchId: 'c2',
+      churchName: 'St. Mary',
+      churchSlug: 'st-mary',
+    }
+    renderWithProviders(
+      <SiteI18nProvider initialLocale="en">
+        <ContentsSiteHome
+          home={home()}
+          latestTransaction={latestTransaction}
+          name="Anna"
+          now="2026-10-23T08:00:00.000Z"
+          userId="u1"
+        />
+      </SiteI18nProvider>,
+    )
+
+    expect(screen.queryByText(/Active Gift/i)).toBeNull()
+    expect(screen.getByText('€25')).toBeTruthy()
+    expect(screen.getByText('Beneficiary: St. Mary')).toBeTruthy()
+    expect(screen.getByRole('link', { name: /Manage Giving/ }).getAttribute('href')).toBe(
+      '/donate?church=st-mary',
+    )
+    expect(screen.getByRole('link', { name: 'One-time Offering' }).getAttribute('href')).toBe(
+      '/donate?church=st-mary&frequency=one_time',
     )
   })
 

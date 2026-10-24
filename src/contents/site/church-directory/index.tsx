@@ -9,18 +9,14 @@ import {
   MinusOutlined,
   PlusOutlined,
   SearchOutlined,
-  SendOutlined,
 } from '@ant-design/icons'
+import Link from 'next/link'
 import { BalticBadgeIcon } from '@/components/icon/baltic-badge'
 import { ChurchIcon } from '@/components/icon/church'
-import { MusicIcon } from '@/components/icon/music'
-import { OpenPrayerIcon } from '@/components/icon/open-prayer'
 import { PointerIcon } from '@/components/icon/pointer'
-import { SundayLivestreamIcon } from '@/components/icon/sunday-livestream'
-import { YouthMinistryIcon } from '@/components/icon/youth-ministry'
-import { FirstTimeVisitingIcon } from '@/components/icon/first-time-visiting'
 import { CompassIcon } from '@/components/icon/compass'
 import { LayersIcon } from '@/components/icon/layers'
+import { HandHeartIcon } from '@/components/icon/hand-heart'
 import { useSiteI18n } from '@/i18n/site-i18n'
 import { useSiteChurches } from '@/hooks/data/site/churches'
 import { useSiteHome } from '@/hooks/data/site/home'
@@ -77,12 +73,11 @@ export function ChurchCardSkeleton({ featured }: { featured?: boolean }) {
           <div className="h-4 w-24 rounded bg-slate-200" />
         </div>
         {featured && (
-          <div className="flex flex-col gap-3 pt-1 sm:flex-row sm:items-center sm:justify-between">
+          <div className="pt-1">
             <div className="grid grid-cols-2 gap-2 sm:flex sm:items-center">
               <div className="h-10 w-28 rounded-xl bg-slate-200" />
               <div className="h-10 w-36 rounded-xl bg-slate-100" />
             </div>
-            <div className="h-8 w-20 rounded bg-slate-100" />
           </div>
         )}
       </div>
@@ -114,16 +109,12 @@ export default function ContentsSiteChurchDirectory() {
   const [radiusKm, setRadiusKm] = useState<number>()
   const [denomination, setDenomination] = useState<string>()
   const [language, setLanguage] = useState<string>()
-  const [openNow, setOpenNow] = useState<boolean>()
-  const [sundayLiveStream, setSundayLiveStream] = useState<boolean>()
-  const [taizeChants, setTaizeChants] = useState<boolean>()
-  const [youthMinistry, setYouthMinistry] = useState<boolean>()
   const [page, setPage] = useState(1)
   const [selectedId, setSelectedId] = useState<string>()
-  const [mapZoom, setMapZoom] = useState(14)
+  const [mapZoom, setMapZoom] = useState(13)
   const [mapCenter, setMapCenter] = useState<{ lat: number; lng: number }>()
+  const [userCoords, setUserCoords] = useState<{ latitude: number; longitude: number } | null>(null)
   const [mapType, setMapType] = useState<'roadmap' | 'hybrid'>('roadmap')
-
   const isDebouncing = (inputValue.trim() || undefined) !== search
 
   useEffect(() => {
@@ -135,19 +126,35 @@ export default function ContentsSiteChurchDirectory() {
     }, 500)
     return () => clearTimeout(timer)
   }, [inputValue, search])
+
+  useEffect(() => {
+    if (typeof navigator !== 'undefined' && 'geolocation' in navigator) {
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          const coords = {
+            latitude: pos.coords.latitude,
+            longitude: pos.coords.longitude,
+          }
+          setUserCoords(coords)
+          setMapCenter({ lat: coords.latitude, lng: coords.longitude })
+        },
+        () => {
+          // Permission denied or unavailable; keep fallback to DEFAULT_COORDS
+        },
+        { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 },
+      )
+    }
+  }, [])
+
+  const coords = userCoords ?? DEFAULT_COORDS
   const { data, total, loading, error, retry } = useSiteChurches({
     search,
     radius_km: radiusKm,
-    // Always send coordinates: each card shows "x.y km • <district>"; the
-    // provider only sorts nearest-first when no radius is set (SPEC §6.2).
-    latitude: DEFAULT_COORDS.latitude,
-    longitude: DEFAULT_COORDS.longitude,
+    // Distance is calculated based on user location; falls back to default region center if denied/unavailable.
+    latitude: coords.latitude,
+    longitude: coords.longitude,
     denomination,
     language,
-    open_now: openNow,
-    sunday_live_stream: sundayLiveStream,
-    taize_chants: taizeChants,
-    youth_ministry: youthMinistry,
     page,
   })
 
@@ -167,8 +174,17 @@ export default function ContentsSiteChurchDirectory() {
     [t],
   )
 
-  const activeId = selectedId ?? data?.[0]?.id
-  const selectedChurch = (data ?? []).find((c) => c.id === activeId)
+  const orderedChurches = useMemo(() => {
+    if (!data) return []
+    if (!mainChurchId) return data
+    const primaryIndex = data.findIndex((c) => c.id === mainChurchId)
+    if (primaryIndex <= 0) return data
+    const primary = data[primaryIndex]
+    return [primary, ...data.slice(0, primaryIndex), ...data.slice(primaryIndex + 1)]
+  }, [data, mainChurchId])
+
+  const activeId = selectedId ?? orderedChurches[0]?.id
+  const selectedChurch = orderedChurches.find((c) => c.id === activeId)
   const mapRegion = [selectedChurch?.district, selectedChurch?.city].filter(Boolean).join(', ')
 
   return (
@@ -240,8 +256,12 @@ export default function ContentsSiteChurchDirectory() {
               }}
               onPressEnter={() => {
                 const trimmed = inputValue.trim() || undefined
-                setSearch(trimmed)
-                setPage(1)
+                if (trimmed === search) {
+                  retry()
+                } else {
+                  setSearch(trimmed)
+                  setPage(1)
+                }
               }}
             />
 
@@ -297,79 +317,6 @@ export default function ContentsSiteChurchDirectory() {
                 className="h-8 min-w-[130px] [&_.ant-select-selector]:!h-8 [&_.ant-select-selector]:!rounded-lg [&_.ant-select-selector]:!border-[#DDE0E4] [&_.ant-select-content]:text-xs [&_.ant-select-content]:text-[#22252A]"
               />
             </div>
-
-            {/* Interactive chip group matching [Image #1] */}
-            <div className="flex flex-wrap items-center gap-2">
-              <button
-                type="button"
-                aria-pressed={Boolean(openNow)}
-                onClick={() => {
-                  setOpenNow((prev) => (prev ? undefined : true))
-                  setPage(1)
-                }}
-                className={`flex h-8 cursor-pointer select-none items-center gap-1.5 rounded-2xl pl-2.5 pr-3.5 py-1.5 text-xs transition-colors ${
-                  openNow
-                    ? 'bg-primary_color font-semibold text-white shadow-sm'
-                    : 'border border-[#DDE0E4] bg-white text-[#5B6370] hover:border-[#5C6370]'
-                }`}
-              >
-                <OpenPrayerIcon className="text-[14px]" />
-                <span>{t('openForPrayerNow')}</span>
-              </button>
-
-              <div className="flex w-full items-center gap-2 sm:w-auto">
-                <button
-                  type="button"
-                  aria-pressed={Boolean(sundayLiveStream)}
-                  onClick={() => {
-                    setSundayLiveStream((prev) => (prev ? undefined : true))
-                    setPage(1)
-                  }}
-                  className={`flex h-8 cursor-pointer select-none items-center gap-1.5 rounded-2xl pl-2.5 pr-3.5 py-1.5 text-xs transition-colors ${
-                    sundayLiveStream
-                      ? 'bg-primary_color font-semibold text-white shadow-sm'
-                      : 'border border-[#DDE0E4] bg-white text-[#5B6370] hover:border-[#5C6370]'
-                  }`}
-                >
-                  <SundayLivestreamIcon className="text-[14px]" />
-                  <span>{t('sundayLiveStream')}</span>
-                </button>
-
-                <button
-                  type="button"
-                  aria-pressed={Boolean(taizeChants)}
-                  onClick={() => {
-                    setTaizeChants((prev) => (prev ? undefined : true))
-                    setPage(1)
-                  }}
-                  className={`flex h-8 cursor-pointer select-none items-center gap-1.5 rounded-2xl pl-2.5 pr-3.5 py-1.5 text-xs transition-colors ${
-                    taizeChants
-                      ? 'bg-primary_color font-semibold text-white shadow-sm'
-                      : 'border border-[#DDE0E4] bg-white text-[#5B6370] hover:border-[#5C6370]'
-                  }`}
-                >
-                  <MusicIcon className="text-[14px]" />
-                  <span>{t('taizeChants')}</span>
-                </button>
-              </div>
-
-              <button
-                type="button"
-                aria-pressed={Boolean(youthMinistry)}
-                onClick={() => {
-                  setYouthMinistry((prev) => (prev ? undefined : true))
-                  setPage(1)
-                }}
-                className={`flex h-8 cursor-pointer select-none items-center gap-1.5 rounded-2xl pl-2.5 pr-3.5 py-1.5 text-xs transition-colors ${
-                  youthMinistry
-                    ? 'bg-primary_color font-semibold text-white shadow-sm'
-                    : 'border border-[#DDE0E4] bg-white text-[#5B6370] hover:border-[#5C6370]'
-                }`}
-              >
-                <YouthMinistryIcon className="text-[14px]" />
-                <span>{t('youthMinistry')}</span>
-              </button>
-            </div>
           </div>
         </section>
 
@@ -407,7 +354,7 @@ export default function ContentsSiteChurchDirectory() {
             {!loading && !isDebouncing && !error && data && data.length > 0 && (
               <>
                 <div className="flex flex-col gap-4">
-                  {data.map((c: MobileChurchSummary) => (
+                  {orderedChurches.map((c: MobileChurchSummary) => (
                     <ChurchCard key={c.id} church={c} featured={c.id === mainChurchId} />
                   ))}
                 </div>
@@ -430,7 +377,7 @@ export default function ContentsSiteChurchDirectory() {
           <div className="self-start lg:sticky lg:top-6">
             <div className="relative h-[620px] w-full overflow-hidden rounded-2xl border border-[#ECEEF0] bg-[#F4F8FA] shadow-[0_4px_24px_-4px_rgba(0,92,173,0.12)] lg:h-[720px]">
               <GoogleMapPins
-                points={(data ?? []).flatMap((c) =>
+                points={orderedChurches.flatMap((c) =>
                   c.latitude != null && c.longitude != null
                     ? [{ id: c.id, latitude: c.latitude, longitude: c.longitude, label: c.name }]
                     : [],
@@ -487,7 +434,12 @@ export default function ContentsSiteChurchDirectory() {
                     if (typeof navigator !== 'undefined' && navigator.geolocation) {
                       navigator.geolocation.getCurrentPosition(
                         (pos) => {
-                          setMapCenter({ lat: pos.coords.latitude, lng: pos.coords.longitude })
+                          const coords = {
+                            latitude: pos.coords.latitude,
+                            longitude: pos.coords.longitude,
+                          }
+                          setUserCoords(coords)
+                          setMapCenter({ lat: coords.latitude, lng: coords.longitude })
                           setMapZoom(13)
                         },
                         () => {
@@ -497,8 +449,6 @@ export default function ContentsSiteChurchDirectory() {
                           })
                         },
                       )
-                    } else {
-                      setMapCenter({ lat: DEFAULT_COORDS.latitude, lng: DEFAULT_COORDS.longitude })
                     }
                   }}
                   className="flex h-9 w-9 items-center justify-center rounded-xl border border-[#ECEEF0] bg-white/95 text-slate-700 shadow-md backdrop-blur-md transition hover:bg-slate-50 hover:text-primary_color"
@@ -518,62 +468,35 @@ export default function ContentsSiteChurchDirectory() {
               </div>
 
               {/* Floating Interactive Parish Preview Card (Bottom Anchor) */}
-              {selectedChurch ? (
-                <div className="absolute bottom-3 left-3 right-3 z-20 sm:bottom-4 sm:left-4 sm:right-4">
-                  <MapPreviewCard church={selectedChurch} />
-                </div>
-              ) : loading || isDebouncing ? (
+              {loading || isDebouncing ? (
                 <div className="absolute bottom-3 left-3 right-3 z-20 sm:bottom-4 sm:left-4 sm:right-4">
                   <MapPreviewCardSkeleton />
+                </div>
+              ) : selectedChurch ? (
+                <div className="absolute bottom-3 left-3 right-3 z-20 sm:bottom-4 sm:left-4 sm:right-4">
+                  <MapPreviewCard church={selectedChurch} />
                 </div>
               ) : null}
             </div>
           </div>
         </section>
-        {/* Bottom banner */}
-        <section className="rounded-2xl p-4 shadow-[-1px_-1px_2px_#FFFFFF,0_1px_2px_rgba(0,0,0,0.05)] [background-image:linear-gradient(135deg,rgba(194,217,255,0.4)_0%,rgba(255,255,255,0.45)_100%)]">
-          <div className="flex flex-col justify-between gap-6 rounded-xl bg-[#F5F7FF] p-4 lg:flex-row lg:items-end">
-            <div className="flex flex-col gap-4 lg:max-w-[700px]">
-              <div className="flex flex-col items-start gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
-                <div className="flex items-center gap-3">
-                  <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-primary_color text-white shadow-sm">
-                    <ChurchIcon className="h-5 w-5" />
-                  </div>
-                  <span className="text-[10px] font-semibold uppercase tracking-[2px] text-[#5B6370]">
-                    {t('bannerEyebrow')}
-                  </span>
-                </div>
-                <div className="flex items-center gap-1 whitespace-nowrap text-xs text-[#5B6370]">
-                  <span className="h-[3px] w-[3px] rounded-full bg-[#B0B5BE]" />
-                  <span>{t('openDoorsCharter')}</span>
-                </div>
+        {/* Donation banner */}
+        <section className="overflow-hidden rounded-2xl bg-gradient-to-b from-[#163B66] to-[#0E294A] p-6 text-white shadow-[0_12px_32px_-6px_rgba(11,68,151,0.2)] sm:p-8">
+          <div className="flex flex-col items-center justify-between gap-6 sm:flex-row sm:items-center">
+            <div className="flex items-center gap-4 text-center sm:text-left">
+              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-white/15 text-white">
+                <HandHeartIcon className="text-2xl" />
               </div>
-
-              <blockquote className="font-font_quote italic text-[24px] leading-[120%] text-[#0D203E] sm:text-[32px]">
-                {t('bannerQuote')}
-              </blockquote>
-
-              <p className="text-sm leading-relaxed text-[#5B6370] sm:text-base">
-                {t('bannerSub')}
+              <p className="max-w-xl text-sm leading-relaxed text-white/90 sm:text-base">
+                {t('directoryDonationBannerBody')}
               </p>
             </div>
-
-            <div className="flex w-full shrink-0 flex-col items-stretch gap-3 lg:w-auto lg:items-end">
-              <button
-                type="button"
-                className="flex h-12 w-full items-center justify-center gap-2 rounded-xl border border-primary_color bg-white px-4 text-base font-semibold text-primary_color transition hover:bg-gray-50 lg:w-auto"
-              >
-                <FirstTimeVisitingIcon className="text-[20px] text-[#2F7AD2]" />
-                <span>{t('firstTimeVisiting')}</span>
-              </button>
-              <button
-                type="button"
-                className="flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-primary_color px-6 text-base font-semibold text-white transition hover:opacity-90 lg:w-auto"
-              >
-                <span>{t('contactPastoralCare')}</span>
-                <SendOutlined />
-              </button>
-            </div>
+            <Link
+              href="/donate"
+              className="inline-flex h-11 shrink-0 items-center justify-center rounded-xl bg-white px-6 text-sm font-semibold text-[#0E203E] shadow-sm transition-colors hover:bg-white/90 active:scale-95"
+            >
+              {t('directoryDonationBannerCta')}
+            </Link>
           </div>
         </section>
       </div>

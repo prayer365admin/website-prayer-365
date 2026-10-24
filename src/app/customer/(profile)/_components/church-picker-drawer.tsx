@@ -7,6 +7,7 @@ import { useChurchOptions } from '@/hooks/data/site/church-option'
 import { useSiteI18n } from '@/i18n/site-i18n'
 import type { ChurchOption } from '@/models/church-option'
 import type { MobileMyChurch } from '@/models/mobile'
+import { LoadingOutlined } from '@ant-design/icons'
 import { Avatar, Drawer, Input } from 'antd'
 import { useState } from 'react'
 import s from './church-affiliations.module.scss'
@@ -15,6 +16,7 @@ const churchImagePlaceholder = '/images/placeholder.png'
 
 const relationFromOption = (church: ChurchOption): MobileMyChurch => ({
   churchId: church.id,
+  slug: '',
   churchName: church.name,
   city: church.city,
   address: church.city,
@@ -168,6 +170,7 @@ export default function ChurchPickerDrawer({
         onChange={(event) => setSearch(event.target.value)}
         placeholder={t('profileSearchPlaceholder')}
         prefix={<SearchIcon aria-hidden className={s.searchIcon} />}
+        suffix={searching ? <LoadingOutlined className="text-sm text-primary_color" /> : null}
         value={search}
       />
       <div className={s.pickerBody}>
@@ -187,7 +190,7 @@ export default function ChurchPickerDrawer({
           <h3 className={s.pickerHeading} id="picker-others">
             {t('profileOtherChurchesSection')}
           </h3>
-          {searching && !notFollowed.length ? (
+          {searching ? (
             <p className={s.pickerEmpty}>{t('profileSearching')}</p>
           ) : notFollowed.length ? (
             <ul className={s.pickerList}>{notFollowed.map(row)}</ul>

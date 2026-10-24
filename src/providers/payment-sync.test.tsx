@@ -18,6 +18,7 @@ const tx = vi.hoisted(() => ({
   donation: { findUnique: vi.fn(), create: vi.fn(), update: vi.fn() },
   donationSubscription: {
     findUnique: vi.fn(),
+    findFirst: vi.fn(),
     create: vi.fn(),
     update: vi.fn(),
     findMany: vi.fn(),

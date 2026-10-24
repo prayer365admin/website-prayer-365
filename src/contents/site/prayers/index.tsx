@@ -11,7 +11,7 @@ import {
   SitePrayerArchiveItem,
   SitePrayerArchiveQuery,
 } from '@/models/site-prayer'
-import { DownOutlined, SearchOutlined } from '@ant-design/icons'
+import { DownOutlined, LoadingOutlined, SearchOutlined } from '@ant-design/icons'
 import { ConfigProvider, Select, SelectProps } from 'antd'
 import Link from 'next/link'
 import { useEffect, useState } from 'react'
@@ -204,7 +204,7 @@ export default function PrayerArchive({
             <span className="sr-only">{t('prayerArchiveSearch')}</span>
             <SearchOutlined className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-neutral-600" />
             <input
-              className="h-12 w-full rounded-lg border border-neutral-400 bg-white pl-10 pr-4 text-sm text-primary-900 outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-300/30"
+              className="h-12 w-full rounded-lg border border-neutral-400 bg-white pl-10 pr-10 text-sm text-primary-900 outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-300/30"
               onChange={(event) => {
                 setSearch(event.target.value)
               }}
@@ -212,6 +212,9 @@ export default function PrayerArchive({
               type="search"
               value={search}
             />
+            {loading && (
+              <LoadingOutlined className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-primary-500" />
+            )}
           </label>
         </div>
       </header>

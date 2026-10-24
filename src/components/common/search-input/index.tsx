@@ -1,30 +1,44 @@
-import { CloseCircleFilled, SearchOutlined } from '@ant-design/icons'
+import { CloseCircleFilled, LoadingOutlined, SearchOutlined } from '@ant-design/icons'
 import { Input } from 'antd'
-import { ChangeEvent, Dispatch, SetStateAction, useState } from 'react'
+import { ChangeEvent, Dispatch, SetStateAction, useEffect, useRef, useState } from 'react'
 
 export default function SearchInput({
   placeholder = 'Search by name or code',
   setValue,
   setPage,
   setPageSize,
+  loading = false,
+  debounceMs = 500,
 }: {
   placeholder?: string
   setValue?: Dispatch<SetStateAction<string | undefined>>
   setPage: Dispatch<SetStateAction<number>>
   setPageSize: Dispatch<SetStateAction<number>>
+  loading?: boolean
+  debounceMs?: number
 }) {
   const [currentValue, setCurrentValue] = useState('')
+  const debouncedRef = useRef(currentValue)
 
+  useEffect(() => {
+    if (!setValue) return
+    const timer = setTimeout(() => {
+      if (debouncedRef.current !== currentValue) {
+        debouncedRef.current = currentValue
+        setValue(currentValue)
+        setPage(1)
+        setPageSize(10)
+      }
+    }, debounceMs)
+    return () => clearTimeout(timer)
+  }, [currentValue, debounceMs, setPage, setPageSize, setValue])
   const handleChange = (e: ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value || ''
     setCurrentValue(value)
-
-    if (setValue && value === '') {
-      setValue(value)
-    }
   }
 
   const handleSubmit = () => {
+    debouncedRef.current = currentValue
     if (setValue) {
       setValue(currentValue)
     }
@@ -36,6 +50,7 @@ export default function SearchInput({
   }
 
   const handleReset = () => {
+    debouncedRef.current = ''
     setCurrentValue('')
     if (setValue) {
       setValue('')
@@ -52,7 +67,9 @@ export default function SearchInput({
       onChange={handleChange}
       onPressEnter={handleSubmit}
       suffix={
-        !currentValue ? (
+        loading ? (
+          <LoadingOutlined spin style={{ color: 'rgb(107 114 128)' }} />
+        ) : !currentValue ? (
           <SearchOutlined
             style={{ color: 'rgb(107 114 128)', cursor: 'pointer' }}
             onMouseDown={handleSubmit}

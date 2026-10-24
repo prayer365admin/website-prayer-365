@@ -4,7 +4,6 @@ import { GeneralError } from '@/utils/general-error'
 import { auditPayload } from '@/utils/audit'
 import { fromKind } from '@/providers/request'
 import { S3_PUBLIC_URL } from '@/providers/s3'
-import { isSanctuaryOpenNow } from '@/utils/sanctuary-hours'
 import {
   MobileAnnouncementListQuery,
   MobileCheckInAck,
@@ -14,7 +13,6 @@ import {
   MobileHome,
   MobileMyChurch,
   MobilePrayerListQuery,
-  MobileDiaconalProgram,
   MobileDonationOptionsSchema,
   MobilePublicAnnouncement,
   MobilePublicChurch,
@@ -57,7 +55,12 @@ const notFoundChurch = () =>
   })
 
 /** Church must exist AND be APPROVED for any mobile read/write. */
-const activeChurchWhere = (id: string): Prisma.ChurchWhereInput => ({
+const activeChurchWhere = (slug: string): Prisma.ChurchWhereInput => ({
+  slug,
+  status: APPROVED,
+})
+
+const activeChurchWhereId = (id: string): Prisma.ChurchWhereInput => ({
   id,
   status: APPROVED,
 })
@@ -109,6 +112,7 @@ const toCoordinates = (
 const toSummary = (
   c: {
     id: string
+    slug?: string
     name: string
     denomination: string | null
     church_style?: string | null
@@ -117,8 +121,6 @@ const toSummary = (
     latitude: unknown
     longitude: unknown
     description?: string | null
-    accessibility?: string | string[] | null
-    sanctuary_hours?: string | null
     pastors?: Array<{ pastor: { name: string } }>
     serviceTimes?: Array<{ weekday: number; local_time: Date; label: string | null }>
   },
@@ -133,6 +135,7 @@ const toSummary = (
   }
   const summary: Omit<MobileChurchSummary, 'coverUrl'> = {
     id: c.id,
+    slug: c.slug,
     name: c.name,
     denomination: c.denomination,
     city,
@@ -146,15 +149,6 @@ const toSummary = (
   if (addr?.line2) summary.district = addr.line2
   if (c.church_style) summary.churchStyle = c.church_style
   if (c.description) summary.description = c.description
-  if (c.accessibility) {
-    summary.accessibility = Array.isArray(c.accessibility)
-      ? c.accessibility
-      : c.accessibility
-          .split(' • ')
-          .map((s) => s.trim())
-          .filter(Boolean)
-  }
-  if (c.sanctuary_hours) summary.sanctuaryHours = c.sanctuary_hours
   if (c.pastors?.[0]?.pastor?.name) summary.pastorName = c.pastors[0].pastor.name
   if (c.serviceTimes?.length) {
     summary.serviceTimes = c.serviceTimes
@@ -177,11 +171,45 @@ export function haversineKm(lat1: number, lng1: number, lat2: number, lng2: numb
     Math.sin(dLat / 2) ** 2 + Math.cos(rad(lat1)) * Math.cos(rad(lat2)) * Math.sin(dLng / 2) ** 2
   return Math.round(R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a)) * 10) / 10
 }
-/**
- * `open_now` (website SPEC §5.3 / §6.2): true when the current church-local time
- * falls inside a `sanctuary_hours` window. No schedule → closed.
- */
-export const isOpenNow = isSanctuaryOpenNow
+const WEEKDAY_MAP: Record<string, number> = {
+  Mon: 1,
+  Tue: 2,
+  Wed: 3,
+  Thu: 4,
+  Fri: 5,
+  Sat: 6,
+  Sun: 7,
+}
+
+/** Wall-clock weekday (1–7) and minute-of-day in the church timezone (UTC fallback). */
+export function churchClock(
+  timezone: string,
+  now: Date,
+): { weekday: number; minutes: number } | null {
+  const format = (tz: string) =>
+    new Intl.DateTimeFormat('en-CA', {
+      timeZone: tz,
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false,
+      weekday: 'short',
+    })
+  let parts: Intl.DateTimeFormatPart[]
+  try {
+    parts = format(timezone).formatToParts(now)
+  } catch {
+    parts = format('UTC').formatToParts(now)
+  }
+
+  const weekdayStr = parts.find((p) => p.type === 'weekday')?.value?.replace('.', '')
+  const weekday = weekdayStr ? WEEKDAY_MAP[weekdayStr] : undefined
+  if (!weekday) return null
+
+  const rawHour = Number(parts.find((p) => p.type === 'hour')?.value ?? 0)
+  const hour = rawHour === 24 ? 0 : rawHour
+  const minute = Number(parts.find((p) => p.type === 'minute')?.value ?? 0)
+  return { weekday, minutes: hour * 60 + minute }
+}
 
 /** Approximate lat/lng box for a radius, so the DB is not scanned in full. */
 const radiusBox = (query: MobileChurchListQuery): Prisma.ChurchWhereInput => {
@@ -220,6 +248,7 @@ const churchListWhere = (query: MobileChurchListQuery): Prisma.ChurchWhereInput 
 const mapPublicChurch = (
   c: {
     id: string
+    slug?: string
     name: string
     denomination: string | null
     description: string | null
@@ -230,7 +259,6 @@ const mapPublicChurch = (
     contacts: unknown
     website: string | null
     social_links: unknown
-    accessibility: string | null
     cover_asset_id: string | null
     churchLanguages: { language_code: string }[]
     serviceTimes: {
@@ -239,7 +267,6 @@ const mapPublicChurch = (
       label: string | null
       language_code: string | null
     }[]
-    sanctuary_hours?: string | null
     pastors?: Array<{
       pastoral_role: string
       image_asset?: { object_key: string | null } | null
@@ -257,7 +284,6 @@ const mapPublicChurch = (
       parent: { kind: string; name: string } | null
     } | null
     church_style?: string | null
-    diaconal_programs?: unknown
     donation_options?: unknown
   },
   lat?: number,
@@ -273,6 +299,7 @@ const mapPublicChurch = (
   }
   return {
     id: c.id,
+    slug: c.slug ?? c.id,
     name: c.name,
     denomination: c.denomination,
     description: c.description,
@@ -290,10 +317,9 @@ const mapPublicChurch = (
     socialLinks: Array.isArray(c.social_links)
       ? (c.social_links as Array<{ label: string; url: string }>)
       : [],
-    accessibility: c.accessibility,
     coverAssetId: c.cover_asset_id,
-    languageCodes: c.churchLanguages.map((l) => l.language_code),
-    serviceTimes: c.serviceTimes.map((s) => ({
+    languageCodes: (c.churchLanguages ?? []).map((l) => l.language_code),
+    serviceTimes: (c.serviceTimes ?? []).map((s) => ({
       weekday: s.weekday,
       // HH:MM church wall clock (Europe/Tallinn etc. via church.timezone)
       localTime: s.local_time.toISOString().slice(11, 16),
@@ -303,7 +329,6 @@ const mapPublicChurch = (
     distanceKm,
     pastorName: c.pastors?.[0]?.pastor?.name ?? null,
     pastorRole: c.pastors?.[0]?.pastoral_role ?? null,
-    sanctuaryHours: c.sanctuary_hours ?? null,
     gallery: (c.galleryItems ?? []).map((g) => ({
       assetId: g.media_asset?.id ?? '',
       url: galleryUrlFor(g.media_asset),
@@ -320,9 +345,6 @@ const mapPublicChurch = (
     })),
     deaneryName: c.org_node?.parent?.kind === 'DEANERY' ? c.org_node.parent.name : null,
     churchStyle: c.church_style ?? null,
-    diaconalPrograms: Array.isArray(c.diaconal_programs)
-      ? (c.diaconal_programs as MobileDiaconalProgram[])
-      : [],
     // Admin-entered JSON: an unparsable legacy blob must degrade to "no options"
     // so the website falls back to its documented defaults rather than crashing.
     donationOptions: MobileDonationOptionsSchema.safeParse(c.donation_options).data,
@@ -340,10 +362,7 @@ export const LIST_PUBLIC_CHURCHES = async ({
 }): Promise<{ result: MobileChurchSummary[]; total: number }> => {
   const where = churchListWhere(query)
   const inMemory =
-    query.radius_km !== undefined ||
-    query.open_now === true ||
-    (query.latitude !== undefined && query.longitude !== undefined)
-
+    query.radius_km !== undefined || (query.latitude !== undefined && query.longitude !== undefined)
   if (!inMemory) {
     const [total, rows] = await db.$transaction([
       db.church.count({ where }),
@@ -354,6 +373,7 @@ export const LIST_PUBLIC_CHURCHES = async ({
         orderBy: [{ name: 'asc' }, { id: 'asc' }],
         select: {
           id: true,
+          slug: true,
           name: true,
           denomination: true,
           church_style: true,
@@ -362,8 +382,6 @@ export const LIST_PUBLIC_CHURCHES = async ({
           latitude: true,
           longitude: true,
           description: true,
-          accessibility: true,
-          sanctuary_hours: true,
           pastors: {
             include: { pastor: { select: { name: true } } },
             take: 1,
@@ -394,6 +412,7 @@ export const LIST_PUBLIC_CHURCHES = async ({
     take: MAX_FILTER_ROWS,
     select: {
       id: true,
+      slug: true,
       name: true,
       denomination: true,
       church_style: true,
@@ -402,8 +421,6 @@ export const LIST_PUBLIC_CHURCHES = async ({
       latitude: true,
       longitude: true,
       description: true,
-      accessibility: true,
-      sanctuary_hours: true,
       timezone: true,
       pastors: {
         include: { pastor: { select: { name: true } } },
@@ -430,13 +447,6 @@ export const LIST_PUBLIC_CHURCHES = async ({
     )
   }
 
-  if (query.open_now === true) {
-    const now = new Date()
-    pairs = pairs.filter((p) =>
-      isOpenNow(p.row.timezone ?? 'UTC', p.row.sanctuary_hours ?? null, now),
-    )
-  }
-
   if (query.latitude !== undefined && query.longitude !== undefined) {
     pairs.sort((a, b) => {
       const distA = a.summary.distanceKm ?? Number.POSITIVE_INFINITY
@@ -453,16 +463,19 @@ export const LIST_PUBLIC_CHURCHES = async ({
 }
 
 export const GET_PUBLIC_CHURCH = async ({
+  slug,
   churchId,
   lat,
   lng,
 }: {
-  churchId: string
+  slug?: string
+  churchId?: string
   lat?: number
   lng?: number
 }): Promise<MobilePublicChurch | null> => {
+  const targetSlug = slug ?? churchId ?? ''
   const row = await db.church.findFirst({
-    where: activeChurchWhere(churchId),
+    where: activeChurchWhere(targetSlug),
     include: {
       churchLanguages: { select: { language_code: true } },
       serviceTimes: {
@@ -598,7 +611,7 @@ export const UPDATE_ME_PROFILE = async ({
     if (mainChurchId === undefined) return
     if (mainChurchId) {
       const church = await tx.church.findFirst({
-        where: activeChurchWhere(mainChurchId),
+        where: activeChurchWhereId(mainChurchId),
         select: { id: true },
       })
       if (!church) throw notFoundChurch()
@@ -633,6 +646,7 @@ export const LIST_MY_CHURCHES = async ({
       church: {
         select: {
           id: true,
+          slug: true,
           name: true,
           address: true,
           cover_asset_id: true,
@@ -647,6 +661,7 @@ export const LIST_MY_CHURCHES = async ({
       .map((r) =>
         withCover({
           churchId: r.church.id,
+          slug: r.church.slug,
           churchName: r.church.name,
           city: (r.church.address as { city?: string } | null)?.city ?? null,
           address: churchAddressLabel(r.church.address),
@@ -668,7 +683,7 @@ export const SET_FOLLOW = async ({
   isFollowed: boolean
 }): Promise<{ churchId: string; isFollowed: boolean } | null> => {
   const church = await db.church.findFirst({
-    where: activeChurchWhere(churchId),
+    where: activeChurchWhereId(churchId),
     select: { id: true },
   })
   if (!church) return null
@@ -687,6 +702,11 @@ export const GET_HOME = async ({ userId }: { userId: string }): Promise<MobileHo
       is_main: true,
       is_followed: true,
       church_id: true,
+      church: {
+        select: {
+          slug: true,
+        },
+      },
     },
     orderBy: [{ is_main: 'desc' }],
   })
@@ -701,7 +721,7 @@ export const GET_HOME = async ({ userId }: { userId: string }): Promise<MobileHo
   let latestEvents: MobilePublicEvent[] = []
   let latestAnnouncements: MobilePublicAnnouncement[] = []
   if (mainRow) {
-    mainChurch = await GET_PUBLIC_CHURCH({ churchId: mainRow.church_id })
+    mainChurch = await GET_PUBLIC_CHURCH({ slug: mainRow.church?.slug ?? mainRow.church_id })
     if (mainChurch) {
       latestEvents = (
         await LIST_PUBLIC_EVENTS({ churchId: mainRow.church_id, query: { page: 1, limit: 3 } })
@@ -726,6 +746,7 @@ export const GET_HOME = async ({ userId }: { userId: string }): Promise<MobileHo
         where: { id: { in: followedIds }, status: APPROVED },
         select: {
           id: true,
+          slug: true,
           name: true,
           denomination: true,
           church_style: true,
@@ -733,7 +754,6 @@ export const GET_HOME = async ({ userId }: { userId: string }): Promise<MobileHo
           cover_asset_id: true,
           latitude: true,
           longitude: true,
-          sanctuary_hours: true,
         },
       })
     : []
@@ -1151,7 +1171,7 @@ export const CREATE_CHECKIN = async ({
   requestId: string
 }): Promise<MobileCheckInAck> => {
   const church = await db.church.findFirst({
-    where: activeChurchWhere(churchId),
+    where: activeChurchWhereId(churchId),
     select: { id: true, timezone: true },
   })
   if (!church) throw notFoundChurch()

@@ -1,5 +1,16 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
+const stripeMock = vi.hoisted(() => ({
+  retrieveSubscription: vi.fn(),
+  cancelSubscription: vi.fn(),
+  isStripeEnabled: vi.fn(() => false),
+}))
+
+vi.mock('./stripe', () => ({
+  STRIPE: stripeMock,
+  isStripeEnabled: () => stripeMock.isStripeEnabled(),
+}))
+
 vi.mock('@/utils/db-connection', () => ({
   db: {
     $transaction: vi.fn(async (calls: Array<Promise<unknown>>) => Promise.all(calls)),
@@ -7,11 +18,15 @@ vi.mock('@/utils/db-connection', () => ({
       count: vi.fn(),
       findMany: vi.fn(),
       groupBy: vi.fn(),
+      findFirst: vi.fn(),
     },
     donationSubscription: {
+      findUnique: vi.fn(),
       count: vi.fn(),
       findMany: vi.fn(),
       findFirst: vi.fn(),
+      update: vi.fn(),
+      updateMany: vi.fn(),
     },
   },
 }))
@@ -22,6 +37,8 @@ import {
   GET_DONATION_SUBSCRIPTIONS,
   GET_DONATION_SUMMARY,
   GET_MY_ACTIVE_GIFT,
+  CANCEL_OTHER_CHURCH_SUBSCRIPTIONS,
+  GET_MY_LATEST_DONATION,
 } from './donation'
 
 const scope = new Set(['c1'])
@@ -271,5 +288,123 @@ describe('GET_MY_ACTIVE_GIFT', () => {
   it('returns null without an active gift', async () => {
     vi.mocked(db.donationSubscription.findFirst).mockResolvedValue(null)
     expect(await GET_MY_ACTIVE_GIFT({ userId: 'u1' })).toBeNull()
+  })
+
+  it('reconciles with Stripe and marks DB row canceled when canceledAt is set', async () => {
+    stripeMock.isStripeEnabled.mockReturnValue(true)
+    stripeMock.retrieveSubscription.mockResolvedValue({
+      id: 'sub_1',
+      status: 'active',
+      canceledAt: 1792737150,
+      cancelAtPeriodEnd: false,
+    })
+    vi.mocked(db.donationSubscription.findFirst).mockResolvedValue({
+      id: 'sub_row_1',
+      provider_subscription_id: 'sub_1',
+      amount_minor: BigInt(2500),
+      currency: 'eur',
+      church: { id: 'c1', name: 'St. John' },
+    } as never)
+
+    const gift = await GET_MY_ACTIVE_GIFT({ userId: 'u1' })
+
+    expect(gift).toBeNull()
+    expect(db.donationSubscription.update).toHaveBeenCalledWith({
+      where: { id: 'sub_row_1' },
+      data: { provider_status: 'canceled' },
+    })
+  })
+
+  it('reconciles with Stripe and marks DB row canceled when status is canceled', async () => {
+    stripeMock.isStripeEnabled.mockReturnValue(true)
+    stripeMock.retrieveSubscription.mockResolvedValue({
+      id: 'sub_2',
+      status: 'canceled',
+      canceledAt: null,
+      cancelAtPeriodEnd: false,
+    })
+    vi.mocked(db.donationSubscription.findFirst).mockResolvedValue({
+      id: 'sub_row_2',
+      provider_subscription_id: 'sub_2',
+      amount_minor: BigInt(2500),
+      currency: 'eur',
+      church: { id: 'c1', name: 'St. John' },
+    } as never)
+
+    const gift = await GET_MY_ACTIVE_GIFT({ userId: 'u1' })
+
+    expect(gift).toBeNull()
+    expect(db.donationSubscription.update).toHaveBeenCalledWith({
+      where: { id: 'sub_row_2' },
+      data: { provider_status: 'canceled' },
+    })
+  })
+})
+
+describe('CANCEL_OTHER_CHURCH_SUBSCRIPTIONS', () => {
+  it('marks prior active subscriptions canceled in DB and cancels them in Stripe', async () => {
+    stripeMock.isStripeEnabled.mockReturnValue(true)
+    stripeMock.cancelSubscription.mockResolvedValue({ id: 'sub_prior', status: 'canceled' })
+    vi.mocked(db.donationSubscription.findMany).mockResolvedValue([
+      { id: 'sub_row_1', provider_subscription_id: 'sub_prior' },
+    ] as never)
+
+    const canceled = await CANCEL_OTHER_CHURCH_SUBSCRIPTIONS({
+      userId: 'u1',
+      churchId: 'c1',
+      currentSubscriptionId: 'sub_new',
+    })
+
+    expect(db.donationSubscription.findMany).toHaveBeenCalledWith({
+      where: {
+        user_id: 'u1',
+        church_id: 'c1',
+        provider_status: 'active',
+        provider_subscription_id: { not: 'sub_new' },
+      },
+      select: { id: true, provider_subscription_id: true },
+    })
+    expect(db.donationSubscription.updateMany).toHaveBeenCalledWith({
+      where: { id: { in: ['sub_row_1'] } },
+      data: { provider_status: 'canceled' },
+    })
+    expect(stripeMock.cancelSubscription).toHaveBeenCalledWith('sub_prior')
+    expect(canceled).toEqual(['sub_prior'])
+  })
+})
+
+describe('GET_MY_LATEST_DONATION', () => {
+  it('returns the latest paid donation across all churches', async () => {
+    vi.mocked(db.donation.findFirst).mockResolvedValue({
+      id: 'd1',
+      amount_minor: BigInt(5000),
+      currency: 'eur',
+      paid_at: new Date('2026-10-23T07:50:00.000Z'),
+      subscription_id: 'sub_1',
+      church: { id: 'c1', name: 'St. John', slug: 'st-john' },
+    } as never)
+
+    const res = await GET_MY_LATEST_DONATION({ userId: 'u1' })
+
+    expect(db.donation.findFirst).toHaveBeenCalledWith({
+      where: { user_id: 'u1', status: 'PAID' },
+      orderBy: [{ paid_at: 'desc' }, { created_at: 'desc' }, { id: 'desc' }],
+      include: { church: { select: { id: true, name: true, slug: true } } },
+    })
+    expect(res).toEqual({
+      id: 'd1',
+      amountMinor: 5000,
+      currency: 'EUR',
+      paidAt: new Date('2026-10-23T07:50:00.000Z'),
+      isMonthly: true,
+      churchId: 'c1',
+      churchName: 'St. John',
+      churchSlug: 'st-john',
+    })
+  })
+
+  it('returns null when user has no paid donations', async () => {
+    vi.mocked(db.donation.findFirst).mockResolvedValue(null)
+    expect(await GET_MY_LATEST_DONATION({ userId: 'u1' })).toBeNull()
   })
 })

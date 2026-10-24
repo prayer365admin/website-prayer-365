@@ -1,4 +1,4 @@
-import { STRIPE } from '@/providers/stripe'
+import { STRIPE, isStripeEnabled } from '@/providers/stripe'
 import { withExternalIdempotency } from '@/utils/idempotency'
 import { validate } from '@/utils/validate'
 import { GeneralError } from '@/utils/general-error'
@@ -8,11 +8,15 @@ import {
   GET_DONATION_SUMMARY,
   ENSURE_CHURCH_DONATION_ELIGIBLE,
   GET_MY_ACTIVE_GIFT,
+  GET_MY_ACTIVE_SUBSCRIPTION,
   GET_CHURCH_LABEL,
   GET_MY_PAID_DONATIONS,
   GET_MY_DONATION_ATTEMPT,
+  GET_MY_LATEST_DONATION,
   GET_CHECKOUT_RECEIPT,
+  CANCEL_OTHER_CHURCH_SUBSCRIPTIONS,
 } from '@/providers/donation'
+import { UPSERT_DONATION_SUBSCRIPTION, UPSERT_DONATION_PAYMENT } from '@/providers/payment-sync'
 import {
   type DonationListQuery,
   type DonationSubscriptionListQuery,
@@ -98,6 +102,19 @@ export const initiateDonation = async ({
   const church = await ENSURE_CHURCH_DONATION_ELIGIBLE({ churchId })
 
   const createSession = async () => {
+    let customerId: string | undefined
+    if (userId && validated.frequency === 'monthly' && isStripeEnabled()) {
+      try {
+        const activeSub = await GET_MY_ACTIVE_SUBSCRIPTION({ userId })
+        if (activeSub) {
+          const sub = await STRIPE.retrieveSubscription(activeSub.providerSubscriptionId)
+          if (sub.customer) customerId = sub.customer
+        }
+      } catch {
+        // Fallback: create fresh customer in Stripe
+      }
+    }
+
     return STRIPE.createCheckoutSession({
       churchId,
       churchName: church.churchName,
@@ -105,6 +122,8 @@ export const initiateDonation = async ({
       amountMinor: validated.amountMinor,
       currency: validated.currency,
       frequency: validated.frequency,
+      category: validated.category,
+      customerId,
       successUrl:
         validated.successUrl ?? `https://app.prayer.com/churches/${churchId}/donations/success`,
       cancelUrl:
@@ -206,8 +225,85 @@ export const getDonationStatus = async ({
     GET_CHECKOUT_RECEIPT({ sessionId: query.sessionId }),
   ])
 
+  if (query.sessionId && isStripeEnabled()) {
+    try {
+      const session = await STRIPE.retrieveCheckoutSession(query.sessionId)
+      const metadataToSync: Record<string, string> = {
+        churchId: church.id,
+        userId,
+      }
+      if (session.metadata?.category) metadataToSync.category = session.metadata.category
+      if (session.payment_intent) {
+        await STRIPE.updatePaymentIntentMetadata(session.payment_intent, metadataToSync)
+      }
+      const isPaid = session.paymentStatus === 'paid' || session.status === 'complete'
+      if (isPaid && session.mode === 'subscription' && session.subscription) {
+        const currentSubId = session.subscription
+        await UPSERT_DONATION_SUBSCRIPTION({
+          churchId: church.id,
+          userId,
+          providerSubscriptionId: currentSubId,
+          amountMinor: query.amountMinor,
+          currency: query.currency,
+          providerStatus: 'active',
+          eventCreated: Math.floor(Date.now() / 1000),
+        })
+        const paymentId = session.payment_intent || session.id
+        await UPSERT_DONATION_PAYMENT({
+          churchId: church.id,
+          userId,
+          providerPaymentId: String(paymentId),
+          amountMinor: query.amountMinor,
+          currency: query.currency,
+          status: 'PAID',
+          paidAt: new Date(),
+          providerSubscriptionId: currentSubId,
+        })
+        await CANCEL_OTHER_CHURCH_SUBSCRIPTIONS({
+          userId,
+          churchId: church.id,
+          currentSubscriptionId: currentSubId,
+        })
+        const sub = await STRIPE.retrieveSubscription(currentSubId).catch(() => null)
+        if (sub?.customer) {
+          await STRIPE.cancelOtherChurchSubscriptions({
+            customerId: sub.customer,
+            churchId: church.id,
+            currentSubscriptionId: currentSubId,
+          })
+        }
+      } else if (isPaid && session.mode === 'payment') {
+        const paymentId = session.payment_intent || session.id
+        await UPSERT_DONATION_PAYMENT({
+          churchId: church.id,
+          userId,
+          providerPaymentId: String(paymentId),
+          amountMinor: query.amountMinor,
+          currency: query.currency,
+          status: 'PAID',
+          paidAt: new Date(),
+        })
+      }
+    } catch {
+      // Best-effort immediate sync; webhook worker serves as eventual consistency backup
+    }
+  }
+
+  // Re-read attempt if it was just upserted above
+  const finalAttempt =
+    attempt ??
+    (await GET_MY_DONATION_ATTEMPT({
+      userId,
+      churchId: church.id,
+      amountMinor: query.amountMinor,
+      currency: query.currency,
+      frequency: query.frequency,
+      since: new Date(Date.now() - DONATION_ATTEMPT_WINDOW_MS),
+    }))
+
   const base = {
     churchId: church.id,
+    churchSlug: church.slug,
     churchName: church.name,
     amountMinor: query.amountMinor,
     currency: query.currency.toUpperCase(),
@@ -215,10 +311,10 @@ export const getDonationStatus = async ({
     receiptSeen: receipt !== null,
   }
 
-  if (attempt?.status === 'PAID' || attempt?.status === 'REFUNDED') {
-    return { ...base, state: 'confirmed', paidAt: attempt.paidAt }
+  if (finalAttempt?.status === 'PAID' || finalAttempt?.status === 'REFUNDED') {
+    return { ...base, state: 'confirmed', paidAt: finalAttempt.paidAt }
   }
-  if (attempt?.status === 'FAILED') {
+  if (finalAttempt?.status === 'FAILED') {
     return { ...base, state: 'failed', paidAt: null }
   }
   return { ...base, state: 'pending', paidAt: null }
@@ -253,8 +349,9 @@ export const getMyDonationOverview = async ({
   userId: string
 }): Promise<MyDonationOverview> => {
   const year = new Date().getUTCFullYear()
-  const [activeGift, rows] = await Promise.all([
+  const [activeGift, latestTransaction, rows] = await Promise.all([
     GET_MY_ACTIVE_GIFT({ userId }),
+    GET_MY_LATEST_DONATION({ userId }),
     GET_MY_PAID_DONATIONS({
       userId,
       from: new Date(Date.UTC(year, 0, 1)),
@@ -289,8 +386,44 @@ export const getMyDonationOverview = async ({
   return {
     year,
     activeGift,
+    latestTransaction,
     contributions,
     lastPaidAt,
     nextGiftAt: lastPaidAt ? nextMonthlyCharge(lastPaidAt) : null,
   }
+}
+
+/**
+ * W11 "Pause or Modify Monthly Pledge": hands the giver to Stripe's own billing
+ * portal, where the subscription is actually paused or changed. We never mutate
+ * a subscription here, and a giver with no active pledge has nothing to manage.
+ */
+export const openBillingPortal = async ({
+  userId,
+  returnUrl,
+}: {
+  userId: string
+  returnUrl: string
+}): Promise<{ url: string }> => {
+  const subscription = await GET_MY_ACTIVE_SUBSCRIPTION({ userId })
+  if (!subscription) {
+    throw new GeneralError({
+      code: 404,
+      error: 'NOT_FOUND',
+      error_code: 'NO_ACTIVE_SUBSCRIPTION',
+      details: 'There is no active monthly pledge to manage.',
+    })
+  }
+
+  const provider = await STRIPE.retrieveSubscription(subscription.providerSubscriptionId)
+  if (!provider.customer) {
+    throw new GeneralError({
+      code: 502,
+      error: 'PAYMENT_ERROR',
+      error_code: 'STRIPE_CUSTOMER_MISSING',
+      details: 'The provider subscription has no customer to open a portal for.',
+    })
+  }
+
+  return STRIPE.createBillingPortalSession({ customerId: provider.customer, returnUrl })
 }

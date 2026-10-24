@@ -32,7 +32,6 @@ const validInput = {
   website: null,
   socialLinks: [],
   languageCodes: ['en'],
-  accessibility: null,
   coverAssetId: null,
 }
 
@@ -98,43 +97,6 @@ describe('PATCH /api/v1/admin/churches/[churchId]/profile', () => {
       expect.objectContaining({
         churchId: 'c1',
         input: expect.objectContaining({ name: 'New Name' }),
-      }),
-    )
-  })
-
-  it('accepts and updates accessibility and diaconalPrograms', async () => {
-    vi.mocked(requiredAuth).mockResolvedValue(auth() as never)
-    vi.mocked(requiredScope).mockResolvedValue(scope as never)
-    vi.mocked(patchChurchProfile).mockResolvedValue({ ...profile, version: 4 } as never)
-    const req = new NextRequest('http://x/profile', {
-      method: 'PATCH',
-      body: JSON.stringify({
-        ...validInput,
-        accessibility: 'Wheelchair access • Hearing loop',
-        diaconalPrograms: [
-          {
-            title: 'Soup Kitchen',
-            description: 'Hot meals on Tuesdays',
-            badgeText: 'Active',
-            metaText: '30 meals',
-            icon: 'utensils',
-          },
-        ],
-      }),
-    })
-    const res = (await PATCH(req, params as never))!
-    expect(res.status).toBe(200)
-    expect(patchChurchProfile).toHaveBeenCalledWith(
-      expect.objectContaining({
-        input: expect.objectContaining({
-          accessibility: 'Wheelchair access • Hearing loop',
-          diaconalPrograms: [
-            expect.objectContaining({
-              title: 'Soup Kitchen',
-              icon: 'utensils',
-            }),
-          ],
-        }),
       }),
     )
   })

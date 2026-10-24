@@ -40,6 +40,7 @@ const detail: SitePrayerDetail = {
   prayer: item('prayer-1', 'Peace in Uncertain Times', true),
   church: {
     id: 'church-1',
+    slug: 'hope-church',
     name: 'Hope Church',
     city: 'Tallinn',
     phone: '+372 123 4567',
@@ -76,7 +77,7 @@ describe('PrayerDetail', () => {
     expect(screen.getByText(/Audio prayer · 3 min/)).toBeTruthy()
     expect(
       screen.getByRole('link', { name: /View: Hope Church \(Tallinn\)/ }).getAttribute('href'),
-    ).toBe('/churches/church-1')
+    ).toBe('/churches/hope-church')
     expect(screen.queryByLabelText('Saving prayers is not available yet')).toBeNull()
     expect(screen.queryByRole('heading', { name: 'Liturgical Context' })).toBeNull()
     expect(screen.getByRole('heading', { name: 'Related Prayers by Churches' })).toBeTruthy()

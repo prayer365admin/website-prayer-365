@@ -1,5 +1,5 @@
 import BoxContainer from '@/components/container/boxed'
-import { MyActiveGift } from '@/models/donation'
+import { MyActiveGift, MyLatestDonation } from '@/models/donation'
 import { SiteHabits } from '@/models/site-habits'
 import { MobileHome } from '@/models/mobile'
 import DevotionalHero from './devotional-hero'
@@ -18,6 +18,7 @@ const SHOW_PRAYER_PETITION = false
 export default function ContentsSiteHome({
   home,
   gift = null,
+  latestTransaction = null,
   nextGiftAt = null,
   habits = { streakDays: 0, minutesThisWeek: 0 },
   name,
@@ -27,6 +28,7 @@ export default function ContentsSiteHome({
 }: {
   home: MobileHome
   gift?: MyActiveGift | null
+  latestTransaction?: MyLatestDonation | null
   nextGiftAt?: Date | null
   habits?: SiteHabits
   name?: string | null
@@ -53,7 +55,13 @@ export default function ContentsSiteHome({
             mainChurch={home.mainChurch}
           />
           {SHOW_PRAYER_PETITION && <PrayerPetition church={home.mainChurch} />}
-          <Stewardship churchId={home.mainChurch?.id ?? null} gift={gift} nextGiftAt={nextGiftAt} />
+          <Stewardship
+            churchId={home.mainChurch?.id ?? null}
+            churchSlug={home.mainChurch?.slug ?? null}
+            gift={gift}
+            latestTransaction={latestTransaction}
+            nextGiftAt={nextGiftAt}
+          />
           <BrandQuote />
         </div>
       </div>

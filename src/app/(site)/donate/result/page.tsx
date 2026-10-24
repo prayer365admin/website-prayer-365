@@ -26,7 +26,9 @@ export default async function Page({
     currency: first(params.currency),
     frequency: first(params.frequency),
   })
-  if (!parsed.success) redirect(churchId ? `/donate/${churchId}` : '/churches')
+  // A malformed result URL names no parish we can honour, so hand the giver to
+  // the portal itself: it re-resolves their Main Church.
+  if (!parsed.success) redirect('/donate')
 
   const status = await getDonationStatus({
     userId: web.session.user.user_id,

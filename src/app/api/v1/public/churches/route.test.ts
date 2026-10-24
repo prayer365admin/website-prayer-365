@@ -8,7 +8,7 @@ vi.mock('@/controller/church-option', () => m)
 import { GET as search } from './route'
 import { GET as frequent } from './frequent/route'
 
-const option = { id: 'c1', name: 'Tallinna Jaani', city: 'Tallinn' }
+const option = { id: 'c1', slug: 'tallinna-jaani', name: 'Tallinna Jaani', city: 'Tallinn' }
 
 describe('public church picker routes (WB1, no session)', () => {
   beforeEach(() => vi.clearAllMocks())

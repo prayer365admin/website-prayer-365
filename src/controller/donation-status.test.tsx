@@ -5,6 +5,7 @@ const m = vi.hoisted(() => ({
   GET_MY_DONATION_ATTEMPT: vi.fn(),
   GET_CHECKOUT_RECEIPT: vi.fn(),
   GET_MY_ACTIVE_GIFT: vi.fn(),
+  GET_MY_LATEST_DONATION: vi.fn(),
   GET_MY_PAID_DONATIONS: vi.fn(),
 }))
 
@@ -13,13 +14,15 @@ vi.mock('@/providers/donation', () => ({
   GET_DONATION_SUBSCRIPTIONS: vi.fn(),
   GET_DONATION_SUMMARY: vi.fn(),
   ENSURE_CHURCH_DONATION_ELIGIBLE: vi.fn(),
-  GET_MY_ACTIVE_GIFT: m.GET_MY_ACTIVE_GIFT,
   GET_CHURCH_LABEL: m.GET_CHURCH_LABEL,
+  GET_MY_ACTIVE_GIFT: m.GET_MY_ACTIVE_GIFT,
+  GET_MY_LATEST_DONATION: m.GET_MY_LATEST_DONATION,
   GET_MY_PAID_DONATIONS: m.GET_MY_PAID_DONATIONS,
   GET_MY_DONATION_ATTEMPT: m.GET_MY_DONATION_ATTEMPT,
   GET_CHECKOUT_RECEIPT: m.GET_CHECKOUT_RECEIPT,
+  CANCEL_OTHER_CHURCH_SUBSCRIPTIONS: vi.fn(),
 }))
-vi.mock('@/providers/stripe', () => ({ STRIPE: {} }))
+vi.mock('@/providers/stripe', () => ({ STRIPE: {}, isStripeEnabled: () => false }))
 
 import { getDonationStatus, getMyDonationOverview } from './donation'
 

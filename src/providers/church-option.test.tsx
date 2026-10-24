@@ -11,6 +11,7 @@ import { LIST_CHURCH_OPTIONS, LIST_FREQUENT_CHURCHES } from './church-option'
 
 const church = (id: string, city?: string) => ({
   id,
+  slug: `slug-${id}`,
   name: `Church ${id}`,
   address: city ? { city, street: 'private-ish' } : null,
 })
@@ -27,10 +28,10 @@ describe('LIST_CHURCH_OPTIONS', () => {
       where: { status: 'APPROVED', name: { contains: 'jaani', mode: 'insensitive' } },
       orderBy: [{ name: 'asc' }, { id: 'asc' }],
       take: 20,
-      select: { id: true, name: true, address: true },
+      select: { id: true, slug: true, name: true, address: true },
     })
-    // Only id/name/city leave the provider — no street or other address fields.
-    expect(result).toEqual([{ id: 'a', name: 'Church a', city: 'Tallinn' }])
+    // Only id/slug/name/city leave the provider — no street or other address fields.
+    expect(result).toEqual([{ id: 'a', slug: 'slug-a', name: 'Church a', city: 'Tallinn' }])
   })
 })
 

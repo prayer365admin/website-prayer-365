@@ -45,7 +45,7 @@ export type SiteLoginPrayer = {
   audioUrl: string
 }
 
-export type SitePrayerArchiveOption = { value: string; label: string }
+export type SitePrayerArchiveOption = { value: string; label: string; slug?: string }
 
 export type SitePrayerArchive = {
   result: SitePrayerArchiveItem[]
@@ -64,6 +64,7 @@ export type SitePrayerDetail = {
   prayer: SitePrayerArchiveItem
   church: {
     id: string
+    slug: string
     name: string
     city: string | null
     phone: string | null

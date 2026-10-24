@@ -81,6 +81,8 @@ describe('ContentsSiteDonationResult (W12)', () => {
     renderResult({ ...confirmed, state: 'failed', paidAt: null } as unknown as DonationStatusView)
 
     expect(screen.getByRole('heading', { name: 'The payment did not complete' })).toBeTruthy()
-    expect(screen.getByRole('link', { name: 'Try again' }).getAttribute('href')).toBe('/donate/c1')
+    expect(screen.getByRole('link', { name: 'Try again' }).getAttribute('href')).toBe(
+      '/donate?church=c1',
+    )
   })
 })

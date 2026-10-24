@@ -28,7 +28,6 @@ registerPath({
       { name: 'denomination', in: 'query', required: false, schema: z.string() },
       { name: 'language', in: 'query', required: false, schema: z.string() },
       { name: 'sunday_live_stream', in: 'query', required: false, schema: z.string() },
-      { name: 'open_now', in: 'query', required: false, schema: z.string() },
       { name: 'taize_chants', in: 'query', required: false, schema: z.string() },
       { name: 'youth_ministry', in: 'query', required: false, schema: z.string() },
     ],

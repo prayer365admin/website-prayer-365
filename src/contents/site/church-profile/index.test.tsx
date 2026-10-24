@@ -8,10 +8,12 @@ import ContentsSiteChurchProfile from './index'
 vi.mock('@/components/common/google-map', () => ({
   GoogleMapPins: ({
     points,
+    activeId,
   }: {
     points: { id: string; latitude: number; longitude: number }[]
+    activeId?: string
   }) => (
-    <div data-testid="gm-pins" data-count={points.length}>
+    <div data-testid="gm-pins" data-count={points.length} data-active-id={activeId}>
       {points.map((p) => (
         <span key={p.id}>
           {p.id}:{p.latitude},{p.longitude}
@@ -22,6 +24,7 @@ vi.mock('@/components/common/google-map', () => ({
 }))
 const church = {
   id: 'c1',
+  slug: 'c1',
   name: 'Grace',
   denomination: 'Lutheran',
   description: 'A historic parish in the heart of the city.',
@@ -43,7 +46,6 @@ const church = {
   },
   website: 'https://grace.ee',
   socialLinks: [],
-  accessibility: 'Wheelchair access',
   coverAssetId: null,
   coverUrl: 'https://cdn.test/cover.jpg',
   languageCodes: ['et', 'en'],
@@ -78,10 +80,10 @@ const church = {
   distanceKm: 1.2,
 }
 
-function renderProfile(churchId = 'c1') {
+function renderProfile(slug = 'c1') {
   return renderWithProviders(
     <SiteI18nProvider initialLocale="en">
-      <ContentsSiteChurchProfile churchId={churchId} />
+      <ContentsSiteChurchProfile slug={slug} />
     </SiteI18nProvider>,
   )
 }
@@ -124,18 +126,18 @@ describe('ContentsSiteChurchProfile', () => {
     expect(directionsLinks[0].getAttribute('href')).toContain('59.437')
   })
 
-  it('renders sanctuary hours card showing hours are unlisted when no devotion data exists', async () => {
+  it('renders worship services card showing empty state when no service times exist', async () => {
     axiosMock.get.mockResolvedValueOnce({
-      data: resolveGet(church),
+      data: resolveGet({
+        ...church,
+        serviceTimes: [],
+      }),
     })
 
     renderProfile()
 
-    expect(await screen.findByText('Sanctuary Hours for Private Devotion')).toBeTruthy()
-    expect(screen.getByText('Hours unlisted')).toBeTruthy()
-    expect(
-      screen.getByText('Sanctuary devotion hours are not currently listed for this parish.'),
-    ).toBeTruthy()
+    expect(await screen.findByText('Worship Services & Regular Liturgies')).toBeTruthy()
+    expect(screen.getByText('No worship services listed for this congregation.')).toBeTruthy()
   })
 
   it('renders parish welcome card with real church description and pastor attribution from API', async () => {
@@ -168,22 +170,16 @@ describe('ContentsSiteChurchProfile', () => {
     expect(screen.getByText('About the Parish')).toBeTruthy()
   })
 
-  it('shows unlisted empty states while event and announcement sections stay hidden', async () => {
+  it('shows unlisted empty states for sections lacking backing data', async () => {
     axiosMock.get.mockResolvedValueOnce({
       data: resolveGet(church),
     })
 
     renderProfile()
 
-    await screen.findByRole('heading', { level: 1, name: 'Grace' })
     expect(
-      screen.queryByText('No upcoming gatherings or events scheduled at this time.'),
-    ).toBeNull()
-    expect(
-      screen.getByText('Diaconal community programs are not currently listed for this parish.'),
+      await screen.findByText('Pastoral staff directory is not currently listed.'),
     ).toBeTruthy()
-    expect(screen.getByText('Pastoral staff directory is not currently listed.')).toBeTruthy()
-    expect(screen.queryByText('No active parish notices or announcements at this time.')).toBeNull()
   })
 
   it('renders real worship schedule rows with weekday, time, timezone, and language badge', async () => {
@@ -208,33 +204,6 @@ describe('ContentsSiteChurchProfile', () => {
     // No fake filter buttons (Eucharist, Contemplative)
     expect(within(worshipSection).queryByRole('button', { name: 'Eucharist' })).toBeNull()
     expect(within(worshipSection).queryByRole('button', { name: 'Contemplative' })).toBeNull()
-  })
-
-  it('submits intercession hub prayer and shows success alert', async () => {
-    const user = userEvent.setup()
-    axiosMock.get.mockResolvedValueOnce({
-      data: resolveGet(church),
-    })
-
-    renderProfile()
-
-    expect(await screen.findByText('Parish Intercession Hub')).toBeTruthy()
-
-    const nameInput = screen.getByLabelText('Name')
-    const prayerInput = screen.getByLabelText('Your Prayer')
-    const confidentialCheckbox = screen.getByRole('checkbox', {
-      name: 'Keep confidential (Pastors only)',
-    })
-
-    await user.type(nameInput, 'Anna')
-    await user.type(prayerInput, 'Peace in the world and healing for my family.')
-    await user.click(confidentialCheckbox)
-    expect((confidentialCheckbox as HTMLInputElement).checked).toBe(true)
-
-    const submitBtn = screen.getByRole('button', { name: 'Offer Prayer' })
-    await user.click(submitBtn)
-
-    expect(await screen.findByText('Your prayer intention has been received.')).toBeTruthy()
   })
 
   it('handles stewardship amount selection, custom input, and disabled donation CTA', async () => {
@@ -263,7 +232,9 @@ describe('ContentsSiteChurchProfile', () => {
     expect(btn50.getAttribute('aria-pressed')).toBe('false')
 
     // WB-41: the CTA hands off to the church's real donate page.
-    expect(screen.getByRole('link', { name: 'Donate' }).getAttribute('href')).toBe('/donate/c1')
+    expect(screen.getByRole('link', { name: 'Donate' }).getAttribute('href')).toBe(
+      '/donate?church=c1',
+    )
   })
 
   it('renders pastoral care office contact links with tel: and mailto: hrefs', async () => {
@@ -282,74 +253,21 @@ describe('ContentsSiteChurchProfile', () => {
     expect(phoneLink.getAttribute('href')).toBe('tel:+372 123 4567')
   })
 
-  it('renders facilities card with real accessibility string as first feature row', async () => {
+  it('renders donation banner with CTA linking to the church donate page', async () => {
     axiosMock.get.mockResolvedValueOnce({
       data: resolveGet(church),
     })
 
     renderProfile()
 
-    expect(await screen.findByText('Sanctuary Facilities & Access')).toBeTruthy()
-    expect(screen.getByText('Wheelchair access')).toBeTruthy()
-  })
-
-  it('renders the latest published parish prayer in the closing reflection', async () => {
-    axiosMock.get.mockImplementation(async (url: string) => {
-      if (url.includes('/prayers')) {
-        return {
-          data: resolveGet([
-            {
-              id: 'p-reflection',
-              slug: 'peace-today',
-              churchId: 'c1',
-              publishedAt: '2026-10-23T08:00:00.000Z',
-              version: {
-                prayerVersionId: 'pv-reflection',
-                versionNumber: 1,
-                pastorId: 'pastor-1',
-                pastorName: 'Pastor Demo Tamm',
-                title: 'Peace for today',
-                introduction: null,
-                body: '<p>[warm] Scripture meditation on Psalm 46.</p><p>Be still and know that grace is near.</p><p>[softly] This additional sentence remains in the quote.</p>',
-                languageCode: 'en',
-              },
-              audio: null,
-            },
-          ]),
-        }
-      }
-      if (url.includes('/events') || url.includes('/announcements')) {
-        return { data: resolveGet([], 0) }
-      }
-      if (url.includes('/home')) return { data: resolveGet({ mainChurch: null }) }
-      return { data: resolveGet(church) }
-    })
-
-    renderProfile()
-
-    const reflection = await screen.findByText(
-      '“Scripture meditation on Psalm 46. Be still and know that grace is near. This additional sentence remains in the quote.”',
-    )
-    expect(reflection).toBeTruthy()
-    expect(reflection.classList.contains('line-clamp-3')).toBe(true)
-    expect(reflection.getAttribute('title')).toBe(
-      'Scripture meditation on Psalm 46. Be still and know that grace is near. This additional sentence remains in the quote.',
-    )
-    expect(reflection.textContent).not.toContain('[warm]')
-    expect(reflection.textContent).not.toContain('[softly]')
-    expect(screen.getByText(/PEACE FOR TODAY • PASTOR DEMO TAMM/i)).toBeTruthy()
-    expect(screen.queryByText(/MATTHEW 18:20/i)).toBeNull()
-  })
-
-  it('shows a real closed status instead of claiming sanctuary keepers are present', async () => {
-    axiosMock.get.mockResolvedValueOnce({
-      data: resolveGet({ ...church, sanctuaryHours: 'By appointment' }),
-    })
-
-    renderProfile()
-
-    expect(await screen.findByText('Currently closed')).toBeTruthy()
-    expect(screen.queryByText('Sanctuary Keepers on Duty')).toBeNull()
+    expect(
+      await screen.findByText(
+        'Support the sacred heritage, community meals, and ongoing pastoral ministry of this parish.',
+      ),
+    ).toBeTruthy()
+    const donateLink = screen.getByRole('link', { name: 'Support This Parish' })
+    expect(donateLink).toBeTruthy()
+    expect(donateLink.getAttribute('href')).toBe('/donate?church=c1')
   })
 
   it('renders cover image when coverUrl is provided', async () => {
@@ -423,62 +341,9 @@ describe('ContentsSiteChurchProfile', () => {
 
     expect(await screen.findByRole('heading', { level: 1, name: 'Grace' })).toBeTruthy()
 
-    expect(screen.getByRole('link', { name: 'Donate' }).getAttribute('href')).toBe('/donate/c1')
-  })
-
-  it('renders sanctuary hours badge with real hours string when present', async () => {
-    axiosMock.get.mockImplementation(async (url: string) => {
-      if (url.includes('/events')) return { data: resolveGet([], 0) }
-      if (url.includes('/announcements')) return { data: resolveGet([], 0) }
-      if (url.includes('/home')) return { data: resolveGet({ mainChurch: null }) }
-      return { data: resolveGet({ ...church, sanctuaryHours: '10:00–18:30 daily' }) }
-    })
-
-    renderProfile()
-
-    expect(await screen.findByRole('heading', { level: 1, name: 'Grace' })).toBeTruthy()
-    expect(screen.getAllByText('10:00–18:30 daily').length).toBeGreaterThan(0)
-  })
-
-  it('keeps upcoming gatherings hidden when events are returned', async () => {
-    const mockEvents = [
-      {
-        id: 'ev1',
-        churchId: 'c1',
-        category: 'WORSHIP',
-        title: 'Choral Evensong',
-        description: 'Evening prayer and choral music',
-        startsAt: '2026-10-25T17:00:00.000Z',
-        location: 'West Choir',
-        registrationUrl: 'https://example.com/join-service',
-        languageCode: 'et',
-      },
-      {
-        id: 'ev2',
-        churchId: 'c1',
-        category: 'PRAYER',
-        title: 'Silent Meditation',
-        description: 'Midday prayer',
-        startsAt: '2026-10-26T12:00:00.000Z',
-        location: 'Side Chapel',
-        registrationUrl: null,
-        languageCode: null,
-      },
-    ]
-
-    axiosMock.get.mockImplementation(async (url: string) => {
-      if (url.includes('/events')) return { data: resolveGet(mockEvents, 2) }
-      if (url.includes('/announcements')) return { data: resolveGet([], 0) }
-      if (url.includes('/home')) return { data: resolveGet({ mainChurch: null }) }
-      return { data: resolveGet(church) }
-    })
-
-    renderProfile()
-
-    await screen.findByRole('heading', { level: 1, name: 'Grace' })
-    expect(screen.queryByText('Choral Evensong')).toBeNull()
-    expect(screen.queryByText('Silent Meditation')).toBeNull()
-    expect(screen.queryByRole('link', { name: /join service/i })).toBeNull()
+    expect(screen.getByRole('link', { name: 'Donate' }).getAttribute('href')).toBe(
+      '/donate?church=c1',
+    )
   })
 
   it('renders sanctuary gallery tiles with captions from data.gallery', async () => {
@@ -638,48 +503,6 @@ describe('ContentsSiteChurchProfile', () => {
     expect(screen.queryByText('Tallinn Deanery')).toBeNull()
   })
 
-  it('keeps the notice board hidden when announcements are returned', async () => {
-    const mockAnnouncements = [
-      {
-        id: 'a1',
-        churchId: 'c1',
-        title: 'Organ Restoration Project',
-        body: 'The historic organ is undergoing restoration this autumn.',
-        publishedAt: '2026-10-10T12:00:00.000Z',
-      },
-    ]
-
-    axiosMock.get.mockImplementation(async (url: string) => {
-      if (url.includes('/events')) return { data: resolveGet([], 0) }
-      if (url.includes('/announcements')) return { data: resolveGet(mockAnnouncements, 1) }
-      if (url.includes('/home')) return { data: resolveGet({ mainChurch: null }) }
-      return { data: resolveGet(church) }
-    })
-
-    renderProfile()
-
-    await screen.findByRole('heading', { level: 1, name: 'Grace' })
-    expect(screen.queryByText('Organ Restoration Project')).toBeNull()
-    expect(
-      screen.queryByText('The historic organ is undergoing restoration this autumn.'),
-    ).toBeNull()
-    expect(screen.queryByText('10 Oct 2026')).toBeNull()
-  })
-
-  it('does not render the notice-board empty state', async () => {
-    axiosMock.get.mockImplementation(async (url: string) => {
-      if (url.includes('/events')) return { data: resolveGet([], 0) }
-      if (url.includes('/announcements')) return { data: resolveGet([], 0) }
-      if (url.includes('/home')) return { data: resolveGet({ mainChurch: null }) }
-      return { data: resolveGet(church) }
-    })
-
-    renderProfile()
-
-    await screen.findByRole('heading', { level: 1, name: 'Grace' })
-    expect(screen.queryByText('No active parish notices or announcements at this time.')).toBeNull()
-  })
-
   it('renders Primary Parish chip when home.mainChurch.id matches churchId', async () => {
     axiosMock.get.mockImplementation(async (url: string) => {
       if (url.includes('/events')) return { data: resolveGet([], 0) }
@@ -707,7 +530,7 @@ describe('ContentsSiteChurchProfile', () => {
     expect(screen.queryByText('Primary Parish')).toBeNull()
   })
 
-  it('renders guided contemplation prayers with filter tabs when prayers exist', async () => {
+  it('renders guided contemplation prayers without filters when prayers exist', async () => {
     const mockPrayers = [
       {
         id: 'p1',
@@ -717,9 +540,9 @@ describe('ContentsSiteChurchProfile', () => {
           prayerVersionId: 'pv1',
           versionNumber: 1,
           pastorId: 'pas1',
-          title: '[calm] Peace in Uncertain Times',
+          title: 'Peace in Uncertain Times',
           introduction:
-            '<p>[warm] Scripture meditation on <strong>Philippians 4:6–7</strong> • Led by Pastor Daniel Carter, Hope Church</p>',
+            'Scripture meditation on Philippians 4:6–7 • Led by Pastor Daniel Carter, Hope Church',
           body: 'Do not be anxious about anything...',
           languageCode: 'et',
         },
@@ -744,18 +567,15 @@ describe('ContentsSiteChurchProfile', () => {
     renderProfile()
 
     expect(await screen.findByText('Peace in Uncertain Times')).toBeTruthy()
-    expect(screen.getByText('GUIDED CONTEMPLATION')).toBeTruthy()
-    const introduction = screen.getByText(
-      'Scripture meditation on Philippians 4:6–7 • Led by Pastor Daniel Carter, Hope Church',
-    )
-    expect(introduction.tagName).toBe('P')
-    expect(introduction.classList.contains('line-clamp-2')).toBe(true)
-    expect(introduction.classList.contains('[overflow-wrap:anywhere]')).toBe(true)
-    expect(introduction.textContent).not.toContain('<strong>')
-    expect(screen.queryByText(/\[(?:calm|warm)\]/i)).toBeNull()
-    expect(screen.getByRole('button', { name: 'All' })).toBeTruthy()
-    expect(screen.getByRole('button', { name: 'Eucharist' })).toBeTruthy()
-    expect(screen.getByRole('button', { name: 'Contemplative' })).toBeTruthy()
+    expect(screen.getAllByText('GUIDED CONTEMPLATION').length).toBeGreaterThanOrEqual(1)
+    expect(
+      screen.getByText(
+        'Scripture meditation on Philippians 4:6–7 • Led by Pastor Daniel Carter, Hope Church',
+      ),
+    ).toBeTruthy()
+    expect(screen.queryByRole('button', { name: 'All' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Eucharist' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Contemplative' })).toBeNull()
 
     // Toggle Play audio
     window.HTMLMediaElement.prototype.play = vi.fn().mockResolvedValue(undefined)
@@ -769,18 +589,14 @@ describe('ContentsSiteChurchProfile', () => {
     expect(screen.getByRole('slider', { name: 'Audio progress' })).toBeTruthy()
     expect(screen.getByRole('button', { name: 'Pause' })).toBeTruthy()
 
-    // Prayer save/bookmark is hidden on the public site.
+    // Shows audio action buttons: Download and Transcript (link to /prayers/:id)
     expect(screen.getByRole('link', { name: 'Download Audio' })).toBeTruthy()
-    expect(screen.getByRole('button', { name: 'View Transcript' })).toBeTruthy()
+    const transcriptLink = screen.getByRole('link', { name: 'View Transcript' })
+    expect(transcriptLink).toBeTruthy()
+    expect(transcriptLink.getAttribute('href')).toBe('/prayers/p1')
     expect(screen.queryByRole('button', { name: 'Save' })).toBeNull()
-    expect(screen.queryByRole('button', { name: 'Saved' })).toBeNull()
     expect(screen.queryByRole('button', { name: 'Mute' })).toBeNull()
     expect(screen.queryByRole('button', { name: 'Unmute' })).toBeNull()
-
-    // Open transcript modal
-    const transcriptBtn = screen.getByRole('button', { name: 'View Transcript' })
-    await user.click(transcriptBtn)
-    expect(await screen.findByText('Do not be anxious about anything...')).toBeTruthy()
   })
 
   it('disables playback and hides the download link when a prayer has no approved audio', async () => {
@@ -820,7 +636,7 @@ describe('ContentsSiteChurchProfile', () => {
     expect(document.querySelector('audio')).toBeNull()
   })
 
-  it('renders 5-tile gallery layout with architect attribution when 5+ images exist', async () => {
+  it('renders 5-tile gallery layout when 5+ images exist', async () => {
     const mock5Gallery = [
       {
         assetId: 'g1',
@@ -853,44 +669,8 @@ describe('ContentsSiteChurchProfile', () => {
     expect(screen.getByText('Chancel Stained Glass')).toBeTruthy()
     expect(screen.getByText('Crypt Intercession Corner')).toBeTruthy()
     expect(screen.getByText('Tower & Spire over Freedom Square')).toBeTruthy()
-    expect(screen.getByText('Constructed 1862–1867')).toBeTruthy()
-    expect(screen.getByText('Architect Christoph August Gabler')).toBeTruthy()
-  })
-
-  it('renders diaconal ministry program cards with badges and leader attribution', async () => {
-    const mockPrograms = [
-      {
-        title: 'Crypt Warm Meals & Winter Shelter',
-        description: 'Operating Tuesdays and Thursdays since 1993...',
-        badgeText: 'Volunteer shifts available',
-        metaText: 'Led by Deacon Tiit',
-        icon: 'utensils',
-      },
-      {
-        title: 'Baltic Refugee Resettlement Circle',
-        description: 'Language partner pairings...',
-        badgeText: 'Active Support Network',
-        metaText: '34 Families inCare',
-        icon: 'users-group',
-      },
-    ]
-
-    axiosMock.get.mockImplementation(async (url: string) => {
-      if (url.includes('/events')) return { data: resolveGet([], 0) }
-      if (url.includes('/announcements')) return { data: resolveGet([], 0) }
-      if (url.includes('/home')) return { data: resolveGet({ mainChurch: null }) }
-      return { data: resolveGet({ ...church, diaconalPrograms: mockPrograms }) }
-    })
-
-    renderProfile()
-
-    expect(await screen.findByText('Crypt Warm Meals & Winter Shelter')).toBeTruthy()
-    expect(screen.getByText('Operating Tuesdays and Thursdays since 1993...')).toBeTruthy()
-    expect(screen.getByText('Volunteer shifts available')).toBeTruthy()
-    expect(screen.getByText('Led by Deacon Tiit')).toBeTruthy()
-    expect(screen.getByText('Baltic Refugee Resettlement Circle')).toBeTruthy()
-    expect(screen.getByText('Active Support Network')).toBeTruthy()
-    expect(screen.getByText('34 Families inCare')).toBeTruthy()
+    expect(screen.queryByText('Constructed 1862–1867')).toBeNull()
+    expect(screen.queryByText('Architect Christoph August Gabler')).toBeNull()
   })
 
   it('renders Location card with map and Directions link when church has coordinates', async () => {
@@ -907,6 +687,7 @@ describe('ContentsSiteChurchProfile', () => {
     expect(screen.getByTestId('gm-pins')).toBeTruthy()
     expect(screen.getByTestId('gm-pins').getAttribute('data-count')).toBe('1')
 
+    expect(screen.getByTestId('gm-pins').getAttribute('data-active-id')).toBe('c1')
     const directionsLinks = screen.getAllByRole('link', { name: 'Directions' })
     expect(directionsLinks.length).toBeGreaterThanOrEqual(1)
     const cardDirections = directionsLinks.find((l) =>
@@ -1019,5 +800,59 @@ describe('ContentsSiteChurchProfile', () => {
     const followingButton = await screen.findByRole('button', { name: 'Unfollow Grace' })
     expect((followingButton as HTMLButtonElement).disabled).toBe(true)
     expect(within(followingButton).getByText('Following')).toBeTruthy()
+  })
+
+  it('renders Set as Main Church button and calls patch me API on click when not primary parish', async () => {
+    const user = userEvent.setup()
+    axiosMock.get.mockImplementation(async (url: string) => {
+      if (url.includes('/events')) return { data: resolveGet([], 0) }
+      if (url.includes('/announcements')) return { data: resolveGet([], 0) }
+      if (url.includes('/home')) return { data: resolveGet({ mainChurch: null }) }
+      if (url.includes('/me/churches')) return { data: resolveGet([]) }
+      return { data: resolveGet(church) }
+    })
+    axiosMock.patch.mockResolvedValueOnce({
+      data: resolveGet({ id: 'u1', mainChurchId: 'c1' }),
+    })
+
+    renderProfile('c1')
+
+    const setMainButton = await screen.findByRole('button', { name: 'Set as Main Church' })
+    expect(setMainButton).toBeTruthy()
+    expect((setMainButton as HTMLButtonElement).disabled).toBe(false)
+
+    await user.click(setMainButton)
+    expect(axiosMock.patch).toHaveBeenCalledWith('/api/v1/site/me', { mainChurchId: 'c1' })
+  })
+
+  it('renders disabled Main Church button when church is already the primary parish', async () => {
+    axiosMock.get.mockImplementation(async (url: string) => {
+      if (url.includes('/events')) return { data: resolveGet([], 0) }
+      if (url.includes('/announcements')) return { data: resolveGet([], 0) }
+      if (url.includes('/home')) return { data: resolveGet({ mainChurch: { id: 'c1' } }) }
+      if (url.includes('/me/churches')) {
+        return {
+          data: resolveGet([
+            {
+              churchId: 'c1',
+              churchName: 'Grace',
+              isMain: true,
+              isFollowed: true,
+              city: 'Tallinn',
+              address: 'Main St 1',
+              coverAssetId: null,
+              coverUrl: null,
+            },
+          ]),
+        }
+      }
+      return { data: resolveGet(church) }
+    })
+
+    renderProfile('c1')
+
+    const mainChurchButton = await screen.findByRole('button', { name: 'Main Church' })
+    expect(mainChurchButton).toBeTruthy()
+    expect((mainChurchButton as HTMLButtonElement).disabled).toBe(true)
   })
 })

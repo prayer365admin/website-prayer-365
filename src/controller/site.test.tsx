@@ -1,71 +1,114 @@
+// @vitest-environment node
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-const m = vi.hoisted(() => ({ GET_ME_PROFILE: vi.fn() }))
-vi.mock('@/providers/mobile', () => ({ GET_ME_PROFILE: m.GET_ME_PROFILE }))
+const m = vi.hoisted(() => ({
+  GET_ME_PROFILE: vi.fn(),
+  LIST_PUBLIC_CHURCHES: vi.fn(),
+  LIST_PUBLISHED_PRAYERS: vi.fn(),
+}))
 
-import { getSetupProgress } from './site'
+vi.mock('@/providers/mobile', () => ({
+  GET_ME_PROFILE: m.GET_ME_PROFILE,
+  LIST_PUBLIC_CHURCHES: m.LIST_PUBLIC_CHURCHES,
+  LIST_PUBLISHED_PRAYERS: m.LIST_PUBLISHED_PRAYERS,
+}))
 
-const me = (over: Record<string, unknown>) => ({
-  id: 'u1',
-  locale: null,
-  mainChurchId: null,
-  churchSetupCompletedAt: null,
-  localeSetupCompletedAt: null,
-  ...over,
-})
+import { getNeighborSpotlight } from './site'
 
-describe('getSetupProgress (WB-15, stored on the account)', () => {
-  beforeEach(() => vi.clearAllMocks())
+describe('getNeighborSpotlight (W11 spotlight)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
 
-  it('fresh account: parish step pending, not completed', async () => {
-    m.GET_ME_PROFILE.mockResolvedValue(me({}))
+  it('returns null when the church has no coordinates', async () => {
+    const res = await getNeighborSpotlight({ churchId: 'c1', coordinates: null })
+    expect(res).toBeNull()
+    expect(m.LIST_PUBLIC_CHURCHES).not.toHaveBeenCalled()
+  })
 
-    expect(await getSetupProgress({ userId: 'u1' })).toEqual({
-      churchStepDone: false,
-      localeStepDone: false,
-      completed: false,
+  it('skips the beneficiary and churches without prayers to find the nearest neighbour with one', async () => {
+    m.LIST_PUBLIC_CHURCHES.mockResolvedValue({
+      result: [
+        { id: 'c1', slug: 'self', name: 'Self Church' },
+        { id: 'c2', slug: 'empty-church', name: 'Empty Church', coverUrl: null, distanceKm: 5 },
+        {
+          id: 'c3',
+          slug: 'st-mary',
+          name: "St. Mary's",
+          coverUrl: 'https://cdn.test/mary.jpg',
+          distanceKm: 12.4,
+        },
+      ],
+      total: 3,
     })
-  })
-
-  it('parish skipped on another device: step done from church_setup_completed_at', async () => {
-    m.GET_ME_PROFILE.mockResolvedValue(me({ churchSetupCompletedAt: new Date() }))
-
-    expect((await getSetupProgress({ userId: 'u1' })).churchStepDone).toBe(true)
-  })
-
-  it('a main church also counts as the parish step done', async () => {
-    m.GET_ME_PROFILE.mockResolvedValue(me({ mainChurchId: 'c1' }))
-
-    expect((await getSetupProgress({ userId: 'u1' })).churchStepDone).toBe(true)
-  })
-
-  it('a skipped language (default locale saved, no timestamp) is not filled', async () => {
-    m.GET_ME_PROFILE.mockResolvedValue(me({ locale: 'en        ' }))
-
-    expect((await getSetupProgress({ userId: 'u1' })).localeStepDone).toBe(false)
-  })
-
-  it('a filled language alone is not completed: the parish step is still pending', async () => {
-    m.GET_ME_PROFILE.mockResolvedValue(me({ locale: 'sv', localeSetupCompletedAt: new Date() }))
-
-    expect(await getSetupProgress({ userId: 'u1' })).toEqual({
-      churchStepDone: false,
-      localeStepDone: true,
-      completed: false,
+    // c2 has no published prayers; c3 has one
+    m.LIST_PUBLISHED_PRAYERS.mockResolvedValueOnce({ result: [], total: 0 }).mockResolvedValueOnce({
+      result: [
+        {
+          id: 'p1',
+          churchId: 'c3',
+          churchName: "St. Mary's",
+          publishedAt: '2026-10-01T00:00:00Z',
+          version: {
+            prayerVersionId: 'pv1',
+            versionNumber: 1,
+            pastorId: 'pastor1',
+            pastorName: 'Pastor Joel',
+            title: 'Morning Prayer',
+            introduction: null,
+            body: 'Lord uphold us in peace.',
+            languageCode: 'en',
+          },
+          audio: null,
+        },
+      ],
+      total: 1,
     })
-  })
 
-  it('completed once both steps are filled', async () => {
-    m.GET_ME_PROFILE.mockResolvedValue(
-      me({ churchSetupCompletedAt: new Date(), localeSetupCompletedAt: new Date() }),
+    const res = await getNeighborSpotlight({
+      churchId: 'c1',
+      coordinates: { latitude: 59.43, longitude: 24.75 },
+    })
+
+    expect(m.LIST_PUBLIC_CHURCHES).toHaveBeenCalledWith(
+      expect.objectContaining({
+        query: expect.objectContaining({ latitude: 59.43, longitude: 24.75 }),
+      }),
     )
-
-    expect((await getSetupProgress({ userId: 'u1' })).completed).toBe(true)
+    expect(m.LIST_PUBLISHED_PRAYERS).toHaveBeenCalledWith(
+      expect.objectContaining({ churchId: 'c2' }),
+    )
+    expect(m.LIST_PUBLISHED_PRAYERS).toHaveBeenCalledWith(
+      expect.objectContaining({ churchId: 'c3' }),
+    )
+    expect(res).toEqual({
+      churchId: 'c3',
+      slug: 'st-mary',
+      churchName: "St. Mary's",
+      coverUrl: 'https://cdn.test/mary.jpg',
+      distanceKm: 12.4,
+      prayer: {
+        id: 'p1',
+        title: 'Morning Prayer',
+        body: 'Lord uphold us in peace.',
+        pastorName: 'Pastor Joel',
+        churchName: "St. Mary's",
+      },
+    })
   })
 
-  it('404 for an unknown user', async () => {
-    m.GET_ME_PROFILE.mockResolvedValue(null)
+  it('returns null when no nearby neighbour has any published prayers', async () => {
+    m.LIST_PUBLIC_CHURCHES.mockResolvedValue({
+      result: [{ id: 'c2', slug: 'empty', name: 'Empty', coverUrl: null, distanceKm: 2 }],
+      total: 1,
+    })
+    m.LIST_PUBLISHED_PRAYERS.mockResolvedValueOnce({ result: [], total: 0 })
 
-    await expect(getSetupProgress({ userId: 'x' })).rejects.toMatchObject({ code: 404 })
+    const res = await getNeighborSpotlight({
+      churchId: 'c1',
+      coordinates: { latitude: 59.43, longitude: 24.75 },
+    })
+
+    expect(res).toBeNull()
   })
 })

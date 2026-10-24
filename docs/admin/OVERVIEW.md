@@ -25,7 +25,7 @@ Hierarchy does not automatically grant access to private prayer or pastoral requ
 | Area                     | Administration experience                                                                                                                                   |
 | ------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Church overview          | Followers, prayer publication status, upcoming services/events, recent authorized requests, donation activity, and basic engagement.                        |
-| Church profiles          | Manage descriptions, images, pastors, addresses, contacts, languages, accessibility details, and service schedules.                                         |
+| Church profiles          | Manage descriptions, images, pastors, addresses, contacts, languages, and service schedules.                                                                |
 | Prayer publishing        | Create and edit prayers, assign pastors, approve text, generate and preview audio, schedule publication, and browse history.                                |
 | Events and announcements | Publish services, Bible studies, community events, news, and optional registration/contact links.                                                           |
 | Requests                 | View and manage prayer, pastoral-contact, and meeting requests with restricted access.                                                                      |

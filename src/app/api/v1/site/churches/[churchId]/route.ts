@@ -15,7 +15,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ chur
       MobileChurchListQuerySchema,
       Object.fromEntries(req.nextUrl.searchParams),
     )
-    const result = await getPublicChurch({ churchId, query })
+    const result = await getPublicChurch({ slug: churchId, churchId, query })
     return ok(result, 'Church profile retrieved.')
   } catch (e) {
     return httpError(e)

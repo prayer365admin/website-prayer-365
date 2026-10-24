@@ -1,8 +1,9 @@
 'use client'
 
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { ChurchIcon } from '@/components/icon/church'
-import { APIProvider, Map, AdvancedMarker, Pin, useMap } from '@vis.gl/react-google-maps'
+import { APIProvider, Map, useMap, AdvancedMarker } from '@vis.gl/react-google-maps'
 import { Button, Input, Typography } from 'antd'
 
 export const GOOGLE_MAPS_API_KEY =
@@ -20,6 +21,99 @@ export type GoogleMapPoint = {
 }
 
 const DEFAULT_CENTER = { lat: 59.437, lng: 24.754 } // Tallinn
+export const SANCTUARY_MAP_STYLES: google.maps.MapTypeStyle[] = [
+  {
+    featureType: 'all',
+    elementType: 'geometry',
+    stylers: [{ color: '#F8FAFC' }],
+  },
+  {
+    featureType: 'water',
+    elementType: 'geometry',
+    stylers: [{ color: '#D4E9FD' }],
+  },
+  {
+    featureType: 'water',
+    elementType: 'labels',
+    stylers: [{ visibility: 'off' }],
+  },
+  {
+    featureType: 'poi.park',
+    elementType: 'geometry',
+    stylers: [{ visibility: 'on' }, { color: '#E0F2E5' }],
+  },
+  {
+    featureType: 'poi.park',
+    elementType: 'labels.text.fill',
+    stylers: [{ color: '#4B6B54' }],
+  },
+  {
+    featureType: 'poi.park',
+    elementType: 'labels.text.stroke',
+    stylers: [{ color: '#FFFFFF' }, { weight: 2 }],
+  },
+  {
+    featureType: 'poi',
+    stylers: [{ visibility: 'off' }],
+  },
+  {
+    featureType: 'transit',
+    stylers: [{ visibility: 'off' }],
+  },
+  {
+    featureType: 'road',
+    elementType: 'labels',
+    stylers: [{ visibility: 'off' }],
+  },
+  {
+    featureType: 'road.local',
+    stylers: [{ visibility: 'off' }],
+  },
+  {
+    featureType: 'road.arterial',
+    elementType: 'geometry',
+    stylers: [{ color: '#FFFFFF' }, { weight: 2.5 }],
+  },
+  {
+    featureType: 'road.arterial',
+    elementType: 'geometry.stroke',
+    stylers: [{ color: '#DCE4ED' }, { weight: 1 }],
+  },
+  {
+    featureType: 'road.highway',
+    elementType: 'geometry',
+    stylers: [{ color: '#FFFFFF' }, { weight: 3.5 }],
+  },
+  {
+    featureType: 'road.highway',
+    elementType: 'geometry.stroke',
+    stylers: [{ color: '#D0DCE7' }, { weight: 1.5 }],
+  },
+  {
+    featureType: 'administrative.neighborhood',
+    elementType: 'labels.text.fill',
+    stylers: [{ color: '#475569' }],
+  },
+  {
+    featureType: 'administrative.neighborhood',
+    elementType: 'labels.text.stroke',
+    stylers: [{ color: '#FFFFFF' }, { weight: 3 }],
+  },
+  {
+    featureType: 'administrative.locality',
+    elementType: 'labels.text.fill',
+    stylers: [{ color: '#1E293B' }],
+  },
+  {
+    featureType: 'administrative.locality',
+    elementType: 'labels.text.stroke',
+    stylers: [{ color: '#FFFFFF' }, { weight: 3 }],
+  },
+  {
+    featureType: 'administrative.land_parcel',
+    stylers: [{ visibility: 'off' }],
+  },
+]
 
 function PanToLocation({ center }: { center?: { lat: number; lng: number } | null }) {
   const map = useMap()
@@ -60,6 +154,83 @@ function CameraHandler({ center, zoom }: { center?: { lat: number; lng: number }
 
   return null
 }
+function CustomMapMarker({
+  position,
+  title,
+  onClick,
+  zIndex,
+  children,
+}: {
+  position: { lat: number; lng: number }
+  title?: string
+  onClick?: () => void
+  zIndex?: number
+  children?: React.ReactNode
+}) {
+  const map = useMap()
+  const [container] = useState(() => {
+    if (typeof document !== 'undefined') {
+      const el = document.createElement('div')
+      el.setAttribute('data-testid', 'marker')
+      return el
+    }
+    return null
+  })
+
+  useEffect(() => {
+    if (!map || !container) return
+    if (typeof google === 'undefined' || !google.maps?.OverlayView) return
+
+    container.style.position = 'absolute'
+    container.style.zIndex = String(zIndex ?? 1)
+
+    class CustomOverlay extends google.maps.OverlayView {
+      onAdd() {
+        const panes = this.getPanes()
+        panes?.overlayMouseTarget?.appendChild(container!)
+      }
+      draw() {
+        const projection = this.getProjection()
+        if (!projection) return
+        const pos = new google.maps.LatLng(position.lat, position.lng)
+        const point = projection.fromLatLngToDivPixel(pos)
+        if (point) {
+          container!.style.left = `${point.x}px`
+          container!.style.top = `${point.y}px`
+          container!.style.transform = 'translate(-50%, -50%)'
+        }
+      }
+      onRemove() {
+        if (container?.parentNode) {
+          container.parentNode.removeChild(container)
+        }
+      }
+    }
+
+    const overlay = new CustomOverlay()
+    overlay.setMap(map)
+
+    return () => {
+      overlay.setMap(null)
+    }
+  }, [map, position.lat, position.lng, zIndex, container])
+
+  if (!container) return null
+
+  return createPortal(
+    <div
+      onClick={onClick}
+      role="button"
+      tabIndex={0}
+      title={title}
+      className="inline-block cursor-pointer select-none"
+    >
+      {children ?? title}
+    </div>,
+    container,
+  )
+}
+
 export function GoogleMapPins({
   points,
   activeId,
@@ -70,6 +241,7 @@ export function GoogleMapPins({
   allowEmpty = false,
   customMarkers = false,
   mapTypeId = 'roadmap',
+  styles = SANCTUARY_MAP_STYLES,
   children,
 }: {
   points: GoogleMapPoint[]
@@ -81,6 +253,7 @@ export function GoogleMapPins({
   allowEmpty?: boolean
   customMarkers?: boolean
   mapTypeId?: 'roadmap' | 'satellite' | 'hybrid' | 'terrain'
+  styles?: google.maps.MapTypeStyle[]
   children?: React.ReactNode
 }) {
   const validPoints = useMemo(
@@ -124,7 +297,6 @@ export function GoogleMapPins({
     <div className={`relative overflow-hidden rounded-2xl ${className ?? 'h-[360px] w-full'}`}>
       <APIProvider apiKey={GOOGLE_MAPS_API_KEY} libraries={['geocoding', 'marker']}>
         <Map
-          mapId={GOOGLE_MAPS_MAP_ID}
           style={{ width: '100%', height: '100%' }}
           defaultCenter={initialCenter}
           defaultZoom={zoom ?? 13}
@@ -132,6 +304,7 @@ export function GoogleMapPins({
           gestureHandling="greedy"
           disableDefaultUI
           clickableIcons={false}
+          styles={styles}
         >
           {activePoint && (
             <PanToLocation center={{ lat: activePoint.latitude, lng: activePoint.longitude }} />
@@ -140,7 +313,7 @@ export function GoogleMapPins({
           {validPoints.map((p) => {
             const isSelected = p.id === activeId
             return (
-              <AdvancedMarker
+              <CustomMapMarker
                 key={p.id}
                 position={{ lat: p.latitude, lng: p.longitude }}
                 title={p.label}
@@ -166,17 +339,16 @@ export function GoogleMapPins({
                       <ChurchIcon className="text-[14px] text-[#005CAD]" />
                     </div>
                   )
+                ) : isSelected ? (
+                  <div className="flex h-7 w-7 items-center justify-center rounded-full border-2 border-white bg-[#005CAD] text-white shadow-md">
+                    <ChurchIcon className="text-[12px] text-white" />
+                  </div>
                 ) : (
-                  isSelected && (
-                    <Pin
-                      background="#005CAD"
-                      borderColor="#FFFFFF"
-                      glyphColor="#FFFFFF"
-                      scale={1.6}
-                    />
-                  )
+                  <div className="flex h-5 w-5 items-center justify-center rounded-full border border-white bg-[#005CAD]/80 text-white shadow-sm">
+                    <ChurchIcon className="text-[10px] text-white" />
+                  </div>
                 )}
-              </AdvancedMarker>
+              </CustomMapMarker>
             )
           })}
         </Map>

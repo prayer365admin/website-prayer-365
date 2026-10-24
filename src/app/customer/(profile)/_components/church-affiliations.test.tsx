@@ -17,6 +17,7 @@ const me: MobileMe = {
 const churches: MobileMyChurch[] = [
   {
     churchId: 'c1',
+    slug: 'c1',
     churchName: 'Primary Church',
     city: 'Tallinn',
     address: 'Vabaduse väljak 1, Tallinn',
@@ -27,6 +28,7 @@ const churches: MobileMyChurch[] = [
   },
   {
     churchId: 'c2',
+    slug: 'c2',
     churchName: 'Followed Church',
     city: 'Tartu',
     address: 'Tartu Old Town',
@@ -59,6 +61,7 @@ describe('ChurchAffiliations', () => {
     ...churches,
     {
       churchId: 'c3',
+      slug: 'c3',
       churchName: 'Abbey of Peace',
       city: 'Pärnu',
       address: 'Pärnu',

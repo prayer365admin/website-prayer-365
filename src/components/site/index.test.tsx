@@ -35,7 +35,7 @@ describe('SiteShell', () => {
       [SITE_MESSAGES.en.headerHome, '/'],
       [SITE_MESSAGES.en.headerDiscoverChurches, '/churches'],
       [SITE_MESSAGES.en.headerPrayers, '/prayers'],
-      [SITE_MESSAGES.en.headerGiving, '/giving'],
+      [SITE_MESSAGES.en.headerGiving, '/donate'],
     ])
     expect(
       screen.getByRole('heading', { name: SITE_MESSAGES.en.footerSupportHeading }),

@@ -58,7 +58,6 @@ const CHURCH = {
   contacts: {},
   website: null,
   socialLinks: [],
-  accessibility: null,
   coverAssetId: null,
   languageCodes: [],
   serviceTimes: [],

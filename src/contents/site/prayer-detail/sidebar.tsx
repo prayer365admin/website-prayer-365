@@ -54,7 +54,7 @@ export function PrayerDetailSidebar({ detail }: { detail: SitePrayerDetail }) {
               {prayer.pastorBio}
             </p>
           )}
-          <Link className={`mt-4 ${softButton}`} href={`/churches/${church.id}`}>
+          <Link className={`mt-4 ${softButton}`} href={`/churches/${church.slug}`}>
             {t('prayerDetailViewChurch', {
               church: church.city ? `${church.name} (${church.city})` : church.name,
             })}
@@ -65,9 +65,15 @@ export function PrayerDetailSidebar({ detail }: { detail: SitePrayerDetail }) {
 
       {related.length > 0 && (
         <section className={card}>
-          <h2 className="border-b border-neutral-200 p-4 text-xl font-semibold text-primary-900">
-            {t('prayerDetailArc')}
-          </h2>
+          <div className="flex items-center justify-between gap-3 border-b border-neutral-200 p-4">
+            <h2 className="text-xl font-semibold text-primary-900">{t('prayerDetailArc')}</h2>
+            <Link
+              className="inline-flex items-center gap-2 text-xs font-medium text-primary-500"
+              href={`/churches/${church.slug}/prayers`}
+            >
+              {t('prayerDetailSeeArc')} <ArrowRightOutlined />
+            </Link>
+          </div>
           <div className="flex flex-col gap-2 p-4">
             {related.map((relatedPrayer) => (
               <Link

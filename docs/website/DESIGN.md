@@ -32,10 +32,10 @@ account pages (`/login`, `/register`, `/verify-*`, `/forgot-password`,
 | Footer                  | Prayer 365 identity + verse · Parish Network · Pastoral Care & Support · legal links + copyright                                     |
 | Footer (account pages)  | Legal row only                                                                                                                       |
 
-Primary navigation links: `/churches`, `/events`, `/giving`, `/prayers`; the search
-and notification icons point at `/search` and `/notifications`. `/giving` and the
-donation pages (`/donate`, `/donate/:churchId`, `/donate/result`) ship with WB4, so
-that link resolves. `/events`, `/search`, `/notifications` and the footer
+Primary navigation links: `/churches`, `/events`, `/donate`, `/prayers`; the search
+and notification icons point at `/search` and `/notifications`. The donation pages
+(`/donate`, `/donate?church={slug}`, `/donate/result`) ship with WB4, so that link
+resolves. `/events`, `/search`, `/notifications` and the footer
 `/privacy`, `/terms`, `/support` links are still unbuilt (WB-23 ○) and return 404
 until those pages ship — accepted, tracked in TASK.md.
 
@@ -152,22 +152,22 @@ separate login at `/admin/login` (not shared; see SPEC §4 note).
 
 ### W08 — Church Profile
 
-**Route:** `/churches/:churchId`.
+**Route:** `/churches/:slug`.
 
 - Header: cover, church name, denomination, city, service times (local wall
   clock).
-- Blocks: description, address, contacts, website, languages, accessibility.
+- Blocks: description, address, contacts, website, languages.
 - Primary action: **Donate** (W11) — the parish Stewardship card links to that church's live donate page
-  (`/donate/:churchId`, WB-41). The donate page itself disables the pay button with a not-ready note while
+  (`/donate?church={slug}`, WB-41). The donate page itself disables the pay button with a not-ready note while
   `STRIPE_ENABLED !== 'true'`; there is no disabled CTA on the profile any more.
 - Secondary: "View prayers" (W09) — not built as a link: the profile renders its prayer list inline in
-  the "Prayer Lists" card with its own filter; the `/churches/:churchId/prayers` route exists but has no
-  entry point yet (WB-23 ◐).
+  the "Prayer Lists" card with its own filter. The `/churches/:slug/prayers` archive route is reachable from
+  the prayer-detail sidebar ("See Arc") and from the header church picker while on the archive (WB-23 ✔).
 - Cross-reference: cover image uses the public `coverUrl` field.
 
 ### W09 — Prayer List / Archive
 
-**Route:** `/churches/:churchId/prayers` and `/prayers`.
+**Route:** `/churches/:slug/prayers` and `/prayers`.
 
 - List rows: prayer title, church, pastor, published date, play button.
 - Pagination per backend list contract.
@@ -175,7 +175,7 @@ separate login at `/admin/login` (not shared; see SPEC §4 note).
 
 ### W10 — Prayer Detail
 
-**Route:** `/prayers/:prayerId`.
+**Route:** `/prayers/:slug`.
 
 - Blocks: title, church + pastor attribution, introduction, full body text,
   audio player (approved audio only, public URL).
@@ -184,8 +184,24 @@ separate login at `/admin/login` (not shared; see SPEC §4 note).
 
 ### W11 — Donation
 
-**Route:** `/donate/:churchId`.
+**Route:** `/donate?church={slug}`.
 
+- Beneficiary parish comes from the `church` query param, so the URL always names
+  the church receiving the gift. A bare `/donate` redirects to the giver's Main
+  Church; a giver with no Main Church gets the picker-only state below.
+- No beneficiary known: only the Beneficiary Church select renders (with a notice);
+  purpose, cadence, amounts and the pay button stay hidden until a parish is chosen.
+  Choosing one rewrites the URL instead of pushing a new page.
+- Right column:
+  - "Pause or Modify Monthly Pledge": rendered only for a giver with an active pledge
+    while `STRIPE_ENABLED === 'true'`. It hands off to Stripe's hosted billing portal
+    (`POST /api/v1/site/donations/portal`). The tax-certificate row, sustaining goal dial,
+    and annual report toggle are removed.
+  - Neighbour spotlight: resolves the nearest other approved parish with published
+    prayers, linking the thumbnail and parish title to that church's profile page,
+    with an excerpt of its latest published prayer.
+- Form body: the decorative payment-method card and trust badges row under the pay
+  button are removed. The footnote financial transparency banner is removed.
 - Step A: choose one-time or monthly (toggle).
 - Step B: predefined amounts + custom amount; currency shown.
 - Step C: confirm → Stripe Checkout (one-time) or subscription setup (monthly).

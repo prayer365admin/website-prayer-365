@@ -35,10 +35,13 @@ export const useMe = (options: MeQueryOptions = {}) => {
   const { mutateAsync: onPatch, isPending: patching } = useMutation({
     mutationFn: async (payload: SiteMePatch) =>
       (await axios.patch(baseUrl, payload)).data.result as MobileMe,
-    // Prefix invalidation: profile + my churches (main church may have moved).
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: meKey(userId) }),
+    // Prefix invalidation: profile + my churches (main church may have moved) + home.
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: meKey(userId) })
+      queryClient.invalidateQueries({ queryKey: ['site', 'home'] })
+      queryClient.invalidateQueries({ queryKey: [...meKey(userId), 'churches'] })
+    },
   })
-
   const waitingForSession = !options.userId && session.status === 'loading'
   return { data, loading: waitingForSession || isLoading, onPatch, patching }
 }

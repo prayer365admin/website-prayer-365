@@ -7,6 +7,11 @@ vi.mock('@vis.gl/react-google-maps', () => ({
   APIProvider: ({ children }: { children: React.ReactNode }) => (
     <div data-testid="api-provider">{children}</div>
   ),
+  RenderingType: {
+    VECTOR: 'VECTOR',
+    RASTER: 'RASTER',
+    UNINITIALIZED: 'UNINITIALIZED',
+  },
   Map: ({
     children,
     onClick,

@@ -11,10 +11,16 @@ const APPROVED = 'APPROVED'
 const OPTION_LIMIT = 20
 const FREQUENT_LIMIT = 4
 
-const select = { id: true, name: true, address: true } as const
+const select = { id: true, slug: true, name: true, address: true } as const
 
-const toOption = (c: { id: string; name: string; address: unknown }): ChurchOption => ({
+const toOption = (c: {
+  id: string
+  slug: string
+  name: string
+  address: unknown
+}): ChurchOption => ({
   id: c.id,
+  slug: c.slug,
   name: c.name,
   city: (c.address as { city?: string } | null)?.city ?? null,
 })

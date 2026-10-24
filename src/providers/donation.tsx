@@ -1,6 +1,8 @@
 import { Prisma } from '@prisma/client'
 import { db } from '@/utils/db-connection'
 import { GeneralError } from '@/utils/general-error'
+import { STRIPE, isStripeEnabled } from './stripe'
+import { logger } from '@/utils/logger'
 import {
   DonationListQuery,
   DonationRow,
@@ -9,6 +11,7 @@ import {
   DonationSummary,
   DonationSummaryRow,
   MyActiveGift,
+  MyLatestDonation,
 } from '@/models/donation'
 
 /*
@@ -233,6 +236,35 @@ export const ENSURE_CHURCH_DONATION_ELIGIBLE = async ({
   }
 }
 
+/**
+ * If Stripe is enabled, verifies that the database subscription is still active
+ * in Stripe. When a donor cancels via the Billing Portal, Stripe may leave the
+ * status 'active' until the period ends while setting canceled_at / cancel_at.
+ * From the donor's perspective the pledge is canceled, so we update our DB and
+ * clear the active status immediately.
+ */
+const reconcileActiveSubscription = async (row: {
+  id: string
+  provider_subscription_id: string
+}): Promise<boolean> => {
+  if (!isStripeEnabled()) return true
+  try {
+    const sub = await STRIPE.retrieveSubscription(row.provider_subscription_id)
+    const isCanceled =
+      sub.status === 'canceled' || Boolean(sub.canceledAt) || sub.status !== 'active'
+    if (isCanceled) {
+      await db.donationSubscription.update({
+        where: { id: row.id },
+        data: { provider_status: 'canceled' },
+      })
+      return false
+    }
+    return true
+  } catch {
+    return true
+  }
+}
+
 /** The user's newest active monthly gift, or null. Subject-only: filtered by the caller's own user_id. */
 export const GET_MY_ACTIVE_GIFT = async ({
   userId,
@@ -243,12 +275,18 @@ export const GET_MY_ACTIVE_GIFT = async ({
     where: { user_id: userId, provider_status: 'active' },
     orderBy: [{ created_at: 'desc' }, { id: 'desc' }],
     select: {
+      id: true,
+      provider_subscription_id: true,
       amount_minor: true,
       currency: true,
       church: { select: { id: true, name: true } },
     },
   })
   if (!row) return null
+
+  const isLive = await reconcileActiveSubscription(row)
+  if (!isLive) return null
+
   return {
     amountMinor: Number(row.amount_minor),
     currency: row.currency.toUpperCase(),
@@ -257,11 +295,34 @@ export const GET_MY_ACTIVE_GIFT = async ({
   }
 }
 
+/**
+ * The provider subscription behind the user's newest active pledge. Subject-only:
+ * the where clause carries the caller's own user_id, so one giver can never
+ * resolve another's subscription id.
+ */
+export const GET_MY_ACTIVE_SUBSCRIPTION = async ({
+  userId,
+}: {
+  userId: string
+}): Promise<{ providerSubscriptionId: string } | null> => {
+  const row = await db.donationSubscription.findFirst({
+    where: { user_id: userId, provider_status: 'active' },
+    orderBy: [{ created_at: 'desc' }, { id: 'desc' }],
+    select: { id: true, provider_subscription_id: true },
+  })
+  if (!row) return null
+
+  const isLive = await reconcileActiveSubscription(row)
+  if (!isLive) return null
+
+  return { providerSubscriptionId: row.provider_subscription_id }
+}
+
 /** Church label for a donation receipt; does NOT require APPROVED (a paid gift keeps its name). */
 export const GET_CHURCH_LABEL = async ({ churchId }: { churchId: string }) => {
   return db.church.findUnique({
     where: { id: churchId },
-    select: { id: true, name: true },
+    select: { id: true, slug: true, name: true },
   })
 }
 
@@ -289,6 +350,35 @@ export const GET_MY_PAID_DONATIONS = async ({
     paidAt: row.paid_at,
     churchId: row.church_id,
   }))
+}
+
+/**
+ * The user's newest paid donation across all churches.
+ * Subject-only: filtered by the caller's own user_id.
+ */
+export const GET_MY_LATEST_DONATION = async ({
+  userId,
+}: {
+  userId: string
+}): Promise<MyLatestDonation | null> => {
+  const row = await db.donation.findFirst({
+    where: { user_id: userId, status: 'PAID' },
+    orderBy: [{ paid_at: 'desc' }, { created_at: 'desc' }, { id: 'desc' }],
+    include: {
+      church: { select: { id: true, name: true, slug: true } },
+    },
+  })
+  if (!row) return null
+  return {
+    id: row.id,
+    amountMinor: Number(row.amount_minor),
+    currency: row.currency.toUpperCase(),
+    paidAt: row.paid_at,
+    isMonthly: Boolean(row.subscription_id),
+    churchId: row.church.id,
+    churchName: row.church.name,
+    churchSlug: row.church.slug ?? row.church.id,
+  }
 }
 
 /**
@@ -335,4 +425,63 @@ export const GET_CHECKOUT_RECEIPT = async ({ sessionId }: { sessionId: string })
     orderBy: [{ received_at: 'desc' }, { id: 'desc' }],
     select: { event_type: true, state: true, received_at: true },
   })
+}
+
+/**
+ * Unsubscribes any other active subscriptions for this church when a new
+ * subscription is initiated or completed. Updates the database records to
+ * 'canceled' and cancels the prior subscriptions in Stripe.
+ */
+export const CANCEL_OTHER_CHURCH_SUBSCRIPTIONS = async ({
+  userId,
+  churchId,
+  currentSubscriptionId,
+}: {
+  userId: string
+  churchId: string
+  currentSubscriptionId?: string
+}): Promise<string[]> => {
+  let currentCreatedAt: Date | undefined
+  if (currentSubscriptionId) {
+    const current = await db.donationSubscription.findUnique({
+      where: { provider_subscription_id: currentSubscriptionId },
+      select: { created_at: true },
+    })
+    currentCreatedAt = current?.created_at
+  }
+
+  const prior = await db.donationSubscription.findMany({
+    where: {
+      user_id: userId,
+      church_id: churchId,
+      provider_status: 'active',
+      ...(currentSubscriptionId
+        ? { provider_subscription_id: { not: currentSubscriptionId } }
+        : {}),
+      ...(currentCreatedAt ? { created_at: { lt: currentCreatedAt } } : {}),
+    },
+    select: { id: true, provider_subscription_id: true },
+  })
+
+  if (prior.length > 0) {
+    await db.donationSubscription.updateMany({
+      where: { id: { in: prior.map((s) => s.id) } },
+      data: { provider_status: 'canceled' },
+    })
+  }
+
+  const idsToCancel = prior.map((s) => s.provider_subscription_id)
+
+  if (isStripeEnabled() && idsToCancel.length > 0) {
+    for (const subId of idsToCancel) {
+      await STRIPE.cancelSubscription(subId).catch((err) => {
+        logger.warn('failed_to_cancel_prior_subscription_in_stripe', {
+          subscription_id: subId,
+          error: err instanceof Error ? err.message : String(err),
+        })
+      })
+    }
+  }
+
+  return idsToCancel
 }

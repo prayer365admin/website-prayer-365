@@ -1,5 +1,4 @@
 import { z } from 'zod'
-import { MobileDiaconalProgram, MobileDiaconalProgramSchema } from './mobile'
 
 /*
  * Church DTOs (SPEC §6.2 ChurchProfileInput + Task 12/13).
@@ -72,11 +71,8 @@ export const ChurchProfileInputSchema = z
     website: z.url().nullish().or(z.literal('').nullable()),
     socialLinks: z.array(SocialLinkSchema).max(50).default([]),
     languageCodes: z.array(z.string().trim().min(1).max(10)).max(50),
-    accessibility: z.string().trim().max(2000).nullish(),
     coverAssetId: z.string().uuid().nullish(),
-    sanctuaryHours: z.string().trim().max(2000).nullish(),
     galleryItems: z.array(ChurchGalleryItemInputSchema).optional(),
-    diaconalPrograms: z.array(MobileDiaconalProgramSchema).nullish(),
   })
   .strict()
 
@@ -95,11 +91,8 @@ export const ChurchProfileOutputSchema = z.object({
   website: z.string().nullable(),
   socialLinks: z.unknown(),
   languageCodes: z.array(z.string()),
-  accessibility: z.string().nullable(),
   coverAssetId: z.string().nullable(),
-  sanctuaryHours: z.string().nullable().optional(),
   galleryItems: z.array(ChurchGalleryItemOutputSchema).default([]),
-  diaconalPrograms: z.array(MobileDiaconalProgramSchema).default([]),
   status: z.string(),
   version: z.number(),
 })
@@ -117,11 +110,8 @@ export type ChurchProfileOutput = {
   website: string | null
   socialLinks: unknown
   languageCodes: string[]
-  accessibility: string | null
   coverAssetId: string | null
-  sanctuaryHours?: string | null
   galleryItems?: ChurchGalleryItemOutput[]
-  diaconalPrograms?: MobileDiaconalProgram[]
   status: string
   version: number
 }

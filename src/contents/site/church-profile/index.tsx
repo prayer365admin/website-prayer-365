@@ -4,16 +4,10 @@ import { useEffect, useRef, useState } from 'react'
 import { ChurchIcon } from '@/components/icon/church'
 import { SparklesIcon } from '@/components/icon/sparkles'
 import { WaveformIcon } from '@/components/icon/waveform'
-import { UsersGroupIcon } from '@/components/icon/users-group'
-import { UtensilsIcon } from '@/components/icon/utensils'
-import {
-  useSiteChurchAnnouncements,
-  useSiteChurchEvents,
-  useSiteChurchPrayers,
-  useSiteChurchProfile,
-} from '@/hooks/data/site/churches'
+import { HandHeartIcon } from '@/components/icon/hand-heart'
+import { useSiteChurchPrayers, useSiteChurchProfile } from '@/hooks/data/site/churches'
 import { useSiteHome } from '@/hooks/data/site/home'
-import { useMyChurches } from '@/hooks/data/site/me'
+import { useMe, useMyChurches } from '@/hooks/data/site/me'
 import { useSiteI18n } from '@/i18n/site-i18n'
 import type { MobilePublishedPrayer } from '@/models/mobile'
 import {
@@ -23,26 +17,21 @@ import {
   PauseOutlined,
   PhoneOutlined,
 } from '@ant-design/icons'
-import { Alert, Button, Modal, Skeleton, Typography } from 'antd'
+import { Alert, Button, Skeleton, Typography } from 'antd'
 import axios from 'axios'
 import dayjs from 'dayjs'
 import timezone from 'dayjs/plugin/timezone'
 import utc from 'dayjs/plugin/utc'
 import Image from 'next/image'
+import Link from 'next/link'
 import { Hero } from './hero'
 import { GoogleMapPins } from '@/components/common/google-map'
-import { IntercessionHub } from './intercession-hub'
 import { SectionCard } from './section-card'
 import { Stewardship } from './stewardship'
-import { isSanctuaryOpenNow, parseSanctuaryHours } from '@/utils/sanctuary-hours'
 import { DownloadIcon } from '@/components/icon/download'
 import { TranscriptIcon } from '@/components/icon/transcript'
-import { richTextToPlainText } from '@/utils/rich-text-plain'
-import { stripAudioTags } from '@/utils/strip-audio-tags'
 
 const WEEKDAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
-// Temporarily hide website event and announcement UI without removing its implementation.
-const SHOW_EVENTS_AND_ANNOUNCEMENTS = false
 dayjs.extend(utc)
 dayjs.extend(timezone)
 
@@ -52,7 +41,6 @@ interface PrayerAudioRowProps {
   onTogglePlay: () => void
   pastorFallback: string
   churchName: string
-  onOpenTranscript: (title: string, body: string) => void
 }
 
 function PrayerAudioRow({
@@ -61,7 +49,6 @@ function PrayerAudioRow({
   onTogglePlay,
   pastorFallback,
   churchName,
-  onOpenTranscript,
 }: PrayerAudioRowProps) {
   const { t } = useSiteI18n()
   const audioRef = useRef<HTMLAudioElement | null>(null)
@@ -70,12 +57,6 @@ function PrayerAudioRow({
 
   // No approved audio → no playback. Never substitute a sample file.
   const audioSrc = prayer.audio?.assetUrl ?? null
-  const prayerTitle = stripAudioTags(prayer.version.title)
-  const introduction = prayer.version.introduction
-    ? stripAudioTags(richTextToPlainText(prayer.version.introduction)).replace(/\s+/g, ' ').trim()
-    : ''
-  const prayerSummary = introduction || `Led by ${pastorFallback || 'Pastor'}, ${churchName}`
-  const transcript = stripAudioTags(richTextToPlainText(prayer.version.body))
 
   useEffect(() => {
     if (!audioRef.current) return
@@ -161,9 +142,7 @@ function PrayerAudioRow({
             )}
           </button>
           <div className="flex-1 min-w-0">
-            <h3 className="break-words text-base font-semibold text-[#0E203E] [overflow-wrap:anywhere]">
-              {prayerTitle}
-            </h3>
+            <h3 className="text-base font-semibold text-[#0E203E]">{prayer.version.title}</h3>
             {isActive ? (
               <div className="mt-2 flex items-center gap-3">
                 <span className="text-xs font-medium text-[#5C6370]">
@@ -191,12 +170,10 @@ function PrayerAudioRow({
                 </span>
               </div>
             ) : (
-              <p
-                className="mt-1 line-clamp-2 whitespace-normal break-words text-xs leading-relaxed text-[#5C6370] [overflow-wrap:anywhere]"
-                title={prayerSummary}
-              >
-                {prayerSummary}
-              </p>
+              <div className="mt-0.5 text-xs text-[#5C6370]">
+                {prayer.version.introduction ||
+                  `Led by ${pastorFallback || 'Pastor'}, ${churchName}`}
+              </div>
             )}
           </div>
         </div>
@@ -204,7 +181,7 @@ function PrayerAudioRow({
           {audioSrc && (
             <a
               href={audioSrc}
-              download={`${prayerTitle}.mp3`}
+              download={`${prayer.version.title}.mp3`}
               target="_blank"
               rel="noopener noreferrer"
               title={t('downloadAudio')}
@@ -214,15 +191,14 @@ function PrayerAudioRow({
               <DownloadIcon className="h-4 w-4" />
             </a>
           )}
-          <button
-            type="button"
+          <Link
+            href={`/prayers/${prayer.id}`}
             title={t('viewTranscript')}
             aria-label={t('viewTranscript')}
-            onClick={() => onOpenTranscript(prayerTitle, transcript)}
             className="flex h-9 w-9 items-center justify-center rounded-xl border border-[#DDE0E4] bg-white text-[#2F7AD2] transition-colors hover:bg-[#F4F7FC] hover:border-[#2F7AD2]"
           >
             <TranscriptIcon className="h-4 w-4" />
-          </button>
+          </Link>
         </div>
       </div>
     </div>
@@ -235,92 +211,6 @@ function getStaffInitials(name: string): string {
   return name.slice(0, 2).toUpperCase()
 }
 
-function FacilityIcon({ index }: { index: number }) {
-  const className = 'text-[#2F7AD2] shrink-0'
-  switch (index) {
-    case 0:
-      return (
-        <svg className={className} width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-          <circle cx="12" cy="4" r="2" />
-          <path d="M19 13v-2c-1.54.02-3.09-.75-4.07-1.83l-1.29-1.43c-.4-.44-.98-.7-1.6-.72-.61-.02-1.2.2-1.64.61L7.29 10.74C6.48 11.51 6 12.58 6 13.7v4.8c0 .83.67 1.5 1.5 1.5s1.5-.67 1.5-1.5v-4.3l1.8-1.7V17c0 1.66 1.34 3 3 3h4c.83 0 1.5-.67 1.5-1.5s-.67-1.5-1.5-1.5h-4c-.55 0-1-.45-1-1v-4.8c.84.5 1.83.8 2.91.8h3.29zM10.5 19.5c0 1.93-1.57 3.5-3.5 3.5S3.5 21.43 3.5 19.5 5.07 16 7 16c.35 0 .69.05 1 .15V14.1C7.36 14.04 7.03 14 6.7 14c-3.15 0-5.7 2.55-5.7 5.7S3.55 25.4 6.7 25.4s5.7-2.55 5.7-5.7c0-.1 0-.2-.01-.3h-1.89z" />
-        </svg>
-      )
-    case 1:
-      return (
-        <svg
-          className={className}
-          width="16"
-          height="16"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        >
-          <path d="M6 8.5a6.5 6.5 0 1 1 13 0c0 6-6 6-6 10" />
-          <path d="M15 8.5a2.5 2.5 0 0 0-5 0v1a2 2 0 1 0 4 0" />
-          <line x1="8.5" y1="18.5" x2="8.5" y2="18.51" />
-        </svg>
-      )
-    case 2:
-      return (
-        <svg
-          className={className}
-          width="16"
-          height="16"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        >
-          <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z" />
-          <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z" />
-        </svg>
-      )
-    case 3:
-      return (
-        <svg
-          className={className}
-          width="16"
-          height="16"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        >
-          <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" fill="currentColor" />
-          <line x1="23" y1="9" x2="17" y2="15" />
-          <line x1="17" y1="9" x2="23" y2="15" />
-        </svg>
-      )
-    case 4:
-    default:
-      return (
-        <svg
-          className={className}
-          width="16"
-          height="16"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        >
-          <path d="M18 8h1a4 4 0 0 1 0 8h-1" />
-          <path d="M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8z" />
-          <line x1="6" y1="1" x2="6" y2="4" />
-          <line x1="10" y1="1" x2="10" y2="4" />
-          <line x1="14" y1="1" x2="14" y2="4" />
-        </svg>
-      )
-  }
-}
 function GalleryImage({
   src,
   fallbackSrc,
@@ -345,32 +235,37 @@ function GalleryImage({
   )
 }
 
-export default function ContentsSiteChurchProfile({ churchId }: { churchId: string }) {
+export default function ContentsSiteChurchProfile({ slug }: { slug: string }) {
   const { t } = useSiteI18n()
-  const { data, loading, error, retry } = useSiteChurchProfile(churchId)
-  const { data: events = [], loading: eventsLoading } = useSiteChurchEvents(churchId)
-  const { data: announcements = [] } = useSiteChurchAnnouncements(churchId)
-  const { data: prayers = [], loading: prayersLoading } = useSiteChurchPrayers(churchId)
+  const { data, loading, error, retry } = useSiteChurchProfile(slug)
+  const { data: prayers = [], loading: prayersLoading } = useSiteChurchPrayers(slug)
   const { data: homeData } = useSiteHome()
-  const isPrimaryParish = homeData?.mainChurch?.id === churchId
+  const isPrimaryParish = homeData?.mainChurch?.id === data?.id
   const { data: myChurches = [], onFollow, following: followPending } = useMyChurches()
   const list = Array.isArray(myChurches) ? myChurches : []
-  const churchRelation = list.find((c) => c?.churchId === churchId)
+  const churchRelation = list.find((c) => c?.churchId === data?.id)
   const isFollowed = Boolean(churchRelation?.isFollowed || isPrimaryParish)
 
+  const { onPatch, patching: setMainPending } = useMe()
+
   const handleToggleFollow = async () => {
-    if (isPrimaryParish) return
+    if (isPrimaryParish || !data?.id) return
     try {
-      await onFollow({ churchId, isFollowed: !isFollowed })
+      await onFollow({ churchId: data.id, isFollowed: !isFollowed })
     } catch {
       // query error handled by react-query
     }
   }
-  const [prayerFilter, setPrayerFilter] = useState<'All' | 'Eucharist' | 'Contemplative'>('All')
+
+  const handleSetMainChurch = async () => {
+    if (isPrimaryParish || !data?.id) return
+    try {
+      await onPatch({ mainChurchId: data.id })
+    } catch {
+      // query error handled by react-query
+    }
+  }
   const [activePrayerId, setActivePrayerId] = useState<string | null>(null)
-  const [transcriptModal, setTranscriptModal] = useState<{ title: string; body: string } | null>(
-    null,
-  )
 
   const is404 = axios.isAxiosError(error) && error.response?.status === 404
 
@@ -402,32 +297,9 @@ export default function ContentsSiteChurchProfile({ churchId }: { churchId: stri
 
   // Worship services list
   const worshipServices = data.serviceTimes || []
-  const sanctuaryOpen = isSanctuaryOpenNow(data.timezone, data.sanctuaryHours)
 
   // Filtered prayers
   const prayerList = Array.isArray(prayers) ? prayers : []
-  const closingPrayer = prayerList[0]
-  const closingReflection = closingPrayer
-    ? stripAudioTags(richTextToPlainText(closingPrayer.version.body)).replace(/\s+/g, ' ').trim()
-    : ''
-  const filteredPrayers = prayerList.filter((p) => {
-    if (prayerFilter === 'All') return true
-    const text =
-      `${p?.version?.title ?? ''} ${p?.version?.introduction ?? ''} ${p?.version?.body ?? ''}`.toLowerCase()
-    if (prayerFilter === 'Eucharist') {
-      return text.includes('eucharist') || text.includes('communion')
-    }
-    if (prayerFilter === 'Contemplative') {
-      return (
-        text.includes('contemplat') ||
-        text.includes('meditation') ||
-        text.includes('peace') ||
-        text.includes('shepherd') ||
-        text.includes('vesper')
-      )
-    }
-    return true
-  })
   // Full address line
   const fullAddress = [
     data.address?.line1,
@@ -454,15 +326,17 @@ export default function ContentsSiteChurchProfile({ churchId }: { churchId: stri
         isFollowed={isFollowed}
         isFollowPending={followPending}
         onToggleFollow={handleToggleFollow}
+        isSetMainPending={setMainPending}
+        onSetMainChurch={handleSetMainChurch}
       />
 
       {/* 2. Main content grid */}
       <div className="mx-auto max-w-[1152px] px-4 py-10 sm:px-6">
-        <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_364px] lg:gap-8">
+        <div className="grid grid-cols-1 gap-8 lg:grid-cols-[1fr_364px]">
           {/* Primary column */}
-          <div className="contents lg:block lg:space-y-8">
+          <div className="space-y-8">
             {/* Pastoral Welcome / About Card */}
-            <section className="order-1 flex flex-col justify-between rounded-2xl border border-[#DDE0E4] bg-white p-5 shadow-[0_1px_2px_rgba(0,0,0,0.05)] sm:p-8">
+            <section className="flex flex-col justify-between rounded-2xl border border-[#DDE0E4] bg-white p-6 shadow-[0_1px_2px_rgba(0,0,0,0.05)] sm:p-8">
               <div>
                 <div className="mb-4 inline-flex items-center gap-1.5 rounded-full bg-[#B9D8F8] px-3 py-1 text-xs font-semibold text-[#0B4497]">
                   <SparklesIcon className="text-sm text-[#2F7AD2]" />
@@ -502,127 +376,13 @@ export default function ContentsSiteChurchProfile({ churchId }: { churchId: stri
               )}
             </section>
 
-            {/* Sanctuary Hours card */}
+            {/* Worship Services card */}
             <SectionCard
-              className="order-2"
-              title={t('sanctuaryHours')}
-              subtitle={t('sacredSpaceQuietTime')}
-              action={
-                data.sanctuaryHours ? (
-                  <span
-                    className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold ${
-                      sanctuaryOpen ? 'bg-[#D5F7EE] text-[#067958]' : 'bg-[#F0F2F5] text-[#5C6370]'
-                    }`}
-                  >
-                    <span
-                      className={`h-1.5 w-1.5 rounded-full ${sanctuaryOpen ? 'bg-[#067958]' : 'bg-[#8F96A3]'}`}
-                    />
-                    <span>{t(sanctuaryOpen ? 'openForPrayerNow' : 'sanctuaryClosedNow')}</span>
-                  </span>
-                ) : (
-                  <span className="inline-flex items-center rounded-full bg-[#F0F2F5] px-3 py-1 text-xs font-medium text-[#5C6370]">
-                    {t('hoursUnlisted')}
-                  </span>
-                )
-              }
-              bodyClassName="p-4 sm:p-6"
-            >
-              {data.sanctuaryHours ? (
-                (() => {
-                  const items = parseSanctuaryHours(data.sanctuaryHours)
-                  const gridCols =
-                    items.length === 1
-                      ? 'grid-cols-1'
-                      : items.length === 2
-                        ? 'grid-cols-1 sm:grid-cols-2'
-                        : 'grid-cols-1 sm:grid-cols-3'
-                  return (
-                    <div className={`grid gap-4 ${gridCols}`}>
-                      {items.map((item, idx) => (
-                        <div
-                          key={idx}
-                          className="flex flex-col justify-between rounded-2xl border border-[#DDE0E4] bg-[#FAFAFB] p-5 shadow-[0_1px_2px_rgba(0,0,0,0.02)]"
-                        >
-                          <div>
-                            <div className="flex items-start justify-between">
-                              <h4 className="text-base font-semibold text-[#0E203E]">
-                                {item.title}
-                              </h4>
-                              <span className="mt-1 h-2 w-2 shrink-0 rounded-full bg-[#2F7AD2]" />
-                            </div>
-                            {item.time && (
-                              <div className="mt-0.5 text-xs text-[#5C6370]">{item.time}</div>
-                            )}
-                          </div>
-                          {item.description && (
-                            <p className="mt-4 text-xs leading-relaxed text-[#5C6370]">
-                              {item.description}
-                            </p>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                  )
-                })()
-              ) : (
-                <div className="rounded-xl border border-dashed border-[#DDE0E4] bg-[#FAFAFB] p-6 text-center text-sm text-[#5C6370]">
-                  {t('noSanctuaryHours')}
-                </div>
-              )}
-            </SectionCard>
-
-            {/* Worship Services / Prayer Lists card */}
-            <SectionCard
-              className="order-5"
               title={t('worshipServices')}
-              subtitle={prayers.length > 0 ? t('prayerLists') : t('serviceTimes')}
-              action={
-                prayers.length > 0 ? (
-                  <div className="flex items-center gap-1 rounded-full bg-[#F0F2F5] p-1">
-                    {(['All', 'Eucharist', 'Contemplative'] as const).map((tab) => (
-                      <button
-                        key={tab}
-                        type="button"
-                        onClick={() => setPrayerFilter(tab)}
-                        className={`rounded-full px-3 py-1 text-xs font-semibold transition-colors ${
-                          prayerFilter === tab
-                            ? 'bg-[#2F7AD2] text-white shadow-sm'
-                            : 'text-[#5C6370] hover:text-[#0E203E]'
-                        }`}
-                      >
-                        {tab}
-                      </button>
-                    ))}
-                  </div>
-                ) : null
-              }
+              subtitle={t('serviceTimes')}
               bodyClassName="divide-y divide-[#DDE0E4] p-0"
             >
-              {prayersLoading ? (
-                <div className="p-6">
-                  <Skeleton active paragraph={{ rows: 4 }} />
-                </div>
-              ) : prayers.length > 0 ? (
-                filteredPrayers.length === 0 ? (
-                  <div className="m-4 rounded-xl border border-dashed border-[#DDE0E4] bg-[#FAFAFB] p-6 text-center text-sm text-[#5C6370]">
-                    {t('noPrayersFound', { filter: prayerFilter })}
-                  </div>
-                ) : (
-                  filteredPrayers.map((prayer) => (
-                    <PrayerAudioRow
-                      key={prayer.id}
-                      prayer={prayer}
-                      isActive={activePrayerId === prayer.id}
-                      onTogglePlay={() => {
-                        setActivePrayerId((prev) => (prev === prayer.id ? null : prayer.id))
-                      }}
-                      pastorFallback={data.pastorName || ''}
-                      churchName={data.name}
-                      onOpenTranscript={(title, body) => setTranscriptModal({ title, body })}
-                    />
-                  ))
-                )
-              ) : worshipServices.length === 0 ? (
+              {worshipServices.length === 0 ? (
                 <div className="m-4 rounded-xl border border-dashed border-[#DDE0E4] bg-[#FAFAFB] p-6 text-center text-sm text-[#5C6370]">
                   {t('noWorshipServices')}
                 </div>
@@ -665,119 +425,36 @@ export default function ContentsSiteChurchProfile({ churchId }: { churchId: stri
               )}
             </SectionCard>
 
-            {/* Upcoming Gatherings card */}
-            {SHOW_EVENTS_AND_ANNOUNCEMENTS && (
+            {/* Prayer Lists card */}
+            {(prayersLoading || prayerList.length > 0) && (
               <SectionCard
-                title={t('upcomingGatherings')}
-                subtitle={t('gatheringFellowship')}
-                bodyClassName="p-4 sm:p-6"
+                title={t('prayerLists')}
+                subtitle={t('guidedContemplation')}
+                bodyClassName="divide-y divide-[#DDE0E4] p-0"
               >
-                {events.length === 0 || eventsLoading ? (
-                  <div className="rounded-xl border border-dashed border-[#DDE0E4] bg-[#FAFAFB] p-6 text-center text-sm text-[#5C6370]">
-                    {t('noUpcomingGatherings')}
+                {prayersLoading ? (
+                  <div className="p-6">
+                    <Skeleton active paragraph={{ rows: 4 }} />
                   </div>
                 ) : (
-                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-                    {events.slice(0, 3).map((ev, idx) => {
-                      const formattedDate = ev.startsAt
-                        ? dayjs
-                            .utc(ev.startsAt)
-                            .tz(data.timezone || 'UTC')
-                            .format('ddd, MMM D HH:mm')
-                        : ''
-                      const regUrl = ev.registrationUrl
-                      const buttonLabel = ev.ctaLabel?.trim() || t('joinService')
-                      return (
-                        <div
-                          key={ev.id || idx}
-                          className="flex flex-col justify-between rounded-2xl border border-[#DDE0E4] bg-[#FAFAFB] p-5 shadow-[0_1px_2px_rgba(0,0,0,0.02)] transition-shadow hover:shadow-sm"
-                        >
-                          <div>
-                            <h3 className="line-clamp-2 text-base font-semibold leading-snug text-[#0E203E] min-h-[44px]">
-                              {ev.title}
-                            </h3>
-                            <div className="mt-1 text-xs font-medium text-[#5C6370]">
-                              {[formattedDate, ev.location].filter(Boolean).join(' • ')}
-                            </div>
-                            <p className="mt-3 line-clamp-3 text-xs leading-relaxed text-[#5C6370] min-h-[44px]">
-                              {ev.description || t('noDescription')}
-                            </p>
-                          </div>
-                          {regUrl && (
-                            <div className="mt-5">
-                              <a
-                                href={regUrl}
-                                target="_blank"
-                                rel="noreferrer"
-                                aria-label={buttonLabel}
-                                className="block w-full rounded-xl border border-[#2F7AD2] bg-white py-2 text-center text-xs font-semibold text-[#2F7AD2] transition-colors hover:bg-[#E6EDFB]"
-                              >
-                                {buttonLabel}
-                              </a>
-                            </div>
-                          )}
-                        </div>
-                      )
-                    })}
-                  </div>
+                  prayerList.map((prayer) => (
+                    <PrayerAudioRow
+                      key={prayer.id}
+                      prayer={prayer}
+                      isActive={activePrayerId === prayer.id}
+                      onTogglePlay={() => {
+                        setActivePrayerId((prev) => (prev === prayer.id ? null : prayer.id))
+                      }}
+                      pastorFallback={data.pastorName || ''}
+                      churchName={data.name}
+                    />
+                  ))
                 )}
               </SectionCard>
             )}
 
-            {/* Diaconal Ministry card */}
-            <SectionCard
-              className="order-8"
-              title={t('diaconalMinistry')}
-              subtitle={t('livingFaithInAction')}
-              bodyClassName="p-4 sm:p-6"
-            >
-              {data.diaconalPrograms?.length ? (
-                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                  {data.diaconalPrograms.map((prog, idx) => (
-                    <div
-                      key={idx}
-                      className="flex flex-col justify-between rounded-2xl border border-[#DDE0E4] bg-[#FAFAFB] p-5 shadow-[0_1px_2px_rgba(0,0,0,0.02)]"
-                    >
-                      <div>
-                        <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-[#2F7AD2] text-white shadow-sm">
-                          {prog.icon === 'users-group' ? (
-                            <UsersGroupIcon className="text-xl" />
-                          ) : (
-                            <UtensilsIcon className="text-xl" />
-                          )}
-                        </div>
-                        <h3 className="text-xl font-semibold leading-snug text-[#0E203E]">
-                          {prog.title}
-                        </h3>
-                        <p className="mt-3 text-xs leading-relaxed text-[#5C6370]">
-                          {prog.description}
-                        </p>
-                      </div>
-                      <div className="mt-6 flex items-center justify-between border-t border-[#DDE0E4]/60 pt-4 text-xs">
-                        <span className="font-medium text-[#2F7AD2]">{prog.badgeText}</span>
-                        <span className="text-[#5C6370]">{prog.metaText}</span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="rounded-xl border border-dashed border-[#DDE0E4] bg-[#FAFAFB] p-6 text-center text-sm text-[#5C6370]">
-                  {t('noDiaconalPrograms')}
-                </div>
-              )}
-            </SectionCard>
             {/* Sanctuary Gallery card */}
-            <SectionCard
-              className="order-9"
-              title={t('sanctuaryGallery')}
-              subtitle={t('sacredArtHeritage')}
-              action={
-                <div className="text-right text-xs leading-snug">
-                  <div className="font-medium text-[#0B4497]">Constructed 1862–1867</div>
-                  <div className="text-[#2F7AD2]">Architect Christoph August Gabler</div>
-                </div>
-              }
-            >
+            <SectionCard title={t('sanctuaryGallery')} subtitle={t('sacredArtHeritage')}>
               {(() => {
                 const fallbackCover = data.coverUrl || '/images/church.jpeg'
                 const tiles = data.gallery?.length
@@ -797,11 +474,11 @@ export default function ContentsSiteChurchProfile({ churchId }: { churchId: stri
                   return (
                     <div className="space-y-4">
                       {/* Row 1: 2 items */}
-                      <div className="grid grid-cols-2 gap-3 sm:gap-4 sm:grid-cols-[1.35fr_1fr]">
+                      <div className="grid grid-cols-1 gap-4 sm:grid-cols-[1.35fr_1fr]">
                         {tiles.slice(0, 2).map((tile, idx) => (
                           <div
                             key={`${tile.assetId ?? 'tile'}-${tile.orderIndex ?? idx}`}
-                            className="group relative h-[150px] w-full overflow-hidden rounded-xl border border-[#DDE0E4] bg-[#0E203E] sm:h-[260px] sm:rounded-2xl"
+                            className="group relative h-[220px] w-full overflow-hidden rounded-2xl border border-[#DDE0E4] bg-[#0E203E] sm:h-[260px]"
                           >
                             <GalleryImage
                               src={tile.url || fallbackCover}
@@ -817,11 +494,11 @@ export default function ContentsSiteChurchProfile({ churchId }: { churchId: stri
                       </div>
 
                       {/* Row 2: 3 items */}
-                      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4">
+                      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
                         {tiles.slice(2, 5).map((tile, idx) => (
                           <div
                             key={`${tile.assetId ?? 'tile'}-${tile.orderIndex ?? idx + 2}`}
-                            className={`group relative h-[140px] w-full overflow-hidden rounded-xl border border-[#DDE0E4] bg-[#0E203E] sm:col-span-1 sm:h-[220px] sm:rounded-2xl ${idx === 2 ? 'col-span-2' : ''}`}
+                            className="group relative h-[180px] w-full overflow-hidden rounded-2xl border border-[#DDE0E4] bg-[#0E203E] sm:h-[220px]"
                           >
                             <GalleryImage
                               src={tile.url || fallbackCover}
@@ -864,15 +541,10 @@ export default function ContentsSiteChurchProfile({ churchId }: { churchId: stri
           </div>
 
           {/* Aside column */}
-          <div className="contents lg:block lg:space-y-6">
-            {/* Parish Intercession Hub */}
-            <div className="order-3">
-              <IntercessionHub churchId={churchId} churchName={data.name} />
-            </div>
-
+          <div className="space-y-6">
             {/* Location card */}
             {data.coordinates && (
-              <section className="order-4 rounded-2xl border border-[#DDE0E4] bg-white p-5 shadow-[0_1px_2px_rgba(0,0,0,0.05)]">
+              <section className="rounded-2xl border border-[#DDE0E4] bg-white p-5 shadow-[0_1px_2px_rgba(0,0,0,0.05)]">
                 <h2 className="text-xl font-semibold text-[#0E203E]">{t('location')}</h2>
                 <GoogleMapPins
                   points={[
@@ -883,6 +555,7 @@ export default function ContentsSiteChurchProfile({ churchId }: { churchId: stri
                       label: data.name,
                     },
                   ]}
+                  activeId={data.id}
                   zoom={15}
                   className="mt-3 h-[220px] w-full"
                 />
@@ -900,7 +573,7 @@ export default function ContentsSiteChurchProfile({ churchId }: { churchId: stri
             )}
 
             {/* Pastoral Care Office card */}
-            <section className="order-6 rounded-2xl border border-[#DDE0E4] bg-white p-5 shadow-[0_1px_2px_rgba(0,0,0,0.05)]">
+            <section className="rounded-2xl border border-[#DDE0E4] bg-white p-5 shadow-[0_1px_2px_rgba(0,0,0,0.05)]">
               <div className="mb-4 flex items-center justify-between">
                 <h2 className="text-xl font-semibold text-[#0E203E]">{t('pastoralCareOffice')}</h2>
                 {data.deaneryName && (
@@ -941,15 +614,6 @@ export default function ContentsSiteChurchProfile({ churchId }: { churchId: stri
                             <div className="text-xs text-[#0B4497]">{person.pastoralRole}</div>
                           </div>
                         </div>
-                        {data.contacts?.email && (
-                          <a
-                            href={`mailto:${data.contacts.email}`}
-                            aria-label={`Email ${person.name}`}
-                            className="mr-2 text-[#2F7AD2] transition-colors hover:text-[#0B4497]"
-                          >
-                            <MailOutlined className="text-sm" />
-                          </a>
-                        )}
                       </div>
                     )
                   })}
@@ -1000,125 +664,32 @@ export default function ContentsSiteChurchProfile({ churchId }: { churchId: stri
             </section>
 
             {/* Parish Stewardship widget */}
-            <div className="order-7">
-              <Stewardship churchId={data.id} churchName={data.name} />
-            </div>
-
-            {/* Sanctuary Facilities & Access card */}
-            <section className="order-10 rounded-2xl border border-[#DDE0E4] bg-white p-5 shadow-[0_1px_2px_rgba(0,0,0,0.05)]">
-              <h2 className="mb-3 text-xl font-semibold text-[#0E203E]">{t('facilitiesAccess')}</h2>
-              <div className="space-y-2">
-                {(() => {
-                  const facilityItems = data.accessibility
-                    ? data.accessibility
-                        .split(' • ')
-                        .map((s) => s.trim())
-                        .filter(Boolean)
-                    : []
-                  if (facilityItems.length === 0) {
-                    return (
-                      <div className="rounded-xl border border-dashed border-[#DDE0E4] bg-[#FAFAFB] p-4 text-center text-xs text-[#5C6370]">
-                        {t('noAccessibilityInfo')}
-                      </div>
-                    )
-                  }
-                  return facilityItems.map((item, idx) => (
-                    <div
-                      key={idx}
-                      className="flex items-center gap-2.5 rounded-2xl bg-[#FAFAFB] px-4 py-2.5 text-xs text-[#5C6370]"
-                    >
-                      <FacilityIcon index={idx} />
-                      <span>{item}</span>
-                    </div>
-                  ))
-                })()}
-              </div>
-            </section>
-
-            {/* Parish Notice Board card */}
-            {SHOW_EVENTS_AND_ANNOUNCEMENTS && (
-              <section className="rounded-2xl border border-[#DDE0E4] bg-white p-5 shadow-[0_1px_2px_rgba(0,0,0,0.05)]">
-                <h2 className="mb-3 text-xl font-semibold text-[#0E203E]">
-                  {t('parishNoticeBoard')}
-                </h2>
-                {announcements.length === 0 ? (
-                  <div className="rounded-xl border border-dashed border-[#DDE0E4] bg-[#FAFAFB] p-4 text-center text-xs text-[#5C6370]">
-                    {t('noNoticeBoard')}
-                  </div>
-                ) : (
-                  <div className="space-y-2">
-                    {announcements.slice(0, 2).map((item, idx) => {
-                      // Category comes from a title prefix — `[Category] Title` or `Category: Title`
-                      // (website SPEC §5 / decision W8). The body is shown as-is.
-                      const titleMatch = item.title.match(/^\s*\[([^\]]{1,30})\]\s*(.*)$/)
-                      const colonMatch = titleMatch
-                        ? null
-                        : item.title.match(/^\s*([^:]{1,30}):\s+(.+)$/)
-                      const category = titleMatch?.[1] ?? colonMatch?.[1] ?? null
-                      const titleText = titleMatch?.[2] ?? colonMatch?.[2] ?? item.title
-
-                      return (
-                        <div
-                          key={item.id || idx}
-                          className="space-y-1 rounded-xl bg-[#FAFAFB] p-3.5"
-                        >
-                          {category && <div className="text-xs text-[#005CAD]">{category}</div>}
-                          <h3 className="text-sm font-semibold text-[#191C1E]">{titleText}</h3>
-                          <p className="text-xs leading-relaxed text-[#5C6370]">{item.body}</p>
-                          {item.publishedAt && (
-                            <span className="block text-[11px] text-[#8C93A0]">
-                              {dayjs.utc(item.publishedAt).format('D MMM YYYY')}
-                            </span>
-                          )}
-                        </div>
-                      )
-                    })}
-                  </div>
-                )}
-              </section>
-            )}
+            <Stewardship slug={data.slug} churchName={data.name} />
           </div>
         </div>
       </div>
 
-      {/* 5. Latest published parish reflection */}
-      {closingPrayer && closingReflection && (
-        <div className="mx-auto max-w-[1152px] px-4 pb-12 sm:px-6">
-          <section className="rounded-2xl border border-[#DDE0E4] bg-white p-4 shadow-[0_1px_2px_rgba(0,0,0,0.05)] sm:p-6">
-            <div className="space-y-3 rounded-xl bg-[#F5F7FF] p-6 text-center sm:p-8">
-              <div className="flex justify-center text-[#2F7AD2]">
-                <SparklesIcon className="text-2xl" />
+      {/* 5. Donation banner */}
+      <div className="mx-auto max-w-[1152px] px-4 pb-12 sm:px-6">
+        <section className="overflow-hidden rounded-2xl bg-gradient-to-b from-[#163B66] to-[#0E294A] p-6 text-white shadow-[0_12px_32px_-6px_rgba(11,68,151,0.2)] sm:p-8">
+          <div className="flex flex-col items-center justify-between gap-6 sm:flex-row sm:items-center">
+            <div className="flex items-center gap-4 text-center sm:text-left">
+              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-white/15 text-white">
+                <HandHeartIcon className="text-2xl" />
               </div>
-              <blockquote
-                className="mx-auto line-clamp-3 max-w-2xl break-words font-font_quote text-xl italic leading-relaxed text-[#0B4497] [overflow-wrap:anywhere] sm:text-3xl"
-                title={closingReflection}
-              >
-                &ldquo;{closingReflection}&rdquo;
-              </blockquote>
-              <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[#5C6370]">
-                {stripAudioTags(closingPrayer.version.title)} • {closingPrayer.version.pastorName}
+              <p className="max-w-xl text-sm leading-relaxed text-white/90 sm:text-base">
+                {t('donationBannerBody')}
               </p>
             </div>
-          </section>
-        </div>
-      )}
-
-      {/* Transcript modal */}
-      {transcriptModal && (
-        <Modal
-          open={!!transcriptModal}
-          onCancel={() => setTranscriptModal(null)}
-          footer={null}
-          title={transcriptModal.title}
-          centered
-        >
-          <div className="py-4">
-            <p className="whitespace-pre-wrap text-sm leading-relaxed text-[#5C6370]">
-              {transcriptModal.body}
-            </p>
+            <Link
+              href={`/donate?church=${data.slug}`}
+              className="inline-flex h-11 shrink-0 items-center justify-center rounded-xl bg-white px-6 text-sm font-semibold text-[#0E203E] shadow-sm transition-colors hover:bg-white/90 active:scale-95"
+            >
+              {t('donationBannerCta')}
+            </Link>
           </div>
-        </Modal>
-      )}
+        </section>
+      </div>
     </div>
   )
 }

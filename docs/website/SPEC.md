@@ -96,24 +96,22 @@ No separate database schema needed. The website reads existing Prisma models.
 
 ## 4. Page route map
 
-| Route                         | Screen          | Auth   | Backend called (controller)                                                                  |
-| ----------------------------- | --------------- | ------ | -------------------------------------------------------------------------------------------- |
-| `/`                           | Home (W06)      | Yes    | `getHome`                                                                                    |
-| `/login`                      | Sign In (W01)   | Public | NextAuth credentials                                                                         |
-| `/register`                   | Register (W02)  | Public | `registerUser`                                                                               |
-| `/verify-email`               | Verify (W03)    | Public | `verifyEmail`                                                                                |
-| `/forgot-password`            | Forgot (W04)    | Public | Send reset email                                                                             |
-| `/reset-password`             | Reset (W04)     | Public | `resetPassword`                                                                              |
-| `/customer/setup`             | Setup (W05)     | Yes    | Patch locale + main/follow                                                                   |
-| `/churches`                   | Directory (W07) | Yes    | `listPublicChurches` (search, radius, denomination, language, quick filters)                 |
-| `/churches/:churchId`         | Profile (W08)   | Yes    | `getPublicChurch` (gallery, staff), `listPublicEvents`, `listPublicAnnouncements`, `getHome` |
-| `/churches/:churchId/prayers` | Prayers (W09)   | Yes    | `listPublishedPrayers`                                                                       |
-| `/prayers/:prayerId`          | Prayer (W10)    | Yes    | `getPublishedPrayer`                                                                         |
-| `/giving`                     | Giving entry    | Yes    | Resolves the main parish and redirects to `/donate/:churchId`, else `/churches` (WB-41)      |
-| `/donate`                     | Donate entry    | Yes    | Resolves the main parish, else a flagship / first approved parish, else `/churches` (WB-41)  |
-| `/donate/:churchId`           | Donation (W11)  | Yes    | Site donation controller to Stripe                                                           |
-| `/donate/result`              | Result (W12)    | Yes    | Donor / attempt status                                                                       |
-| `/customer`                   | Profile (W13)   | Yes    | `getMe` / `patchMe` / avatar upload                                                          |
+| Route                     | Screen          | Auth   | Backend called (controller)                                                                                              |
+| ------------------------- | --------------- | ------ | ------------------------------------------------------------------------------------------------------------------------ |
+| `/`                       | Home (W06)      | Yes    | `getHome`                                                                                                                |
+| `/login`                  | Sign In (W01)   | Public | NextAuth credentials                                                                                                     |
+| `/register`               | Register (W02)  | Public | `registerUser`                                                                                                           |
+| `/verify-email`           | Verify (W03)    | Public | `verifyEmail`                                                                                                            |
+| `/forgot-password`        | Forgot (W04)    | Public | Send reset email                                                                                                         |
+| `/reset-password`         | Reset (W04)     | Public | `resetPassword`                                                                                                          |
+| `/customer/setup`         | Setup (W05)     | Yes    | Patch locale + main/follow                                                                                               |
+| `/churches`               | Directory (W07) | Yes    | `listPublicChurches` (search, radius, denomination, language, quick filters)                                             |
+| `/churches/:slug`         | Profile (W08)   | Yes    | `getPublicChurch` (gallery, staff), `listPublicEvents`, `listPublicAnnouncements`, `getHome`                             |
+| `/churches/:slug/prayers` | Prayers (W09)   | Yes    | `listPublishedPrayers`                                                                                                   |
+| `/prayers/:slug`          | Prayer (W10)    | Yes    | `getPublishedPrayer`                                                                                                     |
+| `/donate`                 | Donation (W11)  | Yes    | `?church={slug}` names the beneficiary; bare `/donate` resolves the Main Church, else a gated beneficiary picker (WB-41) |
+| `/donate/result`          | Result (W12)    | Yes    | Donor / attempt status                                                                                                   |
+| `/customer`               | Profile (W13)   | Yes    | `getMe` / `patchMe` / avatar upload                                                                                      |
 
 Routing guard: any website page except the four public account pages requires
 a session; unauthenticated visitors go to `/login`. Content is never rendered
@@ -125,32 +123,29 @@ Customers and staff use separate sign-in paths. Customers sign in at `/login`. S
 
 ## 5. Data and DTOs
 
-Seven schema additions support website features: the `church_gallery_items` table (decision W6), the `sanctuary_hours` column on `churches` (decision W9), the `diaconal_programs` JSON column on `churches` (decision W11), the `cta_label` column on `events` (decision W15), the `church_style` column on `churches` (decision W16) and the three quick-filter booleans on `churches` (decision W17). All other features reuse existing models from admin SPEC §5 and mobile DTOs in `src/models/mobile.tsx`.
+Four schema additions support website features: the `church_gallery_items` table (decision W6), the `cta_label` column on `events` (decision W15), the `church_style` column on `churches` (decision W16) and the three quick-filter booleans on `churches` (decision W17). All other features reuse existing models from admin SPEC §5 and mobile DTOs in `src/models/mobile.tsx`.
 
-| Data                     | Source / model                                                | Notes                                                                                                                                                                  |
-| ------------------------ | ------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Church (public)          | `MobilePublicChurchSchema`                                    | Includes `coverUrl`, `serviceTimes`, `sanctuaryHours`, `deaneryName`, `gallery`, `staff`, `diaconalPrograms`, `contacts`, and `accessibility`.                         |
-| Church summary           | `MobileChurchSummarySchema`                                   | Summary for cards: cover, address, description, pastor, service times, sanctuary hours, and accessibility (projected as string array).                                 |
-| Church style pill        | `Church.church_style`                                         | Free-text worship style shown as the directory card pill (migration `20261016120000_add_church_style`); `null` hides the pill.                                         |
-| Directory quick flags    | `Church.sunday_live_stream`, `taize_chants`, `youth_ministry` | Nullable booleans backing the four quick filters (migration `20261013153502_add_church_quick_filters`).                                                                |
-| Church list query        | `MobileChurchListQuerySchema`                                 | Query parameters: search, radius, coordinates, denomination, language, and quick-filter flags.                                                                         |
-| Published prayer         | `MobilePublishedPrayerSchema`                                 | Prayer audio returns `assetId`, `assetKey` (mobile) and `assetUrl` (public read URL built with `S3_PUBLIC_URL`).                                                       |
-| Church prayers (public)  | `GET /api/v1/site/churches/:churchId/prayers`                 | Feeds church playlist on W08 using `listPublishedPrayers` with category filters and isolated HTML5 audio playback.                                                     |
-| Home projection          | `MobileHomeSchema`                                            | Returns `mainChurch`, `followedChurches`, and `latestPrayers`.                                                                                                         |
-| Profile / main church    | `MobileMeSchema`, `MobileMePatchSchema`                       | Updates user details and primary parish selection.                                                                                                                     |
-| Follow relationships     | `listMyChurches` / `setFollow`                                | Reads and updates followed church IDs.                                                                                                                                 |
-| Language                 | `Language` table                                              | Needs `sv` seed.                                                                                                                                                       |
-| Donation                 | `Donation`, `DonationSubscription`, `PaymentAccount`          | Shared backend models for donations and connected accounts.                                                                                                            |
-| Prayer petitions         | `POST /api/v1/site/churches/:churchId/requests`               | Calls `submitRequest` (`MobileRequestInputSchema`) to insert into `requests` with rate limits and idempotency keys.                                                    |
-| Diaconal programs        | `Church.diaconal_programs`                                    | JSON array on `churches` (migration `20261015140000_add_church_diaconal_programs`). Exposed as `diaconalPrograms` on public church responses.                          |
-| Church gallery           | `ChurchGalleryItem` table                                     | Stores church photos (migration `20261015120000_add_church_gallery_items_and_sanctuary_hours`). Exposed as `gallery` on `MobilePublicChurch`, sorted by `order_index`. |
-| Church staff (public)    | `ChurchPastor` + `Pastor`                                     | Public staff list (`staff`) with name, pastoral role, and avatar.                                                                                                      |
-| Upcoming events          | `Event` via `listPublicEvents`                                | Active events (`starts_at >= now`). Action button uses `Event.cta_label`, falling back to localized default.                                                           |
-| Announcements            | `Announcement` via `listPublicAnnouncements`                  | Published records (`deleted_at is null`), newest first, limit 2. Prefixes in square brackets supply category badges.                                                   |
-| Primary Parish badge     | `getHome` -> `mainChurch.id`                                  | Renders on church profile when `mainChurch.id === churchId`.                                                                                                           |
-| Sanctuary devotion hours | `Church.sanctuary_hours`                                      | String schedule (migration `20261015120000_add_church_gallery_items_and_sanctuary_hours`). Split by `•` for schedule cards on W08; powers `open_now` filter.           |
-| Sanctuary facilities     | `Church.accessibility`                                        | Stored as text; projected over public API as a string array (`string[]`) of discrete facilities for structured client display.                                         |
-| Deanery (public)         | `Church.org_node.parent`                                      | Parent org node where `kind = 'DEANERY'`. Exposed as `deaneryName`.                                                                                                    |
+| Data                    | Source / model                                                | Notes                                                                                                                                                                  |
+| ----------------------- | ------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Church (public)         | `MobilePublicChurchSchema`                                    | Includes `coverUrl`, `serviceTimes`, `deaneryName`, `gallery`, `staff`, and `contacts`.                                                                                |
+| Church summary          | `MobileChurchSummarySchema`                                   | Summary for cards: cover, address, description, pastor, and service times.                                                                                             |
+| Church style pill       | `Church.church_style`                                         | Free-text worship style shown as the directory card pill (migration `20261016120000_add_church_style`); `null` hides the pill.                                         |
+| Directory quick flags   | `Church.sunday_live_stream`, `taize_chants`, `youth_ministry` | Nullable booleans backing the three quick filters (migration `20261013153502_add_church_quick_filters`).                                                               |
+| Church list query       | `MobileChurchListQuerySchema`                                 | Query parameters: search, radius, coordinates, denomination, language, and quick-filter flags.                                                                         |
+| Published prayer        | `MobilePublishedPrayerSchema`                                 | Prayer audio returns `assetId`, `assetKey` (mobile) and `assetUrl` (public read URL built with `S3_PUBLIC_URL`).                                                       |
+| Church prayers (public) | `GET /api/v1/site/churches/:churchId/prayers`                 | Feeds church playlist on W08 using `listPublishedPrayers` with category filters and isolated HTML5 audio playback.                                                     |
+| Home projection         | `MobileHomeSchema`                                            | Returns `mainChurch`, `followedChurches`, and `latestPrayers`.                                                                                                         |
+| Profile / main church   | `MobileMeSchema`, `MobileMePatchSchema`                       | Updates user details and primary parish selection.                                                                                                                     |
+| Follow relationships    | `listMyChurches` / `setFollow`                                | Reads and updates followed church IDs.                                                                                                                                 |
+| Language                | `Language` table                                              | Needs `sv` seed.                                                                                                                                                       |
+| Donation                | `Donation`, `DonationSubscription`, `PaymentAccount`          | Shared backend models for donations and connected accounts.                                                                                                            |
+| Prayer petitions        | `POST /api/v1/site/churches/:churchId/requests`               | Calls `submitRequest` (`MobileRequestInputSchema`) to insert into `requests` with rate limits and idempotency keys.                                                    |
+| Church gallery          | `ChurchGalleryItem` table                                     | Stores church photos (migration `20261015120000_add_church_gallery_items_and_sanctuary_hours`). Exposed as `gallery` on `MobilePublicChurch`, sorted by `order_index`. |
+| Church staff (public)   | `ChurchPastor` + `Pastor`                                     | Public staff list (`staff`) with name, pastoral role, and avatar.                                                                                                      |
+| Upcoming events         | `Event` via `listPublicEvents`                                | Active events (`starts_at >= now`). Action button uses `Event.cta_label`, falling back to localized default.                                                           |
+| Announcements           | `Announcement` via `listPublicAnnouncements`                  | Published records (`deleted_at is null`), newest first, limit 2. Prefixes in square brackets supply category badges.                                                   |
+| Primary Parish badge    | `getHome` -> `mainChurch.id`                                  | Renders on church profile when `mainChurch.id === churchId`.                                                                                                           |
+| Deanery (public)        | `Church.org_node.parent`                                      | Parent org node where `kind = 'DEANERY'`. Exposed as `deaneryName`.                                                                                                    |
 
 ### 5.1 Language seed
 
@@ -180,7 +175,6 @@ The directory panel accepts these query parameters:
 - `language`: Two-letter ISO code (`et`, `en`, `sv`, `fi`) matched against `churchLanguages`.
 - Quick filter flags:
   - `sunday_live_stream`: Congregations broadcasting services online.
-  - `open_now`: Sanctuaries open at the current time based on `sanctuary_hours`.
   - `taize_chants`: Churches offering Taizé chant services.
   - `youth_ministry`: Churches with active youth programs.
 
@@ -207,7 +201,6 @@ export const MobileChurchListQuerySchema = z.object({
   // `z.coerce.boolean()` turns "false" into true; these flags accept only
   // true/1/"true" and false/0/"false", anything else is ignored.
   sunday_live_stream: booleanish.optional(),
-  open_now: booleanish.optional(),
   taize_chants: booleanish.optional(),
   youth_ministry: booleanish.optional(),
 })
@@ -226,7 +219,7 @@ Website reads call shared controllers directly (section 2.2). No separate read e
 | Password                | `POST /api/v1/auth/reset-password`, forgot                                                 | Built  |
 | Discover                | `GET /api/v1/site/churches` (controller `listPublicChurches`)                              | Built  |
 | Home                    | `GET /api/v1/mobile/home` (shared controller)                                              | Built  |
-| Prayers                 | `GET .../prayers`, `GET /prayers/:prayerId`                                                | Built  |
+| Prayers                 | `GET .../prayers`, `GET /prayers/:slug`                                                    | Built  |
 | Profile                 | `GET/PATCH /me`, avatar upload                                                             | Built  |
 | Church events           | `GET /api/v1/site/churches/:churchId/events` (controller `listPublicEvents`)               | Built  |
 | Church announcements    | `GET /api/v1/site/churches/:churchId/announcements` (controller `listPublicAnnouncements`) | Built  |
@@ -245,7 +238,6 @@ Website reads call shared controllers directly (section 2.2). No separate read e
 5. Language: Matches linked `churchLanguages` records where `language_code = language`.
 6. Quick filters:
    - `sunday_live_stream`: Churches with stream metadata.
-   - `open_now`: Evaluates current server time against schedule windows in `sanctuary_hours`.
    - `taize_chants`: Matches services or tags mentioning Taizé prayer.
    - `youth_ministry`: Matches services or tags for youth programs.
 7. Pagination: Standard envelope (`result`, `total`, `page`, `limit`).
@@ -279,13 +271,10 @@ All profile interactions run through shared controllers guarded by `requiredWebA
 
 - `gallery`: Returns `READY` image assets from `church_gallery_items`, sorted by `order_index` ascending. URLs resolve via public S3.
 - `staff`: Active pastoral staff (`name`, `pastoralRole`, `imageUrl`). Direct contacts show only when present in church contact fields.
-- `diaconalPrograms`: Program list parsed from `church.diaconal_programs` (`title`, `description`, `badgeText`, `metaText`, `icon`).
 - `prayers`: Liturgical audio entries from `GET /api/v1/site/churches/:churchId/prayers`. Supports category filtering and inline transcripts.
 - `requests`: Petitions submitted via `POST /api/v1/site/churches/:churchId/requests` through `submitRequest`. Writes to `requests` with rate limits and idempotency keys.
 - `events`: Up to 3 upcoming events (`starts_at >= now`), sorted chronologically. Button text uses `cta_label`, falling back to localized defaults.
 - `announcements`: Up to 2 active announcements (`deleted_at is null`), newest first. Title or body prefixes provide category badges.
-- `sanctuaryHours`: String schedule from `church.sanctuary_hours`. Bullets (`•`) split multi-day schedules into discrete cards and power `open_now` filtering.
-- `accessibility`: Array of discrete facility strings (`string[]`) for icon rows on profile and primary badge on discovery cards; never returned as a raw delimited string.
 - `deaneryName`: Name of the parent org node where `kind = 'DEANERY'`.
 - `stewardship`: Preset donation amounts with custom entry and tax-deductibility notices.
 
@@ -306,11 +295,11 @@ Directory flows filter approved congregations across the region:
 1. Search by name or city (`search`).
 2. Filter by radius (`radius_km`) from coordinates (`latitude`, `longitude`).
 3. Filter by denomination (`denomination`) or service language (`language`).
-4. Apply quick filters for Sunday live stream, open sanctuaries, Taizé chants, or youth ministry.
+4. Apply quick filters for Sunday live stream, Taizé chants, or youth ministry.
 5. Directory displays a split layout:
-   - Left: cards with service times, contact links, and accessibility details.
+   - Left: cards with service times and contact links.
    - Right: interactive map synchronized with filtered pins and selection state.
-6. Opening `/churches/:churchId` loads public profile details, gallery items, upcoming events, published announcements, pastoral staff, and the primary parish badge when matching `mainChurch.id`.
+6. Opening `/churches/:slug` (church slug, migration `20261022120000_add_church_slug`) loads public profile details, gallery items, upcoming events, published announcements, pastoral staff, and the primary parish badge when matching `mainChurch.id`.
 
 ### 7.3 WF3: Prayer
 
@@ -350,18 +339,18 @@ Home loads the `getHome` projection for primary church, followed churches, and r
 
 ## 10. Verification matrix
 
-| Check                         | Expected outcome                                                                                  |
-| ----------------------------- | ------------------------------------------------------------------------------------------------- |
-| Customer sign-in              | Role-less user signs in successfully after decision W1.                                           |
-| Registration and verification | User completes signup and verification; unverified users cannot sign in.                          |
-| Directory approvals           | Suspended and archived churches never appear in directory results.                                |
-| Directory filters             | Text search, radius, denomination, language, and quick filters return matching approved churches. |
-| Home feed                     | `getHome` returns primary church and published prayers; drafts stay hidden.                       |
-| Audio playback                | Player streams audio from public S3.                                                              |
-| Donation webhook              | Webhook verifies signature, deduplicates events, and writes `Donation` rows.                      |
-| Language selector             | Switching between `en`, `et`, `sv`, and `fi` updates UI text cleanly.                             |
-| Session expiration            | Expired sessions redirect to `/login` without exposing stale data.                                |
-| Access control                | Customer accounts cannot access admin routes or dashboard screens.                                |
+| Check                         | Expected outcome                                                                   |
+| ----------------------------- | ---------------------------------------------------------------------------------- |
+| Customer sign-in              | Role-less user signs in successfully after decision W1.                            |
+| Registration and verification | User completes signup and verification; unverified users cannot sign in.           |
+| Directory approvals           | Suspended and archived churches never appear in directory results.                 |
+| Directory filters             | Text search, radius, denomination, and language return matching approved churches. |
+| Home feed                     | `getHome` returns primary church and published prayers; drafts stay hidden.        |
+| Audio playback                | Player streams audio from public S3.                                               |
+| Donation webhook              | Webhook verifies signature, deduplicates events, and writes `Donation` rows.       |
+| Language selector             | Switching between `en`, `et`, `sv`, and `fi` updates UI text cleanly.              |
+| Session expiration            | Expired sessions redirect to `/login` without exposing stale data.                 |
+| Access control                | Customer accounts cannot access admin routes or dashboard screens.                 |
 
 ## 11. Deferred features
 
@@ -373,25 +362,19 @@ Keep website scope limited to prayer, donations, and customer onboarding. New fe
 
 ## 13. Decision register
 
-| Ref | Decision                                                                                                                                                                                                                | Status / Impact                                                                                                                                                                                   |
-| --- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| W1  | Customer NextAuth sign-in branch for role-less accounts.                                                                                                                                                                | Resolved (Option B) — prayer_user on signup; admin is staff-only.                                                                                                                                 |
-| W2  | Donation payment model, currency list, preset amounts, and recurring fees.                                                                                                                                              | Open (no longer blocks WF4 UI). MB-03 `donationOptions` ships with per-church currency/presets/monthly flag plus an EUR fallback; the agreed currency list and fee treatment are still undecided. |
-| W3  | Stripe Connect onboarding flow, payout schedules, and redirect URLs.                                                                                                                                                    | Open. Blocks per-church payouts only — checkout runs on one platform account today.                                                                                                               |
-| W4  | Prayer language filtering and launch translations.                                                                                                                                                                      | Open. Blocks WF3 (prayer feed)                                                                                                                                                                    |
-| W5  | Privacy policy and legal notices for customer accounts.                                                                                                                                                                 | Open. Blocks WF1 (registration)                                                                                                                                                                   |
-| W6  | Store church photos in `church_gallery_items`. Admin gallery tab (upload, caption, reorder, remove) is implemented in this branch — supersedes the earlier "admin UI deferred" note.                                    | Implemented (migration 20261015120000)                                                                                                                                                            |
-| W7  | Limit public staff listings to name, pastoral role, and photo.                                                                                                                                                          | Implemented                                                                                                                                                                                       |
-| W8  | Omit announcement category columns; notice cards render title, body, and publish date with category badges from title prefixes.                                                                                         | Implemented                                                                                                                                                                                       |
-| W9  | Add nullable `sanctuary_hours` text column to `churches`; exposed as `sanctuaryHours` on public schemas.                                                                                                                | Implemented (migration 20261015120000)                                                                                                                                                            |
-| W10 | Expose parent deanery name as `deaneryName` from parent org nodes where `kind = 'DEANERY'`.                                                                                                                             | Implemented                                                                                                                                                                                       |
-| W11 | Add `diaconal_programs` JSON column to `churches`; exposed as `diaconalPrograms` on public schemas.                                                                                                                     | Implemented (migration 20261015140000)                                                                                                                                                            |
-| W12 | Add `GET /api/v1/site/churches/:churchId/prayers` using `listPublishedPrayers` for liturgy playlists and audio filters.                                                                                                 | Implemented                                                                                                                                                                                       |
-| W13 | Add `POST /api/v1/site/churches/:churchId/requests` using `submitRequest` with session auth to persist petitions in `requests`.                                                                                         | Implemented                                                                                                                                                                                       |
-| W14 | Delimit multi-segment schedule strings with `•` for internal schedule storage. Accessibility features project as a clean string array (`string[]`) over the API rather than returning raw delimited strings to clients. | Implemented                                                                                                                                                                                       |
-| W15 | Add `cta_label` text column to `events`; exposed as `ctaLabel` on public event models and editable in admin EventForm.                                                                                                  | Implemented (migration 20261015150000)                                                                                                                                                            |
-| W16 | Add nullable `church_style` text column to `churches`; exposed as `churchStyle` on `MobileChurchSummary` and rendered as the directory card pill.                                                                       | Implemented (migration 20261016120000)                                                                                                                                                            |
-| W17 | Add nullable `sunday_live_stream`, `taize_chants`, `youth_ministry` booleans to `churches` to back the directory quick filters.                                                                                         | Implemented (migration 20261013153502)                                                                                                                                                            |
+| Ref | Decision                                                                                                                                                                             | Status / Impact                                                                                                                                                                                   |
+| --- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| W1  | Customer NextAuth sign-in branch for role-less accounts.                                                                                                                             | Resolved (Option B) — prayer_user on signup; admin is staff-only.                                                                                                                                 |
+| W2  | Donation payment model, currency list, preset amounts, and recurring fees.                                                                                                           | Open (no longer blocks WF4 UI). MB-03 `donationOptions` ships with per-church currency/presets/monthly flag plus an EUR fallback; the agreed currency list and fee treatment are still undecided. |
+| W3  | Stripe Connect onboarding flow, payout schedules, and redirect URLs.                                                                                                                 | Open. Blocks per-church payouts only — checkout runs on one platform account today.                                                                                                               |
+| W4  | Prayer language filtering and launch translations.                                                                                                                                   | Open. Blocks WF3 (prayer feed)                                                                                                                                                                    |
+| W5  | Privacy policy and legal notices for customer accounts.                                                                                                                              | Open. Blocks WF1 (registration)                                                                                                                                                                   |
+| W6  | Store church photos in `church_gallery_items`. Admin gallery tab (upload, caption, reorder, remove) is implemented in this branch — supersedes the earlier "admin UI deferred" note. | Implemented (migration 20261015120000)                                                                                                                                                            |
+| W7  | Limit public staff listings to name, pastoral role, and photo.                                                                                                                       | Implemented                                                                                                                                                                                       |
+| W8  | Omit announcement category columns; notice cards render title, body, and publish date with category badges from title prefixes.                                                      | Implemented                                                                                                                                                                                       |
+| W15 | Add `cta_label` text column to `events`; exposed as `ctaLabel` on public event models and editable in admin EventForm.                                                               | Implemented (migration 20261015150000)                                                                                                                                                            |
+| W16 | Add nullable `church_style` text column to `churches`; exposed as `churchStyle` on `MobileChurchSummary` and rendered as the directory card pill.                                    | Implemented (migration 20261016120000)                                                                                                                                                            |
+| W17 | Add nullable `sunday_live_stream`, `taize_chants`, `youth_ministry` booleans to `churches` to back the directory quick filters.                                                      | Implemented (migration 20261013153502)                                                                                                                                                            |
 
 ## 14. References
 

@@ -89,7 +89,7 @@ Supporting technical/delivery requirements are documented separately below; they
 
 - Church name, cover image, description, and category/denomination where applicable.
 - Address/location, map, contact details, website, and social links.
-- Languages and accessibility information where provided.
+- Languages where provided.
 - Pastor image, name, pastoral role, and introduction.
 - Sunday/service schedule.
 - Associated events, daily prayers, announcements, contact actions, and donation access.

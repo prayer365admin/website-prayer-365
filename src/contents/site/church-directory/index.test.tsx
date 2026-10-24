@@ -24,6 +24,7 @@ vi.mock('@/components/common/google-map', () => ({
 }))
 const summaryA = {
   id: 'c1',
+  slug: 'grace',
   name: 'Grace',
   denomination: 'Lutheran',
   city: 'Tallinn',
@@ -36,6 +37,7 @@ const summaryA = {
 
 const summaryB = {
   id: 'c2',
+  slug: 'hope',
   name: 'Hope',
   denomination: 'Baptist',
   city: 'Tartu',
@@ -91,7 +93,7 @@ describe('ContentsSiteChurchDirectory', () => {
     expect(screen.getAllByText('Tallinn').length).toBeGreaterThanOrEqual(1)
 
     const viewDetailsLinks = screen.getAllByRole('link', { name: 'View details' })
-    expect(viewDetailsLinks[0].getAttribute('href')).toBe('/churches/c1')
+    expect(viewDetailsLinks[0].getAttribute('href')).toBe('/churches/grace')
     expect(screen.getAllByText('G').length).toBeGreaterThanOrEqual(1)
     expect(screen.getByText('2 welcoming congregations listed')).toBeTruthy()
 
@@ -116,6 +118,25 @@ describe('ContentsSiteChurchDirectory', () => {
     const cards = screen.getAllByText('Primary Parish')
     expect(cards).toHaveLength(1)
     expect(screen.getAllByRole('link', { name: 'Directions' })).toHaveLength(1)
+    // Primary church (c2 = Hope) is sorted to the very top
+    const headings = screen.getAllByRole('heading', { level: 3 })
+    expect(headings[0].textContent).toBe('Hope')
+    expect(screen.queryByText('Details & Bulletin')).toBeNull()
+    const viewDetailsLinks = screen.getAllByRole('link', { name: 'View details' })
+    expect(viewDetailsLinks).toHaveLength(2)
+    // Primary church (Hope) has "View details" button linking to its profile
+    expect(viewDetailsLinks[0].getAttribute('href')).toBe('/churches/hope')
+    // Non-featured church (Grace) has "View details" text link linking to its profile
+    expect(viewDetailsLinks[1].getAttribute('href')).toBe('/churches/grace')
+    // Bottom donation banner for church listing
+    expect(
+      screen.getByText(
+        /Support the sacred heritage, community meals, and ongoing pastoral ministry of local churches./i,
+      ),
+    ).toBeTruthy()
+    expect(screen.getByRole('link', { name: 'Support Local Churches' }).getAttribute('href')).toBe(
+      '/donate',
+    )
   })
 
   it('shows the church style pill and keeps the denomination badge separate', async () => {
@@ -230,9 +251,9 @@ describe('ContentsSiteChurchDirectory', () => {
     const searchInput = screen.getByPlaceholderText('Search churches by name or city')
     await user.type(searchInput, 'hope')
 
-    // While debouncing, loading skeletons should be displayed
+    // While debouncing, loading skeletons and search input loading icon should be displayed
     expect(container.querySelectorAll('.animate-pulse').length).toBeGreaterThan(0)
-
+    expect(container.querySelector('.anticon-loading')).toBeTruthy()
     // After 500ms debounce, API request triggers
     await waitFor(
       () => {
@@ -289,7 +310,9 @@ describe('ContentsSiteChurchDirectory', () => {
     expect(pinsContainer.getAttribute('data-active')).toBe('c1')
 
     expect(screen.getAllByText('Grace').length).toBeGreaterThanOrEqual(1)
-    expect(screen.getByRole('link', { name: 'Profile' }).getAttribute('href')).toBe('/churches/c1')
+    expect(screen.getByRole('link', { name: 'Profile' }).getAttribute('href')).toBe(
+      '/churches/grace',
+    )
     expect(screen.getByText(/Tallinn • Sanctuary Map/i)).toBeTruthy()
 
     const pin2 = screen.getByRole('button', { name: 'Pin c2' })
@@ -298,44 +321,9 @@ describe('ContentsSiteChurchDirectory', () => {
     await waitFor(() => {
       expect(pinsContainer.getAttribute('data-active')).toBe('c2')
       expect(screen.getByRole('link', { name: 'Profile' }).getAttribute('href')).toBe(
-        '/churches/c2',
+        '/churches/hope',
       )
       expect(screen.getByText(/Tartu • Sanctuary Map/i)).toBeTruthy()
-    })
-  })
-
-  it('toggles quick-filter chips and triggers API fetch with filter flags', async () => {
-    const user = userEvent.setup()
-    axiosMock.get.mockResolvedValueOnce({
-      data: resolveGet([summaryA], 1),
-    })
-
-    renderDirectory()
-    await screen.findAllByText('Grace')
-
-    // Click "Sunday Live Stream" chip
-    axiosMock.get.mockResolvedValueOnce({
-      data: resolveGet([summaryA], 1),
-    })
-    const sundayChip = screen.getByRole('button', { name: /Sunday Live Stream/i })
-    await user.click(sundayChip)
-
-    await waitFor(() => {
-      expect(axiosMock.get).toHaveBeenCalledWith('/api/v1/site/churches', {
-        params: expect.objectContaining({ sunday_live_stream: true, page: 1 }),
-      })
-    })
-
-    // Click it again to toggle off
-    axiosMock.get.mockResolvedValueOnce({
-      data: resolveGet([summaryA], 1),
-    })
-    await user.click(sundayChip)
-
-    await waitFor(() => {
-      expect(axiosMock.get).toHaveBeenLastCalledWith('/api/v1/site/churches', {
-        params: expect.not.objectContaining({ sunday_live_stream: true }),
-      })
     })
   })
 
@@ -396,8 +384,10 @@ describe('ContentsSiteChurchDirectory', () => {
     await screen.findAllByText('Grace')
 
     // Open distance dropdown
-    const radiusCombo = screen.getByRole('combobox', { name: 'Within 10 km' })
+    const radiusCombo = screen.getByRole('combobox', { name: 'All Distance' })
     await user.click(radiusCombo)
+    expect((await screen.findAllByTitle('All Distance')).length).toBeGreaterThanOrEqual(1)
+    expect(screen.getAllByText('Within 10 km')).toHaveLength(1)
 
     // Click "Within 25 km" option
     axiosMock.get.mockResolvedValueOnce({
@@ -416,5 +406,90 @@ describe('ContentsSiteChurchDirectory', () => {
         }),
       })
     })
+  })
+
+  it('renders service times in church card with Body Xs SemiBold styling (12px, 600 weight, #2F7AD2)', async () => {
+    const summaryWithService = {
+      ...summaryA,
+      id: 'c-service',
+      serviceTimes: 'Sunday Divine Service 10:00 • Evening Prayer 17:00',
+    }
+    axiosMock.get.mockResolvedValueOnce({
+      data: resolveGet([summaryWithService], 1),
+    })
+
+    renderDirectory()
+    const formattedElements = await screen.findAllByText('Sun 10:00 AM • Sun 5:00 PM')
+    expect(formattedElements.length).toBeGreaterThanOrEqual(1)
+    for (const formatted of formattedElements) {
+      expect(formatted.tagName).toBe('SPAN')
+      const container = formatted.parentElement
+      expect(container?.className).toContain('text-xs')
+      expect(container?.className).toContain('font-semibold')
+      expect(container?.className).toContain('text-[#2F7AD2]')
+      expect(container?.className).toContain('leading-[150%]')
+      expect(container?.className).toContain('font-font_text')
+    }
+  })
+
+  it('requests geolocation permission on mount and calculates distance using user coordinates', async () => {
+    const getCurrentPositionMock = vi.fn().mockImplementation((success) => {
+      success({
+        coords: {
+          latitude: 59.5,
+          longitude: 24.8,
+        },
+      })
+    })
+    vi.stubGlobal('navigator', {
+      ...navigator,
+      geolocation: {
+        getCurrentPosition: getCurrentPositionMock,
+      },
+    })
+
+    axiosMock.get.mockResolvedValueOnce({
+      data: resolveGet([summaryA], 1),
+    })
+
+    renderDirectory()
+    expect(getCurrentPositionMock).toHaveBeenCalled()
+
+    await waitFor(() => {
+      expect(axiosMock.get).toHaveBeenCalledWith('/api/v1/site/churches', {
+        params: expect.objectContaining({
+          latitude: 59.5,
+          longitude: 24.8,
+        }),
+      })
+    })
+
+    vi.unstubAllGlobals()
+  })
+
+  it('renders custom icons for pastor (user-tie), calendar, view details arrow, and primary buttons', async () => {
+    const summaryFull = {
+      ...summaryA,
+      pastorName: 'Pastor Patrik Göransson',
+      serviceTimes: 'Friday Youth 19:30',
+    }
+    axiosMock.get.mockResolvedValueOnce({
+      data: resolveGet([summaryFull], 1),
+    })
+
+    const { container } = renderDirectory()
+    expect((await screen.findAllByText('Pastor Patrik Göransson')).length).toBeGreaterThanOrEqual(1)
+
+    // Check that user-tie icon SVG path is rendered for pastor
+    const pastorPath = container.querySelector('path[d^="M6.125 7C4.86719"]')
+    expect(pastorPath).toBeTruthy()
+
+    // Check that calendar-week icon SVG path is rendered for service times
+    const calendarPath = container.querySelector('path[d^="M4.15625 0V0.65625"]')
+    expect(calendarPath).toBeTruthy()
+
+    // Check that direction icon SVG path is rendered for featured button
+    const directionPath = container.querySelector('path[d^="M2.5625 9.75L3.49219"]')
+    expect(directionPath).toBeTruthy()
   })
 })

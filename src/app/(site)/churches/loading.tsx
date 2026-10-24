@@ -31,10 +31,6 @@ export default function Loading() {
           <div className="flex flex-wrap items-center gap-2 pt-4">
             <div className="h-4 w-20 rounded bg-slate-200" />
             <div className="h-8 w-28 rounded-2xl bg-slate-100" />
-            <div className="h-8 w-36 rounded-2xl bg-slate-100" />
-            <div className="h-8 w-32 rounded-2xl bg-slate-100" />
-            <div className="h-8 w-28 rounded-2xl bg-slate-100" />
-            <div className="h-8 w-28 rounded-2xl bg-slate-100" />
           </div>
         </div>
 

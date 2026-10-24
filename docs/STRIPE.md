@@ -7,6 +7,7 @@ This document outlines the Stripe webhook and payment integration (SPEC §9.6, T
 - **Single Platform Account:** All church donations settle into **one centralized PRAYER-owned Stripe platform account**. Stripe Connect and per-church accounts are not used.
 - **Payouts:** External and manual by administrators outside this dashboard. The dashboard contains no payout, transfer, or balance UI and calls no Stripe payout APIs.
 - **Church Attribution:** Because all transactions occur on the platform account, donation flows MUST attach `churchId` to Stripe `metadata` (e.g. `metadata.churchId`).
+- **Ministry Designation:** The giver's chosen purpose (`category`: `general` | `pantry` | `organ` | `youth`, from the W11 "Designate Ministry Purpose" grid) rides in `metadata.category` on the Checkout Session **and** on the payment intent / subscription metadata, so a parish can filter gifts by ministry directly in Stripe. Omitted → no `category` key (mobile/API callers that predate the field).
 - **Account Resolution:** Incoming events resolve their account from `event.account`, falling back to `data.object.account`, then to `STRIPE_PLATFORM_ACCOUNT_ID` (the normal case for single-account webhooks). An unset `STRIPE_PLATFORM_ACCOUNT_ID` makes every webhook fail with 500 `STRIPE_PLATFORM_ACCOUNT_ID_MISSING` until configured.
 - **Isolation & Protection:** Webhook events without a resolvable, approved `churchId` or from unconfigured sources are recorded as durable receipts for audit but **never** create donation rows or affect church records.
 
@@ -99,7 +100,7 @@ bun run worker:payment-sync
 
 Checkout initiation is exposed through the donation controller (`initiateDonation`) and will be wired to a route in the mobile/API phase (MB-02). Behavior contract:
 
-- Input: `amountMinor` (positive integer), `currency` (3-letter code), `frequency` (`one_time` | `monthly`), optional `successUrl` / `cancelUrl` (hardcoded `app.prayer.com` fallbacks until D6 finalizes URLs).
+- Input: `amountMinor` (positive integer), `currency` (3-letter code), `frequency` (`one_time` | `monthly`), optional `category` (`general` | `pantry` | `organ` | `youth` → `metadata.category` on the session and the payment intent / subscription), optional `successUrl` / `cancelUrl` (hardcoded `app.prayer.com` fallbacks until D6 finalizes URLs).
 - Only `APPROVED` churches are eligible (`CHURCH_NOT_ELIGIBLE` otherwise); payloads containing raw card data are rejected with 422 `RAW_CARD_DATA_FORBIDDEN` before validation.
 - Idempotency: send an `Idempotency-Key` header. Same actor+key+body replays the stored checkout session; same key with a different body returns 409 `IDEMPOTENCY_CONFLICT`; a concurrent in-flight request returns 409 `IDEMPOTENCY_IN_FLIGHT`. The external Stripe call runs **outside** any database transaction (`withExternalIdempotency`), so a slow Stripe call never holds a DB connection/lock.
 - Session creation is a documented Phase-10 stub until the real Stripe SDK is wired.
@@ -128,6 +129,12 @@ The webhook endpoint idempotently stores webhook receipts and pushes a `payment.
 - **Subscription State Guard:** Canceled subscriptions are preserved against stale out-of-order non-terminal events. Non-terminal events (e.g., `past_due` vs `active`) overwrite based on incoming payload order pending finalization of D6 subscription lifecycle rules.
 
 ## API Routes
+
+**Website (cookie session, subject-scoped, `Cache-Control: private, no-store`):**
+
+- **`POST /api/v1/site/donations`** — starts a checkout. The body carries `churchId` plus `DonationInput` (`amountMinor`, `currency`, `frequency`, optional `category`); the giver comes from the session. A disabled integration returns `503 DONATIONS_NOT_READY`.
+- **`POST /api/v1/site/donations/portal`** — mints a Stripe **billing portal** session so the giver pauses or changes their own pledge in Stripe (`billingPortal.sessions.create`). The subscription is resolved from the signed-in giver's newest `active` `DonationSubscription` and its Customer comes from `subscriptions.retrieve`, so no client-supplied subscription/customer id is ever trusted. Optional `returnPath` must stay on `/donate*` and is resolved against this origin. No active pledge → `404 NO_ACTIVE_SUBSCRIPTION`.
+- **`GET /api/v1/site/donations/status`** — W12 attempt outcome read from our own ledger.
 
 **Reporting (all read-only, scoped by `requiredAuth` + `requiredScope` `prayer_donation` read, responses carry `Cache-Control: private, no-store`):**
 
