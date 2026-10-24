@@ -244,6 +244,7 @@ export type MobilePublishedAudio = z.infer<typeof MobilePublishedAudioSchema>
 
 export const MobilePublishedPrayerSchema = z.object({
   id: z.string(),
+  slug: z.string(),
   churchId: z.string(),
   churchName: z.string(),
   publishedAt: z.string(),
@@ -262,6 +263,7 @@ export const MobilePublishedPrayerSchema = z.object({
 
 export type MobilePublishedPrayer = {
   id: string
+  slug: string
   churchId: string
   churchName: string
   publishedAt: string

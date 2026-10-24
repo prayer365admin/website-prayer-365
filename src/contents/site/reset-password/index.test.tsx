@@ -34,11 +34,13 @@ describe('Reset password (W04)', () => {
     searchParamsMock.get.mockImplementation((k: string) => (k === 'token' ? 'tok' : null))
   })
 
-  it('shows the sign-in card with the reset title and the strength meter', () => {
+  it('shows the recovery card with both password fields and safeguards', () => {
     renderPage()
 
     expect(screen.getByRole('heading', { level: 1, name: en.resetTitle })).toBeTruthy()
-    expect(screen.getByRole('meter')).toBeTruthy()
+    expect(screen.getByLabelText(en.resetNewLabel)).toBeTruthy()
+    expect(screen.getByLabelText(en.resetConfirmLabel)).toBeTruthy()
+    expect(screen.getByRole('heading', { name: en.recoverySafeguardsTitle })).toBeTruthy()
   })
 
   it('blocks when the passwords do not match', async () => {
@@ -60,7 +62,7 @@ describe('Reset password (W04)', () => {
       new_password: 'NewPass1!',
       confirm_password: 'NewPass1!',
     })
-    expect(screen.getByRole('link', { name: en.signUpSignIn }).getAttribute('href')).toBe('/login')
+    expect(screen.getByRole('link', { name: en.recoveryLogin }).getAttribute('href')).toBe('/login')
   })
 
   it('an invalid or expired link offers a new one', async () => {

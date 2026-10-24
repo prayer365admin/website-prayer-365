@@ -3,7 +3,9 @@ import { db } from '@/utils/db-connection'
 import { GeneralError } from '@/utils/general-error'
 import { auditPayload } from '@/utils/audit'
 import { hashContent } from '@/utils/hash'
+import customSlugify from '@/utils/slugify'
 import { mapVersion, PrayerListQuery, PrayerOutput, PrayerVersionOutput } from '@/models/prayer'
+import { sanitizePrayerRichText } from '@/utils/sanitize-prayer-rich-text'
 
 /** Newest audio of a version (any status): the editor resumes an in-flight generation from it. */
 const LATEST_AUDIO = {
@@ -24,6 +26,33 @@ const LATEST_AUDIO = {
  */
 
 const toIds = (churchIds: Set<string>) => Array.from(churchIds)
+const PRAYER_SLUG_MAX_LENGTH = 140
+
+const uniquePrayerSlug = async (title: string, tx: Prisma.TransactionClient): Promise<string> => {
+  const normalized = customSlugify({ text: title, isExists: false })
+  const base = (normalized || 'prayer').slice(0, PRAYER_SLUG_MAX_LENGTH).replace(/-+$/, '')
+  let candidate = base
+
+  for (let attempt = 0; attempt < 10; attempt += 1) {
+    const existing = await tx.prayer.findUnique({
+      where: { slug: candidate },
+      select: { id: true },
+    })
+    if (!existing) return candidate
+    candidate = customSlugify({
+      text: base.slice(0, PRAYER_SLUG_MAX_LENGTH - 7),
+      isExists: true,
+    })
+  }
+
+  throw new GeneralError({
+    code: 500,
+    error: 'INTERNAL_ERROR',
+    error_code: 'SLUG_GENERATION_FAILED',
+    details: 'Could not generate a unique prayer slug.',
+  })
+}
+
 const stale = () =>
   new GeneralError({
     code: 409,
@@ -55,6 +84,12 @@ type VersionRow = {
   audio?: { id: string; status: string }[]
 }
 
+const mapSafeVersion = (version: VersionRow): PrayerVersionOutput => ({
+  ...mapVersion(version),
+  introduction: version.introduction ? sanitizePrayerRichText(version.introduction) || null : null,
+  body: sanitizePrayerRichText(version.body),
+})
+
 const mapPrayer = (
   p: {
     id: string
@@ -73,7 +108,7 @@ const mapPrayer = (
   churchId: p.church_id,
   version: p.version,
   createdAt: p.created_at.toISOString(),
-  current: current ? mapVersion(current) : null,
+  current: current ? mapSafeVersion(current) : null,
   published:
     p.published_version_id && p.published_at
       ? { prayerVersionId: p.published_version_id, publishedAt: p.published_at.toISOString() }
@@ -294,8 +329,9 @@ export const CREATE_PRAYER_WITH_VERSION = async ({
 }): Promise<PrayerOutput> => {
   const textHash = TEXT_HASH(data)
   return db.$transaction(async (tx) => {
+    const slug = await uniquePrayerSlug(data.title, tx)
     const prayer = await tx.prayer.create({
-      data: { church_id: churchId, created_by: actorId },
+      data: { slug, church_id: churchId, created_by: actorId },
     })
     const version = await tx.prayerVersion.create({
       data: {
@@ -467,7 +503,7 @@ export const APPROVE_TEXT = async ({
         requestId,
       }),
     })
-    return mapVersion(updated)
+    return mapSafeVersion(updated)
   })
 }
 

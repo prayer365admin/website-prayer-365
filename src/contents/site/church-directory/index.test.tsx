@@ -313,6 +313,7 @@ describe('ContentsSiteChurchDirectory', () => {
     expect(screen.getByRole('link', { name: 'Profile' }).getAttribute('href')).toBe(
       '/churches/grace',
     )
+    expect(screen.getByText(/Tallinn • Sanctuary Map/i)).toBeTruthy()
 
     const pin2 = screen.getByRole('button', { name: 'Pin c2' })
     await user.click(pin2)
@@ -322,6 +323,7 @@ describe('ContentsSiteChurchDirectory', () => {
       expect(screen.getByRole('link', { name: 'Profile' }).getAttribute('href')).toBe(
         '/churches/hope',
       )
+      expect(screen.getByText(/Tartu • Sanctuary Map/i)).toBeTruthy()
     })
   })
 

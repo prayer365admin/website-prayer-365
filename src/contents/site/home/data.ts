@@ -57,7 +57,7 @@ export const HOME_SHORTCUTS: HomeShortcut[] = [
     title: 'homeShortcutRequestTitle',
     body: 'homeShortcutRequestBody',
     link: 'homeShortcutRequestLink',
-    href: '#prayer-petition',
+    href: null,
   },
 ]
 
@@ -66,7 +66,7 @@ export const homeCardClassName = 'rounded-2xl bg-white shadow-[0_8px_30px_rgba(2
 export const homeCardThinShadowClassName =
   'rounded-2xl bg-white shadow-[0_1px_2px_0px_rgba(24,74,140,0.08)]'
 
-/** Ring targets: a full week of check-ins, an hour of prayer audio a week. */
+/** Ring targets: a full week with prayer listening, and an hour of prayer audio a week. */
 export const HOME_HABIT_GOALS = { streakDays: 7, minutesThisWeek: 60 }
 
 export const PETITION_INTENTIONS: SiteMessageKey[] = [

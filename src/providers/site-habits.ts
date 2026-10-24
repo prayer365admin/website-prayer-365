@@ -6,7 +6,7 @@ const isoDay = (date: Date) => date.toISOString().slice(0, 10)
 
 /**
  * Streak of consecutive days in `days` (unique YYYY-MM-DD, newest first) ending today or yesterday,
- * so a streak is not lost before today's check-in.
+ * so a streak is not lost before today's first prayer listen.
  */
 export const streakDays = (days: string[], today: string) => {
   let expected = days[0] === today ? today : isoDay(new Date(Date.parse(today) - DAY))
@@ -26,8 +26,9 @@ export const weekStart = (now: Date) => {
 }
 
 /**
- * Subject-only habit figures. ponytail: check-in local_date is the church's local day while
- * "today" is UTC, so a streak can read one day short around midnight; pass the user's zone if that matters.
+ * Subject-only prayer-listening habits. Both figures come from the authenticated analytics intake:
+ * prayer_listen records the first successful play in a page view, and prayer_listen_minute records
+ * each full minute actually played. Calendar boundaries are UTC until user timezones are available.
  */
 export const GET_MY_HABITS = async ({
   userId,
@@ -36,27 +37,28 @@ export const GET_MY_HABITS = async ({
   userId: string
   now?: Date
 }): Promise<SiteHabits> => {
-  const [checkIns, minutesThisWeek] = await Promise.all([
-    db.checkIn.findMany({
-      where: { user_id: userId },
-      distinct: ['local_date'],
-      orderBy: { local_date: 'desc' },
-      take: 366,
-      select: { local_date: true },
+  const streakWindowStart = new Date(now.getTime() - 366 * DAY)
+  const [listens, minutesThisWeek] = await Promise.all([
+    db.analyticsEvent.findMany({
+      where: {
+        user_id: userId,
+        event_type: 'prayer_listen',
+        occurred_at: { gte: streakWindowStart, lte: now },
+      },
+      orderBy: { occurred_at: 'desc' },
+      select: { occurred_at: true },
     }),
     db.analyticsEvent.count({
       where: {
         user_id: userId,
         event_type: 'prayer_listen_minute',
-        occurred_at: { gte: weekStart(now) },
+        occurred_at: { gte: weekStart(now), lte: now },
       },
     }),
   ])
+  const listenDays = Array.from(new Set(listens.map((row) => isoDay(row.occurred_at))))
   return {
-    streakDays: streakDays(
-      checkIns.map((row) => isoDay(row.local_date)),
-      isoDay(now),
-    ),
+    streakDays: streakDays(listenDays, isoDay(now)),
     minutesThisWeek,
   }
 }

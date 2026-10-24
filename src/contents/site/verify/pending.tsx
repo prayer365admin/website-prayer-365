@@ -1,6 +1,11 @@
 'use client'
 
-import { AuthCardSection } from '@/components/site/auth/auth-card'
+import {
+  RecoveryBackLink,
+  RecoveryCard,
+  RecoveryHeading,
+  RecoveryLockMark,
+} from '@/components/site/auth/recovery-layout'
 import { useSiteI18n } from '@/i18n/site-i18n'
 import { useSearchParams } from 'next/navigation'
 import ResendForm from './resend-form'
@@ -14,19 +19,15 @@ export default function PendingVerification() {
   const email = useSearchParams().get('email') ?? ''
 
   return (
-    <>
-      <AuthCardSection>
-        <span className="text-[10px] font-semibold uppercase tracking-[0.2em] text-primary-500">
-          {t('signUpEyebrow')}
-        </span>
-        <h1 className="mt-2 font-font_heading text-2xl font-bold tracking-tight text-primary-900 md:text-[32px]">
-          {t('verifyPendingTitle')}
-        </h1>
-        <p className="mt-2 text-neutral-600">{t('verifyPendingBody')}</p>
-      </AuthCardSection>
-      <AuthCardSection className="border-t border-neutral-200">
+    <RecoveryCard>
+      <RecoveryLockMark />
+      <RecoveryHeading body={t('verifyPendingBody')} title={t('verifyPendingTitle')} />
+      <div className="mt-8">
         <ResendForm initialEmail={email} />
-      </AuthCardSection>
-    </>
+      </div>
+      <div className="mt-8">
+        <RecoveryBackLink />
+      </div>
+    </RecoveryCard>
   )
 }

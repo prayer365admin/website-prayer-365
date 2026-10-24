@@ -684,6 +684,7 @@ export const seedStJohnsChurch = async () => {
     if (!prayer) {
       prayer = await db.prayer.create({
         data: {
+          slug: `st-johns-${customSlugify({ text: pDef.title, isExists: false })}-${i + 1}`,
           church_id: churchId,
           created_by: admin.id,
           published_at: new Date(Date.now() - i * 3600 * 1000),

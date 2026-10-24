@@ -2,11 +2,13 @@ import type { App } from 'aws-cdk-lib'
 import type { EnvConfig } from './types'
 import { catatia } from './environments/catatia'
 import { clientExample } from './environments/client-example'
+import { prayer365 } from './environments/prayer-365'
 
 /** Every deployable environment. Add a new client by adding one line here. */
 export const registry: Record<string, EnvConfig> = {
   catatia,
   'client-example': clientExample,
+  'prayer-365': prayer365,
 }
 
 export const DEFAULT_ENV = 'catatia'

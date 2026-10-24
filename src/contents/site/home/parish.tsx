@@ -3,7 +3,7 @@
 import MaskIcon from '@/components/site/mask-icon'
 import { useSiteI18n } from '@/i18n/site-i18n'
 import { MobilePublicChurch } from '@/models/mobile'
-import { CalendarOutlined, CompassOutlined } from '@ant-design/icons'
+import { CompassOutlined } from '@ant-design/icons'
 import Image from 'next/image'
 import Link from 'next/link'
 import { homeCardClassName, homeCardThinShadowClassName } from './data'
@@ -58,7 +58,11 @@ export default function PrimaryParish({ church }: { church: MobilePublicChurch |
     >
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
         <div className="flex min-w-0 flex-1 items-center gap-4">
-          <div className="relative size-[72px] shrink-0 overflow-hidden rounded-2xl bg-blue-50 sm:size-[90px]">
+          <Link
+            aria-label={church.name}
+            className="relative size-[72px] shrink-0 overflow-hidden rounded-2xl bg-blue-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-500 sm:size-[90px]"
+            href={`/churches/${church.id}`}
+          >
             {church.coverUrl ? (
               <Image alt="" className="object-cover" fill sizes="90px" src={church.coverUrl} />
             ) : (
@@ -66,7 +70,7 @@ export default function PrimaryParish({ church }: { church: MobilePublicChurch |
                 <MaskIcon className="bg-primary-300" size={32} src="/icons/icon-church-2.svg" />
               </span>
             )}
-          </div>
+          </Link>
           <div className="min-w-0">
             <p className="text-xs text-blue-800">
               <span className="uppercase">{t('homeParishLabel')}</span>
@@ -77,7 +81,9 @@ export default function PrimaryParish({ church }: { church: MobilePublicChurch |
               className="mt-1 text-lg font-semibold text-primary-900 sm:text-xl"
               id="home-parish-name"
             >
-              {church.name}
+              <Link className="transition hover:text-primary-500" href={`/churches/${church.id}`}>
+                {church.name}
+              </Link>
             </h2>
             {church.description && (
               <p className="mt-1 line-clamp-2 text-sm leading-6 text-neutral-600">
@@ -95,14 +101,6 @@ export default function PrimaryParish({ church }: { church: MobilePublicChurch |
           >
             <CompassOutlined /> {t('homeParishDirections')}
           </a>
-          <button
-            className="inline-flex h-10 flex-1 cursor-not-allowed items-center justify-center gap-2 rounded-lg bg-primary-500 px-4 text-sm font-semibold text-white opacity-60 sm:flex-none"
-            disabled
-            title={t('homeComingSoon')}
-            type="button"
-          >
-            <CalendarOutlined /> {t('homeParishBulletin')}
-          </button>
         </div>
       </div>
 

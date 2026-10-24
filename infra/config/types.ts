@@ -21,6 +21,17 @@ export type DatabaseConfig =
       instanceType: string
       storageGb: number
       backupRetentionDays: number
+      /**
+       * Place the instance in a PUBLIC subnet and give it a public endpoint.
+       *
+       * Required when the web app runs outside this account (Vercel): it has no
+       * fixed egress IPs, so the security group has to be open to the internet.
+       * TLS (`sslmode=require`) plus the RDS-generated password are the guard.
+       *
+       * `false` keeps the instance private — only reachable from inside the VPC,
+       * which means the web app cannot connect.
+       */
+      publiclyAccessible: boolean
     }
 
 /**
@@ -54,6 +65,24 @@ export type WorkersConfig = {
   consumerMemoryMb: number
 }
 
+export type EmailConfig = {
+  /** Domain verified in SES for this environment. */
+  domain: string
+  /**
+   * Custom MAIL FROM subdomain (better SPF alignment with DMARC). SES expects the
+   * MX + TXT records listed in docs/admin/SES-DNS.md to be published. For an
+   * adopted identity it only records what the domain already has configured.
+   */
+  mailFromDomain?: string
+  /**
+   * `create` makes the domain identity and emits the DKIM records the domain owner
+   * must publish. `existing` adopts a domain someone already verified in this
+   * account's SES (catatia.com) — CDK cannot read an imported identity's DKIM
+   * tokens, so read those with `aws sesv2 get-email-identity`.
+   */
+  mode: 'create' | 'existing'
+}
+
 export type EnvConfig = {
   name: string
   account: string
@@ -64,6 +93,7 @@ export type EnvConfig = {
   storage: StorageConfig
   database: DatabaseConfig
   network: NetworkConfig
+  email: EmailConfig
   workers: WorkersConfig
   alarmEmail?: string
   logRetentionDays: number

@@ -69,7 +69,7 @@ export default function ChurchCard({
       <div className="flex items-center justify-between gap-2 p-4">
         {(featured || churchStyle) && (
           <div
-            className={`flex w-fit items-center gap-1 rounded-full px-2 py-1 text-xs leading-[150%] ${
+            className={`flex w-fit shrink-0 items-center gap-1 whitespace-nowrap rounded-full px-2 py-1 text-xs leading-[150%] ${
               featured ? 'bg-primary_color text-white' : 'bg-[#B9D8F8] text-[#0B4497]'
             }`}
           >
@@ -84,8 +84,8 @@ export default function ChurchCard({
           </div>
         )}
         {(distanceText || districtText) && (
-          <div className="flex ml-auto items-center gap-2 text-xs text-[#5B6370]">
-            {distanceText && <span>{distanceText}</span>}
+          <div className="ml-auto flex items-center gap-2 text-right text-xs text-[#5B6370]">
+            {distanceText && <span className="whitespace-nowrap">{distanceText}</span>}
             {distanceText && districtText && (
               <span className="h-[3px] w-[3px] rounded-full bg-[#B0B5BE]" />
             )}

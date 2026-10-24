@@ -4,6 +4,7 @@ import { MobileAnalyticsInputSchema } from '@/models/mobile'
 import requiredWebAuth from '@/utils/required-webauth'
 import { httpError, ok, requestId } from '@/utils/response'
 import { validate } from '@/utils/validate'
+import { revalidatePath } from 'next/cache'
 
 /*
  * POST /api/v1/site/analytics-events — cookie-session twin of the mobile route.
@@ -18,6 +19,13 @@ export async function POST(req: NextRequest) {
       input,
       requestId: requestId(),
     })
+    if (
+      input.events.some(
+        ({ eventType }) => eventType === 'prayer_listen' || eventType === 'prayer_listen_minute',
+      )
+    ) {
+      revalidatePath('/')
+    }
     return ok(result, 'Analytics recorded.')
   } catch (e) {
     return httpError(e)

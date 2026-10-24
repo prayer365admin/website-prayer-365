@@ -6,6 +6,7 @@ import SanctuaryHeader from '@/components/site/auth/sanctuary-header'
 import SignInAside from '@/components/site/auth/sign-in-aside'
 import { SiteLocale } from '@/config/site-locale'
 import { siteT } from '@/i18n/messages'
+import { SiteLoginPrayer } from '@/models/site-prayer'
 import Link from 'next/link'
 import SignInForm from './form'
 
@@ -17,12 +18,20 @@ import SignInForm from './form'
  * Server component: everything static renders as HTML with no client JS;
  * only <SignInForm /> hydrates (keeps Total Blocking Time low).
  */
-export default function ContentsSiteSignIn({ locale }: { locale: SiteLocale }) {
+export default function ContentsSiteSignIn({
+  locale,
+  memberCount = null,
+  prayer = null,
+}: {
+  locale: SiteLocale
+  memberCount?: number | null
+  prayer?: SiteLoginPrayer | null
+}) {
   const t = siteT(locale)
 
   return (
     <AuthLayout
-      aside={<SignInAside t={t} />}
+      aside={<SignInAside locale={locale} memberCount={memberCount} prayer={prayer} t={t} />}
       // Design: form 657px + 36px gap + aside 459px = 1152px container.
       containerClassName="lg:grid-cols-[minmax(0,657fr)_minmax(0,459fr)] lg:gap-9"
       form={

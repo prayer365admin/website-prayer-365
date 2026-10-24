@@ -20,6 +20,7 @@ import {
   MobilePublishedPrayer,
   MobileRequestInput,
 } from '@/models/mobile'
+import { richTextToPlainText } from '@/utils/rich-text-plain'
 
 /*
  * Mobile shared backend adapter (SPEC §8.4 / Tasks 39-43).
@@ -778,6 +779,7 @@ const publishedPrayerWhere = (churchId: string | string[]): Prisma.PrayerWhereIn
 
 const mapPublishedPrayer = (p: {
   id: string
+  slug: string
   church_id: string
   church: { name: string }
   published_at: Date | null
@@ -804,6 +806,7 @@ const mapPublishedPrayer = (p: {
   const approved = audio && audio.status === 'APPROVED' && audio.asset
   return {
     id: p.id,
+    slug: p.slug,
     churchId: p.church_id,
     churchName: p.church.name,
     publishedAt: toIso(p.published_at) ?? '',
@@ -813,8 +816,10 @@ const mapPublishedPrayer = (p: {
       pastorId: p.version.pastor_id,
       pastorName: p.version.pastor.name,
       title: p.version.title,
-      introduction: p.version.introduction,
-      body: p.version.body,
+      introduction: p.version.introduction
+        ? richTextToPlainText(p.version.introduction) || null
+        : null,
+      body: richTextToPlainText(p.version.body),
       languageCode: p.version.language_code,
     },
     audio: approved
@@ -846,6 +851,7 @@ export const LIST_PUBLISHED_PRAYERS = async ({
       orderBy: [{ published_at: 'desc' }, { id: 'asc' }],
       select: {
         id: true,
+        slug: true,
         church_id: true,
         church: { select: { name: true } },
         published_at: true,
@@ -868,6 +874,7 @@ export const LIST_PUBLISHED_PRAYERS = async ({
     .map((r) =>
       mapPublishedPrayer({
         id: r.id,
+        slug: r.slug,
         church_id: r.church_id,
         church: r.church,
         published_at: r.published_at,
@@ -896,6 +903,7 @@ export const LIST_LATEST_PUBLISHED_PRAYERS = async ({
     orderBy: [{ published_at: 'desc' }, { id: 'asc' }],
     select: {
       id: true,
+      slug: true,
       church_id: true,
       church: { select: { name: true } },
       published_at: true,
@@ -917,6 +925,7 @@ export const LIST_LATEST_PUBLISHED_PRAYERS = async ({
     .map((row) =>
       mapPublishedPrayer({
         id: row.id,
+        slug: row.slug,
         church_id: row.church_id,
         church: row.church,
         published_at: row.published_at,
@@ -942,6 +951,7 @@ export const GET_PUBLISHED_PRAYER = async ({
     },
     select: {
       id: true,
+      slug: true,
       church_id: true,
       church: { select: { name: true } },
       published_at: true,
@@ -958,6 +968,7 @@ export const GET_PUBLISHED_PRAYER = async ({
   })
   return mapPublishedPrayer({
     id: p.id,
+    slug: p.slug,
     church_id: p.church_id,
     church: p.church,
     published_at: p.published_at,

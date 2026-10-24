@@ -152,22 +152,22 @@ separate login at `/admin/login` (not shared; see SPEC §4 note).
 
 ### W08 — Church Profile
 
-**Route:** `/churches/:churchId`.
+**Route:** `/churches/:slug`.
 
 - Header: cover, church name, denomination, city, service times (local wall
   clock).
-- Blocks: description, address, contacts, website, languages, accessibility.
+- Blocks: description, address, contacts, website, languages.
 - Primary action: **Donate** (W11) — the parish Stewardship card links to that church's live donate page
   (`/donate?church={slug}`, WB-41). The donate page itself disables the pay button with a not-ready note while
   `STRIPE_ENABLED !== 'true'`; there is no disabled CTA on the profile any more.
 - Secondary: "View prayers" (W09) — not built as a link: the profile renders its prayer list inline in
-  the "Prayer Lists" card with its own filter; the `/churches/:churchId/prayers` route exists but has no
-  entry point yet (WB-23 ◐).
+  the "Prayer Lists" card with its own filter. The `/churches/:slug/prayers` archive route is reachable from
+  the prayer-detail sidebar ("See Arc") and from the header church picker while on the archive (WB-23 ✔).
 - Cross-reference: cover image uses the public `coverUrl` field.
 
 ### W09 — Prayer List / Archive
 
-**Route:** `/churches/:churchId/prayers` and `/prayers`.
+**Route:** `/churches/:slug/prayers` and `/prayers`.
 
 - List rows: prayer title, church, pastor, published date, play button.
 - Pagination per backend list contract.
@@ -175,7 +175,7 @@ separate login at `/admin/login` (not shared; see SPEC §4 note).
 
 ### W10 — Prayer Detail
 
-**Route:** `/prayers/:prayerId`.
+**Route:** `/prayers/:slug`.
 
 - Blocks: title, church + pastor attribution, introduction, full body text,
   audio player (approved audio only, public URL).

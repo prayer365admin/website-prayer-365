@@ -6,6 +6,7 @@ export const SitePrayerArchiveQuerySchema = z.object({
   search: z.string().trim().max(200).catch('').default(''),
   churchId: z.string().trim().max(100).catch('').default(''),
   language: z.string().trim().max(10).catch('').default(''),
+  duration: z.enum(['all', 'short', 'medium', 'long']).catch('all').default('all'),
   format: z.enum(['all', 'audio', 'text']).catch('all').default('all'),
 })
 
@@ -13,6 +14,7 @@ export type SitePrayerArchiveQuery = z.infer<typeof SitePrayerArchiveQuerySchema
 
 export type SitePrayerArchiveItem = {
   id: string
+  slug: string
   churchId: string
   churchName: string
   publishedAt: string
@@ -29,7 +31,18 @@ export type SitePrayerArchiveItem = {
     prayerAudioId: string
     url: string
     approvedAt: string
+    /** Derived from the persisted generated MP3 asset size (128 kbps). */
+    durationSeconds?: number
   } | null
+}
+
+export type SiteLoginPrayer = {
+  id: string
+  title: string
+  churchName: string
+  pastorName: string
+  languageCode: string
+  audioUrl: string
 }
 
 export type SitePrayerArchiveOption = { value: string; label: string; slug?: string }
@@ -43,10 +56,19 @@ export type SitePrayerArchive = {
   totalPages: number
   churches: SitePrayerArchiveOption[]
   languages: string[]
+  selectedChurchId: string | null
+  selectedChurchName: string | null
 }
 
 export type SitePrayerDetail = {
   prayer: SitePrayerArchiveItem
-  church: { id: string; slug: string; name: string; city: string | null }
+  church: {
+    id: string
+    slug: string
+    name: string
+    city: string | null
+    phone: string | null
+    imageUrl: string | null
+  }
   related: SitePrayerArchiveItem[]
 }

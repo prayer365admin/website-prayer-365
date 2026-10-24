@@ -4,10 +4,12 @@ import { NextRequest } from 'next/server'
 
 vi.mock('@/utils/required-webauth', () => ({ default: vi.fn() }))
 vi.mock('@/controller/mobile', () => ({ recordAnalyticsEvents: vi.fn() }))
+vi.mock('next/cache', () => ({ revalidatePath: vi.fn() }))
 
 import requiredWebAuth from '@/utils/required-webauth'
 import { recordAnalyticsEvents } from '@/controller/mobile'
 import { GeneralError } from '@/utils/general-error'
+import { revalidatePath } from 'next/cache'
 import { POST } from './route'
 
 const listen = {
@@ -36,6 +38,7 @@ describe('POST /api/v1/site/analytics-events', () => {
     expect(recordAnalyticsEvents).toHaveBeenCalledWith(
       expect.objectContaining({ userId: 'u1', input: { events: [listen] } }),
     )
+    expect(revalidatePath).toHaveBeenCalledWith('/')
   })
 
   it('rejects unknown event types and forged user fields with 422', async () => {

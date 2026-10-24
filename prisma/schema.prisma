@@ -450,6 +450,7 @@ model ServiceTime {
 
 model Prayer {
   id                   String          @id @default(uuid(7))
+  slug                 String          @unique
   church_id            String
   church               Church          @relation(fields: [church_id], references: [id])
   current_version_id   String?

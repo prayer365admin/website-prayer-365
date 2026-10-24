@@ -1,21 +1,33 @@
 import { BellRingIcon } from '@/components/icon/bell-ring'
 import { GuardIcon } from '@/components/icon/guard'
 import { OutlinedLogoIcon } from '@/components/icon/outlined-logo'
-import { SoundWaveIcon } from '@/components/icon/sound-wave'
 import { SunIcon } from '@/components/icon/sun'
 import { SiteT } from '@/i18n/messages'
-import { CaretRightFilled } from '@/components/icon/antd-icons'
+import { SiteLoginPrayer } from '@/models/site-prayer'
+import { SiteLocale } from '@/config/site-locale'
 import AvatarStack from '@/components/site/avatar-stack'
 import Pill from './pill'
+import SignInPrayerPlayer from './sign-in-prayer-player'
 
 /*
- * Sign-in side panels (WB1 design). Content is HARDCODED for now (decision F2,
- * REPORT R-05): no live stream, player, reminder or stats exist yet, so the
- * player is decorative, not a button.
+ * Sign-in side panels (WB1 design). The page supplies the latest published
+ * prayer with approved audio; the stream, reminder and stats remain static.
  *
  * Server component (no client JS): the page passes `t` from siteT(locale).
  */
-export default function SignInAside({ t }: { t: SiteT }) {
+export default function SignInAside({
+  locale = 'en',
+  memberCount = null,
+  prayer,
+  t,
+}: {
+  locale?: SiteLocale
+  memberCount?: number | null
+  prayer?: SiteLoginPrayer | null
+  t: SiteT
+}) {
+  const number = new Intl.NumberFormat(locale)
+
   return (
     <>
       {/* overlay-navy tint layered over the banner image (WB1 design). */}
@@ -38,24 +50,20 @@ export default function SignInAside({ t }: { t: SiteT }) {
           <h2 className="font-font_quote text-3xl leading-tight md:text-[32px]">
             {t('liveWhisperTitle')}
           </h2>
-          <p className="mt-3 text-xs text-white/80">{t('liveWhisperMembers')}</p>
+          {memberCount !== null && (
+            <p className="mt-3 text-xs text-white/80">
+              {t('liveWhisperMembers', { count: number.format(memberCount) })}
+            </p>
+          )}
         </div>
 
-        <div aria-hidden className="mt-4 flex items-center gap-[45px] rounded-xl bg-white/10 p-3">
-          <div className="flex min-w-0 flex-1 items-center gap-3">
-            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white text-blue-800">
-              <CaretRightFilled />
-            </span>
-            <div className="min-w-0 flex-1">
-              <p className="text-xs font-semibold">{t('livePlayerTitle')}</p>
-              <p className="truncate text-xs text-white/80">{t('livePlayerSubtitle')}</p>
-            </div>
-          </div>
-          <span className="flex items-center gap-1 text-xs uppercase">
-            <SoundWaveIcon aria-hidden className="!text-blue-100" style={{ fontSize: 15 }} />
-            {t('livePlayerBadge')}
-          </span>
-        </div>
+        {prayer && (
+          <SignInPrayerPlayer
+            pauseLabel={t('livePause')}
+            playLabel={t('livePlay')}
+            prayer={prayer}
+          />
+        )}
       </section>
 
       <section className="rounded-2xl bg-white p-5 shadow-[0_8px_30px_rgba(15,40,80,0.06)]">
