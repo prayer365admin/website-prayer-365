@@ -169,6 +169,7 @@ export default function ContentsSiteChurchDirectory() {
 
   const activeId = selectedId ?? data?.[0]?.id
   const selectedChurch = (data ?? []).find((c) => c.id === activeId)
+  const mapRegion = [selectedChurch?.district, selectedChurch?.city].filter(Boolean).join(', ')
 
   return (
     <div className="bg-[#F7F9FB]">
@@ -217,7 +218,7 @@ export default function ContentsSiteChurchDirectory() {
           {/* Search row */}
           <div className="flex flex-col gap-2 pt-4 lg:flex-row">
             <Input
-              className="!h-12 !py-0 flex-1 rounded-lg border-[#5C6370] bg-white hover:border-[#5C6370] focus:border-primary_color focus:shadow-none [&_.ant-input]:text-sm [&_.ant-input]:text-[#393E46]"
+              className="!h-12 !py-0 rounded-lg lg:flex-1 border-[#5C6370] bg-white hover:border-[#5C6370] focus:border-primary_color focus:shadow-none [&_.ant-input]:text-sm [&_.ant-input]:text-[#393E46]"
               prefix={
                 <SearchOutlined className="mr-1 text-[16px] text-[#0E203E]" aria-hidden="true" />
               }
@@ -254,7 +255,7 @@ export default function ContentsSiteChurchDirectory() {
               }}
               prefix={<PointerIcon className="text-[20px] text-[#0E203E]" />}
               options={radiusOptions}
-              className="h-12 w-full lg:w-[195px] [&_.ant-select-selector]:!h-12 [&_.ant-select-selector]:!rounded-lg [&_.ant-select-selector]:!border-[#5C6370] [&_.ant-select-selection-item]:text-sm [&_.ant-select-selection-item]:text-[#0E203E]"
+              className="h-12 w-full lg:w-[195px] [&_.ant-select-selector]:!h-12 [&_.ant-select-selector]:!rounded-lg [&_.ant-select-selector]:!border-[#5C6370] [&_.ant-select-content]:text-sm [&_.ant-select-content]:text-[#0E203E]"
             />
 
             {/* Denomination combo: presets + free-typed custom values (e.g.
@@ -273,7 +274,7 @@ export default function ContentsSiteChurchDirectory() {
               placeholder={denomination ? undefined : t('allDenominations')}
               prefix={<ChurchIcon className="text-[20px] text-[#0E203E]" />}
               options={denominationOptions}
-              className="h-12 w-full lg:w-[231px] [&_.ant-select-selector]:!h-12 [&_.ant-select-selector]:!rounded-lg [&_.ant-select-selector]:!border-[#5C6370] [&_.ant-select-selection-item]:text-sm [&_.ant-select-selection-item]:text-[#0E203E] [&_.ant-select-content]:!py-2"
+              className="h-12 w-full lg:w-[231px] [&_.ant-select-selector]:!h-12 [&_.ant-select-selector]:!rounded-lg [&_.ant-select-selector]:!border-[#5C6370] [&_.ant-select-content]:text-sm [&_.ant-select-content]:text-[#0E203E] [&_.ant-select-placeholder]:text-sm [&_.ant-select-content]:!py-2"
             />
           </div>
 
@@ -293,7 +294,7 @@ export default function ContentsSiteChurchDirectory() {
                   setPage(1)
                 }}
                 options={languageOptions}
-                className="h-8 min-w-[130px] [&_.ant-select-selector]:!h-8 [&_.ant-select-selector]:!rounded-lg [&_.ant-select-selector]:!border-[#DDE0E4] [&_.ant-select-selection-item]:text-xs [&_.ant-select-selection-item]:text-[#22252A]"
+                className="h-8 min-w-[130px] [&_.ant-select-selector]:!h-8 [&_.ant-select-selector]:!rounded-lg [&_.ant-select-selector]:!border-[#DDE0E4] [&_.ant-select-content]:text-xs [&_.ant-select-content]:text-[#22252A]"
               />
             </div>
 
@@ -449,7 +450,8 @@ export default function ContentsSiteChurchDirectory() {
                 <div className="pointer-events-auto flex items-center gap-2 rounded-full border border-[#ECEEF0] bg-white/90 px-3.5 py-1.5 shadow-sm backdrop-blur-md">
                   <CompassIcon className="text-[13px] text-[#2F7AD2]" aria-hidden="true" />
                   <span className="text-[11px] font-bold tracking-wider text-[#414752] uppercase">
-                    TALLINN DIOCESE • SANCTUARY MAP
+                    {mapRegion ? `${mapRegion} • ` : ''}
+                    {t('sanctuaryMap')}
                   </span>
                 </div>
               </div>
@@ -532,7 +534,7 @@ export default function ContentsSiteChurchDirectory() {
         <section className="rounded-2xl p-4 shadow-[-1px_-1px_2px_#FFFFFF,0_1px_2px_rgba(0,0,0,0.05)] [background-image:linear-gradient(135deg,rgba(194,217,255,0.4)_0%,rgba(255,255,255,0.45)_100%)]">
           <div className="flex flex-col justify-between gap-6 rounded-xl bg-[#F5F7FF] p-4 lg:flex-row lg:items-end">
             <div className="flex flex-col gap-4 lg:max-w-[700px]">
-              <div className="flex items-center justify-between gap-3">
+              <div className="flex flex-col items-start gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
                 <div className="flex items-center gap-3">
                   <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-primary_color text-white shadow-sm">
                     <ChurchIcon className="h-5 w-5" />
@@ -541,7 +543,7 @@ export default function ContentsSiteChurchDirectory() {
                     {t('bannerEyebrow')}
                   </span>
                 </div>
-                <div className="flex items-center gap-1 text-xs text-[#5B6370]">
+                <div className="flex items-center gap-1 whitespace-nowrap text-xs text-[#5B6370]">
                   <span className="h-[3px] w-[3px] rounded-full bg-[#B0B5BE]" />
                   <span>{t('openDoorsCharter')}</span>
                 </div>

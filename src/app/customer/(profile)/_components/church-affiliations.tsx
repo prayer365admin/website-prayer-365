@@ -20,6 +20,8 @@ import ChurchPickerDrawer from './church-picker-drawer'
 const churchImagePlaceholder = '/images/placeholder.png'
 const EVENT_ROTATION_MS = 7000
 const TICKER_MAX_EVENTS = 5
+// Temporarily hide website event and announcement UI without removing its implementation.
+const SHOW_EVENTS_AND_ANNOUNCEMENTS = false
 // ponytail: no per-church notification preference exists yet, so every row is off; read it
 // from the church relation once that field is stored.
 const notificationsOn = false
@@ -241,10 +243,12 @@ export default function ChurchAffiliations({
                     <LocationIcon aria-hidden className={s.primaryLocationIcon} /> {mainChurch.city}
                   </p>
                 )}
-                <ChurchEventTicker
-                  events={upcomingEvents.slice(0, TICKER_MAX_EVENTS)}
-                  key={mainId}
-                />
+                {SHOW_EVENTS_AND_ANNOUNCEMENTS && (
+                  <ChurchEventTicker
+                    events={upcomingEvents.slice(0, TICKER_MAX_EVENTS)}
+                    key={mainId}
+                  />
+                )}
               </div>
               <div className={s.primaryActions}>
                 <SiteButton
@@ -276,7 +280,6 @@ export default function ChurchAffiliations({
       </section>
 
       <section className={s.followedHeading}>
-        <h2>{t('profileReflectionsHeading')}</h2>
         <p>{t('profileFollowedSubtitle')}</p>
       </section>
 

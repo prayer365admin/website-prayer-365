@@ -23,6 +23,20 @@ describe('SiteShell', () => {
     expect(screen.getByText('Customer profile')).toBeTruthy()
     expect(screen.getByRole('contentinfo')).toBeTruthy()
     expect(screen.getByRole('heading', { name: SITE_MESSAGES.en.footerParishHeading })).toBeTruthy()
+    const footerNavigation = screen.getByRole('navigation', {
+      name: SITE_MESSAGES.en.footerParishHeading,
+    })
+    expect(
+      Array.from(footerNavigation.querySelectorAll('a')).map((item) => [
+        item.textContent,
+        item.getAttribute('href'),
+      ]),
+    ).toEqual([
+      [SITE_MESSAGES.en.headerHome, '/'],
+      [SITE_MESSAGES.en.headerDiscoverChurches, '/churches'],
+      [SITE_MESSAGES.en.headerPrayers, '/prayers'],
+      [SITE_MESSAGES.en.headerGiving, '/giving'],
+    ])
     expect(
       screen.getByRole('heading', { name: SITE_MESSAGES.en.footerSupportHeading }),
     ).toBeTruthy()
@@ -41,6 +55,20 @@ describe('SiteShell', () => {
     ).toBe('/churches')
   })
 
+  it('can render recovery pages without the site header', () => {
+    renderWithProviders(
+      <SiteI18nProvider initialLocale="en">
+        <SiteShell footerVariant="legal-only" headerVariant="none">
+          Recovery
+        </SiteShell>
+      </SiteI18nProvider>,
+    )
+
+    expect(screen.queryByRole('banner')).toBeNull()
+    expect(screen.getByText('Recovery')).toBeTruthy()
+    expect(screen.getByRole('contentinfo')).toBeTruthy()
+  })
+
   // The shell is a client component, so the language switch must reach the footer copy.
   it('renders the chrome in the provider language', () => {
     renderWithProviders(
@@ -50,6 +78,10 @@ describe('SiteShell', () => {
     )
 
     expect(screen.getByText(SITE_MESSAGES.et.footerParishHeading)).toBeTruthy()
-    expect(screen.getByRole('link', { name: SITE_MESSAGES.et.headerDiscoverChurches })).toBeTruthy()
+    expect(
+      screen
+        .getByRole('navigation', { name: SITE_MESSAGES.et.headerPrimaryNav })
+        .querySelector('a[href="/churches"]')?.textContent,
+    ).toBe(SITE_MESSAGES.et.headerDiscoverChurches)
   })
 })

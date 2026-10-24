@@ -1,14 +1,21 @@
 'use client'
 
 import SiteButton from '@/components/common/button'
+import { ArrowRightIcon } from '@/components/icon/arrow-right'
 import { MailIcon } from '@/components/icon/mail'
-import Confirmation from '@/components/site/auth/confirmation'
+import {
+  RecoveryBackLink,
+  RecoveryCard,
+  RecoveryHeading,
+  RecoveryLockMark,
+  RecoveryQuote,
+  RecoveryResult,
+} from '@/components/site/auth/recovery-layout'
 import FormError from '@/components/site/form-error'
 import { useForgotPassword } from '@/hooks/data/site/password'
 import { errorCodeOf, remainingSecondsOf } from '@/hooks/data/site/verify'
 import { useSiteI18n } from '@/i18n/site-i18n'
 import { Form, Input } from 'antd'
-import Link from 'next/link'
 import { useEffect, useState } from 'react'
 
 /*
@@ -47,58 +54,66 @@ export default function ForgotPasswordForm() {
 
   if (sent) {
     return (
-      <Confirmation
-        linkHref="/login"
-        linkLabel={t('signUpSuccessAction')}
+      <RecoveryResult
+        actionHref="/login"
+        actionLabel={t('signUpSuccessAction')}
+        body={t('forgotSentBody')}
+        eyebrow={t('recoveryEmailSentEyebrow')}
         title={t('forgotSentTitle')}
-      >
-        {t('forgotSentBody')}
-      </Confirmation>
+      />
     )
   }
 
   return (
-    <Form
-      className="site-form"
-      disabled={sending}
-      form={form}
-      layout="vertical"
-      onFinish={submit}
-      requiredMark={false}
-      validateTrigger="onSubmit"
-    >
-      <Form.Item
-        label={t('signUpEmailLabel')}
-        name="email"
-        rules={[
-          { required: true, message: t('signUpErrorEmail') },
-          { type: 'email', message: t('signUpErrorEmail') },
-        ]}
+    <RecoveryCard>
+      <RecoveryLockMark />
+      <RecoveryHeading body={t('forgotSubtitle')} title={t('forgotTitle')} />
+      <RecoveryQuote />
+
+      <Form
+        className="site-form mt-8"
+        disabled={sending}
+        form={form}
+        layout="vertical"
+        onFinish={submit}
+        requiredMark={false}
+        validateTrigger="onSubmit"
       >
-        <Input
-          autoComplete="email"
-          placeholder={t('signUpEmailPlaceholder')}
-          prefix={<MailIcon aria-hidden className="!text-primary-900" />}
-        />
-      </Form.Item>
+        <Form.Item
+          className="!mb-2"
+          label={t('signUpEmailLabel')}
+          name="email"
+          rules={[
+            { required: true, message: t('signUpErrorEmail') },
+            { type: 'email', message: t('signUpErrorEmail') },
+          ]}
+        >
+          <Input
+            autoComplete="email"
+            placeholder={t('signUpEmailPlaceholder')}
+            prefix={<MailIcon aria-hidden className="!text-primary-900" />}
+          />
+        </Form.Item>
+        <p className="mb-4 px-2 text-xs leading-5 text-neutral-500">{t('forgotEmailHelp')}</p>
 
-      {failed && <FormError className="mb-4">{t('error')}</FormError>}
+        {failed && <FormError className="mb-4">{t('error')}</FormError>}
 
-      <div className="flex flex-col items-start gap-4 md:flex-row md:items-center md:justify-between">
         <SiteButton
-          className="w-full md:w-auto"
-          desktopSize="lg"
+          className="w-full"
           disabled={cooldown > 0}
+          icon={<ArrowRightIcon aria-hidden style={{ fontSize: 18 }} />}
+          iconPlacement="end"
           loading={sending}
-          size="md"
+          size="lg"
           type="submit"
         >
           {cooldown > 0 ? t('resendCooldown', { seconds: cooldown }) : t('forgotSubmit')}
         </SiteButton>
-        <Link className="self-center text-sm font-semibold text-primary-500" href="/login">
-          {t('signUpSuccessAction')}
-        </Link>
-      </div>
-    </Form>
+
+        <div className="mt-8">
+          <RecoveryBackLink />
+        </div>
+      </Form>
+    </RecoveryCard>
   )
 }

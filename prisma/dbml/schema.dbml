@@ -285,6 +285,7 @@ Table service_times {
 
 Table prayers {
   id String [pk]
+  slug String [unique, not null]
   church_id String [not null]
   church churches [not null]
   current_version_id String

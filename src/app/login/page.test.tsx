@@ -4,11 +4,20 @@ import { screen } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 import Page from './page'
 
-const { cookies, redirectAuthenticatedCustomer } = vi.hoisted(() => ({
+const {
+  cookies,
+  getFellowshipMemberCount,
+  getLatestPlayableSitePrayer,
+  redirectAuthenticatedCustomer,
+} = vi.hoisted(() => ({
   cookies: vi.fn(),
+  getFellowshipMemberCount: vi.fn(),
+  getLatestPlayableSitePrayer: vi.fn(),
   redirectAuthenticatedCustomer: vi.fn(),
 }))
 vi.mock('next/headers', () => ({ cookies }))
+vi.mock('@/controller/site-prayer', () => ({ getLatestPlayableSitePrayer }))
+vi.mock('@/controller/user', () => ({ getFellowshipMemberCount }))
 vi.mock('@/utils/redirect-authenticated-customer', () => ({
   default: redirectAuthenticatedCustomer,
 }))
@@ -16,6 +25,15 @@ vi.mock('@/utils/redirect-authenticated-customer', () => ({
 describe('Customer login route', () => {
   it('renders the customer sign-in screen in the cookie language', async () => {
     cookies.mockResolvedValue({ get: () => ({ value: 'et' }) })
+    getLatestPlayableSitePrayer.mockResolvedValue({
+      id: 'p1',
+      title: 'Hommikupalve',
+      churchName: 'Lootuse kirik',
+      pastorName: 'Daniel',
+      languageCode: 'et',
+      audioUrl: 'https://cdn.test/prayer.mp3',
+    })
+    getFellowshipMemberCount.mockResolvedValue(37)
 
     renderWithProviders(await Page())
 
@@ -24,5 +42,9 @@ describe('Customer login route', () => {
       screen.getByRole('heading', { level: 1, name: SITE_MESSAGES.et.signInTitle }),
     ).toBeTruthy()
     expect(screen.getByLabelText(SITE_MESSAGES.et.signInIdentifierLabel)).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Esita: Hommikupalve' })).toBeTruthy()
+    expect(screen.getByText('37 osaduse liiget hoiavad praegu vaikset palvevalvet.')).toBeTruthy()
+    expect(getLatestPlayableSitePrayer).toHaveBeenCalledOnce()
+    expect(getFellowshipMemberCount).toHaveBeenCalledOnce()
   })
 })

@@ -1,9 +1,9 @@
 import { SiteI18nProvider } from '@/i18n/site-i18n'
 import { SITE_MESSAGES, siteT } from '@/i18n/messages'
 import { renderWithProviders } from '@/test/frontend/render'
-import { screen } from '@testing-library/react'
+import { fireEvent, screen } from '@testing-library/react'
 import { ReactNode } from 'react'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import PasswordStrength, { scorePassword } from './password-strength'
 import SignInAside from './sign-in-aside'
 import SignUpAside from './sign-up-aside'
@@ -63,26 +63,58 @@ describe('StepHeader', () => {
 })
 
 describe('auth asides', () => {
-  it('sign-in aside renders the stream, reminder and seal cards', () => {
-    renderEn(<SignInAside t={siteT('en')} />)
+  it('sign-in aside renders and plays the latest prayer', async () => {
+    const play = vi.spyOn(HTMLMediaElement.prototype, 'play').mockResolvedValue()
+    const pause = vi.spyOn(HTMLMediaElement.prototype, 'pause').mockImplementation(() => {})
+    renderEn(
+      <SignInAside
+        memberCount={37}
+        prayer={{
+          id: 'p1',
+          title: 'Peace in uncertainty',
+          churchName: 'Hope Church',
+          pastorName: 'Daniel',
+          languageCode: 'en',
+          audioUrl: 'https://cdn.test/audio.mp3',
+        }}
+        t={siteT('en')}
+      />,
+    )
 
     expect(screen.getByText(en.liveWhisperTitle)).toBeTruthy()
+    expect(
+      screen.getByText('37 fellowship members are currently keeping silent prayer watch.'),
+    ).toBeTruthy()
     expect(screen.getByText(en.bellPill)).toBeTruthy()
     expect(screen.getByText(en.sealTitle)).toBeTruthy()
-    // Decorative player: nothing clickable pretends to play audio.
-    expect(screen.queryByRole('button')).toBeNull()
+    expect(screen.getByText('Peace in uncertainty')).toBeTruthy()
+    expect(screen.getByText('Daniel • Hope Church')).toBeTruthy()
+    expect(document.querySelector('audio')?.getAttribute('src')).toBe('https://cdn.test/audio.mp3')
+
+    fireEvent.click(screen.getByRole('button', { name: 'Play: Peace in uncertainty' }))
+    expect(play).toHaveBeenCalledOnce()
+    fireEvent.click(await screen.findByRole('button', { name: 'Pause: Peace in uncertainty' }))
+    expect(pause).toHaveBeenCalledOnce()
+
+    play.mockRestore()
+    pause.mockRestore()
   })
 
   it('sign-up aside renders the journey, stats and church photo', () => {
     renderEn(
-      <SignUpAside locale="en" stats={{ approvedChurches: 12, dioceses: 3 }} t={siteT('en')} />,
+      <SignUpAside
+        locale="en"
+        stats={{ approvedChurches: 12, dioceses: 3, publishedPrayers: 4812 }}
+        t={siteT('en')}
+      />,
     )
 
     expect(screen.getByText(en.journeyTitle)).toBeTruthy()
     expect(screen.getByText(en.signUpQuote)).toBeTruthy()
     expect(screen.getByText('12 Parishes')).toBeTruthy()
+    expect(screen.getByText(en.vespersLabel)).toBeTruthy()
+    expect(screen.getByText('4,812')).toBeTruthy()
     expect(screen.getByText('3')).toBeTruthy()
-    expect(screen.queryByText(en.vespersLabel)).toBeNull()
     expect(screen.getByAltText(en.photoCaption)).toBeTruthy()
   })
 })

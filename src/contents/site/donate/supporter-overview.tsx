@@ -135,7 +135,7 @@ export function SupporterOverview({
                   </span>
                 )}
               </p>
-              <p className="truncate text-xs font-semibold leading-[1.5] text-[#2F7AD2]">
+              <p className="text-xs font-semibold leading-[1.5] text-[#2F7AD2]">
                 {activeGift
                   ? t('donateParishFund', { church: activeGift.churchName })
                   : t('donateNoPledge')}

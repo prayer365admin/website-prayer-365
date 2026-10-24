@@ -205,8 +205,6 @@ export default function PersonalProfile({
             </div>
           </section>
 
-          <section className={s.spiritualHeading}>{t('profileReflectionsHeading')}</section>
-
           <section className={s.spiritualContent}>
             <h2>{t('profileScriptureHeading')}</h2>
             <ScriptureQuote
@@ -214,8 +212,6 @@ export default function PersonalProfile({
               quote={t('profileScriptureQuote')}
               reference={t('profileScriptureReference')}
             />
-            <h2>{t('profileMinistryHeading')}</h2>
-            <p className={s.ministryUnavailable}>{t('profileMinistryUnavailable')}</p>
           </section>
 
           <footer className={s.actions}>

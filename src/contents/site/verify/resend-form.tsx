@@ -1,6 +1,7 @@
 'use client'
 
 import SiteButton from '@/components/common/button'
+import { ArrowRightIcon } from '@/components/icon/arrow-right'
 import { MailIcon } from '@/components/icon/mail'
 import FormError from '@/components/site/form-error'
 import { errorCodeOf, remainingSecondsOf, useResendVerification } from '@/hooks/data/site/verify'
@@ -107,11 +108,12 @@ export default function ResendForm({
       {failed && <FormError className="mb-4">{t('error')}</FormError>}
 
       <SiteButton
-        className="w-full md:w-auto"
-        desktopSize="lg"
+        className="w-full"
         disabled={cooldown > 0}
+        icon={<ArrowRightIcon aria-hidden style={{ fontSize: 18 }} />}
+        iconPlacement="end"
         loading={sending}
-        size="md"
+        size="lg"
         type="submit"
       >
         {cooldown > 0 ? t('resendCooldown', { seconds: cooldown }) : t('resendSubmit')}

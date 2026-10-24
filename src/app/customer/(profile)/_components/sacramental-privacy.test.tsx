@@ -7,8 +7,9 @@ describe('SacramentalPrivacy', () => {
     render(<SacramentalPrivacy />)
 
     expect(screen.getByRole('heading', { name: /Sacramental Privacy/ })).toBeTruthy()
-    for (const name of ['PDF Archive', 'JSON Data', /Request Account Deletion/]) {
+    for (const name of ['PDF Archive', /Request Account Deletion/]) {
       expect(screen.getByRole('button', { name })).toHaveProperty('disabled', true)
     }
+    expect(screen.queryByRole('button', { name: 'JSON Data' })).toBeNull()
   })
 })

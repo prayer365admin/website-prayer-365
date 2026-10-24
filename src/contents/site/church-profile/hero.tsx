@@ -12,6 +12,7 @@ import { BookmarkPlusIcon } from '@/components/icon/bookmark-plus'
 import { DirectionIcon } from '@/components/icon/direction'
 import { useSiteI18n } from '@/i18n/site-i18n'
 import type { MobilePublicChurch } from '@/models/mobile'
+import { richTextFirstSentence } from '@/utils/rich-text-plain'
 
 interface HeroProps {
   church: MobilePublicChurch
@@ -61,6 +62,7 @@ export function Hero({
   if (addressSummary) {
     metaParts.push(addressSummary)
   }
+  const descriptionSummary = church.description ? richTextFirstSentence(church.description) : null
 
   const handleShare = () => {
     if (typeof window !== 'undefined' && navigator.clipboard) {
@@ -143,17 +145,10 @@ export function Hero({
               </p>
             )}
 
-            {/* Native name / tagline in quote serif italic */}
-            {church.denomination && (
-              <p className="font-font_quote text-base italic text-[#D0E4FF] sm:text-lg">
-                {church.denomination}
-              </p>
-            )}
-
-            {/* Description */}
-            {church.description && (
-              <p className="text-base font-normal leading-relaxed text-white/95 sm:text-lg lg:text-xl">
-                {church.description}
+            {/* Concise overview; the complete welcome remains in the content card below. */}
+            {descriptionSummary && (
+              <p className="max-w-2xl text-sm font-normal leading-relaxed text-white/95 sm:text-base lg:text-lg">
+                {descriptionSummary}
               </p>
             )}
 

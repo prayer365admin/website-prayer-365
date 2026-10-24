@@ -11,10 +11,10 @@ export default function SiteFooter({ legalOnly = false }: { legalOnly?: boolean 
   const { t } = useSiteI18n()
 
   const parishLinks = [
-    [t('footerParishTallinn'), '/churches'],
-    [t('footerParishHelsinki'), '/churches'],
-    [t('footerParishDiaconal'), '/giving'],
-    [t('footerParishYouth'), '/events'],
+    [t('headerHome'), '/'],
+    [t('headerDiscoverChurches'), '/churches'],
+    [t('headerPrayers'), '/prayers'],
+    [t('headerGiving'), '/giving'],
   ] as const
 
   const policyLinks = [

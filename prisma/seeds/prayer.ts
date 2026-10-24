@@ -15,7 +15,12 @@ export const seedPrayers = async () => {
     throw new Error('seedPrayers: deps missing')
 
   const prayer = await db.prayer.create({
-    data: { church_id: church.id, created_by: actor.id, published_at: new Date() },
+    data: {
+      slug: 'demo-morning-prayer',
+      church_id: church.id,
+      created_by: actor.id,
+      published_at: new Date(),
+    },
   })
   const version = await db.prayerVersion.create({
     data: {

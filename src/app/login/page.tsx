@@ -4,17 +4,23 @@ import SessionAccessGuard from '@/components/site/session-access-guard'
 import { SiteI18nProvider } from '@/i18n/site-i18n'
 import redirectAuthenticatedCustomer from '@/utils/redirect-authenticated-customer'
 import { getSiteLocale } from '@/utils/site-locale'
+import { getLatestPlayableSitePrayer } from '@/controller/site-prayer'
+import { getFellowshipMemberCount } from '@/controller/user'
 
 // Customer sign-in (W01). Staff use /admin/login.
 export default async function Page() {
   await redirectAuthenticatedCustomer()
-  const locale = await getSiteLocale()
+  const [locale, prayer, memberCount] = await Promise.all([
+    getSiteLocale(),
+    getLatestPlayableSitePrayer().catch(() => null),
+    getFellowshipMemberCount().catch(() => null),
+  ])
 
   return (
     <SiteI18nProvider initialLocale={locale}>
       <SessionAccessGuard access="guest" />
       <SiteShell footerVariant="legal-only" headerVariant="auth">
-        <ContentsSiteSignIn locale={locale} />
+        <ContentsSiteSignIn locale={locale} memberCount={memberCount} prayer={prayer} />
       </SiteShell>
     </SiteI18nProvider>
   )

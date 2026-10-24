@@ -1,4 +1,5 @@
 import { db } from '../../src/utils/db-connection'
+import customSlugify from '../../src/utils/slugify'
 import { DEMO_CHURCH_NAME, DEMO_CHURCH_NODE_NAME, getAdminUser } from './test-context'
 
 // Second church for multi-church manual-testing (CH-04 selector needs >= 2
@@ -723,6 +724,7 @@ export const seedStJohnsChurch = async () => {
     if (!prayer) {
       prayer = await db.prayer.create({
         data: {
+          slug: `st-johns-${customSlugify({ text: pDef.title, isExists: false })}-${i + 1}`,
           church_id: churchId,
           created_by: admin.id,
           published_at: new Date(Date.now() - i * 3600 * 1000),

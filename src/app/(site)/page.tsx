@@ -37,6 +37,7 @@ export default async function Page() {
       name={web.session.user.name}
       now={new Date().toISOString()}
       readyPrayers={readyPrayers}
+      userId={userId}
     />
   )
 }

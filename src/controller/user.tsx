@@ -1,6 +1,7 @@
 import { UserPayloadCreateModel, UserPayloadUpdateModel } from '@/models/user'
 import {
   CREATE_USER,
+  COUNT_ACTIVE_CUSTOMERS,
   GET_USER_BY_EMAIL,
   GET_USER_BY_ID,
   INCREMENT_AUTH_VERSION,
@@ -8,6 +9,8 @@ import {
 } from '@/providers/user'
 import { GeneralError } from '@/utils/general-error'
 import { hashSecret } from '@/utils/hash'
+
+export const getFellowshipMemberCount = (): Promise<number> => COUNT_ACTIVE_CUSTOMERS()
 
 export const getUserById = async ({ user_id }: { user_id: string }) => {
   if (!user_id) {

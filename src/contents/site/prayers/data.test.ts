@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { lectionaryYear, readingMinutes } from './data'
+import { lectionaryYear, prayerDurationMinutes, readingMinutes } from './data'
+import { generatedAudioDurationSeconds } from '@/utils/prayer-duration'
 
 describe('lectionaryYear', () => {
   it('switches cycle on the first Sunday of Advent', () => {
@@ -13,5 +14,11 @@ describe('lectionaryYear', () => {
   it('estimates reading minutes at 150 words a minute, never below one', () => {
     expect(readingMinutes('Amen.')).toBe(1)
     expect(readingMinutes(Array(900).fill('word').join(' '))).toBe(6)
+  })
+
+  it('uses persisted generated-audio size for playback duration', () => {
+    expect(generatedAudioDurationSeconds(BigInt(2_000_000))).toBe(125)
+    expect(prayerDurationMinutes('Amen.', 125)).toBe(3)
+    expect(prayerDurationMinutes('Amen.', null)).toBe(1)
   })
 })

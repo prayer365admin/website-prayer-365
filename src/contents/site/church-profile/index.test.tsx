@@ -168,21 +168,22 @@ describe('ContentsSiteChurchProfile', () => {
     expect(screen.getByText('About the Parish')).toBeTruthy()
   })
 
-  it('shows unlisted empty states for sections lacking backing data', async () => {
+  it('shows unlisted empty states while event and announcement sections stay hidden', async () => {
     axiosMock.get.mockResolvedValueOnce({
       data: resolveGet(church),
     })
 
     renderProfile()
 
+    await screen.findByRole('heading', { level: 1, name: 'Grace' })
     expect(
-      await screen.findByText('No upcoming gatherings or events scheduled at this time.'),
-    ).toBeTruthy()
+      screen.queryByText('No upcoming gatherings or events scheduled at this time.'),
+    ).toBeNull()
     expect(
       screen.getByText('Diaconal community programs are not currently listed for this parish.'),
     ).toBeTruthy()
     expect(screen.getByText('Pastoral staff directory is not currently listed.')).toBeTruthy()
-    expect(screen.getByText('No active parish notices or announcements at this time.')).toBeTruthy()
+    expect(screen.queryByText('No active parish notices or announcements at this time.')).toBeNull()
   })
 
   it('renders real worship schedule rows with weekday, time, timezone, and language badge', async () => {
@@ -292,17 +293,63 @@ describe('ContentsSiteChurchProfile', () => {
     expect(screen.getByText('Wheelchair access')).toBeTruthy()
   })
 
-  it('renders scripture banner with quote and uppercase reference', async () => {
-    axiosMock.get.mockResolvedValueOnce({
-      data: resolveGet(church),
+  it('renders the latest published parish prayer in the closing reflection', async () => {
+    axiosMock.get.mockImplementation(async (url: string) => {
+      if (url.includes('/prayers')) {
+        return {
+          data: resolveGet([
+            {
+              id: 'p-reflection',
+              slug: 'peace-today',
+              churchId: 'c1',
+              publishedAt: '2026-10-23T08:00:00.000Z',
+              version: {
+                prayerVersionId: 'pv-reflection',
+                versionNumber: 1,
+                pastorId: 'pastor-1',
+                pastorName: 'Pastor Demo Tamm',
+                title: 'Peace for today',
+                introduction: null,
+                body: '<p>[warm] Scripture meditation on Psalm 46.</p><p>Be still and know that grace is near.</p><p>[softly] This additional sentence remains in the quote.</p>',
+                languageCode: 'en',
+              },
+              audio: null,
+            },
+          ]),
+        }
+      }
+      if (url.includes('/events') || url.includes('/announcements')) {
+        return { data: resolveGet([], 0) }
+      }
+      if (url.includes('/home')) return { data: resolveGet({ mainChurch: null }) }
+      return { data: resolveGet(church) }
     })
 
     renderProfile()
 
-    expect(
-      await screen.findByText('“Where two or three gather in my name, there am I with them.”'),
-    ).toBeTruthy()
-    expect(screen.getByText(/MATTHEW 18:20/i)).toBeTruthy()
+    const reflection = await screen.findByText(
+      '“Scripture meditation on Psalm 46. Be still and know that grace is near. This additional sentence remains in the quote.”',
+    )
+    expect(reflection).toBeTruthy()
+    expect(reflection.classList.contains('line-clamp-3')).toBe(true)
+    expect(reflection.getAttribute('title')).toBe(
+      'Scripture meditation on Psalm 46. Be still and know that grace is near. This additional sentence remains in the quote.',
+    )
+    expect(reflection.textContent).not.toContain('[warm]')
+    expect(reflection.textContent).not.toContain('[softly]')
+    expect(screen.getByText(/PEACE FOR TODAY • PASTOR DEMO TAMM/i)).toBeTruthy()
+    expect(screen.queryByText(/MATTHEW 18:20/i)).toBeNull()
+  })
+
+  it('shows a real closed status instead of claiming sanctuary keepers are present', async () => {
+    axiosMock.get.mockResolvedValueOnce({
+      data: resolveGet({ ...church, sanctuaryHours: 'By appointment' }),
+    })
+
+    renderProfile()
+
+    expect(await screen.findByText('Currently closed')).toBeTruthy()
+    expect(screen.queryByText('Sanctuary Keepers on Duty')).toBeNull()
   })
 
   it('renders cover image when coverUrl is provided', async () => {
@@ -393,7 +440,7 @@ describe('ContentsSiteChurchProfile', () => {
     expect(screen.getAllByText('10:00–18:30 daily').length).toBeGreaterThan(0)
   })
 
-  it('renders upcoming gatherings events with title, formatted date, location, and join link', async () => {
+  it('keeps upcoming gatherings hidden when events are returned', async () => {
     const mockEvents = [
       {
         id: 'ev1',
@@ -428,16 +475,10 @@ describe('ContentsSiteChurchProfile', () => {
 
     renderProfile()
 
-    expect(await screen.findByText('Choral Evensong')).toBeTruthy()
-    expect(screen.getByText('Silent Meditation')).toBeTruthy()
-    expect(screen.getByText(/West Choir/)).toBeTruthy()
-    expect(screen.getByText(/Side Chapel/)).toBeTruthy()
-
-    const joinLink = screen.getByRole('link', { name: /join service/i })
-    expect(joinLink.getAttribute('href')).toBe('https://example.com/join-service')
-    expect(joinLink.getAttribute('target')).toBe('_blank')
-
-    expect(screen.getAllByRole('link', { name: /join service/i })).toHaveLength(1)
+    await screen.findByRole('heading', { level: 1, name: 'Grace' })
+    expect(screen.queryByText('Choral Evensong')).toBeNull()
+    expect(screen.queryByText('Silent Meditation')).toBeNull()
+    expect(screen.queryByRole('link', { name: /join service/i })).toBeNull()
   })
 
   it('renders sanctuary gallery tiles with captions from data.gallery', async () => {
@@ -597,7 +638,7 @@ describe('ContentsSiteChurchProfile', () => {
     expect(screen.queryByText('Tallinn Deanery')).toBeNull()
   })
 
-  it('renders notice board announcements with title, body, and date', async () => {
+  it('keeps the notice board hidden when announcements are returned', async () => {
     const mockAnnouncements = [
       {
         id: 'a1',
@@ -617,14 +658,15 @@ describe('ContentsSiteChurchProfile', () => {
 
     renderProfile()
 
-    expect(await screen.findByText('Organ Restoration Project')).toBeTruthy()
+    await screen.findByRole('heading', { level: 1, name: 'Grace' })
+    expect(screen.queryByText('Organ Restoration Project')).toBeNull()
     expect(
-      screen.getByText('The historic organ is undergoing restoration this autumn.'),
-    ).toBeTruthy()
-    expect(screen.getByText('10 Oct 2026')).toBeTruthy()
+      screen.queryByText('The historic organ is undergoing restoration this autumn.'),
+    ).toBeNull()
+    expect(screen.queryByText('10 Oct 2026')).toBeNull()
   })
 
-  it('renders noNoticeBoard when announcements list is empty', async () => {
+  it('does not render the notice-board empty state', async () => {
     axiosMock.get.mockImplementation(async (url: string) => {
       if (url.includes('/events')) return { data: resolveGet([], 0) }
       if (url.includes('/announcements')) return { data: resolveGet([], 0) }
@@ -634,9 +676,8 @@ describe('ContentsSiteChurchProfile', () => {
 
     renderProfile()
 
-    expect(
-      await screen.findByText('No active parish notices or announcements at this time.'),
-    ).toBeTruthy()
+    await screen.findByRole('heading', { level: 1, name: 'Grace' })
+    expect(screen.queryByText('No active parish notices or announcements at this time.')).toBeNull()
   })
 
   it('renders Primary Parish chip when home.mainChurch.id matches churchId', async () => {
@@ -676,9 +717,9 @@ describe('ContentsSiteChurchProfile', () => {
           prayerVersionId: 'pv1',
           versionNumber: 1,
           pastorId: 'pas1',
-          title: 'Peace in Uncertain Times',
+          title: '[calm] Peace in Uncertain Times',
           introduction:
-            'Scripture meditation on Philippians 4:6–7 • Led by Pastor Daniel Carter, Hope Church',
+            '<p>[warm] Scripture meditation on <strong>Philippians 4:6–7</strong> • Led by Pastor Daniel Carter, Hope Church</p>',
           body: 'Do not be anxious about anything...',
           languageCode: 'et',
         },
@@ -704,11 +745,14 @@ describe('ContentsSiteChurchProfile', () => {
 
     expect(await screen.findByText('Peace in Uncertain Times')).toBeTruthy()
     expect(screen.getByText('GUIDED CONTEMPLATION')).toBeTruthy()
-    expect(
-      screen.getByText(
-        'Scripture meditation on Philippians 4:6–7 • Led by Pastor Daniel Carter, Hope Church',
-      ),
-    ).toBeTruthy()
+    const introduction = screen.getByText(
+      'Scripture meditation on Philippians 4:6–7 • Led by Pastor Daniel Carter, Hope Church',
+    )
+    expect(introduction.tagName).toBe('P')
+    expect(introduction.classList.contains('line-clamp-2')).toBe(true)
+    expect(introduction.classList.contains('[overflow-wrap:anywhere]')).toBe(true)
+    expect(introduction.textContent).not.toContain('<strong>')
+    expect(screen.queryByText(/\[(?:calm|warm)\]/i)).toBeNull()
     expect(screen.getByRole('button', { name: 'All' })).toBeTruthy()
     expect(screen.getByRole('button', { name: 'Eucharist' })).toBeTruthy()
     expect(screen.getByRole('button', { name: 'Contemplative' })).toBeTruthy()
@@ -725,17 +769,13 @@ describe('ContentsSiteChurchProfile', () => {
     expect(screen.getByRole('slider', { name: 'Audio progress' })).toBeTruthy()
     expect(screen.getByRole('button', { name: 'Pause' })).toBeTruthy()
 
-    // Shows exactly 3 audio action buttons: Download, Transcript, and Save (no Mute button)
+    // Prayer save/bookmark is hidden on the public site.
     expect(screen.getByRole('link', { name: 'Download Audio' })).toBeTruthy()
     expect(screen.getByRole('button', { name: 'View Transcript' })).toBeTruthy()
-    const saveBtn = screen.getByRole('button', { name: 'Save' })
-    expect(saveBtn).toBeTruthy()
+    expect(screen.queryByRole('button', { name: 'Save' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Saved' })).toBeNull()
     expect(screen.queryByRole('button', { name: 'Mute' })).toBeNull()
     expect(screen.queryByRole('button', { name: 'Unmute' })).toBeNull()
-
-    // Toggle save
-    await user.click(saveBtn)
-    expect(screen.getByRole('button', { name: 'Saved' })).toBeTruthy()
 
     // Open transcript modal
     const transcriptBtn = screen.getByRole('button', { name: 'View Transcript' })

@@ -2,23 +2,25 @@
 
 import { ChurchIcon } from '@/components/icon/church'
 import { LanguageIcon } from '@/components/icon/language'
-import { SITE_LOCALES, SiteLocale } from '@/config/site-locale'
+import { SITE_LOCALES, SITE_LOCALE_NAMES, SiteLocale } from '@/config/site-locale'
 import { useMe, useMyChurches } from '@/hooks/data/site/me'
 import { useSiteI18n } from '@/i18n/site-i18n'
 import type { MobileMe, MobileMyChurch } from '@/models/mobile'
 import {
+  ArrowRightOutlined,
   BellOutlined,
+  CheckOutlined,
   DownOutlined,
   HomeOutlined,
-  SearchOutlined,
+  MenuOutlined,
   UserOutlined,
 } from '@ant-design/icons'
-import { Avatar, Dropdown, Select } from 'antd'
-import type { MenuProps } from 'antd'
+import { Avatar, Drawer, Modal, Select } from 'antd'
 import { useSession } from 'next-auth/react'
 import Image from 'next/image'
 import Link from 'next/link'
-import { usePathname } from 'next/navigation'
+import { usePathname, useSearchParams } from 'next/navigation'
+import { useState } from 'react'
 import s from './top-bar.module.scss'
 
 export type SiteHeaderVariant = 'auth' | 'general'
@@ -27,8 +29,11 @@ export type SiteHeaderVariant = 'auth' | 'general'
 const SHOW_NOTIFICATIONS = false
 
 /** True when the path is the link target or a page below it. */
-const isActivePath = (pathname: string, href: string) =>
+const isPathWithin = (pathname: string, href: string) =>
   pathname === href || pathname.startsWith(`${href}/`)
+
+const isActivePath = (pathname: string, href: string) =>
+  isPathWithin(pathname, href) || (href === '/giving' && isPathWithin(pathname, '/donate'))
 
 export default function SiteTopBar({
   variant = 'general',
@@ -45,7 +50,16 @@ export default function SiteTopBar({
   const { data: churches } = useMyChurches({ userId: initialMe?.id, initialData: initialChurches })
   const { data: me } = useMe({ userId: initialMe?.id, initialData: initialMe })
   const pathname = usePathname()
+  const searchParams = useSearchParams()
   const mainChurch = churches.find((church) => church.isMain) ?? churches[0]
+  const churchPrayerMatch = pathname.match(/^\/churches\/([^/]+)\/prayers(?:\/|$)/)
+  const prayerChurchId =
+    pathname === '/prayers' ? searchParams.get('churchId') : churchPrayerMatch?.[1]
+  const selectedChurch = churches.find((church) => church.churchId === prayerChurchId) ?? mainChurch
+  const isPrayerArchive = pathname === '/prayers' || Boolean(churchPrayerMatch)
+  const [churchMenuOpen, setChurchMenuOpen] = useState(false)
+  const closeChurchMenu = () => setChurchMenuOpen(false)
+  const [navMenuOpen, setNavMenuOpen] = useState(false)
 
   const authLinks = [
     { active: pathname === '/login', href: '/login', label: t('headerSignIn') },
@@ -54,52 +68,118 @@ export default function SiteTopBar({
       href: '/register',
       label: t('signInBeginFellowship'),
     },
-    { active: pathname === '/', href: '/', label: t('headerSpiritualWalk') },
   ]
 
   const generalLinks = [
     { href: '/churches', label: t('headerDiscoverChurches') },
-    { href: '/events', label: t('headerEvents') },
-    { href: '/giving', label: t('headerGiving') },
     { href: '/prayers', label: t('headerPrayers') },
+    { href: '/giving', label: t('headerGiving') },
   ]
 
-  const churchMenu: MenuProps['items'] = churches.length
-    ? churches.map((church) => ({
-        key: church.churchId,
-        label: <Link href={`/churches/${church.churchId}`}>{church.churchName}</Link>,
-      }))
+  const churchLinks = churches.length
+    ? churches.map((church) => {
+        const selected = church.churchId === selectedChurch?.churchId
+        const context = [church.city, church.isMain ? t('homeHabitsMain') : null]
+          .filter(Boolean)
+          .join(' · ')
+
+        return (
+          <Link
+            aria-current={selected ? 'page' : undefined}
+            aria-label={church.churchName}
+            className={`${s.churchMenuLink} ${selected ? s.churchMenuLinkSelected : ''}`}
+            href={
+              isPrayerArchive
+                ? pathname === '/prayers'
+                  ? `/prayers?churchId=${encodeURIComponent(church.churchId)}`
+                  : `/churches/${church.churchId}/prayers`
+                : `/churches/${church.churchId}`
+            }
+            key={church.churchId}
+            onClick={closeChurchMenu}
+          >
+            <span className={s.churchMenuIcon}>
+              <ChurchIcon aria-hidden />
+            </span>
+            <span className={s.churchMenuCopy}>
+              <span className={s.churchMenuName}>{church.churchName}</span>
+              {context && <span className={s.churchMenuMeta}>{context}</span>}
+            </span>
+            {selected && <CheckOutlined className={s.churchMenuCheck} />}
+          </Link>
+        )
+      })
     : [
-        {
-          key: 'browse',
-          label: <Link href="/churches">{t('headerBrowseChurches')}</Link>,
-        },
+        <Link className={s.churchMenuLink} href="/churches" key="browse" onClick={closeChurchMenu}>
+          <span className={s.churchMenuIcon}>
+            <ChurchIcon aria-hidden />
+          </span>
+          <span className={s.churchMenuCopy}>
+            <span className={s.churchMenuName}>{t('headerBrowseChurches')}</span>
+          </span>
+        </Link>,
       ]
 
   const localeControl = (
-    <div className={s.locale}>
-      <LanguageIcon aria-hidden />
-      <Select<SiteLocale>
-        aria-label={t('language')}
-        className={s.languageSelect}
-        onChange={setLocale}
-        options={SITE_LOCALES.map((code) => ({ value: code, label: code.toUpperCase() }))}
-        popupMatchSelectWidth={false}
-        suffixIcon={null}
-        value={locale}
-        variant="borderless"
-      />
-    </div>
+    <Select<SiteLocale>
+      aria-label={t('language')}
+      className={s.languageSelect}
+      onChange={setLocale}
+      options={SITE_LOCALES.map((code) => ({ value: code, label: code.toUpperCase() }))}
+      popupMatchSelectWidth={false}
+      prefix={<LanguageIcon aria-hidden className={s.languageIcon} />}
+      suffixIcon={null}
+      value={locale}
+      variant="borderless"
+    />
   )
 
   const churchControl = (
-    <Dropdown menu={{ items: churchMenu }} placement="bottomRight" trigger={['click']}>
-      <button aria-label={t('headerChooseChurch')} className={s.churchPill} type="button">
+    <>
+      <button
+        aria-expanded={churchMenuOpen}
+        aria-label={t('headerChooseChurch')}
+        className={s.churchPill}
+        onClick={() => setChurchMenuOpen(true)}
+        type="button"
+      >
         <ChurchIcon aria-hidden />
-        <span>{mainChurch?.churchName ?? t('headerChooseChurch')}</span>
+        <span className={s.churchPillLabel}>
+          {selectedChurch?.churchName ?? t('headerChooseChurch')}
+        </span>
         <DownOutlined className={s.churchChevron} />
       </button>
-    </Dropdown>
+
+      <Modal
+        centered
+        className={s.churchPickerModal}
+        destroyOnHidden
+        footer={
+          churches.length > 0 ? (
+            <Link className={s.churchDropdownBrowse} href="/churches" onClick={closeChurchMenu}>
+              {t('headerBrowseChurches')}
+              <ArrowRightOutlined aria-hidden className={s.churchDropdownBrowseIcon} />
+            </Link>
+          ) : null
+        }
+        onCancel={closeChurchMenu}
+        open={churchMenuOpen}
+        title={
+          <span className={s.churchModalTitle}>
+            <span>
+              <span className={s.churchDropdownEyebrow}>{t('headerChooseChurch')}</span>
+              <span className={s.churchDropdownHint}>{t('prayerArchiveChurchContext')}</span>
+            </span>
+            <span className={s.churchDropdownCount}>{churches.length}</span>
+          </span>
+        }
+        width="min(560px, calc(100vw - 24px))"
+      >
+        <nav aria-label={t('headerChooseChurch')} className={s.churchDropdownList}>
+          {churchLinks}
+        </nav>
+      </Modal>
+    </>
   )
 
   // Signed in: the profile photo (or a user icon) links to the customer profile, where sign-out lives.
@@ -140,14 +220,16 @@ export default function SiteTopBar({
               width={32}
             />
           </Link>
-          <Link
-            aria-current={pathname === '/' ? 'page' : undefined}
-            aria-label={t('headerHome')}
-            className={`${s.iconButton} ${pathname === '/' ? s.homeButton : ''}`}
-            href="/"
-          >
-            <HomeOutlined />
-          </Link>
+          {variant === 'general' && (
+            <Link
+              aria-current={pathname === '/' ? 'page' : undefined}
+              aria-label={t('headerHome')}
+              className={`${s.iconButton} ${s.homeLink} ${pathname === '/' ? s.homeButton : ''}`}
+              href="/"
+            >
+              <HomeOutlined />
+            </Link>
+          )}
         </div>
 
         {variant === 'auth' ? (
@@ -181,21 +263,24 @@ export default function SiteTopBar({
                 )
               })}
             </nav>
-            {churchControl}
           </div>
         )}
 
         <div className={s.actions}>
-          {variant === 'general' && (
-            <Link
-              aria-label={t('headerSearch')}
-              className={`${s.iconButton} ${s.searchButton}`}
-              href="/search"
-            >
-              <SearchOutlined />
-            </Link>
-          )}
+          {variant === 'general' && churchControl}
           <div className={s.desktopLocale}>{localeControl}</div>
+          {variant === 'general' && accountControl}
+          {variant === 'general' && (
+            <button
+              aria-expanded={navMenuOpen}
+              aria-label={t('headerMenu')}
+              className={`${s.iconButton} ${s.menuButton}`}
+              onClick={() => setNavMenuOpen(true)}
+              type="button"
+            >
+              <MenuOutlined />
+            </button>
+          )}
           {SHOW_NOTIFICATIONS && variant === 'general' && (
             <Link
               aria-label={t('headerNotifications')}
@@ -206,9 +291,50 @@ export default function SiteTopBar({
               <span aria-hidden className={s.notificationDot} />
             </Link>
           )}
-          {accountControl}
         </div>
       </div>
+
+      {/* Below the desktop breakpoint the header hides the nav links and locale; this drawer carries them. */}
+      {variant === 'general' && (
+        <Drawer
+          onClose={() => setNavMenuOpen(false)}
+          open={navMenuOpen}
+          size="100%"
+          title={t('headerMenu')}
+        >
+          <nav aria-label={t('headerPrimaryNav')} className={s.drawerNavigation}>
+            {[{ href: '/', label: t('headerHome') }, ...generalLinks].map((item) => {
+              const isActive =
+                item.href === '/' ? pathname === '/' : isActivePath(pathname, item.href)
+
+              return (
+                <Link
+                  aria-current={isActive ? 'page' : undefined}
+                  className={`${s.navigationLink} ${isActive ? s.activeNavigationLink : ''}`}
+                  href={item.href}
+                  key={item.href}
+                  onClick={() => setNavMenuOpen(false)}
+                >
+                  {item.label}
+                </Link>
+              )
+            })}
+          </nav>
+          <div className={s.drawerLocaleRow}>
+            <Select<SiteLocale>
+              aria-label={t('language')}
+              className={s.drawerLocale}
+              onChange={setLocale}
+              options={SITE_LOCALES.map((code) => ({
+                value: code,
+                label: SITE_LOCALE_NAMES[code],
+              }))}
+              prefix={<LanguageIcon aria-hidden className={s.drawerLocaleIcon} />}
+              value={locale}
+            />
+          </div>
+        </Drawer>
+      )}
     </header>
   )
 }

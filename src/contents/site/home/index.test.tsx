@@ -1,10 +1,11 @@
 import { SiteI18nProvider } from '@/i18n/site-i18n'
 import { MobileHome } from '@/models/mobile'
 import { axiosMock, renderWithProviders } from '@/test/frontend/render'
-import { fireEvent, screen, waitFor } from '@testing-library/react'
-import { describe, expect, it, vi } from 'vitest'
+import { fireEvent, screen, waitFor, within } from '@testing-library/react'
+import { describe, expect, it } from 'vitest'
 import ContentsSiteHome from '.'
 import { eventIcs } from './gatherings'
+import PrayerPetition from './petition'
 
 const home = (audioUrl: string | null = null): MobileHome => ({
   mainChurch: null,
@@ -14,6 +15,7 @@ const home = (audioUrl: string | null = null): MobileHome => ({
   latestPrayers: [
     {
       id: 'prayer-1',
+      slug: 'peace-in-uncertain-times',
       churchId: 'church-1',
       churchName: 'Hope Church',
       publishedAt: '2026-10-15T06:00:00.000Z',
@@ -22,8 +24,8 @@ const home = (audioUrl: string | null = null): MobileHome => ({
         versionNumber: 1,
         pastorId: 'pastor-1',
         pastorName: 'Daniel Mäkinen',
-        title: 'Peace in uncertain times',
-        introduction: 'A reflection for today',
+        title: '[calm] Peace in uncertain times',
+        introduction: '<p>[warm] A <strong>reflection</strong> for today</p>',
         body: 'Do not be anxious about anything.',
         languageCode: 'en',
       },
@@ -36,6 +38,24 @@ const home = (audioUrl: string | null = null): MobileHome => ({
             approvedAt: '2026-10-15T05:00:00.000Z',
           }
         : null,
+    },
+    {
+      id: 'prayer-2',
+      slug: 'grace-for-today',
+      churchId: 'church-1',
+      churchName: 'Hope Church',
+      publishedAt: '2026-10-14T06:00:00.000Z',
+      version: {
+        prayerVersionId: 'version-2',
+        versionNumber: 1,
+        pastorId: 'pastor-2',
+        pastorName: 'Anna Saar',
+        title: '[softly] Grace for today',
+        introduction: null,
+        body: '<p>[warm] Grace meets us in every quiet moment.</p><p>[pause] This second sentence stays visible.</p>',
+        languageCode: 'en',
+      },
+      audio: null,
     },
   ],
 })
@@ -94,7 +114,15 @@ const renderHome = (
         readyPrayers={readyPrayers}
         name="Anna Example"
         now="2026-10-15T08:00:00.000Z"
+        userId="u1"
       />
+    </SiteI18nProvider>,
+  )
+
+const renderPetition = () =>
+  renderWithProviders(
+    <SiteI18nProvider initialLocale="en">
+      <PrayerPetition church={mainChurch} />
     </SiteI18nProvider>,
   )
 
@@ -104,8 +132,31 @@ describe('WB3 Home devotional hero', () => {
 
     expect(screen.getByRole('heading', { name: /Good morning, Anna/i })).toBeTruthy()
     expect(screen.getByRole('heading', { name: 'Peace in uncertain times' })).toBeTruthy()
+    const introduction = screen.getByText(
+      (_, element) =>
+        element?.tagName === 'P' &&
+        element.textContent?.replace(/\s+/g, ' ').trim() === 'A reflection for today · Hope Church',
+    )
+    expect(introduction.classList.contains('[overflow-wrap:anywhere]')).toBe(true)
+    expect(introduction.parentElement?.classList.contains('flex-1')).toBe(true)
+    expect(screen.queryByText(/<strong>/)).toBeNull()
     expect(screen.getByText('Daniel Mäkinen')).toBeTruthy()
     expect(screen.getAllByText('Hope Church').length).toBeGreaterThan(0)
+    const scripture = screen
+      .getByRole('heading', { name: 'Scripture of the day' })
+      .closest('section')!
+    const scriptureQuote = within(scripture).getByText(
+      '“Grace meets us in every quiet moment. This second sentence stays visible.”',
+    )
+    expect(scriptureQuote.classList.contains('line-clamp-3')).toBe(true)
+    expect(scriptureQuote.getAttribute('title')).toBe(
+      'Grace meets us in every quiet moment. This second sentence stays visible.',
+    )
+    expect(within(scripture).getByText('Grace for today')).toBeTruthy()
+    expect(scriptureQuote.textContent).not.toContain('[warm]')
+    expect(scriptureQuote.textContent).not.toContain('[pause]')
+    expect(screen.getByText('Peace in uncertain times')).toBeTruthy()
+    expect(screen.queryByText(/4,280 parishioners/)).toBeNull()
     for (const name of [
       'Play prayer audio',
       'Go back 10 seconds',
@@ -119,7 +170,7 @@ describe('WB3 Home devotional hero', () => {
     }
     expect(screen.getByLabelText('Prayer audio position').matches(':disabled')).toBe(true)
     expect(screen.getByRole('link', { name: /Read transcript/i }).getAttribute('href')).toBe(
-      '/prayers/prayer-1',
+      '/prayers/peace-in-uncertain-times',
     )
   })
 
@@ -129,7 +180,7 @@ describe('WB3 Home devotional hero', () => {
     expect(screen.getByRole('button', { name: 'Play prayer audio' })).toBeTruthy()
     expect(screen.getByRole('link', { name: 'Download prayer audio' })).toBeTruthy()
     expect(screen.getByRole('link', { name: /Read transcript/i }).getAttribute('href')).toBe(
-      '/prayers/prayer-1',
+      '/prayers/peace-in-uncertain-times',
     )
 
     const audio = container.querySelector('audio') as HTMLAudioElement
@@ -140,6 +191,42 @@ describe('WB3 Home devotional hero', () => {
 
     expect(screen.getByText('5:28')).toBeTruthy()
     expect(screen.getByTestId('audio-progress').getAttribute('style')).toContain('width: 50%')
+  })
+
+  it('hides the prayer share and love actions on the homepage', () => {
+    renderHome(home())
+
+    const quotePanel = screen.getByAltText('Misty Nordic lake at sunrise').parentElement!
+    expect(within(quotePanel).queryByRole('button', { name: 'Share prayer' })).toBeNull()
+    expect(
+      within(quotePanel).queryByRole('button', {
+        name: 'Saving prayers is not available yet',
+      }),
+    ).toBeNull()
+
+    const scripture = screen
+      .getByRole('heading', { name: 'Scripture of the day' })
+      .closest('section')!
+    expect(within(scripture).queryByRole('button', { name: 'Share scripture' })).toBeNull()
+    expect(
+      within(scripture).queryByRole('button', {
+        name: 'Saving prayers is not available yet',
+      }),
+    ).toBeNull()
+  })
+
+  it('renders the liturgical-focus image quote as cleaned text clamped to five lines', () => {
+    const data = home()
+    data.latestPrayers[0]!.version.body = `[warm] ${'God, thank you for the promise of grace. '.repeat(6)}\n\n[pause] Thank you, God.`
+    renderHome(data)
+
+    const quotePanel = screen.getByAltText('Misty Nordic lake at sunrise').parentElement!
+    const quote = quotePanel.querySelector('blockquote')!
+    expect(quote.classList.contains('line-clamp-5')).toBe(true)
+    expect(quote.textContent).not.toContain('\n')
+    expect(quote.textContent).toContain('Thank you, God.')
+    expect(quote.textContent).not.toContain('[warm]')
+    expect(quote.textContent).not.toContain('[pause]')
   })
 
   it('renders the directory empty state when no eligible prayer exists', () => {
@@ -176,10 +263,10 @@ describe('WB3 Home devotional hero', () => {
     )
     expect(screen.getByRole('heading', { name: 'Sunday Services' })).toBeTruthy()
     expect(screen.queryByRole('link', { name: /Sunday Services/ })).toBeNull()
-    expect(screen.getByRole('link', { name: /Request Prayer/ }).getAttribute('href')).toBe(
-      '#prayer-petition',
-    )
-    expect(screen.getAllByText('Coming soon')).toHaveLength(1)
+    expect(screen.getByRole('heading', { name: 'Request Prayer' })).toBeTruthy()
+    expect(screen.queryByRole('link', { name: /Request Prayer/ })).toBeNull()
+    expect(screen.getAllByText('Coming soon')).toHaveLength(2)
+    expect(screen.queryByLabelText('Your Prayer Request')).toBeNull()
   })
 
   it('points Directions at the parish address when coordinates are missing', () => {
@@ -197,7 +284,7 @@ describe('WB3 Home devotional hero', () => {
     expect(new URL(href).searchParams.get('destination')).toBe('Vabaduse väljak 1, EE')
   })
 
-  it('renders the main parish, its services, events, and the active gift', () => {
+  it('renders the main parish, its services, and the active gift without events', () => {
     renderHome(
       { ...home(), mainChurch, latestEvents: [event] },
       {
@@ -211,15 +298,20 @@ describe('WB3 Home devotional hero', () => {
     )
 
     expect(screen.getByRole('heading', { name: 'Hope Church' })).toBeTruthy()
+    const parish = screen.getByRole('region', { name: 'Hope Church' })
+    const detailLinks = within(parish).getAllByRole('link', { name: 'Hope Church' })
+    expect(detailLinks).toHaveLength(2)
+    expect(detailLinks.every((link) => link.getAttribute('href') === '/churches/church-1')).toBe(
+      true,
+    )
+    expect(within(parish).queryByRole('button', { name: 'Bulletin' })).toBeNull()
     expect(screen.getByText('Every Sunday @ 10:00 (ET)')).toBeTruthy()
     expect(screen.getByRole('link', { name: /Directions/ }).getAttribute('href')).toContain(
       'destination=59.4%2C24.7',
     )
-    expect(screen.getByRole('heading', { name: event.title })).toBeTruthy()
-    expect(screen.getByRole('link', { name: 'RSVP' }).getAttribute('href')).toBe(
-      event.registrationUrl,
-    )
-    expect(screen.getByRole('button', { name: 'Save Date' })).toBeTruthy()
+    expect(screen.queryByRole('heading', { name: event.title })).toBeNull()
+    expect(screen.queryByRole('link', { name: 'RSVP' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Save Date' })).toBeNull()
     expect(screen.getByText('€10')).toBeTruthy()
     expect(screen.getByText('Beneficiary: Hope Church')).toBeTruthy()
     expect(screen.getByText('Next: November 15, 2026')).toBeTruthy()
@@ -231,22 +323,11 @@ describe('WB3 Home devotional hero', () => {
     )
   })
 
-  it('downloads the event .ics only on click (nothing time-dependent in the SSR markup)', async () => {
-    const created: Blob[] = []
-    URL.createObjectURL = vi.fn((blob: Blob) => {
-      created.push(blob)
-      return 'blob:event'
-    })
-    URL.revokeObjectURL = vi.fn()
-    const click = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {})
+  it('keeps event actions hidden when the home response contains events', () => {
     renderHome({ ...home(), mainChurch, latestEvents: [event] })
 
-    fireEvent.click(screen.getByRole('button', { name: 'Save Date' }))
-
-    expect(click).toHaveBeenCalledTimes(1)
-    expect(await created[0].text()).toContain('SUMMARY:Trinity Sunday Festival Worship')
-    expect(URL.revokeObjectURL).toHaveBeenCalledWith('blob:event')
-    click.mockRestore()
+    expect(screen.queryByRole('heading', { name: event.title })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Save Date' })).toBeNull()
   })
 
   it('escapes calendar text and assumes a one-hour slot', () => {
@@ -264,7 +345,7 @@ describe('WB3 Home devotional hero', () => {
           finish = () => resolve({ data: { result: { id: 'r1', kind: 'prayer', createdAt: '' } } })
         }),
     )
-    renderHome({ ...home(), mainChurch })
+    renderPetition()
 
     fireEvent.click(screen.getByRole('button', { name: 'Family & Peace' }))
     fireEvent.change(screen.getByLabelText('Your Prayer Request'), {
@@ -294,14 +375,10 @@ describe('WB3 Home devotional hero', () => {
     expect(config.headers['Idempotency-Key']).toBeTruthy()
   })
 
-  it('disables the petition and shows parish setup without a main church', () => {
+  it('hides the petition and shows parish setup without a main church', () => {
     renderHome(home())
 
-    expect(screen.getByText('Choose a main church to send prayer requests.')).toBeTruthy()
-    expect(
-      (screen.getByLabelText('Your Prayer Request') as HTMLTextAreaElement).closest('fieldset')
-        ?.disabled,
-    ).toBe(true)
+    expect(screen.queryByLabelText('Your Prayer Request')).toBeNull()
     expect(screen.getByRole('link', { name: 'Open profile' }).getAttribute('href')).toBe(
       '/customer',
     )
@@ -312,7 +389,7 @@ describe('WB3 Home devotional hero', () => {
     )
   })
 
-  it('shows the real check-in streak and minutes listened this week', () => {
+  it('shows the real prayer-listening streak and minutes listened this week', () => {
     renderWithProviders(
       <SiteI18nProvider initialLocale="en">
         <ContentsSiteHome
@@ -320,6 +397,7 @@ describe('WB3 Home devotional hero', () => {
           home={home()}
           name="Anna Example"
           now="2026-10-15T08:00:00.000Z"
+          userId="u1"
         />
       </SiteI18nProvider>,
     )

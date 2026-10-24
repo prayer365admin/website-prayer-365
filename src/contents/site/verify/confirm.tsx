@@ -2,19 +2,21 @@
 
 import SiteButton from '@/components/common/button'
 import { ArrowRightIcon } from '@/components/icon/arrow-right'
-import { SuccessIcon } from '@/components/icon/success'
-import { AuthCardSection } from '@/components/site/auth/auth-card'
+import {
+  RecoveryBackLink,
+  RecoveryCard,
+  RecoveryHeading,
+  RecoveryLockMark,
+  RecoveryResult,
+} from '@/components/site/auth/recovery-layout'
 import FormError from '@/components/site/form-error'
 import { errorCodeOf, useVerifyEmail } from '@/hooks/data/site/verify'
 import { useSiteI18n } from '@/i18n/site-i18n'
-import { useRouter, useSearchParams } from 'next/navigation'
+import { useSearchParams } from 'next/navigation'
 import { useState } from 'react'
 import ResendForm from './resend-form'
 
 type State = 'idle' | 'verified' | 'invalid' | 'failed'
-
-const heading =
-  'mt-2 font-font_heading text-2xl font-bold tracking-tight text-primary-900 md:text-[32px]'
 
 /*
  * /verify-email?token=… (W03). The user presses "Confirm Email" instead of the
@@ -23,7 +25,6 @@ const heading =
  */
 export default function ConfirmEmail() {
   const { t } = useSiteI18n()
-  const router = useRouter()
   const token = useSearchParams().get('token') ?? ''
   const { onVerify, verifying } = useVerifyEmail()
   const [state, setState] = useState<State>(token ? 'idle' : 'invalid')
@@ -40,55 +41,49 @@ export default function ConfirmEmail() {
 
   if (state === 'verified') {
     return (
-      <AuthCardSection className="text-center">
-        <SuccessIcon aria-hidden className="mx-auto block" style={{ fontSize: 120 }} />
-        <h1 className={heading}>{t('verifySuccessTitle')}</h1>
-        <p className="mt-2 text-neutral-600">{t('verifySuccessBody')}</p>
-        <SiteButton
-          className="mx-auto mt-6 w-full md:w-auto"
-          desktopSize="lg"
-          icon={<ArrowRightIcon aria-hidden style={{ fontSize: 24 }} />}
-          iconPlacement="end"
-          onClick={() => router.push('/login')}
-          size="md"
-        >
-          {t('signUpSignIn')}
-        </SiteButton>
-      </AuthCardSection>
+      <RecoveryResult
+        actionHref="/login"
+        actionLabel={t('recoveryLogin')}
+        body={t('verifySuccessBody')}
+        eyebrow={t('recoveryCongratulations')}
+        title={t('verifySuccessTitle')}
+      />
     )
   }
 
   if (state === 'invalid') {
     return (
-      <>
-        <AuthCardSection className="text-center">
-          <h1 className={heading}>{t('verifyInvalidTitle')}</h1>
-          <p className="mt-2 text-neutral-600">{t('verifyInvalidBody')}</p>
-        </AuthCardSection>
-        <AuthCardSection className="border-t border-neutral-200 text-center">
+      <RecoveryCard>
+        <RecoveryLockMark />
+        <RecoveryHeading body={t('verifyInvalidBody')} title={t('verifyInvalidTitle')} />
+        <div className="mt-8">
           <ResendForm centered />
-        </AuthCardSection>
-      </>
+        </div>
+        <div className="mt-8 text-left">
+          <RecoveryBackLink />
+        </div>
+      </RecoveryCard>
     )
   }
 
   return (
-    <AuthCardSection className="text-center">
-      <span className="text-[10px] font-semibold uppercase tracking-[0.2em] text-primary-500">
-        {t('verifyEyebrow')}
-      </span>
-      <h1 className={heading}>{t('verifyTitle')}</h1>
-      <p className="mt-2 text-neutral-600">{t('verifyBody')}</p>
+    <RecoveryCard>
+      <RecoveryLockMark />
+      <RecoveryHeading body={t('verifyBody')} title={t('verifyTitle')} />
       {state === 'failed' && <FormError className="mt-6">{t('error')}</FormError>}
       <SiteButton
-        className="mx-auto mt-6 w-full md:w-auto"
-        desktopSize="lg"
+        className="mt-8 w-full"
+        icon={<ArrowRightIcon aria-hidden style={{ fontSize: 18 }} />}
+        iconPlacement="end"
         loading={verifying}
         onClick={confirm}
-        size="md"
+        size="lg"
       >
         {t('verifyConfirm')}
       </SiteButton>
-    </AuthCardSection>
+      <div className="mt-8 text-left">
+        <RecoveryBackLink />
+      </div>
+    </RecoveryCard>
   )
 }
