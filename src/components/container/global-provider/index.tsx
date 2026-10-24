@@ -1,5 +1,6 @@
 'use client'
 
+import '@/utils/patch-performance-measure'
 import antdTheme from '@/config/antdTheme'
 import { AntdRegistry } from '@ant-design/nextjs-registry'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
