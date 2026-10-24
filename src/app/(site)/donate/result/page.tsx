@@ -2,9 +2,8 @@ import ContentsSiteDonationResult from '@/contents/site/donation-result'
 import { getDonationStatus } from '@/controller/donation'
 import { DonationStatusQuerySchema } from '@/models/donation'
 import requiredWebAuth from '@/utils/required-webauth'
+import { firstParam } from '@/utils/search-param'
 import { redirect } from 'next/navigation'
-
-const first = (value: string | string[] | undefined) => (Array.isArray(value) ? value[0] : value)
 
 // W12 donation result (WB-42). The query string only identifies the attempt:
 // the outcome is read from our ledger server-side, so a hand-typed URL can never
@@ -18,13 +17,13 @@ export default async function Page({
   if (!web) redirect('/login')
 
   const params = await searchParams
-  const churchId = first(params.churchId) ?? ''
+  const churchId = firstParam(params.churchId) ?? ''
   const parsed = DonationStatusQuerySchema.safeParse({
-    sessionId: first(params.session_id),
+    sessionId: firstParam(params.session_id),
     churchId,
-    amountMinor: first(params.amountMinor),
-    currency: first(params.currency),
-    frequency: first(params.frequency),
+    amountMinor: firstParam(params.amountMinor),
+    currency: firstParam(params.currency),
+    frequency: firstParam(params.frequency),
   })
   // A malformed result URL names no parish we can honour, so hand the giver to
   // the portal itself: it re-resolves their Main Church.

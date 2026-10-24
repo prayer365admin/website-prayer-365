@@ -707,21 +707,21 @@ export const LIST_MY_CHURCHES = async ({
       },
     },
   })
-  return Promise.all(
+  // One mediaAsset read for the whole list: mapping `withCover` here made this an
+  // N+1 (a read per followed church) — the same defect the directory already fixed.
+  return withCovers(
     rows
       .filter((r) => r.church.status === APPROVED)
-      .map((r) =>
-        withCover({
-          churchId: r.church.id,
-          slug: r.church.slug,
-          churchName: r.church.name,
-          city: (r.church.address as { city?: string } | null)?.city ?? null,
-          address: churchAddressLabel(r.church.address),
-          coverAssetId: r.church.cover_asset_id,
-          isMain: r.is_main,
-          isFollowed: r.is_followed,
-        }),
-      ),
+      .map((r) => ({
+        churchId: r.church.id,
+        slug: r.church.slug,
+        churchName: r.church.name,
+        city: (r.church.address as { city?: string } | null)?.city ?? null,
+        address: churchAddressLabel(r.church.address),
+        coverAssetId: r.church.cover_asset_id,
+        isMain: r.is_main,
+        isFollowed: r.is_followed,
+      })),
   )
 }
 
