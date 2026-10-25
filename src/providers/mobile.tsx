@@ -890,7 +890,7 @@ const mapPublishedPrayer = (p: {
   }
 }
 
-export const LIST_PUBLISHED_PRAYERS = async ({
+const LIST_PUBLISHED_PRAYERS_UNCACHED = async ({
   churchId,
   query,
 }: {
@@ -942,6 +942,20 @@ export const LIST_PUBLISHED_PRAYERS = async ({
     .filter((x): x is MobilePublishedPrayer => Boolean(x))
   return { result, total }
 }
+
+/**
+ * Public, per-church published prayers: identical for every visitor, so it is
+ * cached for a minute and tagged — the prayer publish and audio-approve routes
+ * already call `revalidateTag(SITE_PUBLIC_TAG)`, so a new prayer appears at once.
+ * Uncached this cost ~12 round trips per call, which the W11 neighbour spotlight
+ * paid for every probed parish on each /donate render (measured 507 ms, 25 Oct
+ * 2026 — the heaviest single read on the giving page).
+ */
+export const LIST_PUBLISHED_PRAYERS = unstable_cache(
+  LIST_PUBLISHED_PRAYERS_UNCACHED,
+  ['site-public-published-prayers'],
+  { revalidate: 60, tags: [SITE_PUBLIC_TAG] },
+)
 
 /** Latest published prayers across the customer's main and followed churches. */
 const LIST_LATEST_PUBLISHED_PRAYERS_UNCACHED = async ({

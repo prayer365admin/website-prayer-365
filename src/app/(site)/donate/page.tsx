@@ -3,6 +3,7 @@ import { getMyDonationOverview } from '@/controller/donation'
 import { getMe, getPublicChurch, listMyChurches } from '@/controller/mobile'
 import { getNeighborSpotlight } from '@/controller/site'
 import { isStripeEnabled } from '@/providers/stripe'
+import { withConnectionRetry } from '@/utils/db-retry'
 import { GeneralError } from '@/utils/general-error'
 import requiredWebAuth from '@/utils/required-webauth'
 import { firstParam } from '@/utils/search-param'
@@ -68,11 +69,15 @@ export default async function Page({
     )
   }
 
-  const [church, overview, me] = await Promise.all([
-    getChurchOrNull(identifier),
-    getMyDonationOverview({ userId }),
-    getMe({ userId }),
-  ])
+  // One retry when the DB refuses a connection (managed Postgres ceiling): a
+  // momentary capacity blip should cost a few hundred ms, not the error page.
+  const [church, overview, me] = await withConnectionRetry(() =>
+    Promise.all([
+      getChurchOrNull(identifier),
+      getMyDonationOverview({ userId }),
+      getMe({ userId }),
+    ]),
+  )
   if (!church) redirect('/churches')
   // The lookup accepts id OR slug (the donation-result fallback links with an id),
   // so rewrite the address bar to the stored slug — canonical, like prayer detail.

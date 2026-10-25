@@ -1,3 +1,4 @@
+import { isConnectionLimitError } from '@/utils/db-retry'
 import { GeneralError } from '@/utils/general-error'
 import { validate } from '@/utils/validate'
 import { DonateNeighborSpotlight } from '@/models/donation'
@@ -29,7 +30,7 @@ export const getSetupProgress = async ({ userId }: { userId: string }) => {
 }
 
 /** How many neighbours are probed for a published prayer before giving up. */
-const NEIGHBOR_CANDIDATES = 3
+const NEIGHBOR_CANDIDATES = 2
 
 /**
  * W11 spotlight: the nearest other parish that has a published prayer. Distance
@@ -58,9 +59,15 @@ export const getNeighborSpotlight = async ({
     .slice(0, NEIGHBOR_CANDIDATES)
 
   for (const candidate of nearby) {
+    // The card is decorative: a refused connection (the managed Postgres ceiling,
+    // Prisma P2037) must not turn the whole giving page into an error. Every
+    // other fault still propagates.
     const { result: prayers } = await LIST_PUBLISHED_PRAYERS({
       churchId: candidate.id,
       query: validate(MobilePrayerListQuerySchema, { limit: 1 }),
+    }).catch((error: unknown) => {
+      if (isConnectionLimitError(error)) return { result: [], total: 0 }
+      throw error
     })
     const prayer = prayers[0]
     if (!prayer) continue

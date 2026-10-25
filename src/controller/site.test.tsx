@@ -111,4 +111,48 @@ describe('getNeighborSpotlight (W11 spotlight)', () => {
 
     expect(res).toBeNull()
   })
+
+  // Plan 026: the card is decorative, and a refused connection is a capacity blip.
+  it('returns null instead of failing the page when a parish refuses the connection (P2037)', async () => {
+    m.LIST_PUBLIC_CHURCHES.mockResolvedValue({
+      result: [{ id: 'c2', slug: 'near', name: 'Near', coverUrl: null, distanceKm: 2 }],
+      total: 1,
+    })
+    m.LIST_PUBLISHED_PRAYERS.mockRejectedValue(
+      Object.assign(new Error('Too many database connections opened'), { code: 'P2037' }),
+    )
+
+    await expect(
+      getNeighborSpotlight({ churchId: 'c1', coordinates: { latitude: 59.43, longitude: 24.75 } }),
+    ).resolves.toBeNull()
+  })
+
+  it('still throws when the parish read fails for a real reason', async () => {
+    m.LIST_PUBLIC_CHURCHES.mockResolvedValue({
+      result: [{ id: 'c2', slug: 'near', name: 'Near', coverUrl: null, distanceKm: 2 }],
+      total: 1,
+    })
+    m.LIST_PUBLISHED_PRAYERS.mockRejectedValue(new Error('relation "prayer" does not exist'))
+
+    await expect(
+      getNeighborSpotlight({ churchId: 'c1', coordinates: { latitude: 59.43, longitude: 24.75 } }),
+    ).rejects.toThrow('relation "prayer" does not exist')
+  })
+
+  it('probes at most two neighbours (the list arrives distance-sorted)', async () => {
+    m.LIST_PUBLIC_CHURCHES.mockResolvedValue({
+      result: [
+        { id: 'c2', slug: 'a', name: 'A', coverUrl: null, distanceKm: 2 },
+        { id: 'c3', slug: 'b', name: 'B', coverUrl: null, distanceKm: 4 },
+        { id: 'c4', slug: 'c', name: 'C', coverUrl: null, distanceKm: 6 },
+      ],
+      total: 3,
+    })
+    m.LIST_PUBLISHED_PRAYERS.mockResolvedValue({ result: [], total: 0 })
+
+    await expect(
+      getNeighborSpotlight({ churchId: 'c1', coordinates: { latitude: 59.43, longitude: 24.75 } }),
+    ).resolves.toBeNull()
+    expect(m.LIST_PUBLISHED_PRAYERS).toHaveBeenCalledTimes(2)
+  })
 })
