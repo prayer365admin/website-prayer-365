@@ -62,7 +62,7 @@ describe('First-login onboarding /customer/setup (W05)', () => {
     })
     await finish()
 
-    await waitFor(() => expect(pushMock).toHaveBeenCalledWith('/customer'))
+    await waitFor(() => expect(pushMock).toHaveBeenCalledWith('/'))
     expect(axiosMock.patch).toHaveBeenNthCalledWith(2, '/api/v1/site/me', {
       locale: 'en',
     })
@@ -81,7 +81,7 @@ describe('First-login onboarding /customer/setup (W05)', () => {
     })
     await finish()
 
-    await waitFor(() => expect(pushMock).toHaveBeenCalledWith('/customer'))
+    await waitFor(() => expect(pushMock).toHaveBeenCalledWith('/'))
     expect(axiosMock.patch).toHaveBeenNthCalledWith(2, '/api/v1/site/me', {
       locale: 'en',
     })
@@ -132,7 +132,7 @@ describe('First-login onboarding /customer/setup (W05)', () => {
 
     await userEvent.click(screen.getByRole('button', { name: SITE_MESSAGES.et.setupSkip }))
 
-    await waitFor(() => expect(pushMock).toHaveBeenCalledWith('/customer'))
+    await waitFor(() => expect(pushMock).toHaveBeenCalledWith('/'))
     expect(axiosMock.patch).toHaveBeenCalledWith('/api/v1/site/me', {
       locale: 'en',
       localeSkipped: true,

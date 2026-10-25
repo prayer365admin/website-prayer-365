@@ -284,7 +284,7 @@ All profile interactions run through shared controllers guarded by `requiredWebA
 
 1. `/register` (name, email, password) → `registerUser` → user with the `prayer_user` role, locale `null` until onboarding + verification email.
 2. User clicks verification link, setting `email_verified_at`.
-3. `/login` (NextAuth credentials, W1 Option B) → session.
+3. `/login` (NextAuth credentials, W1 Option B) → session, then a full page load of `/` (`SITE_HOME`, the website home); a signed-in customer visiting `/login`/`/register` is sent there too.
 4. First visit to a website page without completed onboarding → `/customer/setup`: parish (optional) then language. Step 1 immediately saves the selected parish (or `null` when skipped); step 2 immediately saves the selected locale, or English when skipped, and completes onboarding.
 5. `/customer` (profile) → view/edit name, locale, picture; set, change or clear the main church; follows.
 

@@ -209,9 +209,14 @@ Decided while building WB1; answers to the WB1 issue report are in
   step is unfilled, each browser offers setup once: sign-in and `SetupGuard`
   check `GET /api/v1/site/me/setup-progress` when localStorage
   `prayer365.setupProgress.<userId>` is missing, record it, and go to
-  `/customer/setup`; a browser that already asked goes to `/customer`.
-  Finishing or skipping setup goes to `/customer`. Apply migration
-  `20261014020000_user_locale_setup_completed_at`.
+  `/customer/setup`; a browser that already asked goes to `/` (`SITE_HOME`, the
+  website home — WB-11), and so does a finished or skipped setup. Sign-in ends
+  in a **full page load** (`src/utils/hard-navigate.ts`), never a client
+  navigation: the client router cache keeps what it collected before the session
+  existed, so a protected page a guest visited stays cached as its `/login`
+  redirect, and the first click after signing in replayed that redirect and
+  stranded the customer on the profile page until a manual reload.
+  Apply migration `20261014020000_user_locale_setup_completed_at`.
 
 ## Definition of done
 

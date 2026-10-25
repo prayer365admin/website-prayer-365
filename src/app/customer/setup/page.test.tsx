@@ -57,10 +57,10 @@ describe('/customer/setup page', () => {
     expect(screen.getByText('Setup step 2')).toBeTruthy()
   })
 
-  it('redirects a customer who finished onboarding (both steps saved) to /customer', async () => {
+  it('redirects a customer who finished onboarding (both steps saved) to the home page', async () => {
     m.getSetupProgress.mockResolvedValue({ churchStepDone: true, completed: true })
 
-    await expect(Page()).rejects.toThrow('REDIRECT /customer')
+    await expect(Page()).rejects.toThrow('REDIRECT /')
     expect(m.getSetupProgress).toHaveBeenCalledWith({ userId: 'u1' })
   })
 

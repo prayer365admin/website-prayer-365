@@ -6,7 +6,7 @@ import { getSetupProgress } from '@/controller/site'
 import { SiteI18nProvider } from '@/i18n/site-i18n'
 import { isCustomerRole } from '@/utils/customer-role'
 import { getSiteLocale } from '@/utils/site-locale'
-import { STAFF_HOME } from '@/utils/constant'
+import { STAFF_HOME, SITE_HOME } from '@/utils/constant'
 import requiredWebAuth from '@/utils/required-webauth'
 import { redirect } from 'next/navigation'
 
@@ -21,7 +21,7 @@ export default async function Page() {
 
   const userId = web.session.user.user_id
   const progress = await getSetupProgress({ userId })
-  if (progress.completed) redirect('/customer')
+  if (progress.completed) redirect(SITE_HOME)
 
   const me = await getMe({ userId })
   const initialStep = progress.churchStepDone ? 2 : 1

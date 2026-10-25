@@ -5,6 +5,8 @@
  * record, so unfinished setup is shown immediately there.
  */
 
+import { SITE_HOME } from '@/utils/constant'
+
 export type SetupProgress = {
   churchStepDone: boolean
   localeStepDone: boolean
@@ -32,8 +34,7 @@ export const writeSetupProgress = (userId: string, progress: SetupProgress) => {
 }
 
 export const SETUP_PATH = '/customer/setup'
-export const CUSTOMER_HOME = '/customer'
 
 /** Where a signed-in customer belongs: setup until both steps are filled. */
 export const setupTarget = (progress: SetupProgress) =>
-  progress.completed ? CUSTOMER_HOME : SETUP_PATH
+  progress.completed ? SITE_HOME : SETUP_PATH

@@ -16,6 +16,13 @@ export const ADMINISTRATOR_ROLE = 'administrator'
  * account button points here for a staff session.
  */
 export const STAFF_HOME = '/dashboard'
+
+/**
+ * Where a signed-in customer lands: the website home (W06). The profile page
+ * (/customer, W13) is a destination the user chooses, never a landing page.
+ */
+export const SITE_HOME = '/'
+
 export const ADDITIONAL_COLUMN_CONFIG: {
   align: 'center' | 'left' | 'right'
   ellipsis: boolean

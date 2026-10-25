@@ -20,7 +20,8 @@ import { useMe } from '@/hooks/data/site/me'
 import { useSiteI18n } from '@/i18n/site-i18n'
 import { ChurchOption } from '@/models/church-option'
 import { MobileMe } from '@/models/mobile'
-import { CUSTOMER_HOME, SetupProgress, writeSetupProgress } from '@/utils/setup-progress-storage'
+import { SITE_HOME } from '@/utils/constant'
+import { SetupProgress, writeSetupProgress } from '@/utils/setup-progress-storage'
 import { Checkbox, Form, Select } from 'antd'
 import { useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
@@ -105,7 +106,7 @@ export default function SetupForm({
       )
       setLocale(selectedLocale)
       record({ churchStepDone: !!picked || initialStep === 2, localeStepDone: !localeOverride })
-      router.push(CUSTOMER_HOME)
+      router.push(SITE_HOME)
     } catch {
       setFailed(true)
     }
