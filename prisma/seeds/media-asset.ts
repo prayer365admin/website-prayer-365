@@ -1,49 +1,33 @@
-import { db } from '../../src/utils/db-connection'
-import type { MediaPurpose } from '@prisma/client'
-import { DEMO_CHURCH_NAME, getDemoChurch, getAdminUser } from './test-context'
+import { DEMO_CONSENT_KEY, DEMO_VOICE_SAMPLE_KEY } from './demo-media'
+import { ensureMediaAsset } from './demo-content'
+import { getAdminUser, getDemoChurch } from './test-context'
 
-// Placeholder media assets (cover, voice sample, consent evidence, audio).
-interface AssetDef {
-  purpose: MediaPurpose
-  mime_type: string
-  byte_size: number
-}
-
+/*
+ * The two media assets the voice-cloning flow needs before a voice profile can
+ * exist: the pastor's recorded sample and the signed consent document. Both
+ * reference objects that ensureDemoMedia() uploads into the ACTIVE bucket, so the
+ * admin voice-review screen opens a real file in every environment.
+ *
+ * Church covers, gallery images and prayer audio are created by
+ * seedChurchContent / seedChurchPrayers.
+ */
 export const seedMediaAssets = async () => {
   const church = await getDemoChurch()
   const actor = await getAdminUser()
   if (!church || !actor) throw new Error('seedMediaAssets: demo church/admin missing')
 
-  const defs: Record<string, AssetDef> = {
-    cover: { purpose: 'IMAGE', mime_type: 'image/jpeg', byte_size: 50388 },
-    sample: { purpose: 'VOICE_SAMPLE', mime_type: 'audio/wav', byte_size: 2051200 },
-    evidence: { purpose: 'CONSENT_EVIDENCE', mime_type: 'application/pdf', byte_size: 51200 },
-    audio: { purpose: 'GENERATED_AUDIO', mime_type: 'audio/mpeg', byte_size: 307200 },
-  }
+  const sample = await ensureMediaAsset({
+    churchId: church.id,
+    key: DEMO_VOICE_SAMPLE_KEY,
+    purpose: 'VOICE_SAMPLE',
+    actorId: actor.id,
+  })
+  const evidence = await ensureMediaAsset({
+    churchId: church.id,
+    key: DEMO_CONSENT_KEY,
+    purpose: 'CONSENT_EVIDENCE',
+    actorId: actor.id,
+  })
 
-  const created: Record<string, string> = {}
-  for (const [key, def] of Object.entries(defs)) {
-    const object_key = key === 'cover' ? '/images/church.jpeg' : `demo/${DEMO_CHURCH_NAME}-${key}`
-    let asset = await db.mediaAsset.findUnique({ where: { object_key } })
-    if (!asset) {
-      asset = await db.mediaAsset.create({
-        data: {
-          church_id: church.id,
-          object_key,
-          status: 'READY',
-          checksum: key === 'cover' ? '41e8f23b32cba394ab67f8326d218667' : `demo-checksum-${key}`,
-          uploaded_by: actor.id,
-          ...def,
-        },
-      })
-    }
-    created[key] = asset.id
-  }
-  if (created.cover) {
-    await db.church.update({
-      where: { id: church.id },
-      data: { cover_asset_id: created.cover },
-    })
-  }
-  return created
+  return { sample: sample.id, evidence: evidence.id }
 }

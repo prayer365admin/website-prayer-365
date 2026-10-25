@@ -32,6 +32,7 @@ bun-error.log*
 .env*.local
 .env.test
 .env
+.env.prod
 
 .vitest
 
