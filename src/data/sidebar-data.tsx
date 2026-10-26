@@ -1,19 +1,12 @@
 import { MenuProps } from 'antd'
-import {
-  HomeOutlined,
-  BankOutlined,
-  ProjectOutlined,
-  AudioOutlined,
-  TeamOutlined,
-  UserOutlined,
-} from '@ant-design/icons'
 import { useRouter } from 'next/navigation'
+import LayoutIcon from '@/components/common/layout-icon'
 
 const DashboardItems = (router: ReturnType<typeof useRouter>): MenuProps['items'] => [
   {
     key: '/dashboard',
     label: 'Dashboard',
-    icon: <HomeOutlined />,
+    icon: <LayoutIcon name="dashboard" />,
     onClick: () => {
       router.push('/dashboard')
     },
@@ -21,7 +14,7 @@ const DashboardItems = (router: ReturnType<typeof useRouter>): MenuProps['items'
   {
     key: '/dashboard/my-voice',
     label: 'My Voice',
-    icon: <AudioOutlined />,
+    icon: <LayoutIcon name="microphone" />,
     onClick: () => {
       router.push('/dashboard/my-voice')
     },
@@ -29,11 +22,12 @@ const DashboardItems = (router: ReturnType<typeof useRouter>): MenuProps['items'
   {
     key: 'churches',
     label: 'Churches',
-    icon: <BankOutlined />,
+    icon: <LayoutIcon name="church" />,
     children: [
       {
         key: '/dashboard/churches',
         label: 'My Churches',
+        icon: <LayoutIcon name="church" />,
         onClick: () => {
           router.push('/dashboard/churches')
         },
@@ -43,11 +37,12 @@ const DashboardItems = (router: ReturnType<typeof useRouter>): MenuProps['items'
   {
     key: 'user-management',
     label: 'User Management',
-    icon: <TeamOutlined />,
+    icon: <LayoutIcon name="users" />,
     children: [
       {
         key: '/dashboard/user-management/user',
         label: 'Users',
+        icon: <LayoutIcon name="users" />,
         onClick: () => {
           router.push('/dashboard/user-management/user')
         },
@@ -55,6 +50,7 @@ const DashboardItems = (router: ReturnType<typeof useRouter>): MenuProps['items'
       {
         key: '/dashboard/user-management/role',
         label: 'Roles',
+        icon: <LayoutIcon name="userSettings" />,
         onClick: () => {
           router.push('/dashboard/user-management/role')
         },
@@ -62,7 +58,7 @@ const DashboardItems = (router: ReturnType<typeof useRouter>): MenuProps['items'
       {
         key: '/dashboard/customer',
         label: 'Customers',
-        icon: <UserOutlined />,
+        icon: <LayoutIcon name="customers" />,
         onClick: () => {
           router.push('/dashboard/customer')
         },
@@ -72,11 +68,12 @@ const DashboardItems = (router: ReturnType<typeof useRouter>): MenuProps['items'
   {
     key: 'central',
     label: 'Central',
-    icon: <ProjectOutlined />,
+    icon: <LayoutIcon name="eye" />,
     children: [
       {
         key: '/dashboard/central',
         label: 'Overview',
+        icon: <LayoutIcon name="eye" />,
         onClick: () => {
           router.push('/dashboard/central')
         },
@@ -84,6 +81,7 @@ const DashboardItems = (router: ReturnType<typeof useRouter>): MenuProps['items'
       {
         key: '/dashboard/central/churches',
         label: 'Churches',
+        icon: <LayoutIcon name="church" />,
         onClick: () => {
           router.push('/dashboard/central/churches')
         },
@@ -91,6 +89,7 @@ const DashboardItems = (router: ReturnType<typeof useRouter>): MenuProps['items'
       {
         key: '/dashboard/central/announcements',
         label: 'Announcements',
+        icon: <LayoutIcon name="announcement" />,
         onClick: () => {
           router.push('/dashboard/central/announcements')
         },
@@ -98,6 +97,7 @@ const DashboardItems = (router: ReturnType<typeof useRouter>): MenuProps['items'
       {
         key: '/dashboard/central/prayers',
         label: 'Prayers',
+        icon: <LayoutIcon name="bell" />,
         onClick: () => {
           router.push('/dashboard/central/prayers')
         },
@@ -105,6 +105,7 @@ const DashboardItems = (router: ReturnType<typeof useRouter>): MenuProps['items'
       {
         key: '/dashboard/central/pastors',
         label: 'Pastors',
+        icon: <LayoutIcon name="pastor" />,
         onClick: () => {
           router.push('/dashboard/central/pastors')
         },
@@ -112,6 +113,7 @@ const DashboardItems = (router: ReturnType<typeof useRouter>): MenuProps['items'
       {
         key: '/dashboard/central/hierarchy',
         label: 'Hierarchy',
+        icon: <LayoutIcon name="hierarchy" />,
         onClick: () => {
           router.push('/dashboard/central/hierarchy')
         },
@@ -119,6 +121,7 @@ const DashboardItems = (router: ReturnType<typeof useRouter>): MenuProps['items'
       {
         key: '/dashboard/central/countries',
         label: 'Countries',
+        icon: <LayoutIcon name="earth" />,
         onClick: () => {
           router.push('/dashboard/central/countries')
         },
@@ -126,6 +129,7 @@ const DashboardItems = (router: ReturnType<typeof useRouter>): MenuProps['items'
       {
         key: '/dashboard/central/languages',
         label: 'Languages',
+        icon: <LayoutIcon name="language" />,
         onClick: () => {
           router.push('/dashboard/central/languages')
         },
@@ -133,6 +137,7 @@ const DashboardItems = (router: ReturnType<typeof useRouter>): MenuProps['items'
       {
         key: '/dashboard/central/voice-profiles',
         label: 'Voice Profiles',
+        icon: <LayoutIcon name="smile" />,
         onClick: () => {
           router.push('/dashboard/central/voice-profiles')
         },
@@ -140,6 +145,7 @@ const DashboardItems = (router: ReturnType<typeof useRouter>): MenuProps['items'
       {
         key: '/dashboard/central/notifications',
         label: 'Notifications',
+        icon: <LayoutIcon name="bell" />,
         onClick: () => {
           router.push('/dashboard/central/notifications')
         },

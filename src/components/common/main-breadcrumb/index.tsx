@@ -4,6 +4,8 @@ import { toCapitalized } from '@/utils/capitalized'
 import { Breadcrumb } from 'antd'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
+import LayoutIcon from '@/components/common/layout-icon'
+import s from './index.module.scss'
 
 export default function MainBreadcrumb() {
   const pathname = usePathname()
@@ -22,8 +24,16 @@ export default function MainBreadcrumb() {
 
   return (
     <Breadcrumb
+      className={s.breadcrumb}
       items={[
-        { title: 'Dashboard' },
+        {
+          title: (
+            <Link href="/dashboard" aria-label="Dashboard">
+              <LayoutIcon name="home" />
+              <span className="sr-only">Dashboard</span>
+            </Link>
+          ),
+        },
         ...pathnameList.map((item, index) => {
           const currentPath = `/dashboard/${pathnameList.slice(0, index + 1).join('/')}`
           return {

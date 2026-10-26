@@ -1,0 +1,243 @@
+.header {
+  height: 66px !important;
+  padding: 0 !important;
+  border-bottom: 1px solid #edf0f4;
+  background: #fff !important;
+  line-height: normal !important;
+}
+
+.headerInner {
+  display: flex;
+  height: 100%;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  padding: 0 24px;
+}
+
+.headerContext,
+.actions,
+.profileButton {
+  display: flex;
+  align-items: center;
+}
+
+.mobileMenuButton {
+  display: none;
+}
+
+.headerContext {
+  min-width: 0;
+  gap: 18px;
+}
+
+.desktopBreadcrumb {
+  display: block;
+}
+
+.churchPicker {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding-left: 18px;
+  border-left: 1px solid #e7eaf0;
+  cursor: pointer;
+}
+
+.churchName {
+  max-width: 220px;
+  overflow: hidden;
+  color: #26344d;
+  font-size: 13px;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.churchChevron {
+  color: #8f99a9;
+  font-size: 9px;
+}
+
+.actions {
+  flex: none;
+  gap: 8px;
+}
+
+.iconButton {
+  display: grid !important;
+  width: 34px !important;
+  height: 34px !important;
+  place-items: center;
+  border-radius: 9px !important;
+  background: #edf4ff !important;
+  color: #2f6fc6 !important;
+  font-size: 16px !important;
+
+  &:hover {
+    background: #e1edff !important;
+  }
+}
+
+.profileButton {
+  gap: 9px;
+  margin-left: 2px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  text-align: left;
+}
+
+.profileAvatar {
+  display: grid;
+  width: 34px;
+  height: 34px;
+  place-items: center;
+  border-radius: 9px;
+  background: #2f7ad2;
+  color: #fff;
+  font-size: 17px;
+}
+
+.profileCopy {
+  display: flex;
+  min-width: 104px;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.profileLoading {
+  display: flex;
+  width: 104px;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.profileLoadingName,
+.profileLoadingRole {
+  position: relative;
+  display: block;
+  overflow: hidden;
+  border-radius: 999px;
+  background: #edf0f4;
+
+  &::after {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(90deg, transparent, rgb(255 255 255 / 65%), transparent);
+    content: '';
+    transform: translateX(-100%);
+    animation: profile-shimmer 1.2s infinite;
+  }
+}
+
+.profileLoadingName {
+  width: 82px;
+  height: 10px;
+}
+
+.profileLoadingRole {
+  width: 52px;
+  height: 8px;
+}
+
+@keyframes profile-shimmer {
+  to {
+    transform: translateX(100%);
+  }
+}
+
+.profileName {
+  max-width: 160px;
+  overflow: hidden;
+  color: #17223a;
+  font-size: 12px;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.profileRole {
+  color: #929bab;
+  font-size: 10px;
+}
+
+.profileChevron {
+  margin-left: 4px;
+  color: #17223a;
+  font-size: 9px;
+}
+
+.profileDropdown {
+  :global(.ant-dropdown-menu) {
+    min-width: 156px;
+    padding: 8px;
+    border: 1px solid #edf0f4;
+    border-radius: 9px;
+    box-shadow: 0 8px 24px rgb(15 23 42 / 10%);
+  }
+
+  :global(.ant-dropdown-menu-item) {
+    min-height: 40px;
+    padding: 8px 12px;
+    border-radius: 8px;
+    color: #5c6370 !important;
+    font-family: var(--font-text) !important;
+    font-size: 14px !important;
+    font-style: normal !important;
+    font-weight: 600 !important;
+    letter-spacing: 0 !important;
+    line-height: 150% !important;
+  }
+
+  :global(.ant-dropdown-menu-item .anticon) {
+    color: #b0b6bf !important;
+    font-size: 20px;
+  }
+
+  :global(.ant-dropdown-menu-title-content) {
+    color: inherit !important;
+    font: inherit !important;
+  }
+
+  :global(.ant-dropdown-menu-item:hover) {
+    background: #f5f7ff !important;
+    color: #2f7ad2 !important;
+  }
+
+  :global(.ant-dropdown-menu-item:hover .anticon) {
+    color: #2f7ad2 !important;
+  }
+}
+
+@media (max-width: 760px) {
+  .headerInner {
+    gap: 10px;
+    padding: 0 14px;
+  }
+
+  .mobileMenuButton {
+    display: grid;
+    width: 34px;
+    height: 34px;
+    flex: none;
+    place-items: center;
+    border: 0;
+    border-radius: 9px;
+    background: #edf4ff;
+    color: #2f6fc6;
+    cursor: pointer;
+  }
+
+  .desktopBreadcrumb {
+    display: none;
+  }
+
+  .profileCopy,
+  .profileLoading,
+  .profileChevron,
+  .churchPicker {
+    display: none;
+  }
+}

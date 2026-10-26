@@ -3,8 +3,44 @@
   margin: 0 auto;
 }
 
+.mobileBreadcrumb {
+  display: none;
+}
+
+.dashboardContent {
+  min-height: 0;
+}
+
 @media screen and (max-width: 1280px) {
   .container {
     padding: 0 40px;
+  }
+}
+
+@media screen and (max-width: 760px) {
+  .mobileBreadcrumb {
+    display: block;
+    margin: -24px -24px 24px;
+    overflow-x: auto;
+    border-bottom: 1px solid #edf0f4;
+    background: #fff;
+    scrollbar-width: thin;
+    scrollbar-color: #b9c2d0 transparent;
+
+    &::-webkit-scrollbar {
+      height: 2px;
+    }
+
+    &::-webkit-scrollbar-thumb {
+      border-radius: 999px;
+      background: #b9c2d0;
+    }
+
+    :global(.ant-breadcrumb) {
+      width: max-content;
+      min-width: 100%;
+      padding: 10px 14px;
+      white-space: nowrap;
+    }
   }
 }
