@@ -1,21 +1,26 @@
 'use client'
 
-import { Avatar, Dropdown, Layout, Typography, Spin } from 'antd'
+import { Badge, Button, Dropdown, Layout, Typography, Spin } from 'antd'
 import type { MenuProps } from 'antd'
-import { LogoutOutlined, DownOutlined } from '@ant-design/icons'
+import { DownOutlined, LogoutOutlined, MenuOutlined } from '@ant-design/icons'
 import s from './index.module.scss'
-import { signOut } from 'next-auth/react'
+import { signOut, useSession } from 'next-auth/react'
 import { useParams, useRouter } from 'next/navigation'
 import { useCurrentChurch, useChurches } from '@/hooks/data/church'
 import { useState } from 'react'
+import MainBreadcrumb from '@/components/common/main-breadcrumb'
+import LayoutIcon from '@/components/common/layout-icon'
 const { Header } = Layout
 
 export default function MainHeader({
   logoutCallbackUrl = '/admin/login',
+  onMenuClick,
 }: {
   logoutCallbackUrl?: string
+  onMenuClick?: () => void
 }) {
   const router = useRouter()
+  const { data: session, status: sessionStatus } = useSession()
   const params = useParams<{ churchId?: string }>()
   const churchId = params?.churchId
 
@@ -51,35 +56,88 @@ export default function MainHeader({
       },
     },
   ]
+  const roleLabel = session?.user.role?.name
+    ? session.user.role.name
+        .replace(/^prayer_/, '')
+        .split('_')
+        .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+        .join(' ')
+    : 'Staff'
+
   return (
-    <>
-      <Header className={`${s.header} !h-[70px] !bg-white !p-0`}>
-        <div className="h-full w-full px-10 flex justify-between items-center">
-          <div>
-            {churchId && (
-              <Dropdown
-                menu={{ items: churchMenuItems, selectedKeys: [churchId] }}
-                trigger={['click']}
-                onOpenChange={(open) => open && setPickerOpened(true)}
-              >
-                <div className="flex items-center cursor-pointer gap-2">
-                  <Typography.Text strong className="text-lg">
-                    {currentChurchLoading ? (
-                      <Spin size="small" />
-                    ) : (
-                      currentChurch?.name || 'Select church'
-                    )}
-                  </Typography.Text>
-                  <DownOutlined className="text-gray-500 text-xs mt-1" />
-                </div>
-              </Dropdown>
-            )}
+    <Header className={s.header}>
+      <div className={s.headerInner}>
+        <button
+          type="button"
+          className={s.mobileMenuButton}
+          onClick={onMenuClick}
+          aria-label="Open navigation"
+        >
+          <MenuOutlined />
+        </button>
+        <div className={s.headerContext}>
+          <div className={s.desktopBreadcrumb}>
+            <MainBreadcrumb />
           </div>
-          <Dropdown menu={{ items: dropdownMenu }}>
-            <Avatar src="/images/icon.jpg" size={'large'} className="cursor-pointer" />
+          {churchId && (
+            <Dropdown
+              menu={{ items: churchMenuItems, selectedKeys: [churchId] }}
+              trigger={['click']}
+              onOpenChange={(open) => open && setPickerOpened(true)}
+            >
+              <div className={s.churchPicker}>
+                <Typography.Text className={s.churchName}>
+                  {currentChurchLoading ? (
+                    <Spin size="small" />
+                  ) : (
+                    currentChurch?.name || 'Select church'
+                  )}
+                </Typography.Text>
+                <DownOutlined className={s.churchChevron} />
+              </div>
+            </Dropdown>
+          )}
+        </div>
+        <div className={s.actions}>
+          <Button
+            type="text"
+            className={s.iconButton}
+            icon={<LayoutIcon name="information" />}
+            aria-label="Help"
+          />
+          <Badge dot offset={[-5, 5]}>
+            <Button
+              type="text"
+              className={s.iconButton}
+              icon={<LayoutIcon name="bell" />}
+              aria-label="Notifications"
+            />
+          </Badge>
+          <Dropdown
+            menu={{ items: dropdownMenu }}
+            rootClassName={s.profileDropdown}
+            trigger={['click']}
+          >
+            <button type="button" className={s.profileButton} aria-label="Open user menu">
+              <span className={s.profileAvatar}>
+                <LayoutIcon name="user" />
+              </span>
+              {sessionStatus === 'loading' ? (
+                <span className={s.profileLoading} aria-label="Loading user profile" role="status">
+                  <span className={s.profileLoadingName} />
+                  <span className={s.profileLoadingRole} />
+                </span>
+              ) : (
+                <span className={s.profileCopy}>
+                  <span className={s.profileName}>{session?.user.name || 'Staff Member'}</span>
+                  <span className={s.profileRole}>{roleLabel}</span>
+                </span>
+              )}
+              <DownOutlined className={s.profileChevron} />
+            </button>
           </Dropdown>
         </div>
-      </Header>
-    </>
+      </div>
+    </Header>
   )
 }

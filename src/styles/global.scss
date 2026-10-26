@@ -51,6 +51,22 @@ body {
   background: #f7f9fb;
 }
 
+// Inline component wrapper for the product SVG icon set in public/icons.
+.layout-icon {
+  display: inline-flex;
+  width: 24px;
+  height: 24px;
+  align-items: center;
+  flex: none;
+  justify-content: center;
+  vertical-align: -0.125em;
+}
+
+.layout-icon__glyph {
+  display: block;
+  flex: none;
+}
+
 /**
  * Website form fields (WB1 design), on the antd <Form>. Sizes and gaps come
  * from siteFormTheme (src/config/antdTheme.ts); only the uneven input padding
