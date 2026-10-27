@@ -429,6 +429,7 @@ describe('GET_PUBLIC_CHURCH — admin profile reflected in mobile contract', () 
         imageUrl: null,
       },
     ])
+    expect(result?.pastorImageUrl).toBe('https://cdn.test/churches/c1/override.jpg')
     for (const member of result?.staff ?? []) {
       expect(member).not.toHaveProperty('email')
       expect(member).not.toHaveProperty('phone')
@@ -935,7 +936,10 @@ describe('mapPublishedPrayer (via GET_PUBLISHED_PRAYER)', () => {
       id: 'p1',
       slug: 'prayer',
       church_id: 'c1',
-      church: { name: 'Hope Church' },
+      church: {
+        name: 'Hope Church',
+        cover_asset: { object_key: 'hope-cover.jpg', purpose: 'IMAGE', status: 'READY' },
+      },
       published_at: new Date(),
       published_version_id: 'v1',
     })
@@ -957,6 +961,7 @@ describe('mapPublishedPrayer (via GET_PUBLISHED_PRAYER)', () => {
 
     const result = await GET_PUBLISHED_PRAYER({ prayerId: 'p1' })
     expect(result).not.toBeNull()
+    expect(result?.churchCoverUrl).toBe('https://cdn.test/hope-cover.jpg')
     expect(result?.audio).toBeNull()
   })
 

@@ -17,7 +17,10 @@ type PublishedRow = {
   id: string
   slug: string
   church_id: string
-  church: { name: string }
+  church: {
+    name: string
+    cover_asset: { object_key: string; purpose: string; status: string } | null
+  }
   published_at: Date | null
   published_version_id: string | null
 }
@@ -29,7 +32,12 @@ const publishedSelect = {
   id: true,
   slug: true,
   church_id: true,
-  church: { select: { name: true } },
+  church: {
+    select: {
+      name: true,
+      cover_asset: { select: { object_key: true, purpose: true, status: true } },
+    },
+  },
   published_at: true,
   published_version_id: true,
 } as const
@@ -86,6 +94,11 @@ const toItems = async (prayers: PublishedRow[]): Promise<SitePrayerArchiveItem[]
         slug: prayer.slug,
         churchId: prayer.church_id,
         churchName: prayer.church.name,
+        churchCoverUrl:
+          prayer.church.cover_asset?.purpose === 'IMAGE' &&
+          prayer.church.cover_asset.status === 'READY'
+            ? S3_PUBLIC_URL({ key: prayer.church.cover_asset.object_key })
+            : null,
         publishedAt: prayer.published_at.toISOString(),
         pastorId: version.pastor_id,
         pastorName: version.pastor.name,

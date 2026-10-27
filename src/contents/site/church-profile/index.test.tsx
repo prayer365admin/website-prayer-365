@@ -51,6 +51,7 @@ const church = {
   languageCodes: ['et', 'en'],
   pastorName: 'Pastor Demo Tamm',
   pastorRole: 'Lead Pastor & Deanery Provost',
+  pastorImageUrl: 'https://cdn.test/pastor-demo-tamm.jpg',
   serviceTimes: [
     {
       weekday: 1,
@@ -153,6 +154,10 @@ describe('ContentsSiteChurchProfile', () => {
     ).toBeGreaterThan(0)
     expect(screen.getByText('Pastor Demo Tamm')).toBeTruthy()
     expect(screen.getByText('Lead Pastor & Deanery Provost • Lutheran')).toBeTruthy()
+    const pastorImage = screen.getByRole('img', { name: 'Pastor Demo Tamm' })
+    expect(pastorImage.getAttribute('src')).toContain('pastor-demo-tamm.jpg')
+    expect(pastorImage.getAttribute('width')).toBe('256')
+    expect(pastorImage.getAttribute('height')).toBe('256')
   })
 
   it('renders empty description state when church description is absent', async () => {
@@ -284,6 +289,46 @@ describe('ContentsSiteChurchProfile', () => {
     expect(imgs.length).toBeGreaterThanOrEqual(1)
   })
 
+  it('keeps the full-bleed hero layout while preparing cover and gallery crossfade images', async () => {
+    axiosMock.get.mockResolvedValueOnce({
+      data: resolveGet({
+        ...church,
+        gallery: [
+          {
+            assetId: 'gallery-1',
+            url: 'https://cdn.test/altar.jpg',
+            caption: 'Altar and stained glass',
+            orderIndex: 0,
+          },
+          {
+            assetId: 'duplicate-cover',
+            url: church.coverUrl,
+            caption: 'Duplicate cover',
+            orderIndex: 1,
+          },
+          {
+            assetId: 'gallery-2',
+            url: 'https://cdn.test/organ.jpg',
+            caption: 'Historic organ',
+            orderIndex: 2,
+          },
+        ],
+      }),
+    })
+
+    renderProfile()
+
+    const coverImage = await screen.findByRole('img', { name: 'Grace' })
+    const hero = coverImage.parentElement!
+    const renderedImages = Array.from(hero.querySelectorAll<HTMLImageElement>('img'))
+    const galleryImage = renderedImages.find((image) => image.src.includes('altar.jpg'))
+    expect(coverImage.classList.contains('opacity-100')).toBe(true)
+    expect(galleryImage?.classList.contains('opacity-0')).toBe(true)
+    expect(renderedImages.some((image) => image.src.includes('organ.jpg'))).toBe(false)
+    expect(hero.classList.contains('min-h-[380px]')).toBe(true)
+    expect(document.querySelector('.ant-carousel')).toBeNull()
+  })
+
   it('falls back to default church image when coverUrl fails to load', async () => {
     axiosMock.get.mockResolvedValueOnce({
       data: resolveGet({
@@ -300,7 +345,9 @@ describe('ContentsSiteChurchProfile', () => {
     fireEvent.error(heroImg)
 
     const fallbackImg = await screen.findByRole('img', { name: 'Grace' })
-    expect(fallbackImg.getAttribute('src')).toContain('/images/church.jpeg')
+    expect(decodeURIComponent(fallbackImg.getAttribute('src') ?? '')).toContain(
+      '/images/church.jpeg',
+    )
   })
 
   it('renders not found state when church does not exist or is not approved', async () => {
@@ -457,6 +504,10 @@ describe('ContentsSiteChurchProfile', () => {
 
     expect(await screen.findByText('Pastor Jaan Tammsalu')).toBeTruthy()
     expect(screen.getByText('Provost')).toBeTruthy()
+    const staffImage = screen.getByRole('img', { name: 'Pastor Jaan Tammsalu' })
+    expect(staffImage.getAttribute('src')).toContain('jaan.jpg')
+    expect(staffImage.getAttribute('width')).toBe('256')
+    expect(staffImage.getAttribute('height')).toBe('256')
     expect(screen.getByText('Diaconus Mark')).toBeTruthy()
     expect(screen.getByText('Community Care')).toBeTruthy()
   })

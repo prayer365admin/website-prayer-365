@@ -18,6 +18,7 @@ const home = (audioUrl: string | null = null): MobileHome => ({
       slug: 'peace-in-uncertain-times',
       churchId: 'church-1',
       churchName: 'Hope Church',
+      churchCoverUrl: 'https://cdn.test/hope-church-cover.jpg',
       publishedAt: '2026-10-15T06:00:00.000Z',
       version: {
         prayerVersionId: 'version-1',
@@ -44,6 +45,7 @@ const home = (audioUrl: string | null = null): MobileHome => ({
       slug: 'grace-for-today',
       churchId: 'church-1',
       churchName: 'Hope Church',
+      churchCoverUrl: null,
       publishedAt: '2026-10-14T06:00:00.000Z',
       version: {
         prayerVersionId: 'version-2',
@@ -195,7 +197,9 @@ describe('WB3 Home devotional hero', () => {
   it('hides the prayer share and love actions on the homepage', () => {
     renderHome(home())
 
-    const quotePanel = screen.getByAltText('Misty Nordic lake at sunrise').parentElement!
+    const churchCover = screen.getByAltText('Hope Church cover')
+    expect(churchCover.getAttribute('src')).toContain('hope-church-cover.jpg')
+    const quotePanel = churchCover.parentElement!
     expect(within(quotePanel).queryByRole('button', { name: 'Share prayer' })).toBeNull()
     expect(
       within(quotePanel).queryByRole('button', {
@@ -219,13 +223,23 @@ describe('WB3 Home devotional hero', () => {
     data.latestPrayers[0]!.version.body = `[warm] ${'God, thank you for the promise of grace. '.repeat(6)}\n\n[pause] Thank you, God.`
     renderHome(data)
 
-    const quotePanel = screen.getByAltText('Misty Nordic lake at sunrise').parentElement!
+    const quotePanel = screen.getByAltText('Hope Church cover').parentElement!
     const quote = quotePanel.querySelector('blockquote')!
     expect(quote.classList.contains('line-clamp-5')).toBe(true)
     expect(quote.textContent).not.toContain('\n')
     expect(quote.textContent).toContain('Thank you, God.')
     expect(quote.textContent).not.toContain('[warm]')
     expect(quote.textContent).not.toContain('[pause]')
+  })
+
+  it('falls back to the Viimsi church image when the prayer church cover fails', () => {
+    renderHome(home())
+
+    fireEvent.error(screen.getByAltText('Hope Church cover'))
+
+    expect(screen.getByAltText('Viimsi church interior').getAttribute('src')).toContain(
+      'viimsi-church-indoor.jpeg',
+    )
   })
 
   it('renders the directory empty state when no eligible prayer exists', () => {

@@ -14,7 +14,10 @@ export type PrayerQuote = {
   body: string
   languageCode: string
   churchName: string
+  churchCoverUrl: string | null
 }
+
+const FALLBACK_COVER_URL = '/images/viimsi-church-indoor.jpeg'
 
 const quoteText = prayerTextForDisplay
 
@@ -23,7 +26,7 @@ const excerpt = (body: string) => {
   return source.length > 180 ? `${source.slice(0, 177).trimEnd()}…` : source
 }
 
-/** Lake-image quote column shared by Home (`home-1.png`) and the prayer archive featured card. */
+/** Church-cover quote column shared by Home (`home-1.png`) and the prayer archive featured card. */
 export default function PrayerQuotePanel({
   prayer,
   showActions = true,
@@ -35,6 +38,10 @@ export default function PrayerQuotePanel({
 }) {
   const { t } = useSiteI18n()
   const [shared, setShared] = useState(false)
+  const [failedCoverUrl, setFailedCoverUrl] = useState<string | null>(null)
+  const churchCoverUrl = prayer?.churchCoverUrl
+  const coverUrl =
+    churchCoverUrl && churchCoverUrl !== failedCoverUrl ? churchCoverUrl : FALLBACK_COVER_URL
 
   const sharePrayer = async () => {
     if (!prayer) return
@@ -55,12 +62,17 @@ export default function PrayerQuotePanel({
   return (
     <div className="relative min-h-[360px] overflow-hidden sm:min-h-[440px] lg:min-h-0">
       <Image
-        alt="Misty Nordic lake at sunrise"
+        alt={
+          coverUrl === FALLBACK_COVER_URL ? 'Viimsi church interior' : `${prayer?.churchName} cover`
+        }
         className="object-cover"
         fill
+        onError={() => {
+          if (churchCoverUrl) setFailedCoverUrl(churchCoverUrl)
+        }}
         priority
         sizes="(min-width: 1024px) 42vw, 100vw"
-        src="/images/wb3-devotional-lake.png"
+        src={coverUrl}
       />
       <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(9,26,48,0.05)_0%,rgba(9,31,55,0.68)_58%,rgba(5,22,42,0.86)_100%)]" />
 
