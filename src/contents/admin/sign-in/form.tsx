@@ -96,11 +96,16 @@ export default function SignInForm() {
             prefix={<LockIcon aria-hidden className="!text-[#0E203E]" />}
           />
         </Form.Item>
-        <div className="mb-4 flex items-center justify-between gap-2">
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
           <Form.Item className="!mb-0" name="remember" valuePropName="checked">
-            <Checkbox className="text-sm text-[#5C6370]">Remember this workstation</Checkbox>
+            <Checkbox className="!text-xs text-[#5C6370] sm:!text-sm">
+              <span className="text-xs text-[#5C6370] sm:text-sm">Remember this workstation</span>
+            </Checkbox>
           </Form.Item>
-          <Link href="/admin/forgot-password" className="text-sm font-semibold text-[#2F7AD2]">
+          <Link
+            href="/admin/forgot-password"
+            className="whitespace-nowrap text-xs font-semibold text-[#2F7AD2] transition-colors hover:text-[#1E5BA8] hover:underline sm:text-sm"
+          >
             Forgot password?
           </Link>
         </div>
@@ -117,7 +122,7 @@ export default function SignInForm() {
           type="submit"
           size="md"
           variant="solid"
-          className="!mt-6 w-full"
+          className="!mt-5 w-full sm:!mt-6"
           icon={<ArrowRightTailIcon aria-hidden style={{ fontSize: 20 }} />}
           iconPlacement="end"
           loading={loading}

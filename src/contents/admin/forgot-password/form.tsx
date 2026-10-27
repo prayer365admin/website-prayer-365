@@ -45,17 +45,17 @@ export default function ForgotPasswordForm() {
 
   if (sent) {
     return (
-      <div className="w-full rounded-3xl border border-[#E6EDFB] bg-white p-6 sm:p-8">
+      <div className="w-full rounded-2xl border border-[#E6EDFB] bg-white p-5 shadow-sm sm:rounded-3xl sm:p-8">
         <AuthCardHeader showEncrypted={false} />
-        <div className="mt-8 flex flex-col items-center text-center">
-          <SuccessIcon aria-hidden className="text-[#09A97C]" style={{ fontSize: 96 }} />
-          <h2 className="mt-6 text-2xl font-semibold tracking-[-1px] text-[#0E203E]">
+        <div className="mt-6 flex flex-col items-center text-center sm:mt-8">
+          <SuccessIcon aria-hidden className="text-[#09A97C] !text-[72px] sm:!text-[96px]" />
+          <h2 className="mt-5 text-xl font-semibold tracking-[-0.5px] text-[#0E203E] sm:mt-6 sm:text-2xl sm:tracking-[-1px]">
             Check your email
           </h2>
-          <p className="mt-2 text-sm text-[#5C6370]">
+          <p className="mt-2 text-xs leading-relaxed text-[#5C6370] sm:text-sm">
             If your email is registered, a password reset link has been sent to your email address.
           </p>
-          <div className="mt-8 w-full">
+          <div className="mt-6 w-full sm:mt-8">
             <Link
               href="/admin/login"
               className={siteButtonClassName({
@@ -76,19 +76,19 @@ export default function ForgotPasswordForm() {
 
   return (
     <ConfigProvider theme={siteFormTheme}>
-      <div className="w-full rounded-3xl border border-[#E6EDFB] bg-white p-6 sm:p-8">
+      <div className="w-full rounded-2xl border border-[#E6EDFB] bg-white p-5 shadow-sm sm:rounded-3xl sm:p-8">
         <AuthCardHeader showEncrypted={false} />
 
-        <h2 className="mt-6 text-2xl font-semibold tracking-[-1px] text-[#0E203E]">
+        <h2 className="mt-5 text-xl font-semibold tracking-[-0.5px] text-[#0E203E] sm:mt-6 sm:text-2xl sm:tracking-[-1px]">
           Get back to your account
         </h2>
-        <p className="mt-2 text-sm text-[#5C6370]">
+        <p className="mt-2 text-xs leading-relaxed text-[#5C6370] sm:text-sm">
           Enter your email address connected to your account. We&apos;ll send a link to reset your
           password.
         </p>
 
         <Form
-          className="site-form mt-6"
+          className="site-form mt-5 sm:mt-6"
           disabled={sending}
           form={form}
           layout="vertical"
@@ -124,7 +124,7 @@ export default function ForgotPasswordForm() {
             type="submit"
             size="md"
             variant="solid"
-            className="!mt-6 w-full"
+            className="!mt-5 w-full sm:!mt-6"
             disabled={cooldown > 0}
             loading={sending}
             icon={<ArrowRightTailIcon aria-hidden style={{ fontSize: 20 }} />}

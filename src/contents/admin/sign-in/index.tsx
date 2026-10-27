@@ -15,21 +15,21 @@ export default function ContentsAdminSignIn() {
   return (
     <main className="flex min-h-screen flex-col bg-[#F6F8FC] lg:h-screen lg:flex-row lg:overflow-hidden">
       {/* Right (auth) column is first in DOM for mobile accessibility */}
-      <section className="flex w-full flex-1 items-center justify-center bg-[#F5F7FF] p-6 sm:p-8 lg:order-2 lg:h-screen lg:w-[45%] lg:overflow-y-auto">
-        <div className="my-auto w-full max-w-[512px] rounded-3xl border border-[#E6EDFB] bg-white p-6 sm:p-8">
+      <section className="flex w-full flex-1 items-center justify-center bg-[#F5F7FF] px-4 py-8 sm:px-6 sm:py-12 lg:order-2 lg:h-screen lg:w-[52%] xl:w-[48%] 2xl:w-[45%] lg:overflow-y-auto lg:px-6 xl:px-10 2xl:px-12 lg:py-8">
+        <div className="my-auto w-full max-w-[512px] rounded-2xl border border-[#E6EDFB] bg-white p-5 shadow-sm sm:rounded-3xl sm:p-8">
           {/* Header */}
           <AuthCardHeader />
 
-          <h2 className="mt-6 text-2xl font-semibold tracking-[-1px] text-[#0E203E]">
+          <h2 className="mt-5 text-xl font-semibold tracking-[-0.5px] text-[#0E203E] sm:mt-6 sm:text-2xl sm:tracking-[-1px]">
             Sign In to Your Workspace
           </h2>
-          <p className="mt-2 text-sm text-[#5C6370]">
+          <p className="mt-2 text-xs leading-relaxed text-[#5C6370] sm:text-sm">
             Enter your diocesan credentials or staff credentials to access your church
             administration console.
           </p>
 
           {/* Auth form (client) */}
-          <div className="mt-6">
+          <div className="mt-5 sm:mt-6">
             <SignInForm />
           </div>
 
@@ -41,20 +41,13 @@ export default function ContentsAdminSignIn() {
       </section>
 
       {/* Left (hero) column */}
-      <section className="relative hidden w-[55%] max-w-[756px] flex-col justify-between overflow-hidden border-r border-[#E2E8F0]/80 bg-[image:radial-gradient(150.88%_100.25%_at_20%_15%,rgba(219,234,254,0.7)_0%,rgba(239,246,255,0.4)_35%,rgba(248,250,252,0.95)_80%),linear-gradient(176.67deg,#E0F2FE_0%,#F0F7FF_38%,#F8FAFC_100%)] px-6 py-5 lg:flex lg:h-screen lg:max-h-screen lg:order-1 xl:px-10 xl:py-7 2xl:px-14 2xl:py-8">
+      <section className="relative hidden w-[48%] xl:w-[52%] 2xl:w-[55%] max-w-[756px] flex-col justify-between overflow-x-hidden overflow-y-auto border-r border-[#E2E8F0]/80 bg-[image:radial-gradient(150.88%_100.25%_at_20%_15%,rgba(219,234,254,0.7)_0%,rgba(239,246,255,0.4)_35%,rgba(248,250,252,0.95)_80%),linear-gradient(176.67deg,#E0F2FE_0%,#F0F7FF_38%,#F8FAFC_100%)] px-6 py-5 lg:flex lg:h-screen lg:order-1 xl:px-10 xl:py-7 2xl:px-14 2xl:py-8">
         {/* Decorative background layers */}
-        <div
-          aria-hidden="true"
-          className="pointer-events-none absolute inset-0 bg-[image:radial-gradient(116.61%_77.48%_at_50%_30%,rgba(59,130,246,0.15)_0%,transparent_70%)]"
-        />
-        <div
-          aria-hidden="true"
-          className="pointer-events-none absolute -left-20 -top-24 h-[384px] w-[384px] rounded-full bg-[rgba(96,165,250,0.1)] blur-[32px]"
-        />
-        <div
-          aria-hidden="true"
-          className="pointer-events-none absolute -right-20 top-[25%] h-[464px] w-[500px] rounded-full bg-[rgba(186,230,253,0.25)] blur-[32px]"
-        />
+        <div aria-hidden="true" className="pointer-events-none absolute inset-0 overflow-hidden">
+          <div className="absolute inset-0 bg-[image:radial-gradient(116.61%_77.48%_at_50%_30%,rgba(59,130,246,0.15)_0%,transparent_70%)]" />
+          <div className="absolute -left-20 -top-24 h-[384px] w-[384px] rounded-full bg-[rgba(96,165,250,0.1)] blur-[32px]" />
+          <div className="absolute -right-20 top-[25%] h-[464px] w-[500px] rounded-full bg-[rgba(186,230,253,0.25)] blur-[32px]" />
+        </div>
 
         {/* Top bar */}
         <div className="relative z-[3] flex w-full items-center justify-end">
