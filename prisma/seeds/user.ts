@@ -12,7 +12,7 @@ const verifiedSeedUser = {
 // Known demo password for the prayer test + admin accounts — plaintext: `Test123!`
 // (bcryptjs hash of Test123!). Kept as a single constant so the manual test plan
 // can document one working login for every seeded account. Change before real rollout.
-const TEST_PASSWORD = '$2b$12$6hmwy2T/qCvpmzmzi5VLO.KVXRoHDPmkRu.fO.soPraM/uY2msHo2'
+export const TEST_PASSWORD = '$2b$12$6hmwy2T/qCvpmzmzi5VLO.KVXRoHDPmkRu.fO.soPraM/uY2msHo2'
 
 // End-users are Users with NO role (SPEC: mobile auth D1; "No mobile staff
 // grant is created by registration"). Their access is subject-only via
