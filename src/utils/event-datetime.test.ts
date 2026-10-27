@@ -5,6 +5,7 @@ import {
   churchFilterBoundToIso,
   EVENT_EDITOR_DATETIME_FORMAT,
   EVENT_TABLE_DATETIME_FORMAT,
+  eventInstantToChurchEditorDateTime,
   eventInstantToChurchDateTime,
   eventOffsetLabel,
   eventStartStatus,
@@ -62,6 +63,13 @@ describe('Event datetime boundary', () => {
     expect(local.format('Z')).toBe('+03:00')
     expect(formatEventStart('2026-02-15T08:00:00Z', TALLINN)).toBe('15 Feb 2026, 10:00')
     expect(EVENT_TABLE_DATETIME_FORMAT).toBe('DD MMM YYYY, HH:mm')
+  })
+
+  it('creates a floating church wall-clock value for the date picker', () => {
+    process.env.TZ = 'Asia/Makassar'
+    const editorValue = eventInstantToChurchEditorDateTime('2026-02-15T08:00:00Z', 'Europe/Tallinn')
+
+    expect(editorValue.format(EVENT_EDITOR_DATETIME_FORMAT)).toBe('2026-02-15 10:00')
   })
 
   it('accepts a Dayjs editor value by its wall-clock components', () => {
