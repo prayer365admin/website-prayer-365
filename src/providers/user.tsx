@@ -64,11 +64,24 @@ export const GET_USERS = async ({
         ...(order_by && order_direction ? { [order_by]: order_direction } : { created_at: 'desc' }),
       },
       omit: SAFE,
-      include: { role: { include: { permission: true } } },
+      include: {
+        role: { include: { permission: true } },
+        roleAssignments: {
+          where: { revoked_at: null },
+          include: { org_node: { select: { kind: true, name: true } } },
+          take: 1,
+          orderBy: { created_at: 'asc' },
+        },
+      },
     }),
   ])
 
-  return { result, total }
+  const mapped = result.map((row) => ({
+    ...row,
+    role_assignments: row.roleAssignments,
+  }))
+
+  return { result: mapped, total }
 }
 
 /** Customer list: no role (legacy) or the `prayer_user` customer role (R-01/R-02). */
@@ -314,6 +327,7 @@ export const UPDATE_USER = async ({
   user_id: string
   payload: {
     name?: string
+    email?: string
     password?: string
     email_verified_at?: Date | null
     profile_picture?: string | null

@@ -244,16 +244,19 @@ export const updateUser = async ({
   actorId?: string
   requestId?: string
 }) => {
-  const { role_id, password, name, email_verified_at, profile_picture } = payload
+  const { role_id, password, name, email, email_verified_at, profile_picture } = payload
 
   const safePayload: {
     name?: string
+    email?: string
     password?: string
     email_verified_at?: Date | null
     profile_picture?: string | null
     role_id?: string | null
   } = {}
   if (name !== undefined) safePayload.name = name as string
+  if (email !== undefined) safePayload.email = email as string
+
   if (role_id !== undefined) safePayload.role_id = role_id as string
   if (email_verified_at !== undefined)
     safePayload.email_verified_at = email_verified_at as Date | null

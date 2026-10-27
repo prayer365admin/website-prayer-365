@@ -20,6 +20,7 @@ export async function GET(req: NextRequest) {
   const searchParams = req.nextUrl.searchParams
   const { limit, order_by, order_direction, page, search } = parseSearchParams(searchParams)
   const role = searchParams.get('role') ?? undefined
+  const status = searchParams.get('status') ?? undefined
 
   try {
     const { permission } = await requiredAuth(req)
@@ -42,6 +43,7 @@ export async function GET(req: NextRequest) {
       order_direction,
       search,
       role,
+      status,
     })
 
     const safeResult = (result.result as Array<Record<string, unknown>>).map((r) => protect(r))

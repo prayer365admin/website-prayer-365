@@ -2,6 +2,7 @@ import { EventCategory } from '@/models/event'
 
 export const ID_COLUMN_WIDTH = 80
 export const ACTION_COLUMN_WIDTH = 125
+export const USER_MANAGEMENT_ACTION_WIDTH = 140
 
 /**
  * The platform super-admin role (SPEC §3.3). Seeded to hold EVERY permission row,

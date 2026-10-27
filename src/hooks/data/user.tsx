@@ -18,18 +18,20 @@ export const useUsers = ({
   orderDirection,
   role,
   status,
+  search,
 }: GeneralHooks & { role?: string; status?: string }) => {
   const queryClient = useQueryClient()
   const notification = useMainNotification()
   const paginationQuery = `limit=${limit && limit !== 'ALL' ? limit : ''}&page=${limit && limit !== 'ALL' ? page : ''}&order_by=${orderBy}&order_direction=${orderDirection}`
   const roleQuery = role ? `&role=${role}` : ''
   const statusQuery = status ? `&status=${encodeURIComponent(status)}` : ''
+  const searchQuery = search ? `&search=${encodeURIComponent(search)}` : ''
 
   const { data: data, isLoading: fetchLoading } = useQuery({
-    queryKey: [queryKey, queryString, paginationQuery, role, status],
+    queryKey: [queryKey, queryString, paginationQuery, role, status, search],
     queryFn: async () => {
       const result = await axios.get(
-        `${baseUrl}?${queryString}&${paginationQuery}${roleQuery}${statusQuery}`,
+        `${baseUrl}?${queryString}&${paginationQuery}${roleQuery}${statusQuery}${searchQuery}`,
       )
       return {
         result: result.data.result as UserDataModel[],

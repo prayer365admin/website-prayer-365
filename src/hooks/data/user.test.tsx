@@ -23,6 +23,12 @@ describe('useUsers', () => {
     expect(axiosMock.get).toHaveBeenCalledWith(expect.stringContaining('/api/v1/users'))
   })
 
+  it('includes search param in request URL', async () => {
+    axiosMock.get.mockResolvedValue({ data: resolveGet(users, 1) })
+    renderHook(() => useUsers({ search: 'admin' }), { wrapper: Providers })
+    expect(axiosMock.get).toHaveBeenCalledWith(expect.stringContaining('search=admin'))
+  })
+
   it('does not fetch when enableFetch is false', () => {
     renderHook(() => useUsers({ enableFetch: false }), { wrapper: Providers })
     expect(axiosMock.get).not.toHaveBeenCalled()

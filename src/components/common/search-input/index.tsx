@@ -9,7 +9,9 @@ export default function SearchInput({
   setPageSize,
   loading = false,
   debounceMs = 500,
+  className,
 }: {
+  className?: string
   placeholder?: string
   setValue?: Dispatch<SetStateAction<string | undefined>>
   setPage: Dispatch<SetStateAction<number>>
@@ -66,19 +68,18 @@ export default function SearchInput({
       value={currentValue}
       onChange={handleChange}
       onPressEnter={handleSubmit}
+      prefix={<SearchOutlined style={{ color: '#5C6370', marginRight: 4 }} />}
       suffix={
         loading ? (
           <LoadingOutlined spin style={{ color: 'rgb(107 114 128)' }} />
-        ) : !currentValue ? (
-          <SearchOutlined
-            style={{ color: 'rgb(107 114 128)', cursor: 'pointer' }}
-            onMouseDown={handleSubmit}
+        ) : currentValue ? (
+          <CloseCircleFilled
+            style={{ cursor: 'pointer', color: '#8F96A3' }}
+            onMouseDown={handleReset}
           />
-        ) : (
-          <CloseCircleFilled style={{ cursor: 'pointer' }} onMouseDown={handleReset} />
-        )
+        ) : null
       }
-      className="truncate"
+      className={`truncate !h-10 !rounded-lg !border-[#DDE0E4] ${className ?? ''}`.trim()}
     />
   )
 }
