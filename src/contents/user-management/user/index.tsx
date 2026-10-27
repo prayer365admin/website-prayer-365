@@ -4,6 +4,7 @@ import AddButton from '@/components/common/add-button'
 import SearchInput from '@/components/common/search-input'
 import RoleFilter from '@/components/common/select/role/filter'
 import { useUsers } from '@/hooks/data/user'
+import { useUrlPagination } from '@/hooks/ui/url-pagination'
 import { Table, TablePaginationConfig, Select } from 'antd'
 import { useRouter } from 'next/navigation'
 import { Fragment, useState } from 'react'
@@ -20,8 +21,7 @@ export default function ContentsUserManagementUser() {
     orderBy: 'created_at',
     orderDirection: 'desc',
   })
-  const [page, setPage] = useState<number>(1)
-  const [pageSize, setPageSize] = useState<number>(10)
+  const { page, pageSize, setPage, setPageSize } = useUrlPagination()
 
   const handlePagination = (pagination: TablePaginationConfig) => {
     if (pagination.current) setPage(pagination.current)
@@ -44,7 +44,7 @@ export default function ContentsUserManagementUser() {
     status: statusValue,
   })
 
-  const columns = UserColumns({ onDelete: deleteUser })
+  const columns = UserColumns({ onDelete: deleteUser, page, pageSize })
   return (
     <Fragment>
       <div>

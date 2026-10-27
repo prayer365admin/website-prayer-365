@@ -17,11 +17,11 @@ describe('parseSearchParams', () => {
     expect(result.limit).toBe(10)
   })
 
-  it('leaves non-numeric page/limit undefined (numeric strings coerce)', () => {
+  it('normalizes numeric page/limit and rejects non-finite values', () => {
     const result = parseSearchParams(new URLSearchParams('page=abc&limit=1.5'))
     expect(result.page).toBeUndefined()
-    // source contract: any non-NaN numeric string coerces via `+` (including floats)
-    expect(result.limit).toBe(1.5)
+    expect(result.limit).toBe(1)
+    expect(parseSearchParams(new URLSearchParams('page=Infinity&limit=999')).limit).toBe(100)
   })
 
   it('throws GeneralError on invalid order_direction', () => {

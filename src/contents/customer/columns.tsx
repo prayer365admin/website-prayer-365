@@ -8,13 +8,20 @@ type CustomerRow = {
   created_at: string
 }
 
-export const CustomerColumns = (): TableProps<CustomerRow>['columns'] => {
+export const CustomerColumns = ({
+  page,
+  pageSize,
+}: {
+  page: number
+  pageSize: number
+}): TableProps<CustomerRow>['columns'] => {
   const column: TableProps<CustomerRow>['columns'] = [
     {
       key: 'no',
       title: 'No.',
       width: ID_COLUMN_WIDTH,
-      render: (_text, _record, index) => (index + 1).toString().padStart(2, '0'),
+      render: (_text, _record, index) =>
+        (index + 1 + (page - 1) * pageSize).toString().padStart(2, '0'),
     },
     { key: 'name', dataIndex: 'name', title: 'Name', render: (text) => text },
     { key: 'email', dataIndex: 'email', title: 'Email', render: (text) => text },

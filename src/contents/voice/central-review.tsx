@@ -3,6 +3,7 @@
 import DashboardMainHeader from '@/components/common/dashboard/main-header'
 import SearchInput from '@/components/common/search-input'
 import { CentralVoiceListOptions, useCentralVoiceProfiles } from '@/hooks/data/voice'
+import { useUrlPagination } from '@/hooks/ui/url-pagination'
 import { VOICE_REGISTRATION_STATES, VOICE_REVIEW_STATES } from '@/utils/constant'
 import { Card, Col, DatePicker, Row, Select, Table } from 'antd'
 import { useState } from 'react'
@@ -18,7 +19,7 @@ type SortKey = NonNullable<CentralVoiceListOptions['orderBy']>
 
 export default function ContentsVoiceReview() {
   const [reviewState, setReviewState] = useState<CentralVoiceListOptions['reviewState']>()
-  const [page, setPage] = useState(1)
+  const { page, pageSize, setPage, setPageSize } = useUrlPagination()
   const [registrationState, setRegistrationState] = useState<string>()
   const [search, setSearch] = useState<string | undefined>('')
   const [submitted, setSubmitted] = useState<{ from?: string; to?: string }>({})
@@ -26,8 +27,6 @@ export default function ContentsVoiceReview() {
     orderBy: 'created_at',
     orderDirection: 'desc',
   })
-  const [pageSize, setPageSize] = useState(10)
-
   const { data, total, loading } = useCentralVoiceProfiles({
     reviewState,
     registrationState,

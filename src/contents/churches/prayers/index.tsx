@@ -2,6 +2,7 @@
 
 import AddButton from '@/components/common/add-button'
 import { usePrayers } from '@/hooks/data/prayer'
+import { useUrlPagination } from '@/hooks/ui/url-pagination'
 import { Tabs, Table } from 'antd'
 import { useRouter } from 'next/navigation'
 import { Fragment, useState } from 'react'
@@ -10,8 +11,7 @@ import { PrayerColumns } from './columns'
 export default function ContentsChurchesPrayers({ churchId }: { churchId: string }) {
   const router = useRouter()
   const [tab, setTab] = useState<'current' | 'archive'>('current')
-  const [page, setPage] = useState<number>(1)
-  const [pageSize, setPageSize] = useState<number>(10)
+  const { page, pageSize, setPage, setPageSize } = useUrlPagination()
 
   const orderBy = tab === 'current' ? 'created_at' : 'published_at'
 
@@ -34,6 +34,8 @@ export default function ContentsChurchesPrayers({ churchId }: { churchId: string
   }
 
   const columns = PrayerColumns({
+    page,
+    pageSize,
     onOpen: (prayerId) => {
       router.push(`/dashboard/churches/${churchId}/prayers/${prayerId}`)
     },
