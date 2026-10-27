@@ -11,10 +11,7 @@ export const EVENT_EDITOR_DATETIME_FORMAT = 'YYYY-MM-DD HH:mm'
 export const EVENT_TABLE_DATETIME_FORMAT = 'DD MMM YYYY, HH:mm'
 
 export type EventDateTimeErrorCode =
-  | 'INVALID_TIMEZONE'
-  | 'INVALID_LOCAL_TIME'
-  | 'NONEXISTENT_LOCAL_TIME'
-  | 'AMBIGUOUS_LOCAL_TIME'
+  'INVALID_TIMEZONE' | 'INVALID_LOCAL_TIME' | 'NONEXISTENT_LOCAL_TIME' | 'AMBIGUOUS_LOCAL_TIME'
 
 export type EventDateTimeFailure = {
   ok: false
@@ -125,6 +122,18 @@ export const eventInstantToChurchDateTime = (startsAt: string, timezoneName: str
   if (!instant.isValid()) throw new Error('The stored event start time is not valid.')
   return instant.tz(timezoneName)
 }
+
+/**
+ * DatePicker edits wall-clock components, not an absolute instant. Returning a
+ * timezone-bearing Dayjs makes rc-picker display it in the browser timezone,
+ * so reparse the church-local text as a floating editor value.
+ */
+export const eventInstantToChurchEditorDateTime = (startsAt: string, timezoneName: string): Dayjs =>
+  dayjs(
+    eventInstantToChurchDateTime(startsAt, timezoneName).format(EVENT_EDITOR_DATETIME_FORMAT),
+    EVENT_EDITOR_DATETIME_FORMAT,
+    true,
+  )
 
 export const formatChurchInstant = (instant: string, timezoneName: string): string =>
   eventInstantToChurchDateTime(instant, timezoneName).format(EVENT_TABLE_DATETIME_FORMAT)
