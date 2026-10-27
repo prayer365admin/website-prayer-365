@@ -96,6 +96,7 @@ const mapPrayer = (
     church_id: string
     version: number
     created_at: Date
+    featured_asset_id: string | null
     current_version_id: string | null
     published_version_id: string | null
     scheduled_version_id: string | null
@@ -108,6 +109,7 @@ const mapPrayer = (
   churchId: p.church_id,
   version: p.version,
   createdAt: p.created_at.toISOString(),
+  featuredAssetId: p.featured_asset_id ?? null,
   current: current ? mapSafeVersion(current) : null,
   published:
     p.published_version_id && p.published_at
@@ -191,6 +193,7 @@ export const GET_PRAYER = async ({
       church_id: true,
       version: true,
       created_at: true,
+      featured_asset_id: true,
       current_version_id: true,
       published_version_id: true,
       scheduled_version_id: true,
@@ -270,6 +273,7 @@ export const LIST_PRAYERS = async ({
         church_id: true,
         version: true,
         created_at: true,
+        featured_asset_id: true,
         current_version_id: true,
         published_version_id: true,
         scheduled_version_id: true,
@@ -323,6 +327,7 @@ export const CREATE_PRAYER_WITH_VERSION = async ({
     introduction: string | null
     body: string
     languageCode: string
+    featuredAssetId?: string | null
   }
   actorId: string
   requestId: string
@@ -331,7 +336,12 @@ export const CREATE_PRAYER_WITH_VERSION = async ({
   return db.$transaction(async (tx) => {
     const slug = await uniquePrayerSlug(data.title, tx)
     const prayer = await tx.prayer.create({
-      data: { slug, church_id: churchId, created_by: actorId },
+      data: {
+        slug,
+        church_id: churchId,
+        created_by: actorId,
+        featured_asset_id: data.featuredAssetId ?? null,
+      },
     })
     const version = await tx.prayerVersion.create({
       data: {
@@ -382,6 +392,7 @@ export const CREATE_VERSION_SNAPSHOT = async ({
     introduction: string | null
     body: string
     languageCode: string
+    featuredAssetId?: string | null
   }
   actorId: string
   requestId: string
@@ -416,12 +427,13 @@ export const CREATE_VERSION_SNAPSHOT = async ({
     })
     const updated = await tx.prayer.update({
       where: { id: prayerId },
-      data: { current_version_id: version.id },
+      data: { current_version_id: version.id, featured_asset_id: data.featuredAssetId ?? null },
       select: {
         id: true,
         church_id: true,
         version: true,
         created_at: true,
+        featured_asset_id: true,
         current_version_id: true,
         published_version_id: true,
         scheduled_version_id: true,
@@ -584,6 +596,7 @@ const prayerSelect = {
     church_id: true,
     version: true,
     created_at: true,
+    featured_asset_id: true,
     current_version_id: true,
     published_version_id: true,
     scheduled_version_id: true,

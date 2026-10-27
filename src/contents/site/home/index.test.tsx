@@ -19,6 +19,8 @@ const home = (audioUrl: string | null = null): MobileHome => ({
       churchId: 'church-1',
       churchName: 'Hope Church',
       churchCoverUrl: 'https://cdn.test/hope-church-cover.jpg',
+      featuredAssetId: null,
+      featuredImageUrl: null,
       publishedAt: '2026-10-15T06:00:00.000Z',
       version: {
         prayerVersionId: 'version-1',
@@ -46,6 +48,8 @@ const home = (audioUrl: string | null = null): MobileHome => ({
       churchId: 'church-1',
       churchName: 'Hope Church',
       churchCoverUrl: null,
+      featuredAssetId: null,
+      featuredImageUrl: null,
       publishedAt: '2026-10-14T06:00:00.000Z',
       version: {
         prayerVersionId: 'version-2',

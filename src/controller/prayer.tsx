@@ -3,7 +3,11 @@ import { sanitizePrayerRichText } from '@/utils/sanitize-prayer-rich-text'
 import { richTextToPlainText } from '@/utils/rich-text-plain'
 import { withIdempotency } from '@/utils/idempotency'
 import { auditPayload } from '@/utils/audit'
-import { GET_AVAILABLE_LANGUAGE_CODES, GET_CHURCH_NAMES } from '@/providers/church'
+import {
+  GET_AVAILABLE_LANGUAGE_CODES,
+  GET_CHURCH_NAMES,
+  GET_CHURCH_READY_IMAGE,
+} from '@/providers/church'
 import { GET_CHURCH_PASTOR } from '@/providers/pastor'
 import {
   APPROVE_TEXT,
@@ -130,6 +134,21 @@ const validatePastorAndLanguage = async ({
   }
 }
 
+const validateFeaturedAsset = async (churchId: string, assetId: string | null | undefined) => {
+  if (!assetId) return null
+  const asset = await GET_CHURCH_READY_IMAGE({ churchIds: new Set([churchId]), assetId })
+  if (!asset) {
+    throw new GeneralError({
+      code: 422,
+      error: 'VALIDATION_ERROR',
+      error_code: 'INVALID_FEATURED_ASSET',
+      details: 'featuredAssetId must be a ready image owned by this church.',
+      fields: { featuredAssetId: 'Not a ready image of this church.' },
+    })
+  }
+  return assetId
+}
+
 export const listPrayers = async ({
   churchIds,
   query,
@@ -202,6 +221,7 @@ export const createPrayer = async ({
     languageCode: input.languageCode,
   })
   const copy = sanitizePrayerCopy(input)
+  const featuredAssetId = await validateFeaturedAsset(churchId, input.featuredAssetId)
   return CREATE_PRAYER_WITH_VERSION({
     churchId,
     data: {
@@ -210,6 +230,7 @@ export const createPrayer = async ({
       introduction: copy.introduction,
       body: copy.body,
       languageCode: input.languageCode,
+      featuredAssetId,
     },
     actorId: userId,
     requestId,
@@ -249,6 +270,7 @@ export const patchPrayer = async ({
     languageCode: input.languageCode,
   })
   const copy = sanitizePrayerCopy(input)
+  const featuredAssetId = await validateFeaturedAsset(churchId, input.featuredAssetId)
   return CREATE_VERSION_SNAPSHOT({
     churchIds,
     prayerId,
@@ -259,6 +281,7 @@ export const patchPrayer = async ({
       introduction: copy.introduction,
       body: copy.body,
       languageCode: input.languageCode,
+      featuredAssetId,
     },
     actorId: userId,
     requestId,

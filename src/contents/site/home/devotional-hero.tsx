@@ -131,6 +131,7 @@ export default function DevotionalHero({
                 languageCode: prayer.version.languageCode,
                 churchName: prayer.churchName,
                 churchCoverUrl: prayer.churchCoverUrl,
+                featuredImageUrl: prayer.featuredImageUrl ?? null,
               }
             : null
         }

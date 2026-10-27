@@ -15,6 +15,7 @@ export type PrayerQuote = {
   languageCode: string
   churchName: string
   churchCoverUrl: string | null
+  featuredImageUrl: string | null
 }
 
 const FALLBACK_COVER_URL = '/images/viimsi-church-indoor.jpeg'
@@ -39,7 +40,7 @@ export default function PrayerQuotePanel({
   const { t } = useSiteI18n()
   const [shared, setShared] = useState(false)
   const [failedCoverUrl, setFailedCoverUrl] = useState<string | null>(null)
-  const churchCoverUrl = prayer?.churchCoverUrl
+  const churchCoverUrl = prayer?.featuredImageUrl ?? prayer?.churchCoverUrl
   const coverUrl =
     churchCoverUrl && churchCoverUrl !== failedCoverUrl ? churchCoverUrl : FALLBACK_COVER_URL
 

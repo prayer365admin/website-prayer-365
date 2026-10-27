@@ -21,6 +21,7 @@ type PublishedRow = {
     name: string
     cover_asset: { object_key: string; purpose: string; status: string } | null
   }
+  featured_asset: { object_key: string; purpose: string; status: string } | null
   published_at: Date | null
   published_version_id: string | null
 }
@@ -38,6 +39,7 @@ const publishedSelect = {
       cover_asset: { select: { object_key: true, purpose: true, status: true } },
     },
   },
+  featured_asset: { select: { object_key: true, purpose: true, status: true } },
   published_at: true,
   published_version_id: true,
 } as const
@@ -98,6 +100,10 @@ const toItems = async (prayers: PublishedRow[]): Promise<SitePrayerArchiveItem[]
           prayer.church.cover_asset?.purpose === 'IMAGE' &&
           prayer.church.cover_asset.status === 'READY'
             ? S3_PUBLIC_URL({ key: prayer.church.cover_asset.object_key })
+            : null,
+        featuredImageUrl:
+          prayer.featured_asset?.purpose === 'IMAGE' && prayer.featured_asset.status === 'READY'
+            ? S3_PUBLIC_URL({ key: prayer.featured_asset.object_key })
             : null,
         publishedAt: prayer.published_at.toISOString(),
         pastorId: version.pastor_id,

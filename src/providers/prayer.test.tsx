@@ -153,7 +153,12 @@ describe('CREATE_PRAYER_WITH_VERSION', () => {
     })
 
     expect(db.prayer.create).toHaveBeenCalledWith({
-      data: { slug: 'ohtu-rahu', church_id: 'c1', created_by: 'u1' },
+      data: {
+        slug: 'ohtu-rahu',
+        church_id: 'c1',
+        created_by: 'u1',
+        featured_asset_id: null,
+      },
     })
   })
 

@@ -135,16 +135,16 @@ model User {
   role_id String?
   role    Role?   @relation(fields: [role_id], references: [id], name: "user_role", onDelete: Cascade, onUpdate: Cascade)
 
-  locale          String?   @db.Char(10)
-  locale_language Language? @relation(fields: [locale], references: [code])
+  locale                    String?   @db.Char(10)
+  locale_language           Language? @relation(fields: [locale], references: [code])
   /// Onboarding (WB-15): when the user first filled each setup step (a main
   /// church chosen / a language chosen). Skipping sets neither, so every new
   /// browser asks again until both are filled.
   church_setup_completed_at DateTime?
   locale_setup_completed_at DateTime?
 
-  auth_token AuthToken[] @relation("user_auth_token")
-  loginAttempt AuthLoginAttempt?
+  auth_token    AuthToken[]       @relation("user_auth_token")
+  loginAttempt  AuthLoginAttempt?
   oauthAccounts OAuthAccount[]
 
   // Mind/Added Prayer relations
@@ -300,55 +300,64 @@ model OrgNode {
 }
 
 model Church {
-  id               String       @id @default(uuid(7))
-  org_node_id      String       @unique
-  org_node         OrgNode      @relation(fields: [org_node_id], references: [id])
-  name             String
-  /** Public URL slug, e.g. st-johns-church. Generated with customSlugify; immutable after approval. */
-  slug             String       @unique
-  status           ChurchStatus @default(PENDING)
-  timezone         String
-  description      String?
-  denomination     String?
-  /** Worship-style / highlight on the directory card pill (free text; admin-defined). */
-  church_style     String?
-  cover_asset_id   String?
-  cover_asset      MediaAsset?  @relation("ChurchCover", fields: [cover_asset_id], references: [id])
-  address          Json
-  latitude         Decimal?     @db.Decimal(9, 6)
-  longitude        Decimal?     @db.Decimal(9, 6)
-  contacts         Json
-  website          String?
-  social_links     Json
+  id                 String       @id @default(uuid(7))
+  org_node_id        String       @unique
+  org_node           OrgNode      @relation(fields: [org_node_id], references: [id])
+  name               String
+  /**
+   * Public URL slug, e.g. st-johns-church. Generated with customSlugify; immutable after approval.
+   */
+  slug               String       @unique
+  status             ChurchStatus @default(PENDING)
+  timezone           String
+  description        String?
+  denomination       String?
+  /**
+   * Worship-style / highlight on the directory card pill (free text; admin-defined).
+   */
+  church_style       String?
+  cover_asset_id     String?
+  cover_asset        MediaAsset?  @relation("ChurchCover", fields: [cover_asset_id], references: [id])
+  hero_asset_id      String?
+  hero_asset         MediaAsset?  @relation("ChurchHero", fields: [hero_asset_id], references: [id], onDelete: SetNull)
+  address            Json
+  latitude           Decimal?     @db.Decimal(9, 6)
+  longitude          Decimal?     @db.Decimal(9, 6)
+  contacts           Json
+  website            String?
+  social_links       Json
   sunday_live_stream Boolean?
   taize_chants       Boolean?
   youth_ministry     Boolean?
-  /** MB-03 donation presets: `{ currency, presetsMinor[], monthlyEnabled }` (null until an admin fills it). */
+  /**
+   * MB-03 donation presets: `{ currency, presetsMinor[], monthlyEnabled }` (null until an admin fills it).
+   */
   donation_options   Json?
-  approved_by      String?
-  approved_by_user User?        @relation("ChurchApprovedBy", fields: [approved_by], references: [id])
-  approved_at      DateTime?
+  approved_by        String?
+  approved_by_user   User?        @relation("ChurchApprovedBy", fields: [approved_by], references: [id])
+  approved_at        DateTime?
 
-  churchLanguages ChurchLanguage[]
-  pastors         ChurchPastor[]
-  serviceTimes    ServiceTime[]
-  prayers         Prayer[]
-  voiceProfiles   VoiceProfile[]
-  events          Event[]
-  announcements   Announcement[]
-  requests        Request[]
-  mediaAssets     MediaAsset[]
-  galleryItems    ChurchGalleryItem[]
+  churchLanguages       ChurchLanguage[]
+  pastors               ChurchPastor[]
+  serviceTimes          ServiceTime[]
+  prayers               Prayer[]
+  voiceProfiles         VoiceProfile[]
+  events                Event[]
+  announcements         Announcement[]
+  requests              Request[]
+  mediaAssets           MediaAsset[]
+  galleryItems          ChurchGalleryItem[]
   donations             Donation[]
   donationSubscriptions DonationSubscription[]
-  checkIns        CheckIn[]
-  analyticsEvents AnalyticsEvent[]
-  userChurches    UserChurch[]
+  checkIns              CheckIn[]
+  analyticsEvents       AnalyticsEvent[]
+  userChurches          UserChurch[]
 
   created_at DateTime  @default(now())
   updated_at DateTime? @updatedAt
   version    Int       @default(1)
 
+  @@index([hero_asset_id])
   @@map("churches")
 }
 
@@ -460,6 +469,8 @@ model Prayer {
   published_at         DateTime?
   created_by           String
   creator              User            @relation("PrayerCreator", fields: [created_by], references: [id])
+  featured_asset_id    String?
+  featured_asset       MediaAsset?     @relation("PrayerFeatured", fields: [featured_asset_id], references: [id], onDelete: SetNull)
   versions             PrayerVersion[]
 
   created_at DateTime  @default(now())
@@ -468,6 +479,7 @@ model Prayer {
 
   @@index([church_id, created_at, id])
   @@index([church_id, published_at, id])
+  @@index([featured_asset_id])
   @@map("prayers")
 }
 
@@ -611,13 +623,15 @@ model MediaAsset {
   uploaded_by String?
   uploader    User?        @relation("MediaUploadedBy", fields: [uploaded_by], references: [id])
 
-  coverOf         Church[]             @relation("ChurchCover")
-  pastorProfiles  Pastor[]             @relation("PastorProfileImage")
-  pastorImages    ChurchPastor[]       @relation("PastorImage")
-  voiceSamples    VoiceProfileSample[]
-  consentEvidence Consent[]            @relation("ConsentEvidence")
-  audioAssets     PrayerAudio[]        @relation("AudioAsset")
-  galleryItems    ChurchGalleryItem[]
+  coverOf          Church[]             @relation("ChurchCover")
+  heroOf           Church[]             @relation("ChurchHero")
+  featuredPrayerOf Prayer[]             @relation("PrayerFeatured")
+  pastorProfiles   Pastor[]             @relation("PastorProfileImage")
+  pastorImages     ChurchPastor[]       @relation("PastorImage")
+  voiceSamples     VoiceProfileSample[]
+  consentEvidence  Consent[]            @relation("ConsentEvidence")
+  audioAssets      PrayerAudio[]        @relation("AudioAsset")
+  galleryItems     ChurchGalleryItem[]
 
   created_at DateTime  @default(now())
   updated_at DateTime? @updatedAt
@@ -627,14 +641,14 @@ model MediaAsset {
 }
 
 model ChurchGalleryItem {
-  id            String     @id @default(uuid(7))
-  church_id     String
-  church        Church     @relation(fields: [church_id], references: [id], onDelete: Cascade)
+  id             String     @id @default(uuid(7))
+  church_id      String
+  church         Church     @relation(fields: [church_id], references: [id], onDelete: Cascade)
   media_asset_id String
-  media_asset   MediaAsset @relation(fields: [media_asset_id], references: [id])
-  caption       String?
-  order_index   Int
-  created_at    DateTime   @default(now())
+  media_asset    MediaAsset @relation(fields: [media_asset_id], references: [id])
+  caption        String?
+  order_index    Int
+  created_at     DateTime   @default(now())
 
   @@index([church_id, order_index])
   @@map("church_gallery_items")
@@ -703,14 +717,14 @@ model Request {
 // ============================================================================
 
 model DonationSubscription {
-  id                       String         @id @default(uuid(7))
+  id                       String  @id @default(uuid(7))
   church_id                String
-  church                   Church         @relation(fields: [church_id], references: [id])
+  church                   Church  @relation(fields: [church_id], references: [id])
   user_id                  String?
-  user                     User?          @relation(fields: [user_id], references: [id], onDelete: SetNull)
-  provider_subscription_id String         @unique
+  user                     User?   @relation(fields: [user_id], references: [id], onDelete: SetNull)
+  provider_subscription_id String  @unique
   amount_minor             BigInt
-  currency                 String         @db.Char(3)
+  currency                 String  @db.Char(3)
   provider_status          String
 
   donations Donation[]

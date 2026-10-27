@@ -18,6 +18,7 @@ export type SitePrayerArchiveItem = {
   churchId: string
   churchName: string
   churchCoverUrl: string | null
+  featuredImageUrl: string | null
   publishedAt: string
   pastorId: string
   pastorName: string

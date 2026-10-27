@@ -16,6 +16,7 @@ const prayer = (id: string, audio: boolean, title = 'Morning gratitude') => ({
   churchId: 'church-1',
   churchName: 'Hope Church',
   churchCoverUrl: 'https://cdn.test/hope-church-cover.jpg',
+  featuredImageUrl: null,
   publishedAt: '2026-10-15T06:00:00.000Z',
   pastorId: 'pastor-1',
   pastorName: 'Pastor Daniel',

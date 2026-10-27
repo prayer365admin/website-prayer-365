@@ -116,6 +116,7 @@ export const FeaturedPrayer = ({
           languageCode: prayer.languageCode,
           churchName: prayer.churchName,
           churchCoverUrl: prayer.churchCoverUrl,
+          featuredImageUrl: prayer.featuredImageUrl ?? null,
         }}
       />
     </section>

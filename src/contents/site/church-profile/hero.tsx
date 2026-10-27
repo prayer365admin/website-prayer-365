@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import Image from 'next/image'
 import { CheckOutlined, LoadingOutlined, ShareAltOutlined } from '@ant-design/icons'
 import { BookmarkPlusIcon } from '@/components/icon/bookmark-plus'
@@ -29,68 +29,14 @@ export function Hero({
   onSetMainChurch,
 }: HeroProps) {
   const { t } = useSiteI18n()
-  const [failedSrcs, setFailedSrcs] = useState<Record<string, boolean>>({})
-  const [sliderState, setSliderState] = useState<{ active: number; previous: number | null }>({
-    active: 0,
-    previous: null,
-  })
-
-  const imageCandidates = [
-    ...(church.coverUrl
-      ? [{ key: `cover:${church.coverUrl}`, src: church.coverUrl, alt: church.name }]
-      : []),
-    ...(church.gallery ?? []).flatMap((item, index) =>
-      item.url
-        ? [
-            {
-              key: `gallery:${item.assetId}`,
-              src: item.url,
-              alt: `${item.caption || `Gallery image ${index + 1}`} — ${church.name}`,
-            },
-          ]
-        : [],
-    ),
-  ]
-  const uniqueCandidates = imageCandidates.filter(
-    (item, index, items) => items.findIndex((candidate) => candidate.src === item.src) === index,
-  )
-  const heroImages = uniqueCandidates.filter((item) => !failedSrcs[item.src])
+  const [failedSrc, setFailedSrc] = useState<string | null>(null)
   const fallbackSrc = '/images/church.jpeg'
-  if (heroImages.length === 0 && !failedSrcs[fallbackSrc]) {
-    heroImages.push({ key: 'fallback', src: fallbackSrc, alt: church.name })
-  }
-
-  const visibleImageIndex = heroImages.length ? sliderState.active % heroImages.length : 0
-  const previousImageIndex =
-    heroImages.length && sliderState.previous !== null
-      ? sliderState.previous % heroImages.length
-      : null
-  const nextImageIndex =
-    heroImages.length > 1 ? (visibleImageIndex + 1) % heroImages.length : visibleImageIndex
-  const mountedImageIndexes = new Set(
-    [previousImageIndex, visibleImageIndex, nextImageIndex].filter(
-      (index): index is number => index !== null,
-    ),
-  )
-
-  useEffect(() => {
-    if (heroImages.length <= 1) return
-    let fadeTimeout: number | undefined
-    const interval = window.setInterval(() => {
-      setSliderState((current) => {
-        const active = current.active % heroImages.length
-        return { active: (active + 1) % heroImages.length, previous: active }
-      })
-      window.clearTimeout(fadeTimeout)
-      fadeTimeout = window.setTimeout(() => {
-        setSliderState((current) => ({ ...current, previous: null }))
-      }, 1000)
-    }, 5000)
-    return () => {
-      window.clearInterval(interval)
-      window.clearTimeout(fadeTimeout)
-    }
-  }, [heroImages.length])
+  const heroSrc =
+    church.heroUrl && church.heroUrl !== failedSrc
+      ? church.heroUrl
+      : fallbackSrc !== failedSrc
+        ? fallbackSrc
+        : null
 
   const destinationQuery = church.coordinates
     ? `${church.coordinates.latitude},${church.coordinates.longitude}`
@@ -125,25 +71,16 @@ export function Hero({
 
   return (
     <div className="relative min-h-[380px] w-full overflow-hidden bg-[#0B4497] lg:min-h-[520px]">
-      {/* Original full-bleed background layout with an automatic cover/gallery crossfade. */}
-      {heroImages.length ? (
-        heroImages.map((image, index) => {
-          if (!mountedImageIndexes.has(index)) return null
-          const active = index === visibleImageIndex
-          return (
-            <Image
-              alt={active ? image.alt : ''}
-              aria-hidden={!active}
-              className={`object-cover transition-opacity duration-1000 ease-in-out motion-reduce:transition-none ${active ? 'opacity-100' : 'opacity-0'}`}
-              fill
-              key={image.key}
-              onError={() => setFailedSrcs((previous) => ({ ...previous, [image.src]: true }))}
-              priority={index === 0}
-              sizes="100vw"
-              src={image.src}
-            />
-          )
-        })
+      {heroSrc ? (
+        <Image
+          alt={church.name}
+          className="object-cover"
+          fill
+          onError={() => setFailedSrc(heroSrc)}
+          priority
+          sizes="100vw"
+          src={heroSrc}
+        />
       ) : (
         <div className="absolute inset-0 bg-gradient-to-b from-[#0E203E]/60 to-[#0E203E]" />
       )}

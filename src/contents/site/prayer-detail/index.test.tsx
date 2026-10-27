@@ -17,6 +17,7 @@ const item = (id: string, title: string, audio: boolean) => ({
   churchId: 'church-1',
   churchName: 'Hope Church',
   churchCoverUrl: 'https://cdn.test/hope-church-cover.jpg',
+  featuredImageUrl: null,
   publishedAt: '2026-10-15T06:00:00.000Z',
   pastorId: 'pastor-1',
   pastorName: 'Daniel Mäkinen',

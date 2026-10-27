@@ -48,6 +48,8 @@ const church = {
   socialLinks: [],
   coverAssetId: null,
   coverUrl: 'https://cdn.test/cover.jpg',
+  heroAssetId: 'hero-1',
+  heroUrl: 'https://cdn.test/hero.jpg',
   languageCodes: ['et', 'en'],
   pastorName: 'Pastor Demo Tamm',
   pastorRole: 'Lead Pastor & Deanery Provost',
@@ -289,7 +291,7 @@ describe('ContentsSiteChurchProfile', () => {
     expect(imgs.length).toBeGreaterThanOrEqual(1)
   })
 
-  it('keeps the full-bleed hero layout while preparing cover and gallery crossfade images', async () => {
+  it('uses only the dedicated hero image in the full-bleed hero layout', async () => {
     axiosMock.get.mockResolvedValueOnce({
       data: resolveGet({
         ...church,
@@ -318,29 +320,29 @@ describe('ContentsSiteChurchProfile', () => {
 
     renderProfile()
 
-    const coverImage = await screen.findByRole('img', { name: 'Grace' })
-    const hero = coverImage.parentElement!
+    const heroImage = await screen.findByRole('img', { name: 'Grace' })
+    const hero = heroImage.parentElement!
     const renderedImages = Array.from(hero.querySelectorAll<HTMLImageElement>('img'))
-    const galleryImage = renderedImages.find((image) => image.src.includes('altar.jpg'))
-    expect(coverImage.classList.contains('opacity-100')).toBe(true)
-    expect(galleryImage?.classList.contains('opacity-0')).toBe(true)
-    expect(renderedImages.some((image) => image.src.includes('organ.jpg'))).toBe(false)
+    expect(heroImage.getAttribute('src')).toContain('hero.jpg')
+    expect(renderedImages).toHaveLength(1)
+    expect(renderedImages.some((image) => image.src.includes('cover.jpg'))).toBe(false)
+    expect(renderedImages.some((image) => image.src.includes('altar.jpg'))).toBe(false)
     expect(hero.classList.contains('min-h-[380px]')).toBe(true)
     expect(document.querySelector('.ant-carousel')).toBeNull()
   })
 
-  it('falls back to default church image when coverUrl fails to load', async () => {
+  it('falls back to default church image when heroUrl fails to load', async () => {
     axiosMock.get.mockResolvedValueOnce({
       data: resolveGet({
         ...church,
-        coverUrl: 'https://cdn.test/broken-cover.jpg',
+        heroUrl: 'https://cdn.test/broken-hero.jpg',
       }),
     })
 
     renderProfile()
 
     const heroImg = await screen.findByRole('img', { name: 'Grace' })
-    expect(heroImg.getAttribute('src')).toContain('broken-cover.jpg')
+    expect(heroImg.getAttribute('src')).toContain('broken-hero.jpg')
 
     fireEvent.error(heroImg)
 

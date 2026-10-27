@@ -129,6 +129,8 @@ export const MobilePublicChurchSchema = z.object({
   socialLinks: z.array(MobileSocialLinkSchema),
   coverAssetId: z.string().nullable(),
   coverUrl: z.string().nullable(),
+  heroAssetId: z.string().nullable(),
+  heroUrl: z.string().nullable(),
   languageCodes: z.array(z.string()),
   serviceTimes: z.array(MobileServiceTimeSchema),
   distanceKm: z.number().nullable(),
@@ -249,6 +251,8 @@ export const MobilePublishedPrayerSchema = z.object({
   churchId: z.string(),
   churchName: z.string(),
   churchCoverUrl: z.string().nullable(),
+  featuredAssetId: z.string().nullable(),
+  featuredImageUrl: z.string().nullable(),
   publishedAt: z.string(),
   version: z.object({
     prayerVersionId: z.string(),
@@ -269,6 +273,8 @@ export type MobilePublishedPrayer = {
   churchId: string
   churchName: string
   churchCoverUrl: string | null
+  featuredAssetId: string | null
+  featuredImageUrl: string | null
   publishedAt: string
   version: {
     prayerVersionId: string
