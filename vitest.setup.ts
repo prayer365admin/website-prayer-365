@@ -1,6 +1,11 @@
 import { cleanup } from '@testing-library/react'
 import { afterEach, vi } from 'vitest'
 
+// The mobile donation schemas read the app-link origins once at import time. Give every suite the
+// staging origin by default so request fixtures can use a real universal link; a test that needs a
+// different list sets the env var itself before importing the module.
+process.env.APP_LINK_ORIGINS ||= 'https://prayer-365.catatia.com'
+
 // globals:false in config → RTL cannot self-register cleanup; do it manually
 afterEach(() => cleanup())
 
