@@ -1,0 +1,491 @@
+.page {
+  min-height: 100%;
+  overflow: hidden;
+  border-radius: 16px;
+  background: #fff;
+  color: var(--color-primary-900, #0e203e);
+  font-family: var(--font-text);
+}
+
+.header {
+  display: flex;
+  min-height: 82px;
+  align-items: center;
+  gap: 16px;
+  padding: 16px;
+  border-bottom: 1px solid var(--color-neutral-200, #dde0e4);
+}
+
+.backButton {
+  display: inline-flex;
+  width: 40px;
+  height: 40px;
+  flex: 0 0 40px;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: 8px;
+  background: var(--color-primary-100, #edf4ff);
+  color: var(--color-primary-700, #1758a6);
+  cursor: pointer;
+  font-size: 16px;
+  transition:
+    color 200ms ease,
+    background-color 200ms ease;
+}
+
+.backButton:hover {
+  background: var(--color-primary-200, #dce9fb);
+  color: var(--color-primary-900, #0e203e);
+}
+
+.headerText {
+  min-width: 0;
+}
+
+.eyebrow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 3px;
+  color: var(--color-neutral-400, #8f96a3);
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 150%;
+}
+
+.header h1 {
+  margin: 0;
+  color: var(--color-primary-900, #0e203e);
+  font-family: var(--font-heading);
+  font-size: 24px;
+  font-weight: 600;
+  letter-spacing: -1px;
+  line-height: 100%;
+}
+
+.content {
+  padding: 16px;
+  background: #fff;
+}
+
+.columns {
+  display: grid;
+  grid-template-columns: minmax(0, 1.42fr) minmax(340px, 1fr);
+  gap: 24px;
+}
+
+.detailCard,
+.statusCard {
+  overflow: hidden;
+  border: 1px solid var(--color-neutral-200, #dde0e4);
+  border-radius: 16px;
+  background: #fff;
+}
+
+.sectionTitle {
+  display: flex;
+  min-height: 56px;
+  align-items: center;
+  margin: 0;
+  padding: 16px;
+  border-bottom: 1px solid var(--color-neutral-200, #dde0e4);
+  color: var(--color-primary-900, #0e203e);
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 150%;
+}
+
+.samples {
+  display: grid;
+  gap: 4px;
+  padding: 16px;
+  border-bottom: 1px solid var(--color-neutral-200, #dde0e4);
+}
+
+.sectionBody {
+  padding: 16px;
+  border-bottom: 1px solid var(--color-neutral-200, #dde0e4);
+}
+
+.detailCard > .sectionBody:last-child {
+  border-bottom: 0;
+}
+
+.evidenceRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.pdfTile {
+  display: flex;
+  width: 72px;
+  height: 72px;
+  flex: 0 0 72px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  background: var(--color-primary-500, #2f7ad2);
+  color: #fff;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.evidenceDetails {
+  min-width: 0;
+}
+
+.evidenceName {
+  margin-bottom: 8px;
+  color: var(--color-primary-900, #0e203e);
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 150%;
+}
+
+.registrationSuccess {
+  display: flex;
+  min-height: 36px;
+  align-items: center;
+  gap: 4px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  background: var(--color-positive-200, #d3faef);
+  color: var(--color-positive-700, #087f65);
+  font-size: 12px;
+  line-height: 150%;
+}
+
+.registrationInfo,
+.emptyText,
+.helpText {
+  color: var(--color-neutral-600, #5c6370);
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 150%;
+}
+
+.inlineAlert,
+.retryButton {
+  margin-top: 12px;
+}
+
+.reasonField {
+  display: grid;
+  gap: 8px;
+  color: var(--color-primary-900, #0e203e);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.actionRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.sectionBody.actionRow {
+  margin-top: 0;
+}
+
+.detailXsButton {
+  box-sizing: border-box;
+  width: fit-content;
+  height: 32px !important;
+  gap: 8px !important;
+  padding: 7px 14px 9px !important;
+  border-width: 1px !important;
+  border-radius: 8px !important;
+  opacity: 1;
+  transform: rotate(0deg);
+}
+
+.voiceControlButton {
+  border-color: var(--color-alert-400, #e54c4c) !important;
+  background: #fff !important;
+  color: var(--color-alert-400, #e54c4c) !important;
+}
+
+.voiceControlButton:hover:not(:disabled) {
+  border-color: var(--color-alert-400, #e54c4c) !important;
+  background: var(--color-alert-400, #e54c4c) !important;
+  color: #fff !important;
+}
+
+.voiceControlButton:disabled {
+  border-color: var(--color-neutral-200, #dde0e4) !important;
+  background: #fff !important;
+  color: var(--color-neutral-200, #dde0e4) !important;
+}
+
+.helpText {
+  margin: 10px 0 0;
+}
+
+.timelineBody {
+  min-height: 690px;
+  padding: 16px;
+}
+
+.skeletonBlock {
+  display: block;
+  border-radius: 6px;
+  background: linear-gradient(
+    90deg,
+    var(--color-neutral-100, #f9fafb) 25%,
+    var(--color-neutral-200, #dde0e4) 50%,
+    var(--color-neutral-100, #f9fafb) 75%
+  );
+  background-size: 200% 100%;
+  animation: skeletonPulse 1.5s ease-in-out infinite;
+}
+
+.skeletonHeaderMeta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 5px;
+}
+
+.headerDateSkeleton {
+  width: 112px;
+  height: 12px;
+}
+
+.headerChurchSkeleton {
+  width: 124px;
+  height: 12px;
+}
+
+.headerTitleSkeleton {
+  width: 190px;
+  height: 24px;
+}
+
+.sampleSkeleton {
+  padding: 14px 12px 12px;
+  border-radius: 8px;
+  background: var(--color-primary-100, #edf4ff);
+}
+
+.sampleLabelSkeleton {
+  width: 64px;
+  height: 14px;
+  margin-bottom: 8px;
+}
+
+.waveSkeleton {
+  display: flex;
+  height: 40px;
+  align-items: end;
+  gap: 6px;
+  overflow: hidden;
+}
+
+.waveSkeleton span {
+  width: 1px;
+  min-width: 1px;
+  flex: 0 0 1px;
+  background: var(--color-neutral-200, #dde0e4);
+}
+
+.sampleControlsSkeleton {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.circleSkeleton,
+.downloadSkeleton {
+  width: 32px;
+  height: 32px;
+  flex: 0 0 32px;
+}
+
+.circleSkeleton {
+  border-radius: 9999px;
+}
+
+.timeSkeleton {
+  width: 64px;
+  height: 12px;
+}
+
+.rateSkeleton {
+  width: 46px;
+  height: 24px;
+  border-radius: 9999px;
+}
+
+.downloadSkeleton {
+  margin-left: auto;
+  border-radius: 8px;
+}
+
+.pdfSkeleton {
+  width: 72px;
+  height: 72px;
+  flex: 0 0 72px;
+  border-radius: 8px;
+}
+
+.evidenceSkeletonDetails {
+  display: grid;
+  gap: 8px;
+  width: min(100%, 330px);
+}
+
+.evidenceTextSkeleton {
+  width: 100%;
+  height: 14px;
+}
+
+.evidenceButtonSkeleton {
+  width: 122px;
+  height: 32px;
+}
+
+.registrationSkeleton {
+  width: 100%;
+  height: 36px;
+  background: linear-gradient(90deg, #e8fcf6 25%, #d3faef 50%, #e8fcf6 75%);
+  background-size: 200% 100%;
+}
+
+.skeletonActions {
+  display: flex;
+  gap: 8px;
+}
+
+.actionSkeleton {
+  height: 32px;
+}
+
+.actionSkeleton:first-child {
+  width: 96px;
+}
+
+.actionSkeleton:last-child {
+  width: 122px;
+}
+
+.timelineSkeleton {
+  display: grid;
+  gap: 16px;
+}
+
+.timelineTrackSkeleton {
+  overflow: hidden;
+  border: 1px solid var(--color-neutral-100, #f1f3f5);
+  border-radius: 8px;
+}
+
+.timelineHeaderSkeleton {
+  display: flex;
+  min-height: 42px;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 12px;
+  background: var(--color-neutral-100, #f9fafb);
+}
+
+.timelineHeaderDotSkeleton,
+.timelineDotSkeleton {
+  width: 12px;
+  height: 12px;
+  flex: 0 0 12px;
+  border-radius: 9999px;
+}
+
+.timelineHeadingSkeleton {
+  width: 112px;
+  height: 14px;
+}
+
+.timelineRowsSkeleton {
+  padding: 0 12px 10px;
+}
+
+.timelineRowSkeleton {
+  display: grid;
+  grid-template-columns: 12px minmax(0, 1fr);
+  gap: 12px;
+  min-height: 56px;
+  align-items: start;
+  padding: 8px 0;
+}
+
+.timelineRowSkeleton > div {
+  display: grid;
+  gap: 6px;
+}
+
+.timelineTitleSkeleton {
+  width: min(75%, 180px);
+  height: 14px;
+}
+
+.timelineMetaSkeleton {
+  width: min(92%, 240px);
+  height: 12px;
+}
+
+@keyframes skeletonPulse {
+  from {
+    background-position: 200% 0;
+  }
+
+  to {
+    background-position: -200% 0;
+  }
+}
+
+@media (max-width: 1023px) {
+  .columns {
+    grid-template-columns: 1fr;
+  }
+
+  .timelineBody {
+    min-height: 0;
+  }
+}
+
+@media (max-width: 520px) {
+  .content {
+    padding: 12px;
+  }
+
+  .columns {
+    gap: 16px;
+  }
+
+  .evidenceRow {
+    align-items: flex-start;
+  }
+
+  .pdfTile {
+    width: 56px;
+    height: 64px;
+    flex-basis: 56px;
+  }
+
+  .voiceControlsActions {
+    flex-direction: column;
+  }
+
+  .voiceControlsActions .voiceControlButton {
+    width: 100%;
+  }
+
+  .skeletonActions {
+    flex-direction: column;
+  }
+
+  .skeletonActions .actionSkeleton {
+    width: 100%;
+  }
+}

@@ -179,7 +179,21 @@ export const AUDIT_VOICE = (
 
 /** Relations every voice-profile DTO is built from. */
 const PROFILE_INCLUDE = {
-  pastor: { select: { name: true, user_id: true } },
+  pastor: {
+    select: {
+      name: true,
+      user_id: true,
+      image_asset_id: true,
+      image_asset: { select: { church_id: true } },
+      churchPastors: {
+        select: {
+          church_id: true,
+          image_asset_id: true,
+          image_asset: { select: { church_id: true } },
+        },
+      },
+    },
+  },
   church: { select: { name: true } },
   reviewer: { select: { name: true } },
   consent: {
@@ -270,33 +284,41 @@ const withTimelines = async <T extends { id: string }>(
   }))
 }
 
-const listItemFromRow = (p: VoiceProfileRow): VoiceProfileListItem => ({
-  id: p.id,
-  pastorId: p.pastor_id,
-  pastorName: p.pastor.name,
-  churchId: p.church_id,
-  churchName: p.church.name,
-  version: p.version,
-  provider: p.provider,
-  reviewState: p.review_state,
-  registrationState: p.registration_state,
-  submittedAt: p.submitted_at ? p.submitted_at.toISOString() : null,
-  reviewedAt: p.reviewed_at ? p.reviewed_at.toISOString() : null,
-  reviewedByName: p.reviewer?.name ?? null,
-  reviewReason: p.review_reason,
-  consentRevokedAt: p.consent.revoked_at ? p.consent.revoked_at.toISOString() : null,
-  replacesProfileId: p.replaces_profile_id,
-  requiresVerification: p.requires_verification,
-  lastErrorCode: p.last_error_code,
-  samples: p.samples.map((s) => ({
-    assetId: s.asset_id,
-    position: s.position,
-    mimeType: s.asset.mime_type,
-    byteSize: Number(s.asset.byte_size),
-    checksum: s.checksum,
-  })),
-  createdAt: p.created_at.toISOString(),
-})
+const listItemFromRow = (p: VoiceProfileRow): VoiceProfileListItem => {
+  const assignmentImage = p.pastor.churchPastors?.find(
+    (assignment) => assignment.church_id === p.church_id && assignment.image_asset_id,
+  )
+  return {
+    id: p.id,
+    pastorId: p.pastor_id,
+    pastorName: p.pastor.name,
+    pastorImageAssetId: assignmentImage?.image_asset_id ?? p.pastor.image_asset_id ?? null,
+    pastorImageChurchId:
+      assignmentImage?.image_asset?.church_id ?? p.pastor.image_asset?.church_id ?? null,
+    churchId: p.church_id,
+    churchName: p.church.name,
+    version: p.version,
+    provider: p.provider,
+    reviewState: p.review_state,
+    registrationState: p.registration_state,
+    submittedAt: p.submitted_at ? p.submitted_at.toISOString() : null,
+    reviewedAt: p.reviewed_at ? p.reviewed_at.toISOString() : null,
+    reviewedByName: p.reviewer?.name ?? null,
+    reviewReason: p.review_reason,
+    consentRevokedAt: p.consent.revoked_at ? p.consent.revoked_at.toISOString() : null,
+    replacesProfileId: p.replaces_profile_id,
+    requiresVerification: p.requires_verification,
+    lastErrorCode: p.last_error_code,
+    samples: p.samples.map((s) => ({
+      assetId: s.asset_id,
+      position: s.position,
+      mimeType: s.asset.mime_type,
+      byteSize: Number(s.asset.byte_size),
+      checksum: s.checksum,
+    })),
+    createdAt: p.created_at.toISOString(),
+  }
+}
 
 /** List the caller's OWN submissions (submitted_by === userId) w/ pagination. */
 export const LIST_OWN_PROFILES = async ({

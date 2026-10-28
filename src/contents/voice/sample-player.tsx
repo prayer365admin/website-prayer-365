@@ -1,3 +1,4 @@
+import AudioWavePlayer from '@/components/common/audio-wave-player'
 import { useMediaAccess } from '@/hooks/data/media-access'
 import { Skeleton } from 'antd'
 
@@ -14,22 +15,23 @@ export const formatDuration = (seconds: number) => {
 export default function SamplePlayer({
   churchId,
   assetId,
+  label,
   onDuration,
 }: {
   churchId: string
   assetId: string
+  label: string
   onDuration?: (assetId: string, seconds: number) => void
 }) {
   const { data, loading } = useMediaAccess(churchId, assetId)
   if (loading) return <Skeleton.Input active size="small" />
   if (!data?.url) return <span className="text-gray-500">Preview unavailable</span>
   return (
-    <audio
-      controls
-      preload="metadata"
+    <AudioWavePlayer
+      label={label}
+      seed={assetId}
       src={data.url}
-      className="h-9 max-w-full"
-      onLoadedMetadata={(e) => onDuration?.(assetId, e.currentTarget.duration)}
+      onDuration={(seconds) => onDuration?.(assetId, seconds)}
     />
   )
 }

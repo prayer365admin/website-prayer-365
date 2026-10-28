@@ -6,6 +6,8 @@ const base = {
   id: 'v1',
   pastorId: 'p1',
   pastorName: 'Pastor A',
+  pastorImageAssetId: null,
+  pastorImageChurchId: null,
   churchId: 'c1',
   churchName: 'Tallinn',
   version: 3,
