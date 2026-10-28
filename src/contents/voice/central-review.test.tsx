@@ -12,7 +12,16 @@ const voice = vi.hoisted(() => ({
   useRecloneVoiceProfile: vi.fn(() => ({ onReclone: vi.fn(), loading: false })),
 }))
 const granted = vi.hoisted(() => ({ value: true }))
+const pagination = vi.hoisted(() => ({
+  page: 1,
+  pageSize: 10,
+  setPage: vi.fn(),
+  setPageSize: vi.fn(),
+}))
 vi.mock('@/hooks/data/voice', () => voice)
+vi.mock('@/hooks/ui/url-pagination', () => ({
+  useUrlPagination: () => pagination,
+}))
 vi.mock('@/hooks/data/access-permission', () => ({
   useAccessPermission: () => ({ updateAny: () => ({ granted: granted.value }) }),
 }))
@@ -32,6 +41,8 @@ const detail = (over: Record<string, unknown> = {}) => ({
   id: 'v1',
   pastorId: 'p1',
   pastorName: 'Pastor A',
+  pastorImageAssetId: null,
+  pastorImageChurchId: null,
   churchId: 'ch1',
   churchName: 'Example Church',
   version: 2,
@@ -66,15 +77,21 @@ const show = (d: ReturnType<typeof detail>) => {
 }
 
 describe('ContentsVoiceReview list (S24)', () => {
-  beforeEach(() => vi.clearAllMocks())
+  beforeEach(() => {
+    vi.clearAllMocks()
+    pagination.page = 1
+    pagination.pageSize = 10
+  })
 
-  it('lists pastor/church with separate review, reviewer and registration columns', () => {
+  it('matches the AI voice profile table with combined pastor/church identity', () => {
     voice.useCentralVoiceProfiles.mockReturnValue({
       data: [detail({ reviewState: 'APPROVED', reviewedByName: 'Global Admin' })],
       total: 1,
       loading: false,
     })
     renderWithProviders(<ContentsVoiceReview />)
+    expect(screen.getByRole('heading', { name: 'AI Voice Profiles' })).toBeTruthy()
+    expect(screen.getByRole('columnheader', { name: /Pastor \(Church\)/ })).toBeTruthy()
     expect(screen.getByText('Example Church')).toBeTruthy()
     expect(screen.getByRole('cell', { name: 'Approved' })).toBeTruthy()
     expect(screen.getByRole('columnheader', { name: /Reviewed by/ })).toBeTruthy()
@@ -87,31 +104,44 @@ describe('ContentsVoiceReview list (S24)', () => {
     renderWithProviders(<ContentsVoiceReview />)
     expect(screen.getByLabelText('Filter admin review')).toBeTruthy()
     expect(screen.getByLabelText('Filter registration')).toBeTruthy()
-    expect(screen.getByPlaceholderText('Submitted from')).toBeTruthy()
-    expect(screen.getByPlaceholderText('Search pastor, church or reviewer')).toBeTruthy()
+    expect(screen.getByPlaceholderText('Published from')).toBeTruthy()
+    expect(screen.getByPlaceholderText('Search pastors or parishes...')).toBeTruthy()
     expect(voice.useCentralVoiceProfiles).toHaveBeenLastCalledWith(
       expect.objectContaining({ orderBy: 'created_at', orderDirection: 'desc', page: 1 }),
+    )
+  })
+
+  it('continues row numbering from the current page', () => {
+    pagination.page = 2
+    voice.useCentralVoiceProfiles.mockReturnValue({ data: [detail()], total: 12, loading: false })
+
+    renderWithProviders(<ContentsVoiceReview />)
+
+    expect(screen.getByRole('columnheader', { name: 'No.' })).toBeTruthy()
+    expect(screen.getByRole('cell', { name: '11' })).toBeTruthy()
+    expect(voice.useCentralVoiceProfiles).toHaveBeenLastCalledWith(
+      expect.objectContaining({ page: 2, limit: 10 }),
     )
   })
 
   it('sorting a column asks the API for that order', () => {
     voice.useCentralVoiceProfiles.mockReturnValue({ data: [detail()], total: 1, loading: false })
     renderWithProviders(<ContentsVoiceReview />)
-    fireEvent.click(screen.getByRole('columnheader', { name: /Church/ }))
+    fireEvent.click(screen.getByRole('columnheader', { name: /Pastor \(Church\)/ }))
     expect(voice.useCentralVoiceProfiles).toHaveBeenLastCalledWith(
-      expect.objectContaining({ orderBy: 'church_name', orderDirection: 'asc' }),
+      expect.objectContaining({ orderBy: 'pastor_name', orderDirection: 'asc' }),
     )
   })
 
-  it('the Actions column edit button opens the profile page; rows are not clickable', () => {
+  it('the Actions column opens the profile and offers safe disable instead of deletion', () => {
     voice.useCentralVoiceProfiles.mockReturnValue({ data: [detail()], total: 1, loading: false })
     renderWithProviders(<ContentsVoiceReview />)
     expect(screen.getByRole('columnheader', { name: 'Actions' })).toBeTruthy()
     fireEvent.click(screen.getByRole('cell', { name: 'Not registered' }))
     expect(pushMock).not.toHaveBeenCalled()
-    fireEvent.click(screen.getByRole('img', { name: 'edit' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Review Pastor A' }))
     expect(pushMock).toHaveBeenCalledWith('/dashboard/central/voice-profiles/v1')
-    expect(screen.queryByRole('img', { name: 'delete' })).toBeNull()
+    expect(screen.getByRole('button', { name: 'Disable Pastor A' })).toBeTruthy()
   })
 })
 

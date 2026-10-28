@@ -28,7 +28,14 @@ import { registrationHelp } from './status'
  * reason. Registration state is read-only; the Voice ID is never entered manually.
  */
 
-export const formatDate = (iso: string | null) => (iso ? new Date(iso).toLocaleDateString() : '—')
+export const formatDate = (iso: string | null) =>
+  iso
+    ? new Intl.DateTimeFormat('en-GB', {
+        day: 'numeric',
+        month: 'long',
+        year: 'numeric',
+      }).format(new Date(iso))
+    : '—'
 
 function EvidenceLink({ churchId, assetId }: { churchId: string; assetId: string | null }) {
   const { data, loading } = useMediaAccess(churchId, assetId)

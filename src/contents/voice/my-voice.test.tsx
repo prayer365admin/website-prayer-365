@@ -32,6 +32,8 @@ const profile = (over: Record<string, unknown> = {}) => ({
   id: 'v1',
   pastorId: 'p1',
   pastorName: 'Pastor A',
+  pastorImageAssetId: null,
+  pastorImageChurchId: null,
   churchId: 'ch1',
   churchName: 'Example Church',
   version: 2,
