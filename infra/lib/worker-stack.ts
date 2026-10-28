@@ -35,6 +35,7 @@ const SECRET_ENV: Record<string, string> = {
   STRIPE_SECRET_KEY: 'stripe-secret-key',
   // payment.sync talks to Stripe; the webhook endpoint itself stays on Vercel.
   STRIPE_WEBHOOK_SECRET: 'stripe-webhook-secret',
+  MAIL_CREDENTIALS: 'mail-credentials',
 }
 
 /**
@@ -118,6 +119,10 @@ export class WorkerStack extends Stack {
       // ElevenLabs work is refused unless this is exactly 'true'.
       ELEVENLABS_ENABLED: 'true',
       MAIL_PROVIDER: 'mailgun',
+      MAIL_CREDENTIALS: secretEnv('MAIL_CREDENTIALS'),
+      // Per-email pacing for SES sandbox 1 msg/s; values larger than the
+      // consumer timeout inflate consumerTimeoutSeconds requirements.
+      MAIL_RATE_LIMIT_MS: '1000',
       VOICE_SAMPLE_MAX_FILES: '3',
     }
 

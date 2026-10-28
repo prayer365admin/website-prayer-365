@@ -7,12 +7,14 @@ const m = vi.hoisted(() => ({
   isLoginBlocked: vi.fn(),
   recordLoginFailure: vi.fn(),
   clearLoginFailures: vi.fn(),
+  recordLogin: vi.fn(),
 }))
 
 vi.mock('@/providers/user', () => ({
   FIND_OR_CREATE_OAUTH_CUSTOMER: vi.fn(),
   GET_USER_BY_EMAIL: m.getUserByEmail,
   GET_USER_BY_OAUTH_ACCOUNT: vi.fn(),
+  RECORD_LOGIN: m.recordLogin,
 }))
 vi.mock('@/utils/hash', () => ({ verifySecret: m.verifySecret }))
 vi.mock('@/providers/auth-login-attempt', () => ({

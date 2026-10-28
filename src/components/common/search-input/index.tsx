@@ -10,7 +10,9 @@ export default function SearchInput({
   loading = false,
   debounceMs = 500,
   iconPosition = 'suffix',
+  className,
 }: {
+  className?: string
   placeholder?: string
   setValue?: Dispatch<SetStateAction<string | undefined>>
   setPage: Dispatch<SetStateAction<number>>
@@ -85,7 +87,7 @@ export default function SearchInput({
           searchIcon
         ) : undefined
       }
-      className="truncate"
+      className={`truncate !h-10 !rounded-lg !border-[#DDE0E4] ${className ?? ''}`.trim()}
     />
   )
 }
