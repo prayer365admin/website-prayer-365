@@ -139,6 +139,7 @@ export const createUser = async ({
   name,
   password,
   role_id,
+  profile_picture,
   actorId,
   requestId,
 }: UserPayloadCreateModel & { actorId?: string; requestId?: string }) => {
@@ -159,6 +160,7 @@ export const createUser = async ({
     password: passwordHash,
     email_verified_at: new Date(),
     role_id,
+    ...(profile_picture ? { profile_picture } : {}),
   })
   await ensureGlobalAdminAssignment({ userId: result?.id, actorId, requestId })
   return result

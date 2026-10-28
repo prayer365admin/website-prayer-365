@@ -58,6 +58,7 @@ const createUserSchema = z.object({
   name: z.string().min(1),
   password: z.string().min(8),
   role_id: z.string().min(1).optional(),
+  profile_picture: z.string().min(1).optional(),
 })
 
 export async function POST(req: NextRequest) {

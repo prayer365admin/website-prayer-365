@@ -17,6 +17,8 @@ import {
 import { Avatar, Button, Drawer, Input, Select, Skeleton, Typography, Upload } from 'antd'
 import { useMemo, useState } from 'react'
 import s from './edit-user-modal.module.scss'
+import { flattenHierarchy } from './hierarchy'
+import { PermittedModules } from './permitted-modules'
 
 const { Title } = Typography
 
@@ -25,68 +27,6 @@ export interface EditUserModalProps {
   userId: string | null
   onClose: () => void
   onSaved: () => void
-}
-
-interface ModuleDefinition {
-  name: string
-  subjects: string[]
-}
-
-const PERMITTED_MODULES: ModuleDefinition[] = [
-  {
-    name: 'Church Profiles & Schedule',
-    subjects: ['prayer_church'],
-  },
-  {
-    name: 'Daily Prayers & Audio',
-    subjects: ['prayer_prayer', 'prayer_prayer_review'],
-  },
-  {
-    name: 'Pastoral Prayer Requests',
-    subjects: ['prayer_request', 'prayer_private_request'],
-  },
-]
-
-function getModuleAccess(
-  subjects: string[],
-  permissions: Array<{ subject: string; actions: string }> = [],
-): { label: string; color: string } {
-  let hasRead = false
-  let hasUpdate = false
-
-  for (const p of permissions) {
-    if (subjects.includes(p.subject)) {
-      const actions = p.actions.split(',').map((a) => a.trim().toLowerCase())
-      if (actions.includes('update') || actions.includes('create') || actions.includes('*')) {
-        hasUpdate = true
-      }
-      if (actions.includes('read') || actions.includes('*')) {
-        hasRead = true
-      }
-    }
-  }
-
-  if (hasUpdate) {
-    return { label: 'View & Approve', color: '#09A97C' }
-  }
-  if (hasRead) {
-    return { label: 'View & Audit', color: '#2F7AD2' }
-  }
-  return { label: 'Access Denied (Airgapped)', color: '#B91C1C' }
-}
-
-function flattenHierarchy(nodes: HierarchyNode[]): HierarchyNode[] {
-  const result: HierarchyNode[] = []
-  function traverse(list: HierarchyNode[]) {
-    for (const node of list) {
-      result.push(node)
-      if (node.children?.length) {
-        traverse(node.children)
-      }
-    }
-  }
-  traverse(nodes)
-  return result
 }
 
 interface EditUserFormProps {
@@ -339,24 +279,7 @@ function EditUserForm({
           </div>
         </div>
 
-        <div className="flex flex-col gap-1.5">
-          <div className="flex flex-col">
-            <span className="text-sm font-semibold text-[#393E46]">Permitted Modules</span>
-          </div>
-          <div className="flex flex-col divide-y divide-[#EEF2F7] rounded-xl border border-[#EEF2F7] bg-white px-4 py-1">
-            {PERMITTED_MODULES.map((mod) => {
-              const access = getModuleAccess(mod.subjects, currentPermissions)
-              return (
-                <div key={mod.name} className="flex items-center justify-between py-2">
-                  <span className="text-sm text-[#334155]">{mod.name}</span>
-                  <span className="text-sm font-semibold" style={{ color: access.color }}>
-                    {access.label}
-                  </span>
-                </div>
-              )
-            })}
-          </div>
-        </div>
+        <PermittedModules permissions={currentPermissions} />
       </div>
 
       <div className="flex justify-between items-center px-6 py-3 border-t border-[#EEF2F7] bg-white flex-shrink-0">

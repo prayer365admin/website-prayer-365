@@ -12,6 +12,8 @@ Table user {
   auth_version Int [not null, default: 1]
   status String [not null, default: 'active']
   version Int [not null, default: 1]
+  last_login_provider String [note: 'Last successful sign-in provider: "password" | "google". Null = never signed in.']
+  last_active_at DateTime [note: 'Last authenticated activity (login + throttled API access). Null = never active.']
   role_id String
   role role
   locale String

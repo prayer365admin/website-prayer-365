@@ -27,7 +27,11 @@ export const useUsers = ({
   const statusQuery = status ? `&status=${encodeURIComponent(status)}` : ''
   const searchQuery = search ? `&search=${encodeURIComponent(search)}` : ''
 
-  const { data: data, isLoading: fetchLoading } = useQuery({
+  const {
+    data: data,
+    isLoading: fetchLoading,
+    isFetching: fetchFetching,
+  } = useQuery({
     queryKey: [queryKey, queryString, paginationQuery, role, status, search],
     queryFn: async () => {
       const result = await axios.get(
@@ -73,6 +77,13 @@ export const useUsers = ({
     data: data?.result,
     total: data?.total,
     loading: fetchLoading || onCreateLoading || onDeleteLoading,
+    /** True during any in-flight list request, including a manual revalidate. */
+    fetching: fetchFetching,
+    /** Re-run the list query (keeps the current page/filters). */
+    onRevalidate: useCallback(
+      () => queryClient.invalidateQueries({ queryKey: [queryKey] }),
+      [queryClient],
+    ),
     onCreate,
     onDelete,
   }

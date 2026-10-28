@@ -113,18 +113,18 @@ export const UserColumns = ({
       },
     },
     {
-      key: 'security',
-      title: 'Security',
+      key: 'login_with',
+      title: 'Login with',
       width: 160,
-      render: (_text, record) => {
-        const assignment = record.role_assignments?.[0] ?? record.roleAssignments?.[0]
-        const hasAssignment = Boolean(assignment)
-        return (
-          <span className={`text-sm ${hasAssignment ? 'text-[#393E46]' : 'text-[#D8A50E]'}`}>
-            {hasAssignment ? 'Authenticator App' : 'Pending Setup'}
-          </span>
-        )
-      },
+      render: (_text, record) => (
+        <span className="text-sm text-[#393E46]">
+          {record.last_login_provider === 'google'
+            ? 'Google'
+            : record.last_login_provider === 'password'
+              ? 'Email & Password'
+              : '—'}
+        </span>
+      ),
     },
     {
       key: 'status',
@@ -153,7 +153,7 @@ export const UserColumns = ({
       title: 'Last Active',
       width: 96,
       render: (_text, record) => (
-        <span className="text-sm text-[#5C6370]">{relativeTime(record.updated_at)}</span>
+        <span className="text-sm text-[#5C6370]">{relativeTime(record.last_active_at)}</span>
       ),
     },
     {

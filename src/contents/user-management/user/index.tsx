@@ -2,13 +2,16 @@
 
 import SearchInput from '@/components/common/search-input'
 import RoleFilter from '@/components/common/select/role/filter'
+import { DownloadBracketIcon } from '@/components/icon/download-bracket'
+import { RefreshIcon } from '@/components/icon/refresh'
 import { userMgmtTableTheme } from '@/config/antdTheme'
 import { useUsers } from '@/hooks/data/user'
-import { DownloadOutlined, RotateLeftOutlined, UserAddOutlined } from '@ant-design/icons'
+import { LoadingOutlined, UserAddOutlined } from '@ant-design/icons'
 import { ConfigProvider, Select, Table, TablePaginationConfig } from 'antd'
 import { useRouter } from 'next/navigation'
 import { useState } from 'react'
 import { UserColumns } from './columns'
+import CreateUserModal from './create-user-modal'
 import EditUserModal from './edit-user-modal'
 
 export default function ContentsUserManagementUser() {
@@ -24,6 +27,7 @@ export default function ContentsUserManagementUser() {
   const [page, setPage] = useState<number>(1)
   const [pageSize, setPageSize] = useState<number>(10)
   const [editingId, setEditingId] = useState<string | null>(null)
+  const [creating, setCreating] = useState(false)
 
   const handlePagination = (pagination: TablePaginationConfig) => {
     if (pagination.current) setPage(pagination.current)
@@ -37,6 +41,8 @@ export default function ContentsUserManagementUser() {
     data: userData,
     onDelete: deleteUser,
     loading: userLoading,
+    fetching: userFetching,
+    onRevalidate,
     total: userTotal,
   } = useUsers({
     queryString: ``,
@@ -68,7 +74,7 @@ export default function ContentsUserManagementUser() {
         </div>
         <button
           type="button"
-          onClick={() => router.push('/dashboard/user-management/user/create')}
+          onClick={() => setCreating(true)}
           className="h-10 px-4 rounded-lg bg-[#2F7AD2] text-white font-semibold text-sm flex items-center justify-center gap-2 hover:bg-[#2555A7] transition-colors cursor-pointer self-start sm:self-auto shadow-sm"
         >
           <UserAddOutlined className="text-base" />
@@ -126,15 +132,17 @@ export default function ContentsUserManagementUser() {
                 aria-label="Export"
                 className="w-10 h-10 rounded-lg border border-[#DDE0E4] bg-white flex items-center justify-center text-[#2F7AD2] hover:border-[#2F7AD2] transition-colors cursor-pointer"
               >
-                <DownloadOutlined className="text-base" />
+                <DownloadBracketIcon />
               </button>
               <button
                 type="button"
-                onClick={() => router.refresh()}
+                onClick={() => void onRevalidate()}
+                disabled={userFetching}
                 aria-label="Refresh"
-                className="w-10 h-10 rounded-lg border border-[#DDE0E4] bg-white flex items-center justify-center text-[#2F7AD2] hover:border-[#2F7AD2] transition-colors cursor-pointer"
+                aria-busy={userFetching}
+                className="w-10 h-10 rounded-lg border border-[#DDE0E4] bg-white flex items-center justify-center text-[#2F7AD2] hover:border-[#2F7AD2] transition-colors cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
               >
-                <RotateLeftOutlined className="text-base" />
+                {userFetching ? <LoadingOutlined className="text-base" spin /> : <RefreshIcon />}
               </button>
             </div>
           </div>
@@ -180,6 +188,13 @@ export default function ContentsUserManagementUser() {
         userId={editingId}
         onClose={() => setEditingId(null)}
         onSaved={() => setEditingId(null)}
+      />
+
+      {/* Create Staff Member Drawer */}
+      <CreateUserModal
+        open={creating}
+        onClose={() => setCreating(false)}
+        onSaved={() => setCreating(false)}
       />
     </div>
   )
