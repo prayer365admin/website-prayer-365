@@ -43,7 +43,7 @@ export const DEMO_IMAGE_KEYS = {
   stJohns: 'demo/image/st-johns-church.jpeg',
   sanctuary: 'demo/image/sanctuary-banner.webp',
   signUp: 'demo/image/sign-up-banner.jpg',
-  lake: 'demo/image/devotional-lake.png',
+  lake: 'demo/image/viimsi-church-indoor.jpeg',
 } as const
 
 export const DEMO_VOICE_SAMPLE_KEY = 'demo/voice_sample/demo-voice-sample.mp3'
@@ -100,8 +100,8 @@ export const DEMO_MEDIA: DemoMediaFile[] = [
   },
   {
     key: DEMO_IMAGE_KEYS.lake,
-    file: 'images/wb3-devotional-lake.png',
-    contentType: 'image/png',
+    file: 'images/viimsi-church-indoor.jpeg',
+    contentType: 'image/jpeg',
     purpose: 'IMAGE',
   },
   {

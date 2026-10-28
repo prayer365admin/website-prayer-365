@@ -10,7 +10,7 @@ import { categoryLabels } from '@/utils/constant'
 import {
   churchDateTimeToEventInstant,
   EVENT_EDITOR_DATETIME_FORMAT,
-  eventInstantToChurchDateTime,
+  eventInstantToChurchEditorDateTime,
   eventOffsetLabel,
 } from '@/utils/event-datetime'
 import { isHttpsLink, normalizeLink } from '@/utils/link'
@@ -52,7 +52,7 @@ export default function EventForm({
         category: event.category,
         title: event.title,
         description: event.description,
-        startsAt: eventInstantToChurchDateTime(event.startsAt, timezone),
+        startsAt: eventInstantToChurchEditorDateTime(event.startsAt, timezone),
         location: event.location,
         registrationUrl: event.registrationUrl ?? undefined,
         ctaLabel: event.ctaLabel ?? undefined,

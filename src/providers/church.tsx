@@ -106,6 +106,7 @@ const mapProfile = (
     website: string | null
     social_links: unknown
     cover_asset_id: string | null
+    hero_asset_id: string | null
     version: number
     galleryItems?: Array<{
       id: string
@@ -134,6 +135,7 @@ const mapProfile = (
     website: row.website,
     socialLinks: row.social_links,
     coverAssetId: row.cover_asset_id,
+    heroAssetId: row.hero_asset_id ?? null,
     galleryItems: (row.galleryItems ?? []).map((g) => ({
       id: g.id,
       mediaAssetId: g.media_asset_id,

@@ -429,6 +429,7 @@ describe('GET_PUBLIC_CHURCH — admin profile reflected in mobile contract', () 
         imageUrl: null,
       },
     ])
+    expect(result?.pastorImageUrl).toBe('https://cdn.test/churches/c1/override.jpg')
     for (const member of result?.staff ?? []) {
       expect(member).not.toHaveProperty('email')
       expect(member).not.toHaveProperty('phone')
@@ -935,7 +936,16 @@ describe('mapPublishedPrayer (via GET_PUBLISHED_PRAYER)', () => {
       id: 'p1',
       slug: 'prayer',
       church_id: 'c1',
-      church: { name: 'Hope Church' },
+      church: {
+        name: 'Hope Church',
+        cover_asset: { object_key: 'hope-cover.jpg', purpose: 'IMAGE', status: 'READY' },
+      },
+      featured_asset_id: 'featured-1',
+      featured_asset: {
+        object_key: 'prayer-featured.jpg',
+        purpose: 'IMAGE',
+        status: 'READY',
+      },
       published_at: new Date(),
       published_version_id: 'v1',
     })
@@ -957,6 +967,9 @@ describe('mapPublishedPrayer (via GET_PUBLISHED_PRAYER)', () => {
 
     const result = await GET_PUBLISHED_PRAYER({ prayerId: 'p1' })
     expect(result).not.toBeNull()
+    expect(result?.churchCoverUrl).toBe('https://cdn.test/hope-cover.jpg')
+    expect(result?.featuredAssetId).toBe('featured-1')
+    expect(result?.featuredImageUrl).toBe('https://cdn.test/prayer-featured.jpg')
     expect(result?.audio).toBeNull()
   })
 
@@ -1292,12 +1305,14 @@ describe('church cover URLs (MB-17)', () => {
     expect(res[0].coverUrl).toBeNull()
   })
 
-  it('GET_PUBLIC_CHURCH exposes coverAssetId + coverUrl on the public profile', async () => {
+  it('GET_PUBLIC_CHURCH exposes thumbnail and dedicated hero assets', async () => {
     db.church.findFirst.mockResolvedValueOnce({
       id: 'c1',
       name: 'Grace',
       timezone: 'UTC',
       cover_asset_id: 'm1',
+      hero_asset_id: 'hero-1',
+      hero_asset: { object_key: 'media/c1/image/hero', purpose: 'IMAGE', status: 'READY' },
       churchLanguages: [],
       serviceTimes: [],
     })
@@ -1307,6 +1322,8 @@ describe('church cover URLs (MB-17)', () => {
 
     expect(res?.coverAssetId).toBe('m1')
     expect(res?.coverUrl).toBe('https://cdn.test/media/c1/image/abc')
+    expect(res?.heroAssetId).toBe('hero-1')
+    expect(res?.heroUrl).toBe('https://cdn.test/media/c1/image/hero')
   })
 })
 

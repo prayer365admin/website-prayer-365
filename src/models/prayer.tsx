@@ -22,6 +22,7 @@ export const PrayerInputSchema = z
     body: z.string().trim().min(1).max(40000),
     pastorId: z.string().uuid(),
     languageCode: z.string().trim().min(1).max(10),
+    featuredAssetId: z.string().uuid().nullish(),
   })
   .refine((value) => richTextToPlainText(value.body).length > 0, {
     message: 'Full prayer text is required.',
@@ -123,6 +124,7 @@ export const PrayerOutputSchema = z.object({
   churchId: z.string(),
   version: z.number(),
   createdAt: z.string(),
+  featuredAssetId: z.string().nullable(),
   current: PrayerVersionOutputSchema.nullable(),
   published: z.object({ prayerVersionId: z.string(), publishedAt: z.string() }).nullable(),
   scheduled: z.object({ prayerVersionId: z.string(), scheduledAt: z.string() }).nullable(),
@@ -144,6 +146,7 @@ export type PrayerOutput = {
   churchId: string
   version: number
   createdAt: string
+  featuredAssetId: string | null
   current: PrayerVersionOutput | null
   published: { prayerVersionId: string; publishedAt: string } | null
   scheduled: { prayerVersionId: string; scheduledAt: string } | null

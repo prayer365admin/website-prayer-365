@@ -296,6 +296,8 @@ const mapPublicChurch = (
     website: string | null
     social_links: unknown
     cover_asset_id: string | null
+    hero_asset_id: string | null
+    hero_asset?: { object_key: string; purpose: string; status: string } | null
     churchLanguages: { language_code: string }[]
     serviceTimes: {
       weekday: number
@@ -354,6 +356,11 @@ const mapPublicChurch = (
       ? (c.social_links as Array<{ label: string; url: string }>)
       : [],
     coverAssetId: c.cover_asset_id,
+    heroAssetId: c.hero_asset_id ?? null,
+    heroUrl:
+      c.hero_asset?.purpose === 'IMAGE' && c.hero_asset.status === 'READY'
+        ? S3_PUBLIC_URL({ key: c.hero_asset.object_key })
+        : null,
     languageCodes: (c.churchLanguages ?? []).map((l) => l.language_code),
     serviceTimes: (c.serviceTimes ?? []).map((s) => ({
       weekday: s.weekday,
@@ -365,6 +372,12 @@ const mapPublicChurch = (
     distanceKm,
     pastorName: c.pastors?.[0]?.pastor?.name ?? null,
     pastorRole: c.pastors?.[0]?.pastoral_role ?? null,
+    pastorImageUrl: c.pastors?.[0]
+      ? staffImageUrlFor(
+          c.pastors[0].image_asset?.object_key ?? null,
+          c.pastors[0].pastor.image_asset?.object_key ?? null,
+        )
+      : null,
     gallery: (c.galleryItems ?? []).map((g) => ({
       assetId: g.media_asset?.id ?? '',
       url: galleryUrlFor(g.media_asset),
@@ -554,6 +567,7 @@ const GET_PUBLIC_CHURCH_UNCACHED = async ({
           },
         },
       },
+      hero_asset: { select: { object_key: true, purpose: true, status: true } },
       org_node: {
         select: {
           parent: {
@@ -837,7 +851,12 @@ const mapPublishedPrayer = (p: {
   id: string
   slug: string
   church_id: string
-  church: { name: string }
+  church: {
+    name: string
+    cover_asset: { object_key: string; purpose: string; status: string } | null
+  }
+  featured_asset_id: string | null
+  featured_asset: { object_key: string; purpose: string; status: string } | null
   published_at: Date | null
   version: {
     id: string
@@ -865,6 +884,15 @@ const mapPublishedPrayer = (p: {
     slug: p.slug,
     churchId: p.church_id,
     churchName: p.church.name,
+    churchCoverUrl:
+      p.church.cover_asset?.purpose === 'IMAGE' && p.church.cover_asset.status === 'READY'
+        ? S3_PUBLIC_URL({ key: p.church.cover_asset.object_key })
+        : null,
+    featuredAssetId: p.featured_asset_id ?? null,
+    featuredImageUrl:
+      p.featured_asset?.purpose === 'IMAGE' && p.featured_asset.status === 'READY'
+        ? S3_PUBLIC_URL({ key: p.featured_asset.object_key })
+        : null,
     publishedAt: toIso(p.published_at) ?? '',
     version: {
       prayerVersionId: p.version.id,
@@ -909,7 +937,14 @@ const LIST_PUBLISHED_PRAYERS_UNCACHED = async ({
         id: true,
         slug: true,
         church_id: true,
-        church: { select: { name: true } },
+        featured_asset_id: true,
+        featured_asset: { select: { object_key: true, purpose: true, status: true } },
+        church: {
+          select: {
+            name: true,
+            cover_asset: { select: { object_key: true, purpose: true, status: true } },
+          },
+        },
         published_at: true,
         published_version_id: true,
       },
@@ -932,6 +967,8 @@ const LIST_PUBLISHED_PRAYERS_UNCACHED = async ({
         id: r.id,
         slug: r.slug,
         church_id: r.church_id,
+        featured_asset_id: r.featured_asset_id,
+        featured_asset: r.featured_asset,
         church: r.church,
         published_at: r.published_at,
         version: r.published_version_id
@@ -975,7 +1012,14 @@ const LIST_LATEST_PUBLISHED_PRAYERS_UNCACHED = async ({
       id: true,
       slug: true,
       church_id: true,
-      church: { select: { name: true } },
+      featured_asset_id: true,
+      featured_asset: { select: { object_key: true, purpose: true, status: true } },
+      church: {
+        select: {
+          name: true,
+          cover_asset: { select: { object_key: true, purpose: true, status: true } },
+        },
+      },
       published_at: true,
       published_version_id: true,
     },
@@ -997,6 +1041,8 @@ const LIST_LATEST_PUBLISHED_PRAYERS_UNCACHED = async ({
         id: row.id,
         slug: row.slug,
         church_id: row.church_id,
+        featured_asset_id: row.featured_asset_id,
+        featured_asset: row.featured_asset,
         church: row.church,
         published_at: row.published_at,
         version: row.published_version_id
@@ -1023,7 +1069,14 @@ export const GET_PUBLISHED_PRAYER = async ({
       id: true,
       slug: true,
       church_id: true,
-      church: { select: { name: true } },
+      featured_asset_id: true,
+      featured_asset: { select: { object_key: true, purpose: true, status: true } },
+      church: {
+        select: {
+          name: true,
+          cover_asset: { select: { object_key: true, purpose: true, status: true } },
+        },
+      },
       published_at: true,
       published_version_id: true,
     },
@@ -1040,6 +1093,8 @@ export const GET_PUBLISHED_PRAYER = async ({
     id: p.id,
     slug: p.slug,
     church_id: p.church_id,
+    featured_asset_id: p.featured_asset_id,
+    featured_asset: p.featured_asset,
     church: p.church,
     published_at: p.published_at,
     version: (version as never) ?? null,

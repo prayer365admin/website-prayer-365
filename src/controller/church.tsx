@@ -223,7 +223,10 @@ export const patchChurchProfile = async ({
   // Owned cover asset: must belong to this church and be READY (IMAGE).
   let coverAssetId: string | null = null
   if (input.coverAssetId) {
-    const asset = await GET_CHURCH_READY_IMAGE({ churchIds, assetId: input.coverAssetId })
+    const asset = await GET_CHURCH_READY_IMAGE({
+      churchIds: new Set([churchId]),
+      assetId: input.coverAssetId,
+    })
     if (!asset) {
       throw new GeneralError({
         code: 422,
@@ -236,9 +239,30 @@ export const patchChurchProfile = async ({
     coverAssetId = input.coverAssetId
   }
 
+  let heroAssetId: string | null = null
+  if (input.heroAssetId) {
+    const asset = await GET_CHURCH_READY_IMAGE({
+      churchIds: new Set([churchId]),
+      assetId: input.heroAssetId,
+    })
+    if (!asset) {
+      throw new GeneralError({
+        code: 422,
+        error: 'VALIDATION_ERROR',
+        error_code: 'INVALID_HERO_ASSET',
+        details: 'heroAssetId must be a ready image owned by this church.',
+        fields: { heroAssetId: 'Not a ready image of this church.' },
+      })
+    }
+    heroAssetId = input.heroAssetId
+  }
+
   if (input.galleryItems?.length) {
     for (const item of input.galleryItems) {
-      const asset = await GET_CHURCH_READY_IMAGE({ churchIds, assetId: item.mediaAssetId })
+      const asset = await GET_CHURCH_READY_IMAGE({
+        churchIds: new Set([churchId]),
+        assetId: item.mediaAssetId,
+      })
       if (!asset) {
         throw new GeneralError({
           code: 422,
@@ -263,6 +287,7 @@ export const patchChurchProfile = async ({
     website: input.website || null,
     social_links: input.socialLinks,
     cover_asset_id: coverAssetId,
+    hero_asset_id: heroAssetId,
   }
 
   return UPDATE_CHURCH_PROFILE({
