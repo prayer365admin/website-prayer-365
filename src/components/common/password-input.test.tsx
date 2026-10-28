@@ -22,12 +22,16 @@ describe('PasswordInput', () => {
     expect(screen.getByText('Confirm Password')).toBeTruthy()
   })
 
-  it('rejects weak password with validation message', async () => {
+  it('rejects weak password with an accurate message', async () => {
     const user = userEvent.setup()
     renderWithForm()
     await user.type(screen.getAllByPlaceholderText('Password')[0], 'weak') // [0] = password, [1] = confirm (both share placeholder)
     await user.click(screen.getByText('Submit'))
-    expect(await screen.findByText('Password only able to use numbers!')).toBeTruthy()
+    expect(
+      await screen.findByText(
+        'Password must be at least 8 characters and include an uppercase letter, a lowercase letter, a number and a symbol (@$!%*?&).',
+      ),
+    ).toBeTruthy()
   })
 
   it('rejects mismatched confirmation', async () => {
@@ -36,6 +40,6 @@ describe('PasswordInput', () => {
     await user.type(screen.getAllByPlaceholderText('Password')[0], 'Strong@123') // [0] = password field
     await user.type(screen.getAllByPlaceholderText('Password')[1], 'Strong@1234') // [1] = confirm field
     await user.click(screen.getByText('Submit'))
-    expect(await screen.findByText('The new Password that you entered do not match!')).toBeTruthy()
+    expect(await screen.findByText('Password and confirmation do not match!')).toBeTruthy()
   })
 })

@@ -7,7 +7,16 @@ import { GeneralError } from '@/utils/general-error'
 import dayjs from 'dayjs'
 import { sendMailRequest } from '@/models/send-mail'
 
-const mailProvider = process.env.MAIL_PROVIDER || 'mailtrap'
+const mailEnv = (() => {
+  if (!process.env.MAIL_CREDENTIALS) return process.env
+  try {
+    return { ...process.env, ...JSON.parse(process.env.MAIL_CREDENTIALS) }
+  } catch {
+    return process.env
+  }
+})()
+
+const mailProvider = mailEnv.MAIL_PROVIDER || 'mailtrap'
 
 /**
  * Builds the transport for one provider. `MAIL_PROVIDER` selects it, so moving
@@ -69,7 +78,7 @@ let transport: Transporter | undefined
 
 /** Built on the first send, so a bad MAIL_PROVIDER cannot break the module import. */
 function getTransport(): Transporter {
-  if (!transport) transport = createMailTransport(mailProvider)
+  if (!transport) transport = createMailTransport(mailProvider, mailEnv)
   return transport
 }
 

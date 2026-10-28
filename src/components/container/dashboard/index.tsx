@@ -1,12 +1,12 @@
 'use client'
 
+import MainBreadcrumb from '@/components/common/main-breadcrumb'
 import { Layout } from 'antd'
 import { useState } from 'react'
-import SideBar from './sider'
-import MainHeader from './header'
 import MainFooter from './footer'
-import MainBreadcrumb from '@/components/common/main-breadcrumb'
+import MainHeader from './header'
 import s from './index.module.scss'
+import SideBar from './sider'
 
 export default function MainContainer({
   children,
@@ -21,7 +21,9 @@ export default function MainContainer({
         <SideBar mobileOpen={mobileSidebarOpen} onMobileOpenChange={setMobileSidebarOpen} />
         <Layout className="min-h-screen min-w-0 !flex-col">
           <MainHeader onMenuClick={() => setMobileSidebarOpen(true)} />
-          <div className={`${s.dashboardContent} min-h-0 flex-1 overflow-y-auto bg-[#f7f9fc] p-6`}>
+          <div
+            className={`${s.dashboardContent} min-h-0 flex-1 overflow-y-auto bg-neutral-100 p-6`}
+          >
             <div className={s.mobileBreadcrumb}>
               <MainBreadcrumb />
             </div>

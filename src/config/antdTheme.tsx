@@ -57,3 +57,19 @@ export const siteFilterTheme: ThemeConfig = {
     },
   },
 }
+
+/** User management staff table theme */
+export const userMgmtTableTheme: ThemeConfig = {
+  components: {
+    Table: {
+      headerBg: '#FFFFFF',
+      rowHoverBg: '#F5F7FF',
+      borderColor: '#DDE0E4',
+      cellPaddingBlock: 16,
+    },
+    Tag: {
+      defaultBg: '#F5F7FF',
+      defaultColor: '#393E46',
+    },
+  },
+}

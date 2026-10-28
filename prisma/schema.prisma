@@ -131,6 +131,11 @@ model User {
   status            String    @default("active")
   version           Int       @default(1)
 
+  /// Last successful sign-in provider: "password" | "google". Null = never signed in.
+  last_login_provider String?
+  /// Last authenticated activity (login + throttled API access). Null = never active.
+  last_active_at      DateTime?
+
   // OPTIONAL legacy single-role ref (migration-era; assignments supersede it).
   role_id String?
   role    Role?   @relation(fields: [role_id], references: [id], name: "user_role", onDelete: Cascade, onUpdate: Cascade)

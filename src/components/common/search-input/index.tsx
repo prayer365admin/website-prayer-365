@@ -10,7 +10,9 @@ export default function SearchInput({
   loading = false,
   debounceMs = 500,
   iconPosition = 'suffix',
+  className,
 }: {
+  className?: string
   placeholder?: string
   setValue?: Dispatch<SetStateAction<string | undefined>>
   setPage: Dispatch<SetStateAction<number>>
@@ -62,7 +64,14 @@ export default function SearchInput({
     setPageSize(10)
   }
 
-  const isPrefix = iconPosition === 'prefix'
+  const searchIcon = loading ? (
+    <LoadingOutlined spin style={{ color: 'rgb(107 114 128)' }} />
+  ) : (
+    <SearchOutlined
+      style={{ color: 'rgb(107 114 128)', cursor: 'pointer' }}
+      onMouseDown={handleSubmit}
+    />
+  )
 
   return (
     <Input
@@ -70,35 +79,15 @@ export default function SearchInput({
       value={currentValue}
       onChange={handleChange}
       onPressEnter={handleSubmit}
-      prefix={
-        isPrefix ? (
-          loading ? (
-            <LoadingOutlined spin style={{ color: 'rgb(107 114 128)' }} />
-          ) : (
-            <SearchOutlined
-              style={{ color: '#0E203E', cursor: 'pointer', fontSize: 14 }}
-              onMouseDown={handleSubmit}
-            />
-          )
+      prefix={iconPosition === 'prefix' ? searchIcon : undefined}
+      suffix={
+        currentValue ? (
+          <CloseCircleFilled style={{ cursor: 'pointer' }} onMouseDown={handleReset} />
+        ) : iconPosition === 'suffix' ? (
+          searchIcon
         ) : undefined
       }
-      suffix={
-        isPrefix ? (
-          currentValue ? (
-            <CloseCircleFilled style={{ cursor: 'pointer' }} onMouseDown={handleReset} />
-          ) : null
-        ) : loading ? (
-          <LoadingOutlined spin style={{ color: 'rgb(107 114 128)' }} />
-        ) : !currentValue ? (
-          <SearchOutlined
-            style={{ color: 'rgb(107 114 128)', cursor: 'pointer' }}
-            onMouseDown={handleSubmit}
-          />
-        ) : (
-          <CloseCircleFilled style={{ cursor: 'pointer' }} onMouseDown={handleReset} />
-        )
-      }
-      className="truncate"
+      className={`truncate !h-10 !rounded-lg !border-[#DDE0E4] ${className ?? ''}`.trim()}
     />
   )
 }

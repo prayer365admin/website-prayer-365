@@ -37,6 +37,7 @@ export async function GET(req: NextRequest) {
       allowOrderBy: ['created_at', 'name', 'email'],
     })
     const role = searchParams.get('role') ?? undefined
+    const status = searchParams.get('status') ?? undefined
     const result = await GET_USERS({
       limit,
       page,
@@ -44,6 +45,7 @@ export async function GET(req: NextRequest) {
       order_direction,
       search,
       role,
+      status,
     })
 
     const safeResult = (result.result as Array<Record<string, unknown>>).map((r) => protect(r))
@@ -58,6 +60,7 @@ const createUserSchema = z.object({
   name: z.string().min(1),
   password: z.string().min(8),
   role_id: z.string().min(1).optional(),
+  profile_picture: z.string().min(1).optional(),
 })
 
 export async function POST(req: NextRequest) {
