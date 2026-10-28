@@ -148,7 +148,9 @@ export default function FormChurchProfileTabs({
     countryCode?: string
   }
   const contacts = (initialValues.contacts ?? {}) as { email?: string; phone?: string }
-  const socialLinks = (initialValues.socialLinks ?? []) as Array<{ label: string; url: string }>
+  const socialLinks = Array.isArray(initialValues.socialLinks)
+    ? (initialValues.socialLinks as Array<{ label: string; url: string }>)
+    : []
 
   const handleSubmit = async () => {
     // @ts-expect-error schedule is part of the form values but not the profile input type
@@ -361,9 +363,7 @@ export default function FormChurchProfileTabs({
               </Form.Item>
             </Col>
           </Row>
-          <Form.Item name={'socialLinks'} label="Social links (optional)">
-            {/* The model allows social links as an array of {label, url}, but a simple representation could be complex without Form.List. We'll use Form.List for this properly, or just leave it for now based on the plan text. Plan says `<Input placeholder="Optional links" />` which won't map perfectly to the object array without custom transform, but let's see. Wait, plan actually specifies: `<Form.Item name={'socialLinks'} label="Social links (optional)"><Input placeholder="Optional links" /></Form.Item>`. For arrays of objects, standard Input won't work well on send, but we'll stick to the plan for UI and fix payload later if needed. Actually I'll implement Form.List since it's `socialLinks: {label, url}[]`. But to keep it simple, I'll follow plan initially, maybe refine. Actually, the form payload expects `Array<{label, url}>`. So if we have an Input, validateFields will produce a string. We should probably use `Form.List` or ignore the mismatch if the backend accepts string (it doesn't, it strictly wants array of objects). Let's use `Form.List`. */}
-            {/* Wait, to stick exactly to plan, I will just use Form.List for correctness. */}
+          <Form.Item label="Social links (optional)">
             <Form.List name={'socialLinks'}>
               {(fields, { add, remove }) => (
                 <>

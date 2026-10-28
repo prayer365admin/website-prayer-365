@@ -52,7 +52,7 @@ export default function ContentsCentralChurches() {
   return (
     <>
       <Breadcrumb
-        className="mb-4 [&_.ant-breadcrumb-link]:!text-xs [&_.ant-breadcrumb-link]:!text-neutral-600 [&_.ant-breadcrumb-link_a]:!text-xs [&_.ant-breadcrumb-link_a]:!text-neutral-600 [&_.ant-breadcrumb-separator]:!text-xs [&_.ant-breadcrumb-separator]:!text-neutral-600"
+        className="mb-4 [&_ol]:!flex [&_ol]:!items-center [&_.ant-breadcrumb-item]:!inline-flex [&_.ant-breadcrumb-item]:!items-center [&_.ant-breadcrumb-separator]:!inline-flex [&_.ant-breadcrumb-separator]:!items-center [&_.ant-breadcrumb-link]:!inline-flex [&_.ant-breadcrumb-link]:!items-center [&_.ant-breadcrumb-link]:!text-xs [&_.ant-breadcrumb-link]:!text-neutral-600 [&_.ant-breadcrumb-link_a]:!text-xs [&_.ant-breadcrumb-link_a]:!text-neutral-600 [&_.ant-breadcrumb-separator]:!text-xs [&_.ant-breadcrumb-separator]:!text-neutral-600"
         items={[
           {
             title: <Link href="/dashboard">Home</Link>,
@@ -63,7 +63,7 @@ export default function ContentsCentralChurches() {
         ]}
       />
 
-      <div className="flex justify-between items-start mb-6 gap-4">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
         <div className="flex flex-col gap-1">
           <h1 className="text-2xl font-semibold text-primary-900 m-0 leading-tight">
             Church administration
@@ -73,11 +73,13 @@ export default function ContentsCentralChurches() {
             invisible to the public app until it is approved.
           </p>
         </div>
-        <div className="shrink-0">
+        <div className="shrink-0 w-full sm:w-auto">
           <AddButton
             label="New Church"
+            loading={isCreating}
             onClick={() => setIsCreating(true)}
             permissionSubject="prayer_church"
+            className="w-full sm:w-auto flex items-center justify-start sm:justify-end mb-0 [&_.ant-btn]:w-full sm:[&_.ant-btn]:w-auto"
           />
         </div>
       </div>

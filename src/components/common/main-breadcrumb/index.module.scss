@@ -28,4 +28,10 @@
     display: inline-flex;
     align-items: center;
   }
+
+  :global(.ant-breadcrumb-separator) {
+    display: inline-flex;
+    align-items: center;
+    transform: translateY(2px);
+  }
 }

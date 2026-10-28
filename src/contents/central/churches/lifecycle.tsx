@@ -17,9 +17,14 @@ export const LIFECYCLE: Record<
     label: 'Suspend',
     effect: 'The church keeps its data but stops being publicly available.',
   },
+  unsuspend: {
+    label: 'Unsuspend',
+    effect: 'The church becomes publicly available again and can publish content.',
+  },
   archive: {
     label: 'Archive',
-    effect: 'The church is archived, not deleted: it stays in this list and leaves the app.',
+    effect:
+      'Archiving removes this church from the public app. Its historical data, records, and reports remain preserved in the dashboard.',
     danger: true,
   },
 }

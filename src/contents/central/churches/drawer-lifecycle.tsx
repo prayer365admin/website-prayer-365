@@ -60,6 +60,15 @@ export default function DrawerLifecycle({
                     Suspend
                   </Button>
                 )}
+                {church.status === 'SUSPENDED' && (
+                  <Button
+                    className="bg-[#e6edfb] text-[#2555a7] text-sm font-semibold border-none rounded-lg h-10 px-4 hover:!bg-[#d7e4fa] hover:!text-[#1d4486]"
+                    disabled={saving}
+                    onClick={() => runLifecycle('unsuspend')}
+                  >
+                    Unsuspend
+                  </Button>
+                )}
                 {church.status === 'PENDING' && (
                   <Button disabled={saving} onClick={() => runLifecycle('approve')}>
                     Approve
@@ -100,12 +109,14 @@ export default function DrawerLifecycle({
           </div>
         </div>
 
-        {church.status === 'APPROVED' && (
+        {(church.status === 'APPROVED' || church.status === 'SUSPENDED') && (
           <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-[#f9f9fa] text-[#2555a7] text-xs font-normal leading-relaxed">
             <ExclamationCircleFilled className="text-sm text-[#2555a7] shrink-0" />
             <span>
-              Approved on {church.approvedAt ? new Date(church.approvedAt).toLocaleString() : '—'}.
-              Archive is not deletion: the record stays for reporting.
+              {church.approvedAt
+                ? `Approved on ${new Date(church.approvedAt).toLocaleString()}.`
+                : ''}{' '}
+              Archiving removes the church from public access while preserving all records.
             </span>
           </div>
         )}

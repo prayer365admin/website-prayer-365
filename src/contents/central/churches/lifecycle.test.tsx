@@ -15,9 +15,15 @@ describe('lifecycle', () => {
     )
     expect(LIFECYCLE.suspend.danger).toBeUndefined()
 
+    expect(LIFECYCLE.unsuspend.label).toBe('Unsuspend')
+    expect(LIFECYCLE.unsuspend.effect).toBe(
+      'The church becomes publicly available again and can publish content.',
+    )
+    expect(LIFECYCLE.unsuspend.danger).toBeUndefined()
+
     expect(LIFECYCLE.archive.label).toBe('Archive')
     expect(LIFECYCLE.archive.effect).toBe(
-      'The church is archived, not deleted: it stays in this list and leaves the app.',
+      'Archiving removes this church from the public app. Its historical data, records, and reports remain preserved in the dashboard.',
     )
     expect(LIFECYCLE.archive.danger).toBe(true)
   })

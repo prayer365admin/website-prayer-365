@@ -127,11 +127,11 @@ const formClasses =
   '[&_.ant-input:not(.ant-input-affix-wrapper_.ant-input)]:!rounded-lg ' +
   '[&_.ant-input:not(textarea):not(.ant-input-affix-wrapper_.ant-input)]:!h-11 ' +
   '[&_.ant-input:not(textarea):not(.ant-input-affix-wrapper_.ant-input)]:!px-3.5 ' +
-  '[&_.ant-input-affix-wrapper_.ant-input]:!h-full ' +
-  '[&_.ant-input-affix-wrapper_.ant-input]:!border-0 ' +
-  '[&_.ant-input-affix-wrapper_.ant-input]:!p-0 ' +
-  '[&_.ant-input-affix-wrapper_.ant-input]:!shadow-none ' +
-  '[&_.ant-input-affix-wrapper_.ant-input]:!bg-transparent ' +
+  '[&_.ant-input-affix-wrapper:not(.ant-input-textarea-affix-wrapper)_.ant-input]:!h-full ' +
+  '[&_.ant-input-affix-wrapper:not(.ant-input-textarea-affix-wrapper)_.ant-input]:!border-0 ' +
+  '[&_.ant-input-affix-wrapper:not(.ant-input-textarea-affix-wrapper)_.ant-input]:!p-0 ' +
+  '[&_.ant-input-affix-wrapper:not(.ant-input-textarea-affix-wrapper)_.ant-input]:!shadow-none ' +
+  '[&_.ant-input-affix-wrapper:not(.ant-input-textarea-affix-wrapper)_.ant-input]:!bg-transparent ' +
   '[&_.ant-select]:!w-full ' +
   '[&_.ant-select-selector]:!h-11 ' +
   '[&_.ant-select-selector]:!rounded-lg ' +
@@ -144,9 +144,15 @@ const formClasses =
   '[&_.ant-select-selection-placeholder]:!text-sm ' +
   '[&_.ant-select-selection-placeholder]:!text-[#8f96a3] ' +
   '[&_.ant-select-selection-placeholder]:!leading-[42px] ' +
-  '[&_.ant-input-textarea_.ant-input]:!p-3.5 ' +
-  '[&_.ant-input-textarea_.ant-input]:!rounded-lg ' +
-  '[&_.ant-input-textarea_.ant-input]:!border-[#64748b]'
+  '[&_textarea.ant-input]:!p-3.5 ' +
+  '[&_textarea.ant-input]:!text-sm ' +
+  '[&_textarea.ant-input]:!text-neutral-900 ' +
+  '[&_.ant-input-textarea-affix-wrapper]:!rounded-lg ' +
+  '[&_.ant-input-textarea-affix-wrapper]:!border-[#64748b] ' +
+  '[&_.ant-input-textarea-affix-wrapper]:hover:!border-primary-500 ' +
+  '[&_.ant-input-textarea-affix-wrapper]:focus-within:!border-primary-500 ' +
+  '[&_.ant-input-textarea-affix-wrapper]:focus-within:!shadow-none ' +
+  '[&_.ant-input-data-count]:!px-3.5 [&_.ant-input-data-count]:!pb-2'
 
 type SetupValues = {
   name: string
@@ -458,39 +464,40 @@ export function ChurchSetupForm({ churchId, onClose, isDrawer = false }: ChurchS
       <ConfigProvider theme={churchFormTheme}>
         <div className="flex flex-col h-full bg-white">
           <div className="flex flex-col gap-3 px-6 pt-5 pb-4 border-b border-neutral-200 bg-white shrink-0">
-            <div className="flex justify-between items-start gap-3">
-              <div className="flex flex-col gap-2 min-w-0 items-start">
+            <div className="grid grid-cols-[1fr_auto] sm:flex sm:justify-between sm:items-start gap-3">
+              <div className="col-start-1 flex flex-col gap-1.5 min-w-0 items-start">
                 {data && <ChurchStatusTag status={data.status} />}
-                <h2 className="text-base font-semibold text-primary-900 m-0 truncate">
+                <h2 className="text-base font-semibold text-primary-900 m-0 truncate w-full">
                   {data?.name ?? 'Church setup'}
                 </h2>
               </div>
-              <div className="flex items-center gap-2 shrink-0">
-                {data && (
-                  <>
-                    <Link href={`/dashboard/churches/${data.id}/profile`}>
-                      <Button className="h-8 rounded-lg text-xs font-semibold text-primary-500 border-primary-500 hover:!text-primary-700 hover:!border-primary-700">
-                        Full Profile
-                      </Button>
-                    </Link>
-                    <Link href="/dashboard/central/pastors">
-                      <Button className="h-8 rounded-lg text-xs font-semibold text-primary-500 border-primary-500 hover:!text-primary-700 hover:!border-primary-700">
-                        Manage Pastors
-                      </Button>
-                    </Link>
-                  </>
-                )}
-                {onClose && (
-                  <button
-                    type="button"
-                    className="w-8 h-8 rounded-lg inline-flex items-center justify-center text-primary-500 border border-primary-500 hover:text-primary-700 hover:border-primary-700 bg-transparent cursor-pointer p-0"
-                    onClick={onClose}
-                    aria-label="Close drawer"
+              {onClose && (
+                <button
+                  type="button"
+                  className="col-start-2 sm:order-3 w-8 h-8 rounded-lg inline-flex items-center justify-center text-primary-500 border border-primary-500 hover:text-primary-700 hover:border-primary-700 bg-transparent cursor-pointer p-0 shrink-0"
+                  onClick={onClose}
+                  aria-label="Close drawer"
+                >
+                  <CloseOutlined />
+                </button>
+              )}
+              {data && (
+                <div className="col-span-2 sm:order-2 flex items-center gap-2 shrink-0 flex-wrap sm:flex-nowrap w-full sm:w-auto">
+                  <Link
+                    href={`/dashboard/churches/${data.id}/profile`}
+                    className="flex-1 sm:flex-initial"
                   >
-                    <CloseOutlined />
-                  </button>
-                )}
-              </div>
+                    <Button className="w-full sm:w-auto h-8 rounded-lg text-xs font-semibold text-primary-500 border-primary-500 hover:!text-primary-700 hover:!border-primary-700">
+                      Full Profile
+                    </Button>
+                  </Link>
+                  <Link href="/dashboard/central/pastors" className="flex-1 sm:flex-initial">
+                    <Button className="w-full sm:w-auto h-8 rounded-lg text-xs font-semibold text-primary-500 border-primary-500 hover:!text-primary-700 hover:!border-primary-700">
+                      Manage Pastors
+                    </Button>
+                  </Link>
+                </div>
+              )}
             </div>
           </div>
 

@@ -72,7 +72,7 @@ describe('DrawerLifecycle', () => {
     expect(screen.queryByRole('button', { name: 'Approve' })).toBeNull()
     expect(screen.getByRole('button', { name: /archive/i })).toBeTruthy()
     expect(screen.getByText(/Approved on/)).toBeTruthy()
-    expect(screen.getByText(/Archive is not deletion/)).toBeTruthy()
+    expect(screen.getByText(/Archiving removes the church/)).toBeTruthy()
   })
 
   it('renders footer for PENDING church: Approve and Delete church visible, Suspend absent', () => {
@@ -100,6 +100,18 @@ describe('DrawerLifecycle', () => {
     expect(screen.queryByRole('button', { name: 'Delete church' })).toBeNull()
   })
 
+  it('renders footer for SUSPENDED church: Unsuspend visible, Suspend and Approve absent', () => {
+    const onLifecycle = vi.fn()
+    renderWithProviders(
+      <DrawerLifecycle church={makeChurch({ status: 'SUSPENDED' })} onLifecycle={onLifecycle} />,
+    )
+
+    expect(screen.getByRole('button', { name: 'Unsuspend' })).toBeTruthy()
+    expect(screen.queryByRole('button', { name: 'Suspend' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Approve' })).toBeNull()
+    expect(screen.getByRole('button', { name: /archive/i })).toBeTruthy()
+  })
+
   it('triggers onLifecycle with suspend action after modal confirm', async () => {
     const user = userEvent.setup()
     const onLifecycle = vi.fn().mockResolvedValue(undefined)
@@ -119,6 +131,28 @@ describe('DrawerLifecycle', () => {
     await user.click(within(dialog).getByRole('button', { name: 'Suspend' }))
     await waitFor(() => {
       expect(onLifecycle).toHaveBeenCalledWith({ action: 'suspend', version: 2 })
+    })
+  })
+
+  it('triggers onLifecycle with unsuspend action after modal confirm', async () => {
+    const user = userEvent.setup()
+    const onLifecycle = vi.fn().mockResolvedValue(undefined)
+    renderWithProviders(
+      <DrawerLifecycle
+        church={makeChurch({ status: 'SUSPENDED', version: 2 })}
+        onLifecycle={onLifecycle}
+      />,
+    )
+
+    const unsuspendBtn = screen.getByRole('button', { name: 'Unsuspend' })
+    await user.click(unsuspendBtn)
+
+    const dialog = await screen.findByRole('dialog')
+    expect(within(dialog).getByText(/becomes publicly available again/)).toBeTruthy()
+
+    await user.click(within(dialog).getByRole('button', { name: 'Unsuspend' }))
+    await waitFor(() => {
+      expect(onLifecycle).toHaveBeenCalledWith({ action: 'unsuspend', version: 2 })
     })
   })
 })
