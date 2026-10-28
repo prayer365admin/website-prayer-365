@@ -3,6 +3,7 @@
 import DashboardMainHeader from '@/components/common/dashboard/main-header'
 import SearchInput from '@/components/common/search-input'
 import { usePastors } from '@/hooks/data/central'
+import { useUrlPagination } from '@/hooks/ui/url-pagination'
 import { Alert, Col, Row, Select, Table, TablePaginationConfig } from 'antd'
 import { useState } from 'react'
 import { PastorColumns } from './columns'
@@ -15,8 +16,7 @@ export default function ContentsPastor() {
   })
   const [assignment, setAssignment] = useState<'assigned' | 'unassigned' | undefined>()
   const [staffAssignment, setStaffAssignment] = useState<'assigned' | 'unassigned' | undefined>()
-  const [page, setPage] = useState(1)
-  const [pageSize, setPageSize] = useState(10)
+  const { page, pageSize, setPage, setPageSize } = useUrlPagination()
 
   const { data, total, loading, error, onDelete } = usePastors({
     search: searchValue,

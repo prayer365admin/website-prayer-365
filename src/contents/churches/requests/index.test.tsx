@@ -84,7 +84,9 @@ describe('ContentsChurchRequests (S10)', () => {
   it('switching tabs writes the tab to the URL', async () => {
     renderWithProviders(<ContentsChurchRequests churchId="c1" />)
     await userEvent.click(screen.getByRole('tab', { name: 'Pastoral / Meeting requests' }))
-    expect(replaceMock).toHaveBeenCalledWith(expect.stringContaining('?tab=pastoral'))
+    expect(replaceMock).toHaveBeenCalledWith(expect.stringContaining('?tab=pastoral'), {
+      scroll: false,
+    })
   })
 
   it('renders classification labels and opens the detail from the action icon', async () => {

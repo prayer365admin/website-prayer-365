@@ -5,7 +5,15 @@ import { ACTION_COLUMN_WIDTH, ADDITIONAL_COLUMN_CONFIG, ID_COLUMN_WIDTH } from '
 import { TableProps, Tag } from 'antd'
 import { useRouter } from 'next/navigation'
 
-export const RoleColumns = ({ onDelete }: { onDelete: (id: string) => void }) => {
+export const RoleColumns = ({
+  onDelete,
+  page,
+  pageSize,
+}: {
+  onDelete: (id: string) => void
+  page: number
+  pageSize: number
+}) => {
   const router = useRouter()
   const permission = useAccessPermission()
   const havePermission =
@@ -17,7 +25,8 @@ export const RoleColumns = ({ onDelete }: { onDelete: (id: string) => void }) =>
       key: 'no',
       title: 'No.',
       width: ID_COLUMN_WIDTH,
-      render: (_text, _record, index) => (index + 1).toString().padStart(2, '0'),
+      render: (_text, _record, index) =>
+        (index + 1 + (page - 1) * pageSize).toString().padStart(2, '0'),
     },
     { key: 'name', dataIndex: 'name', title: 'Name', render: (text) => text },
     {

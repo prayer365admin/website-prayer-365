@@ -5,6 +5,7 @@ import SearchInput from '@/components/common/search-input'
 import { useAccessPermission } from '@/hooks/data/access-permission'
 import { useChurch, useChurchProfile } from '@/hooks/data/church'
 import { useEvents } from '@/hooks/data/event'
+import { useUrlPagination } from '@/hooks/ui/url-pagination'
 import {
   EventCategory,
   EventCategorySchema,
@@ -36,8 +37,7 @@ export default function ContentsChurchEvents({ churchId }: { churchId: string })
   const [hasLink, setHasLink] = useState<'yes' | 'no'>()
   const [startsFrom, setStartsFrom] = useState<string>()
   const [startsTo, setStartsTo] = useState<string>()
-  const [page, setPage] = useState(1)
-  const [pageSize, setPageSize] = useState(10)
+  const { page, pageSize, setPage, setPageSize } = useUrlPagination()
   const [orderDirection, setOrderDirection] = useState<'asc' | 'desc'>('desc')
   const [editorOpen, setEditorOpen] = useState(false)
   const [editingEventId, setEditingEventId] = useState<string>()

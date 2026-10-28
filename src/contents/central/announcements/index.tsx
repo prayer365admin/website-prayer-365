@@ -4,6 +4,7 @@ import DashboardMainHeader from '@/components/common/dashboard/main-header'
 import SearchInput from '@/components/common/search-input'
 import { useAccessPermission } from '@/hooks/data/access-permission'
 import { useAnnouncementActions, useCentralAnnouncements } from '@/hooks/data/announcement'
+import { useUrlPagination } from '@/hooks/ui/url-pagination'
 import { AnnouncementListItem, AnnouncementStatus } from '@/models/announcement'
 import { ANNOUNCEMENT_STATUS, announcementStatusLabels } from '@/utils/constant'
 import { EVENT_EDITOR_DATETIME_FORMAT } from '@/utils/event-datetime'
@@ -20,8 +21,7 @@ export default function ContentsCentralAnnouncements() {
   const [status, setStatus] = useState<AnnouncementStatus>()
   // Churches span timezones, so the range is picked in the viewer's local time.
   const [publishedRange, setPublishedRange] = useState<[Dayjs | null, Dayjs | null] | null>(null)
-  const [page, setPage] = useState(1)
-  const [pageSize, setPageSize] = useState(10)
+  const { page, pageSize, setPage, setPageSize } = useUrlPagination()
   const [orderBy, setOrderBy] = useState<(typeof SORTABLE)[number]>('created_at')
   const [orderDirection, setOrderDirection] = useState<'asc' | 'desc'>('desc')
 

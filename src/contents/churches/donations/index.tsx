@@ -7,6 +7,7 @@ import dayjs, { Dayjs } from 'dayjs'
 import DashboardMainHeader from '@/components/common/dashboard/main-header'
 import { useAccessPermission } from '@/hooks/data/access-permission'
 import { useDonations, useDonationSubscriptions, useDonationSummary } from '@/hooks/data/donation'
+import { useUrlPagination } from '@/hooks/ui/url-pagination'
 
 import {
   MonthlySummaryColumns,
@@ -27,11 +28,18 @@ export default function ContentsChurchDonations({ churchId }: { churchId: string
   const [customRange, setCustomRange] = useState<[Dayjs | null, Dayjs | null] | null>(null)
   const [selectedCurrency, setSelectedCurrency] = useState<string | undefined>()
 
-  const [txPage, setTxPage] = useState(1)
-  const [txPageSize, setTxPageSize] = useState(10)
-
-  const [recPage, setRecPage] = useState(1)
-  const [recPageSize, setRecPageSize] = useState(10)
+  const {
+    page: txPage,
+    pageSize: txPageSize,
+    setPage: setTxPage,
+    setPageSize: setTxPageSize,
+  } = useUrlPagination({ pageParam: 'transactions_page', pageSizeParam: 'transactions_limit' })
+  const {
+    page: recPage,
+    pageSize: recPageSize,
+    setPage: setRecPage,
+    setPageSize: setRecPageSize,
+  } = useUrlPagination({ pageParam: 'recurring_page', pageSizeParam: 'recurring_limit' })
 
   // Derive dates
   let from: string | undefined

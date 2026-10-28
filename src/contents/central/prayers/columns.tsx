@@ -7,15 +7,20 @@ export type CentralPrayerRow = PrayerOutput & { churchName: string }
 
 export const CentralPrayerColumns = ({
   onOpen,
+  page,
+  pageSize,
 }: {
   onOpen: (churchId: string, prayerId: string) => void
+  page: number
+  pageSize: number
 }) => {
   const column: TableProps<CentralPrayerRow>['columns'] = [
     {
       key: 'no',
       title: 'No.',
       width: ID_COLUMN_WIDTH,
-      render: (_text, _record, index) => (index + 1).toString().padStart(2, '0'),
+      render: (_text, _record, index) =>
+        (index + 1 + (page - 1) * pageSize).toString().padStart(2, '0'),
     },
     {
       key: 'church',

@@ -4,7 +4,7 @@ import { ok, list, httpError, requestId } from '@/utils/response'
 import { registerPath } from '@/utils/openapi'
 import { GeneralError } from '@/utils/general-error'
 import { validate } from '@/utils/validate'
-import { parseSearchParams } from '@/utils/parse-search-params'
+import { parseListQuery } from '@/utils/pagination'
 import requiredAuth from '@/utils/required-auth'
 import { z } from 'zod'
 import { NextRequest } from 'next/server'
@@ -18,8 +18,6 @@ function protect<T extends PasswordShaped>(row: T): Omit<T, 'password'> {
 
 export async function GET(req: NextRequest) {
   const searchParams = req.nextUrl.searchParams
-  const { limit, order_by, order_direction, page, search } = parseSearchParams(searchParams)
-  const role = searchParams.get('role') ?? undefined
 
   try {
     const { permission } = await requiredAuth(req)
@@ -35,6 +33,10 @@ export async function GET(req: NextRequest) {
       )
     }
 
+    const { limit, order_by, order_direction, page, search } = parseListQuery(searchParams, {
+      allowOrderBy: ['created_at', 'name', 'email'],
+    })
+    const role = searchParams.get('role') ?? undefined
     const result = await GET_USERS({
       limit,
       page,
@@ -45,7 +47,7 @@ export async function GET(req: NextRequest) {
     })
 
     const safeResult = (result.result as Array<Record<string, unknown>>).map((r) => protect(r))
-    return list(safeResult, result.total, page ?? 1, limit ?? 25, 'Successfully get all users')
+    return list(safeResult, result.total, page, limit, 'Successfully get all users')
   } catch (error) {
     return httpError(error)
   }

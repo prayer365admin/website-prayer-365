@@ -2,14 +2,13 @@ import { GET_CUSTOMERS } from '@/providers/user'
 import { list, httpError } from '@/utils/response'
 import { registerPath } from '@/utils/openapi'
 import { GeneralError } from '@/utils/general-error'
-import { parseSearchParams } from '@/utils/parse-search-params'
+import { parseListQuery } from '@/utils/pagination'
 import requiredAuth from '@/utils/required-auth'
 import { z } from 'zod'
 import { NextRequest } from 'next/server'
 
 export async function GET(req: NextRequest) {
   const searchParams = req.nextUrl.searchParams
-  const { limit, order_by, order_direction, page, search } = parseSearchParams(searchParams)
 
   try {
     const { permission } = await requiredAuth(req)
@@ -25,6 +24,9 @@ export async function GET(req: NextRequest) {
       )
     }
 
+    const { limit, order_by, order_direction, page, search } = parseListQuery(searchParams, {
+      allowOrderBy: ['created_at', 'name', 'email'],
+    })
     const result = await GET_CUSTOMERS({
       limit,
       page,
@@ -33,13 +35,7 @@ export async function GET(req: NextRequest) {
       search,
     })
 
-    return list(
-      result.result,
-      result.total,
-      page ?? 1,
-      limit ?? 25,
-      'Successfully get all customers',
-    )
+    return list(result.result, result.total, page, limit, 'Successfully get all customers')
   } catch (error) {
     return httpError(error)
   }

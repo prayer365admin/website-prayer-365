@@ -4,6 +4,7 @@ import DashboardMainHeader from '@/components/common/dashboard/main-header'
 import SearchInput from '@/components/common/search-input'
 import { useAccessPermission } from '@/hooks/data/access-permission'
 import { useCentralChurchList } from '@/hooks/data/central'
+import { useUrlPagination } from '@/hooks/ui/url-pagination'
 import { ChurchListItem } from '@/models/central-church'
 import type { ChurchStatus } from '@prisma/client'
 import { Alert, Col, Empty, Row, Select, Table, TablePaginationConfig } from 'antd'
@@ -23,8 +24,7 @@ const STATUSES = Object.keys(CHURCH_STATUS_LABELS) as ChurchStatus[]
 export default function ContentsCentralChurches() {
   const [search, setSearch] = useState<string>()
   const [status, setStatus] = useState<ChurchStatus>()
-  const [page, setPage] = useState(1)
-  const [pageSize, setPageSize] = useState(10)
+  const { page, pageSize, setPage, setPageSize } = useUrlPagination()
   const [purgeTarget, setPurgeTarget] = useState<ChurchListItem>()
 
   const router = useRouter()

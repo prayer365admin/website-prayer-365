@@ -90,6 +90,23 @@ describe('GET /api/v1/users', () => {
       search: 'jo',
     })
   })
+
+  it('caps page size without capping the page number and rejects unsafe sort fields', async () => {
+    vi.mocked(requiredAuth).mockResolvedValue(makeAuth(true) as never)
+    vi.mocked(GET_USERS).mockResolvedValue({ result: [], total: 0 } as never)
+
+    const clamped = await GET(
+      new NextRequest('http://localhost/api/v1/users?page=999999999999&limit=999999'),
+    )
+    expect(clamped?.status).toBe(200)
+    expect(GET_USERS).toHaveBeenCalledWith(
+      expect.objectContaining({ page: 999999999999, limit: 100 }),
+    )
+
+    const rejected = await GET(new NextRequest('http://localhost/api/v1/users?order_by=password'))
+    expect(rejected?.status).toBe(400)
+    expect((await rejected?.json()).error_code).toBe('INVALID_ORDER_BY')
+  })
 })
 
 describe('POST /api/v1/users', () => {
