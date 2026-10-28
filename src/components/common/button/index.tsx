@@ -49,6 +49,36 @@ const desktopSizes: Record<SiteButtonSize, string> = {
   xs: 'md:h-8 md:px-3 md:py-0 md:text-xs',
 }
 
+/**
+ * antd styles every `a` (`:where(…) a`, `a:hover`) with its own link color,
+ * which beats single-class utilities on a `<Link>`. These `!` states keep a
+ * link-as-button looking exactly like the real button on hover.
+ */
+const linkStates: Record<SiteButtonVariant, string> = {
+  solid: '!text-white hover:!border-primary-700 hover:!bg-primary-700 hover:!text-white',
+  outlined: '!text-primary-500 hover:!bg-primary-500 hover:!text-white',
+}
+
+/**
+ * The button's classes. `asLink` adds the `!` states needed when the element is
+ * a `<Link>` (see `linkStates`).
+ */
+export function siteButtonClassName({
+  variant = 'solid',
+  size = 'lg',
+  desktopSize,
+  className = '',
+  asLink = false,
+}: {
+  variant?: SiteButtonVariant
+  size?: SiteButtonSize
+  desktopSize?: SiteButtonSize
+  className?: string
+  asLink?: boolean
+}) {
+  return `${base} ${variants[variant]} ${asLink ? linkStates[variant] : ''} ${sizes[size]} ${desktopSize ? desktopSizes[desktopSize] : ''} ${className}`
+}
+
 export default function SiteButton({
   variant = 'solid',
   size = 'lg',
@@ -77,7 +107,7 @@ export default function SiteButton({
   return (
     <button
       aria-busy={loading || undefined}
-      className={`${base} ${variants[variant]} ${sizes[size]} ${desktopSize ? desktopSizes[desktopSize] : ''} ${className}`}
+      className={siteButtonClassName({ variant, size, desktopSize, className })}
       disabled={disabled || loading}
       type={type}
       {...rest}

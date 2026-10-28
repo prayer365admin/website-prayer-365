@@ -68,7 +68,7 @@ async function main() {
   await seedConsents()
   await seedVoiceProfiles()
 
-  // 7. Prayers, each with an approved audio asset (fails loudly if not).
+  // 7. Demo prayers, each with an approved audio asset (fails loudly if not).
   await seedChurchPrayers()
   await seedVoiceActivations()
 
