@@ -14,6 +14,8 @@ Table user {
   version Int [not null, default: 1]
   last_login_provider String [note: 'Last successful sign-in provider: "password" | "google". Null = never signed in.']
   last_active_at DateTime [note: 'Last authenticated activity (login + throttled API access). Null = never active.']
+  profile_asset_id String [note: 'Staff avatar as a media asset (USER_AVATAR). Legacy `profile_picture` stays readable.']
+  profile_asset media_assets
   role_id String
   role role
   locale String
@@ -420,8 +422,8 @@ Table voice_profile_samples {
 
 Table media_assets {
   id String [pk]
-  church_id String [not null]
-  church churches [not null]
+  church_id String [note: 'Church scope. NULL only for user-scoped purposes (USER_AVATAR).']
+  church churches
   object_key String [unique, not null]
   purpose MediaPurpose [not null]
   mime_type String [not null]
@@ -432,6 +434,7 @@ Table media_assets {
   uploader user
   coverOf churches [not null]
   heroOf churches [not null]
+  avatarOf user [not null]
   featuredPrayerOf prayers [not null]
   pastorProfiles pastors [not null]
   pastorImages church_pastors [not null]
@@ -755,6 +758,7 @@ Enum MediaPurpose {
   VOICE_SAMPLE
   CONSENT_EVIDENCE
   GENERATED_AUDIO
+  USER_AVATAR
 }
 
 Enum MediaStatus {
@@ -788,6 +792,8 @@ Enum JobState {
   SUCCEEDED
   FAILED
 }
+
+Ref: user.profile_asset_id - media_assets.id [delete: Set Null]
 
 Ref: user.role_id > role.id [delete: Cascade]
 
@@ -889,7 +895,7 @@ Ref: voice_profile_samples.asset_id > media_assets.id
 
 Ref: media_assets.church_id - churches.id
 
-Ref: media_assets.uploaded_by > user.id
+Ref: media_assets.uploaded_by - user.id
 
 Ref: church_gallery_items.church_id > churches.id [delete: Cascade]
 

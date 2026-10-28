@@ -17,11 +17,17 @@ export const MediaPurposeSchema = z.enum([
   'VOICE_SAMPLE',
   'CONSENT_EVIDENCE',
   'GENERATED_AUDIO',
+  'USER_AVATAR',
 ])
 export type MediaPurpose = z.infer<typeof MediaPurposeSchema>
 
 /** Purposes a client may request an upload for (GENERATED_AUDIO is worker-only). */
-export const ClientUploadPurposeSchema = z.enum(['IMAGE', 'VOICE_SAMPLE', 'CONSENT_EVIDENCE'])
+export const ClientUploadPurposeSchema = z.enum([
+  'IMAGE',
+  'VOICE_SAMPLE',
+  'CONSENT_EVIDENCE',
+  'USER_AVATAR',
+])
 export type ClientUploadPurpose = z.infer<typeof ClientUploadPurposeSchema>
 
 export const MediaStatusSchema = z.enum(['PENDING', 'READY', 'REJECTED'])
@@ -40,10 +46,15 @@ export const MediaUploadInputSchema = z
   .strict()
 export type MediaUploadInput = z.infer<typeof MediaUploadInputSchema>
 
-/** Global /uploads request body — churchId is the entity context (SPEC §10.4). */
+/**
+ * Global /uploads request body — churchId is the entity context (SPEC §10.4).
+ * It is OPTIONAL only because `USER_AVATAR` is user-scoped; the controller
+ * enforces "churchId required for every other purpose" (kept out of the schema
+ * so the registered OpenAPI body stays a plain object).
+ */
 export const MediaUploadBodySchema = z
   .object({
-    churchId: z.string().min(1),
+    churchId: z.string().min(1).optional(),
     purpose: ClientUploadPurposeSchema,
     mimeType: z.string().trim().min(1).max(100),
     byteSize: z
@@ -71,6 +82,10 @@ export const MEDIA_TYPE_ALLOWLIST: Record<MediaPurpose, { mimeTypes: string[]; m
       mimeTypes: ['audio/mpeg', 'audio/mp4', 'audio/wav'],
       maxBytes: 50 * 1024 * 1024,
     },
+    USER_AVATAR: {
+      mimeTypes: ['image/jpeg', 'image/png', 'image/webp'],
+      maxBytes: 5 * 1024 * 1024,
+    },
   }
 
 export const MediaUploadOutputSchema = z.object({
@@ -92,10 +107,10 @@ export const MediaCompleteInputSchema = z
   .strict()
 export type MediaCompleteInput = z.infer<typeof MediaCompleteInputSchema>
 
-/** Global complete request body — churchId (entity context) + checksum. */
+/** Global complete request body — churchId (entity context) + checksum. Optional for USER_AVATAR. */
 export const MediaCompleteBodySchema = z
   .object({
-    churchId: z.string().min(1),
+    churchId: z.string().min(1).optional(),
     checksum: z
       .string()
       .trim()
@@ -105,7 +120,7 @@ export const MediaCompleteBodySchema = z
 
 export const MediaAssetOutputSchema = z.object({
   id: z.string(),
-  churchId: z.string(),
+  churchId: z.string().nullable(),
   purpose: MediaPurposeSchema,
   mimeType: z.string(),
   byteSize: z.number(),
@@ -119,7 +134,7 @@ export type MediaAssetOutput = z.infer<typeof MediaAssetOutputSchema>
 
 export const mapMediaAsset = (a: {
   id: string
-  church_id: string
+  church_id: string | null
   purpose: string
   mime_type: string
   byte_size: bigint

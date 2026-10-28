@@ -60,7 +60,7 @@ const createUserSchema = z.object({
   name: z.string().min(1),
   password: z.string().min(8),
   role_id: z.string().min(1).optional(),
-  profile_picture: z.string().min(1).optional(),
+  profile_asset_id: z.string().min(1).optional(),
 })
 
 export async function POST(req: NextRequest) {
@@ -87,6 +87,7 @@ export async function POST(req: NextRequest) {
       name: data.name,
       password: data.password,
       role_id: data.role_id,
+      ...(data.profile_asset_id ? { profile_asset_id: data.profile_asset_id } : {}),
       actorId: session.user.user_id,
       requestId: requestId(),
     })

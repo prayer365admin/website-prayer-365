@@ -6,6 +6,8 @@ export interface UserDataModel extends User {
   role: RoleDataModel | null
   role_assignments?: Array<{ org_node: Pick<OrgNode, 'kind' | 'name'> }>
   roleAssignments?: Array<{ org_node: Pick<OrgNode, 'kind' | 'name'> }>
+  /** Public URL of `profile_asset_id` when it is a READY USER_AVATAR asset. */
+  avatarUrl?: string | null
 }
 
 export interface UserPayloadCreateModel extends Prisma.UserUncheckedCreateInput {}

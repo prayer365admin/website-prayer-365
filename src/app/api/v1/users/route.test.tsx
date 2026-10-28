@@ -170,4 +170,24 @@ describe('POST /api/v1/users', () => {
     const res = (await POST(req!))!
     expect(res.status).toBe(403)
   })
+
+  it('forwards profile_asset_id so the uploaded avatar is actually saved', async () => {
+    vi.mocked(requiredAuth).mockResolvedValue(makeAuth(true) as never)
+    vi.mocked(createUser).mockResolvedValue({ id: 'u9', email: 'a@b.com', name: 'A' } as never)
+
+    const req = new NextRequest('http://localhost/api/v1/users', {
+      method: 'POST',
+      body: JSON.stringify({
+        name: 'A',
+        password: 'Strong@123',
+        email: 'a@b.com',
+        profile_asset_id: 'asset-1',
+      }),
+    })
+    const res = (await POST(req!))!
+    expect(res.status).toBe(201)
+    expect(createUser).toHaveBeenCalledWith(
+      expect.objectContaining({ profile_asset_id: 'asset-1' }),
+    )
+  })
 })

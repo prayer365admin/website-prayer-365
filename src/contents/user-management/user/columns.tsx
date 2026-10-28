@@ -69,7 +69,7 @@ export const UserColumns = ({
         const initial = record.name?.[0]?.toUpperCase() ?? 'U'
         return (
           <Space size={8}>
-            <Avatar src={record.profile_picture} size={40}>
+            <Avatar src={record.avatarUrl ?? record.profile_picture} size={40}>
               {initial}
             </Avatar>
             <div className="flex flex-col">

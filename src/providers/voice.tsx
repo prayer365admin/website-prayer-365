@@ -78,7 +78,7 @@ export const GET_ASSET = async ({
   assetId: string
 }): Promise<{
   id: string
-  church_id: string
+  church_id: string | null
   purpose: string
   status: string
   uploaded_by: string | null

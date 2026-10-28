@@ -1,6 +1,7 @@
 'use client'
 
 import { useHierarchy, useRoleAssignments } from '@/hooks/data/central'
+import { useMediaUpload } from '@/hooks/data/media-upload'
 import { useRoles } from '@/hooks/data/role'
 import { useUser } from '@/hooks/data/user'
 import { HierarchyNode } from '@/models/hierarchy'
@@ -72,8 +73,13 @@ function EditUserForm({
   const [roleId, setRoleId] = useState<string | undefined>(
     user.role_id ?? user.role?.id ?? undefined,
   )
-  const [photoUrl, setPhotoUrl] = useState<string | null>(user.profile_picture ?? null)
+  const [photoUrl, setPhotoUrl] = useState<string | null>(
+    user.avatarUrl ?? user.profile_picture ?? null,
+  )
+  const [photoAssetId, setPhotoAssetId] = useState<string | null>(user.profile_asset_id ?? null)
+  const [photoRemoved, setPhotoRemoved] = useState(false)
   const [photoChanged, setPhotoChanged] = useState(false)
+  const { onUpload: onUploadAvatar } = useMediaUpload({ purpose: 'USER_AVATAR' })
   const [provinceId, setProvinceId] = useState<string | undefined>(initialProvinceId)
   const [dioceseId, setDioceseId] = useState<string | undefined>(initialDioceseId)
   const [saving, setSaving] = useState(false)
@@ -103,15 +109,21 @@ function EditUserForm({
     [dioceses],
   )
 
-  const handlePhotoUpload = (file: File) => {
-    const url = URL.createObjectURL(file)
-    setPhotoUrl(url)
-    setPhotoChanged(true)
+  const handlePhotoUpload = async (file: File) => {
+    const result = await onUploadAvatar(file)
+    if (result) {
+      setPhotoUrl(result.url)
+      setPhotoAssetId(result.assetId)
+      setPhotoRemoved(false)
+      setPhotoChanged(true)
+    }
     return false
   }
 
   const handleRemovePhoto = () => {
     setPhotoUrl(null)
+    setPhotoAssetId(null)
+    setPhotoRemoved(true)
     setPhotoChanged(true)
   }
 
@@ -124,7 +136,7 @@ function EditUserForm({
         role_id: roleId,
       }
       if (photoChanged) {
-        payload.profile_picture = photoUrl
+        payload.profile_asset_id = photoRemoved ? null : photoAssetId
       }
       await onUpdate(payload)
 

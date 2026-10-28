@@ -6,8 +6,10 @@ import { auditPayload } from '@/utils/audit'
 import {
   CREATE_PENDING_ASSET,
   GET_ASSET_BY_ID_AND_CHURCH,
+  GET_ASSET_BY_ID_FOR_UPLOADER,
   GET_ASSET_VISIBLE_TO_CHURCH,
   MARK_READY,
+  MARK_READY_FOR_UPLOADER,
 } from '@/providers/media'
 import { S3_HEAD_OBJECT, S3_GET_SIGNED_URL, S3_PRESIGN_UPLOAD } from '@/providers/s3'
 import {
@@ -45,6 +47,15 @@ const notFound = () =>
     error: 'NOT_FOUND',
     error_code: 'RESOURCE_NOT_FOUND',
     details: 'Media asset not found.',
+  })
+
+/** The upload body carries no entity context for this purpose, or one it may not use. */
+const invalidMediaContext = (details: string) =>
+  new GeneralError({
+    code: 422,
+    error: 'VALIDATION_ERROR',
+    error_code: 'INVALID_MEDIA_CONTEXT',
+    details,
   })
 
 const purposeSubject = (p: MediaPurpose): string =>
@@ -124,11 +135,45 @@ export const createUpload = async ({
   requestId,
 }: {
   userId: string
-  churchId: string
+  churchId?: string
   input: MediaUploadInput
   requestId: string
 }): Promise<MediaUploadOutput> => {
   assertUploadConstraints(input)
+
+  // Staff avatars are user-scoped: no church, owned by the caller (SPEC §10.4 extension).
+  if (input.purpose === 'USER_AVATAR') {
+    if (churchId) throw invalidMediaContext('USER_AVATAR is user-scoped and takes no churchId.')
+    const objectKey = `media/users/${userId}/avatar/${randomUUID()}`
+    const { url, fields } = await S3_PRESIGN_UPLOAD({
+      key: objectKey,
+      contentType: input.mimeType,
+      maxBytes: MEDIA_TYPE_ALLOWLIST[input.purpose].maxBytes,
+    })
+    const asset = await CREATE_PENDING_ASSET({
+      churchId: null,
+      purpose: input.purpose,
+      mimeType: input.mimeType,
+      byteSize: input.byteSize,
+      objectKey,
+      uploadedBy: userId,
+    })
+    await db.auditLog.create({
+      data: auditPayload({
+        actorId: userId,
+        churchId: null,
+        action: 'media.upload.initiate',
+        resourceType: 'media_asset',
+        resourceId: asset.id,
+        outcome: 'success',
+        requestId,
+      }),
+    })
+    return { assetId: asset.id, objectKey, uploadUrl: url, fields, expiresIn: 900 }
+  }
+
+  if (!churchId) throw invalidMediaContext('churchId is required for this upload purpose.')
+
   await assertPurposeScope({
     userId,
     churchId,
@@ -174,16 +219,25 @@ export const completeUpload = async ({
   requestId,
 }: {
   userId: string
-  churchId: string
+  churchId?: string
   assetId: string
   input: MediaCompleteInput
   requestId: string
 }): Promise<MediaCompleteOutput> => {
-  const asset = await GET_ASSET_BY_ID_AND_CHURCH({ assetId, churchId })
+  // Church-scoped and user-scoped assets are looked up differently: an avatar has
+  // no church, so ownership (uploaded_by) is the scope.
+  const asset = churchId
+    ? await GET_ASSET_BY_ID_AND_CHURCH({ assetId, churchId })
+    : await GET_ASSET_BY_ID_FOR_UPLOADER({ assetId, uploadedBy: userId })
   if (!asset) throw notFound()
   const purpose = asset.purpose as MediaPurpose
 
-  const churchIds = await assertPurposeScope({ userId, churchId, purpose, action: 'create' })
+  let churchIds: Set<string> | null = null
+  if (churchId) {
+    churchIds = await assertPurposeScope({ userId, churchId, purpose, action: 'create' })
+  } else if (purpose !== 'USER_AVATAR') {
+    throw invalidMediaContext('churchId is required for this upload purpose.')
+  }
   // Complete requires an owned upload (the same caller that requested it).
   if (asset.uploaded_by !== userId) throw scopeError()
   if (asset.status !== 'PENDING') {
@@ -215,12 +269,14 @@ export const completeUpload = async ({
     })
   }
 
-  const updated = await MARK_READY({ churchIds, assetId, checksum: input.checksum })
+  const updated = churchIds
+    ? await MARK_READY({ churchIds, assetId, checksum: input.checksum })
+    : await MARK_READY_FOR_UPLOADER({ assetId, uploadedBy: userId, checksum: input.checksum })
   if (updated.count === 0) throw notFound()
   await db.auditLog.create({
     data: auditPayload({
       actorId: userId,
-      churchId,
+      churchId: asset.church_id,
       action: 'media.upload.complete',
       resourceType: 'media_asset',
       resourceId: assetId,

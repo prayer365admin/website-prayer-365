@@ -12,6 +12,7 @@ import { COUNT_ACTIVE_ADMINS } from '@/providers/user'
 import { dbTransaction } from '@/utils/db-transaction'
 import { auditPayload } from '@/utils/audit'
 import { GET_ACTIVE_ASSIGNMENT, GET_ROLE_BY_KEY } from '@/providers/role-assignment'
+import { GET_ASSET_BY_ID_FOR_UPLOADER } from '@/providers/media'
 import { GET_GLOBAL_ORG_NODE } from '@/providers/scope'
 import { createRoleAssignment } from './role-assignment'
 import { ADMINISTRATOR_ROLE } from '@/utils/constant'
@@ -20,6 +21,32 @@ import { hashSecret } from '@/utils/hash'
 import { logger } from '@/utils/logger'
 
 export const getFellowshipMemberCount = (): Promise<number> => COUNT_ACTIVE_CUSTOMERS()
+
+/**
+ * The avatar asset must be the caller's own READY USER_AVATAR upload. Mirrors the
+ * church/prayer image ownership checks so one account cannot pin another's file.
+ */
+const assertOwnAvatarAsset = async ({
+  assetId,
+  actorId,
+}: {
+  assetId: string
+  actorId?: string
+}): Promise<string> => {
+  const asset = actorId
+    ? await GET_ASSET_BY_ID_FOR_UPLOADER({ assetId, uploadedBy: actorId })
+    : null
+  if (!asset || asset.purpose !== 'USER_AVATAR' || asset.status !== 'READY') {
+    throw new GeneralError({
+      code: 422,
+      error: 'VALIDATION_ERROR',
+      error_code: 'INVALID_PROFILE_ASSET',
+      details: 'profileAssetId must be a ready avatar image uploaded by this account.',
+      fields: { profileAssetId: 'Not a ready avatar asset of this account.' },
+    })
+  }
+  return asset.id
+}
 
 export const getUserById = async ({ user_id }: { user_id: string }) => {
   if (!user_id) {
@@ -140,9 +167,14 @@ export const createUser = async ({
   password,
   role_id,
   profile_picture,
+  profile_asset_id,
   actorId,
   requestId,
-}: UserPayloadCreateModel & { actorId?: string; requestId?: string }) => {
+}: UserPayloadCreateModel & {
+  actorId?: string
+  requestId?: string
+  profile_asset_id?: string | null
+}) => {
   if (!password) {
     throw new GeneralError({
       code: 400,
@@ -151,6 +183,12 @@ export const createUser = async ({
       details: 'Password is invalid!',
     })
   }
+
+  // An avatar must be the caller's own READY USER_AVATAR asset — same ownership
+  // rule as church/prayer images, so one account cannot pin another's upload.
+  const avatarAssetId = profile_asset_id
+    ? await assertOwnAvatarAsset({ assetId: profile_asset_id, actorId })
+    : null
 
   const passwordHash = await hashSecret({ secret: password })
   // Dashboard/admin-created users are auto-verified — no verification email needed.
@@ -161,6 +199,7 @@ export const createUser = async ({
     email_verified_at: new Date(),
     role_id,
     ...(profile_picture ? { profile_picture } : {}),
+    ...(avatarAssetId ? { profile_asset_id: avatarAssetId } : {}),
   })
   await ensureGlobalAdminAssignment({ userId: result?.id, actorId, requestId })
   return result
@@ -246,7 +285,8 @@ export const updateUser = async ({
   actorId?: string
   requestId?: string
 }) => {
-  const { role_id, password, name, email, email_verified_at, profile_picture } = payload
+  const { role_id, password, name, email, email_verified_at, profile_picture, profile_asset_id } =
+    payload as UserPayloadUpdateModel & { profile_asset_id?: string | null }
 
   const safePayload: {
     name?: string
@@ -254,6 +294,7 @@ export const updateUser = async ({
     password?: string
     email_verified_at?: Date | null
     profile_picture?: string | null
+    profile_asset_id?: string | null
     role_id?: string | null
   } = {}
   if (name !== undefined) safePayload.name = name as string
@@ -263,6 +304,11 @@ export const updateUser = async ({
   if (email_verified_at !== undefined)
     safePayload.email_verified_at = email_verified_at as Date | null
   if (profile_picture !== undefined) safePayload.profile_picture = profile_picture as string | null
+  if (profile_asset_id !== undefined) {
+    safePayload.profile_asset_id = profile_asset_id
+      ? await assertOwnAvatarAsset({ assetId: profile_asset_id as string, actorId })
+      : null
+  }
   if (password) {
     safePayload.password = await hashSecret({ secret: `${password}` })
     // D1 (plan 002): any password change invalidates outstanding mobile tokens.

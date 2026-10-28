@@ -148,6 +148,13 @@ describe('ContentsCentralChurchSetup (S16)', () => {
     )
   })
 
+  it('shows the church timezone as an editable field bound to the stored zone', async () => {
+    renderWithProviders(<ContentsCentralChurchSetup churchId="ch1" />)
+
+    expect(await screen.findByLabelText(/timezone/i)).toBeTruthy()
+    expect(screen.getAllByText('Europe/Tallinn').length).toBeGreaterThan(0)
+  })
+
   it('offers Approve for a pending church and confirms the visibility effect first', async () => {
     const user = userEvent.setup()
     renderWithProviders(<ContentsCentralChurchSetup churchId="ch1" />)

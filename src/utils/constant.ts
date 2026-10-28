@@ -175,6 +175,16 @@ export const DENOMINATION_OPTIONS = [
   { value: 'Catholic', label: 'Catholic' },
 ] as const
 
+/**
+ * IANA zone names for church setup. `Intl.supportedValuesOf` is native in every
+ * runtime this app targets (Node 20+, modern browsers), so no list is vendored.
+ */
+export const TIMEZONE_OPTIONS = (
+  (Intl as unknown as { supportedValuesOf?: (key: 'timeZone') => string[] }).supportedValuesOf?.(
+    'timeZone',
+  ) ?? []
+).map((zone) => ({ label: zone, value: zone }))
+
 export const LANGUAGE_OPTIONS = [
   { value: 'et', label: 'Eesti (ET)' },
   { value: 'en', label: 'English (EN)' },

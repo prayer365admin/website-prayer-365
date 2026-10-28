@@ -36,7 +36,7 @@ export default function UploadBox(props: {
   onUploadData?: (url: string) => Promise<void>
   /** Entity context for the global upload API (SPEC §10.4). Pass when available. */
   churchId?: string
-  purpose?: 'IMAGE' | 'VOICE_SAMPLE' | 'CONSENT_EVIDENCE'
+  purpose?: 'IMAGE' | 'VOICE_SAMPLE' | 'CONSENT_EVIDENCE' | 'USER_AVATAR'
   disabled?: boolean
   deferUpload?: boolean
 }) {
@@ -67,7 +67,7 @@ export default function UploadBox(props: {
       onSuccess?.('deferred')
       return
     }
-    if (!churchId) {
+    if (!churchId && purpose !== 'USER_AVATAR') {
       notification.error({
         message: 'Upload Failed',
         description: 'A church context is required to upload; pass churchId to UploadBox.',

@@ -82,6 +82,7 @@ enum MediaPurpose {
   VOICE_SAMPLE
   CONSENT_EVIDENCE
   GENERATED_AUDIO
+  USER_AVATAR
 }
 
 enum MediaStatus {
@@ -136,6 +137,10 @@ model User {
   /// Last authenticated activity (login + throttled API access). Null = never active.
   last_active_at      DateTime?
 
+  /// Staff avatar as a media asset (USER_AVATAR). Legacy `profile_picture` stays readable.
+  profile_asset_id String?
+  profile_asset    MediaAsset? @relation("UserAvatar", fields: [profile_asset_id], references: [id], onDelete: SetNull)
+
   // OPTIONAL legacy single-role ref (migration-era; assignments supersede it).
   role_id String?
   role    Role?   @relation(fields: [role_id], references: [id], name: "user_role", onDelete: Cascade, onUpdate: Cascade)
@@ -181,6 +186,7 @@ model User {
   updated_at DateTime? @updatedAt
   deleted_at DateTime?
 
+  @@index([profile_asset_id])
   @@map("user")
 }
 
@@ -617,8 +623,9 @@ model VoiceProfileSample {
 
 model MediaAsset {
   id          String       @id @default(uuid(7))
-  church_id   String
-  church      Church       @relation(fields: [church_id], references: [id])
+  /// Church scope. NULL only for user-scoped purposes (USER_AVATAR).
+  church_id   String?
+  church      Church?      @relation(fields: [church_id], references: [id])
   object_key  String       @unique
   purpose     MediaPurpose
   mime_type   String
@@ -630,6 +637,7 @@ model MediaAsset {
 
   coverOf          Church[]             @relation("ChurchCover")
   heroOf           Church[]             @relation("ChurchHero")
+  avatarOf         User[]               @relation("UserAvatar")
   featuredPrayerOf Prayer[]             @relation("PrayerFeatured")
   pastorProfiles   Pastor[]             @relation("PastorProfileImage")
   pastorImages     ChurchPastor[]       @relation("PastorImage")

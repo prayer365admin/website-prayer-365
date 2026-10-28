@@ -34,9 +34,13 @@ export const parseAppLinkOrigins = (raw: string | undefined): string[] =>
 /** Origins this deployment accepts as app return targets. */
 export const APP_LINK_ORIGINS = parseAppLinkOrigins(process.env.APP_LINK_ORIGINS)
 
+// Expo Go cannot resolve universal links, so exp:// is a development shape only:
+// in production it would be an arbitrary redirect target at the card-entered moment.
+const isProduction = process.env.APP_ENV?.toUpperCase() === 'PROD'
+
 const APP_RETURN_PREFIXES: string[] = [
   ...APP_LINK_ORIGINS.map((origin) => `${origin}/donations/`),
-  'exp://',
+  ...(isProduction ? [] : ['exp://']),
   'prayer-365://donations/',
 ]
 

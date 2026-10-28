@@ -100,7 +100,7 @@ describe('ContentsCentralChurchDrawer', () => {
     // Form fields
     expect(screen.getByLabelText(/church name/i)).toBeTruthy()
     expect(screen.getByText(/Estonia Diocese \/ Pärnu Deanery/)).toBeTruthy()
-    expect(screen.queryByLabelText(/timezone/i)).toBeNull()
+    expect(screen.getByLabelText(/timezone/i)).toBeTruthy()
     expect(screen.getByLabelText(/denomination/i)).toBeTruthy()
     expect(screen.getByLabelText(/worship style/i)).toBeTruthy()
     expect(screen.getByLabelText(/profile basics/i)).toBeTruthy()
@@ -130,7 +130,7 @@ describe('ContentsCentralChurchDrawer', () => {
     expect(screen.getByLabelText('Country')).toBeTruthy()
     expect(screen.getByLabelText('Diocese')).toBeTruthy()
     expect(screen.getByLabelText('Deanery')).toBeTruthy()
-    expect(screen.queryByLabelText(/timezone/i)).toBeNull()
+    expect(screen.getByLabelText(/timezone/i)).toBeTruthy()
     expect(screen.getByRole('button', { name: 'Save setup' })).toBeTruthy()
   })
 })

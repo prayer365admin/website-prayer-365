@@ -1,6 +1,24 @@
 import { fireEvent, screen, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { axiosMock, renderWithProviders, resolveGet } from '@/test/frontend/render'
+
+/*
+ * The presigned-flow plumbing (initiate → S3 → complete) is covered by the media
+ * model/controller tests. Here we only pin the drawer's half: which purpose it
+ * asks for, and that the uploaded assetId is sent with the new user.
+ */
+const uploadMock = vi.hoisted(() => ({
+  onUpload: vi.fn(),
+  args: undefined as unknown,
+}))
+
+vi.mock('@/hooks/data/media-upload', () => ({
+  useMediaUpload: (args: unknown) => {
+    uploadMock.args = args
+    return { onUpload: uploadMock.onUpload, loading: false }
+  },
+}))
+
 import CreateUserModal from './create-user-modal'
 
 const testRoles = [
@@ -97,5 +115,43 @@ describe('CreateUserModal', () => {
     )
     await waitFor(() => expect(onSaved).toHaveBeenCalled())
     expect(onClose).toHaveBeenCalled()
+  })
+
+  it('uploads the picked photo as a USER_AVATAR asset and sends its id with the new staff', async () => {
+    mockReads()
+    uploadMock.args = undefined
+    uploadMock.onUpload.mockResolvedValue({ assetId: 'asset-1', url: 'blob:preview' })
+    axiosMock.post.mockResolvedValue({ data: { result: { id: 'new-1' } } })
+
+    renderWithProviders(<CreateUserModal open onClose={vi.fn()} onSaved={vi.fn()} />)
+    await screen.findByRole('heading', { name: 'Create Staff Member' })
+
+    // No church context: the picker must ask for the user-scoped purpose.
+    expect(uploadMock.args).toMatchObject({ purpose: 'USER_AVATAR' })
+
+    const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement
+    fireEvent.change(fileInput, {
+      target: { files: [new File(['x'], 'avatar.png', { type: 'image/png' })] },
+    })
+    await waitFor(() => expect(uploadMock.onUpload).toHaveBeenCalled())
+
+    fireEvent.change(screen.getByLabelText(/^Name/i), { target: { value: 'Admin' } })
+    fireEvent.change(screen.getByLabelText(/^Email/i), { target: { value: 'admin@x.com' } })
+
+    // The role is a required field — without it the form never submits.
+    fireEvent.mouseDown(screen.getByLabelText(/^Supported Canonical Role/i))
+    fireEvent.click(await screen.findByTitle('Parish Lead'))
+
+    const passwords = screen.getAllByPlaceholderText('Password')
+    fireEvent.change(passwords[0], { target: { value: 'Strong@123' } })
+    fireEvent.change(passwords[1], { target: { value: 'Strong@123' } })
+    fireEvent.click(screen.getByRole('button', { name: /create staff member/i }))
+
+    await waitFor(() =>
+      expect(axiosMock.post).toHaveBeenCalledWith(
+        '/api/v1/users',
+        expect.objectContaining({ profile_asset_id: 'asset-1' }),
+      ),
+    )
   })
 })

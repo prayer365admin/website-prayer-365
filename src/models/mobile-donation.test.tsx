@@ -132,3 +132,16 @@ describe('parseAppLinkOrigins', () => {
     expect(parseAppLinkOrigins('  ')).toEqual([])
   })
 })
+
+describe('exp:// is a development-only return shape', () => {
+  const cancelUrl = 'exp://127.0.0.1:8081/--/donations/return?outcome=cancel'
+
+  it('rejects Expo Go when APP_ENV is PROD', async () => {
+    vi.resetModules()
+    vi.stubEnv('APP_ENV', 'PROD')
+    const prod = await import('./mobile-donation')
+    expect(prod.MobileDonationInitiateSchema.safeParse({ ...start, cancelUrl }).success).toBe(false)
+    vi.unstubAllEnvs()
+    vi.resetModules()
+  })
+})

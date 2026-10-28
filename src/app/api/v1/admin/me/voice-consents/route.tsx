@@ -36,7 +36,8 @@ export async function POST(req: NextRequest) {
     const { session } = await requiredAuth(req)
     const input = validate(VoiceConsentInputSchema, await req.json())
     const asset = await GET_ASSET({ assetId: input.evidenceAssetId })
-    if (!asset)
+    // Evidence is church-scoped media; a church-less asset can never be evidence.
+    if (!asset || !asset.church_id)
       throw new GeneralError({
         code: 404,
         error: 'NOT_FOUND',

@@ -17,7 +17,7 @@ export const CREATE_PENDING_ASSET = ({
   objectKey,
   uploadedBy,
 }: {
-  churchId: string
+  churchId: string | null
   purpose: MediaPurpose
   mimeType: string
   byteSize: number
@@ -46,6 +46,36 @@ export const GET_ASSET_BY_ID_AND_CHURCH = ({
 }) =>
   db.mediaAsset.findFirst({
     where: { id: assetId, church_id: churchId },
+  })
+
+/**
+ * User-scoped read: a church-less asset is only visible to the user who uploaded
+ * it (staff avatars). Never matches a church-scoped asset.
+ */
+export const GET_ASSET_BY_ID_FOR_UPLOADER = ({
+  assetId,
+  uploadedBy,
+}: {
+  assetId: string
+  uploadedBy: string
+}) =>
+  db.mediaAsset.findFirst({
+    where: { id: assetId, church_id: null, uploaded_by: uploadedBy },
+  })
+
+/** Terminal READY transition for a church-less asset, scoped to its uploader. */
+export const MARK_READY_FOR_UPLOADER = ({
+  assetId,
+  uploadedBy,
+  checksum,
+}: {
+  assetId: string
+  uploadedBy: string
+  checksum: string
+}) =>
+  db.mediaAsset.updateMany({
+    where: { id: assetId, church_id: null, uploaded_by: uploadedBy, status: 'PENDING' },
+    data: { status: 'READY' as MediaStatus, checksum, updated_at: new Date() },
   })
 
 /**

@@ -7,6 +7,7 @@ import keywordSearch from '@/utils/keyword-search'
 import { Prisma } from '@prisma/client'
 import { CUSTOMER_ACCOUNT_FILTER, CUSTOMER_ROLE, isCustomerRole } from '@/utils/customer-role'
 import { ADMINISTRATOR_ROLE } from '@/utils/constant'
+import { S3_PUBLIC_URL } from '@/providers/s3'
 
 const data = 'user'
 
@@ -66,6 +67,7 @@ export const GET_USERS = async ({
       omit: SAFE,
       include: {
         role: { include: { permission: true } },
+        profile_asset: { select: { object_key: true, purpose: true, status: true } },
         roleAssignments: {
           where: { revoked_at: null },
           include: { org_node: { select: { kind: true, name: true } } },
@@ -79,6 +81,11 @@ export const GET_USERS = async ({
   const mapped = result.map((row) => ({
     ...row,
     role_assignments: row.roleAssignments,
+    avatarUrl:
+      row.profile_asset?.purpose === 'USER_AVATAR' && row.profile_asset.status === 'READY'
+        ? S3_PUBLIC_URL({ key: row.profile_asset.object_key })
+        : null,
+    profile_asset: undefined,
   }))
 
   return { result: mapped, total }
@@ -265,6 +272,7 @@ export const CREATE_USER = async (payload: {
   email_verified_at?: Date | null
   role_id?: string | null
   profile_picture?: string | null
+  profile_asset_id?: string | null
 }) => {
   const { role_id, ...rest } = payload
   const result = await db.user.create({
@@ -332,6 +340,7 @@ export const UPDATE_USER = async ({
     password?: string
     email_verified_at?: Date | null
     profile_picture?: string | null
+    profile_asset_id?: string | null
     role_id?: string | null
   }
 }) => {

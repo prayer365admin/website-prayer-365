@@ -42,12 +42,13 @@ export default function CreateUserModal({ open, onClose, onSaved }: CreateUserMo
   const [provinceId, setProvinceId] = useState<string | undefined>(undefined)
   const [dioceseId, setDioceseId] = useState<string | undefined>(undefined)
   /*
-   * Media assets are church-scoped (`media_assets.church_id` is NOT NULL and
-   * `POST /api/v1/uploads` requires a churchId), and a staff account has no
-   * church context. The picker therefore previews locally (`deferUpload`) and
-   * nothing is sent until a user-avatar media scope exists.
+   * Staff avatars are user-scoped media (`purpose: USER_AVATAR`): church_id is
+   * NULL and the asset is owned by the uploader, so the picker uploads through
+   * the normal presigned flow without a church context.
    */
-  const [upload, setUpload] = useState<{ url: string | null }>({ url: null })
+  const [upload, setUpload] = useState<{ url: string | null; assetId?: string | null }>({
+    url: null,
+  })
   const [saving, setSaving] = useState(false)
 
   const roleId = Form.useWatch('role_id', form)
@@ -96,6 +97,7 @@ export default function CreateUserModal({ open, onClose, onSaved }: CreateUserMo
         name: values.name,
         password: values.password as string,
         ...(values.role_id ? { role_id: values.role_id } : {}),
+        ...(upload.assetId ? { profile_asset_id: upload.assetId } : {}),
       })
 
       const userId = created?.data?.result?.id
@@ -178,7 +180,7 @@ export default function CreateUserModal({ open, onClose, onSaved }: CreateUserMo
             setUpload={setUpload}
             width="120px"
             height="120px"
-            deferUpload
+            purpose="USER_AVATAR"
           />
 
           <Form.Item

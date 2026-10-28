@@ -6,6 +6,7 @@ import { useAccessPermission } from '@/hooks/data/access-permission'
 import { useCentralChurch, useCreateCentralChurch, useHierarchy } from '@/hooks/data/central'
 import { ChurchCreate, ChurchUpdate } from '@/models/central-church'
 import { HierarchyNode } from '@/models/hierarchy'
+import { TIMEZONE_OPTIONS } from '@/utils/constant'
 import { CheckOutlined, CloseOutlined } from '@ant-design/icons'
 import {
   Alert,
@@ -156,7 +157,7 @@ const formClasses =
 
 type SetupValues = {
   name: string
-  timezone?: string
+  timezone: string
   description?: string
   denomination?: string
   church_style?: string
@@ -376,9 +377,23 @@ export function ChurchSetupForm({ churchId, onClose, isDrawer = false }: ChurchS
         </Form.Item>
       )}
 
-      <Form.Item name="timezone" hidden>
-        <Input />
-      </Form.Item>
+      <Row gutter={16}>
+        <Col xs={24} md={12}>
+          <Form.Item
+            name="timezone"
+            label="Timezone"
+            rules={[{ required: true, message: 'Choose the church timezone' }]}
+            extra="The church's own clock. Event and service times are shown in this zone."
+          >
+            <Select
+              showSearch
+              optionFilterProp="label"
+              placeholder="Choose timezone"
+              options={TIMEZONE_OPTIONS}
+            />
+          </Form.Item>
+        </Col>
+      </Row>
 
       <Row gutter={16}>
         <Col xs={24} md={12}>
