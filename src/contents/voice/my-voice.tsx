@@ -62,7 +62,12 @@ function SampleList({
       {samples.map((s) => (
         <div key={s.assetId} className="flex flex-wrap items-center gap-3">
           <span className="min-w-32">{s.name}</span>
-          <SamplePlayer churchId={churchId} assetId={s.assetId} onDuration={onDuration} />
+          <SamplePlayer
+            assetId={s.assetId}
+            churchId={churchId}
+            label={s.name}
+            onDuration={onDuration}
+          />
           {onRemove && (
             <Button
               size="small"

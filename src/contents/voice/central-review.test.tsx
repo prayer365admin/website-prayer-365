@@ -152,10 +152,24 @@ describe('ContentsVoiceReviewDetail page (S24)', () => {
     sessionMock.mockReturnValue({ data: { user: { user_id: ADMIN } }, status: 'authenticated' })
   })
 
-  it('uses the pastor-details card wrapper: back-arrow title with the pastor name', () => {
+  it('uses the designed detail header with a back button and the pastor name', () => {
     show(detail())
-    expect(screen.getByRole('heading', { name: 'Review Pastor A' })).toBeTruthy()
+    expect(screen.getByRole('heading', { name: 'Pastor A' })).toBeTruthy()
+    expect(screen.getByText('Submitted 24/09/2026')).toBeTruthy()
     expect(screen.getByRole('img', { name: 'arrow-left' })).toBeTruthy()
+  })
+
+  it('uses a structure-matched two-column skeleton while the detail is loading', () => {
+    voice.useCentralVoiceProfile.mockReturnValue({ data: undefined, loading: true, error: null })
+    renderWithProviders(<ContentsVoiceReviewDetail voiceId="v1" />)
+
+    expect(screen.getByRole('heading', { name: 'Loading voice submission' })).toBeTruthy()
+    expect(screen.getByRole('status', { name: 'Loading voice profile details' })).toBeTruthy()
+    expect(screen.getByRole('heading', { name: 'Voice Samples' })).toBeTruthy()
+    expect(screen.getByRole('heading', { name: 'Offline authorization' })).toBeTruthy()
+    expect(screen.getByRole('heading', { name: 'Registration' })).toBeTruthy()
+    expect(screen.getByRole('heading', { name: 'Voice Controls' })).toBeTruthy()
+    expect(screen.getByRole('heading', { name: 'Submission status' })).toBeTruthy()
   })
 
   it('shows not found for an unknown voice id', () => {
@@ -215,7 +229,7 @@ describe('ContentsVoiceReviewDetail page (S24)', () => {
     expect(screen.queryByRole('button', { name: 'Approve and register' })).toBeNull()
     expect(screen.getByRole('button', { name: 'Disable voice' })).toBeTruthy()
     expect(screen.getByRole('button', { name: 'Revoke consent' })).toBeTruthy()
-    expect(screen.getByText('Voice ID: vx1')).toBeTruthy()
+    expect(screen.getByText(/Voice ID: vx1/)).toBeTruthy()
   })
 
   it('offers Re-create voice only when the voice went missing at the provider', () => {

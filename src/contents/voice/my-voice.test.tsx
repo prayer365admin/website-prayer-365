@@ -156,7 +156,7 @@ describe('ContentsMyVoice (S27)', () => {
   it('keeps review and registration status separate for an approved voice', () => {
     list([profile({ reviewState: 'APPROVED', registrationState: 'VERIFICATION_REQUIRED' })])
     renderWithProviders(<ContentsMyVoice />)
-    expect(screen.getByText('Admin review')).toBeTruthy()
+    expect(screen.getByText('Admin Review')).toBeTruthy()
     expect(screen.getByText('Registration')).toBeTruthy()
     expect(screen.getAllByText('Verification required').length).toBeGreaterThan(0)
     expect(screen.getByText(/Generation stays blocked/)).toBeTruthy()

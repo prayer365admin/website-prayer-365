@@ -1,0 +1,30 @@
+'use client'
+
+import Icon from '@ant-design/icons'
+import type { GetProps } from 'antd'
+
+type CustomIconComponentProps = GetProps<typeof Icon>
+
+// Source: public/icons/icon-pause.svg. The 0.55em × 1em viewport preserves the
+// confirmed 11px × 20px rendered dimensions when the icon font size is 20px.
+const IconSvg = () => (
+  <svg
+    width="0.55em"
+    height="1em"
+    viewBox="0 0 11 20"
+    fill="none"
+    xmlns="http://www.w3.org/2000/svg"
+  >
+    <path
+      d="M1.3125 1.3125V10.9375H3.0625V1.3125H1.3125ZM0 0H4.375V12.25H0V0ZM7.4375 1.3125V10.9375H9.1875V1.3125H7.4375ZM6.125 0H10.5V12.25H6.125V0Z"
+      fill="currentColor"
+      transform="translate(0 3.875)"
+    />
+  </svg>
+)
+
+const CustomIcon = (props: Partial<CustomIconComponentProps>) => (
+  <Icon component={IconSvg} {...props} />
+)
+
+export { CustomIcon as PauseIcon }
