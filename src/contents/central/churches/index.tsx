@@ -1,20 +1,18 @@
 'use client'
 
-import DashboardMainHeader from '@/components/common/dashboard/main-header'
+import AddButton from '@/components/common/add-button'
 import SearchInput from '@/components/common/search-input'
 import { useAccessPermission } from '@/hooks/data/access-permission'
-import { useCentralChurchList } from '@/hooks/data/central'
+import { useCentralChurchList, useCountries } from '@/hooks/data/central'
 import { useUrlPagination } from '@/hooks/ui/url-pagination'
 import { ChurchListItem } from '@/models/central-church'
 import type { ChurchStatus } from '@prisma/client'
-import { Alert, Col, Empty, Row, Select, Table, TablePaginationConfig } from 'antd'
-import { useRouter } from 'next/navigation'
+import { Alert, Breadcrumb, Empty, Select, Table, TablePaginationConfig } from 'antd'
+import Link from 'next/link'
 import { useState } from 'react'
 import { CentralChurchColumns } from './columns'
+import ContentsCentralChurchDrawer from './drawer'
 import PurgeChurchModal from './purge-modal'
-import { CHURCH_STATUS_LABELS } from './status'
-
-const STATUSES = Object.keys(CHURCH_STATUS_LABELS) as ChurchStatus[]
 
 /**
  * S15 — Church administration list. Every status is visible here (this is the
@@ -23,14 +21,21 @@ const STATUSES = Object.keys(CHURCH_STATUS_LABELS) as ChurchStatus[]
  */
 export default function ContentsCentralChurches() {
   const [search, setSearch] = useState<string>()
-  const [status, setStatus] = useState<ChurchStatus>()
+  const [status] = useState<ChurchStatus>()
+  const [selectedCountry, setSelectedCountry] = useState<string>()
+  const [selectedChurchId, setSelectedChurchId] = useState<string>()
+  const [isCreating, setIsCreating] = useState(false)
   const { page, pageSize, setPage, setPageSize } = useUrlPagination()
   const [purgeTarget, setPurgeTarget] = useState<ChurchListItem>()
 
-  const router = useRouter()
   const permission = useAccessPermission()
   const canDelete =
     permission.deleteAny('prayer_church').granted || permission.deleteOwn('prayer_church').granted
+
+  const { data: countries } = useCountries()
+  const countryOptions = (countries ?? [])
+    .filter((c) => c.enabled !== false)
+    .map((c) => ({ value: c.code, label: c.name }))
 
   const { data, total, loading, error } = useCentralChurchList({
     page,
@@ -46,38 +51,38 @@ export default function ContentsCentralChurches() {
 
   return (
     <>
-      <DashboardMainHeader
-        title="Church administration"
-        description="Create churches, place them in the hierarchy and control approval. A new church stays invisible to the public app until it is approved."
-        buttonLabel="New church"
-        url="/dashboard/central/churches/create"
-        buttonPermissionSubject="prayer_church"
+      <Breadcrumb
+        className="mb-4 [&_ol]:!flex [&_ol]:!items-center [&_.ant-breadcrumb-item]:!inline-flex [&_.ant-breadcrumb-item]:!items-center [&_.ant-breadcrumb-separator]:!inline-flex [&_.ant-breadcrumb-separator]:!items-center [&_.ant-breadcrumb-link]:!inline-flex [&_.ant-breadcrumb-link]:!items-center [&_.ant-breadcrumb-link]:!text-xs [&_.ant-breadcrumb-link]:!text-neutral-600 [&_.ant-breadcrumb-link_a]:!text-xs [&_.ant-breadcrumb-link_a]:!text-neutral-600 [&_.ant-breadcrumb-separator]:!text-xs [&_.ant-breadcrumb-separator]:!text-neutral-600"
+        items={[
+          {
+            title: <Link href="/dashboard">Home</Link>,
+          },
+          {
+            title: 'Church administration',
+          },
+        ]}
       />
 
-      <Row justify="space-between" gutter={[8, 8]} className="mb-2">
-        <Col className="flex w-full flex-col gap-2 sm:flex-row sm:flex-wrap lg:w-auto">
-          <Select
-            allowClear
-            className="w-full sm:w-44"
-            placeholder="Filter state"
-            value={status}
-            onChange={(value) => {
-              setStatus(value)
-              setPage(1)
-            }}
-            options={STATUSES.map((value) => ({ value, label: CHURCH_STATUS_LABELS[value] }))}
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
+        <div className="flex flex-col gap-1">
+          <h1 className="text-2xl font-semibold text-primary-900 m-0 leading-tight">
+            Church administration
+          </h1>
+          <p className="text-sm font-normal text-neutral-600 m-0 leading-normal">
+            Create churches, place them in the hierarchy and control approval. A new church stays
+            invisible to the public app until it is approved.
+          </p>
+        </div>
+        <div className="shrink-0 w-full sm:w-auto">
+          <AddButton
+            label="New Church"
+            loading={isCreating}
+            onClick={() => setIsCreating(true)}
+            permissionSubject="prayer_church"
+            className="w-full sm:w-auto flex items-center justify-start sm:justify-end mb-0 [&_.ant-btn]:w-full sm:[&_.ant-btn]:w-auto"
           />
-        </Col>
-        <Col xs={24} lg={8}>
-          <SearchInput
-            placeholder="Search church name"
-            setValue={setSearch}
-            setPage={setPage}
-            setPageSize={setPageSize}
-          />
-        </Col>
-      </Row>
-
+        </div>
+      </div>
       {error && (
         <Alert
           className="mb-4"
@@ -88,21 +93,61 @@ export default function ContentsCentralChurches() {
         />
       )}
 
-      <Table<ChurchListItem>
-        rowKey="id"
-        size="small"
-        columns={CentralChurchColumns({
-          canDelete,
-          onOpen: (church) => router.push(`/dashboard/central/churches/${church.id}`),
-          onPurge: setPurgeTarget,
-        })}
-        dataSource={data ?? []}
-        loading={loading}
-        scroll={{ x: 'max-content' }}
-        locale={{ emptyText: <Empty description="No churches found." /> }}
-        onChange={(pagination) => handlePagination(pagination)}
-        pagination={{ total, current: page, pageSize }}
-      />
+      <div className="bg-white rounded-2xl border border-[#dde0e4] shadow-[0px_1px_2px_rgba(0,0,0,0.05)] overflow-hidden">
+        <div className="box-border flex flex-row items-center px-6 py-4 gap-2 border-b border-[#dde0e4] bg-white">
+          <div className="w-[280px] max-w-[280px] h-10 [&_.ant-input-affix-wrapper]:!h-10 [&_.ant-input-affix-wrapper]:!rounded-lg [&_.ant-input-affix-wrapper]:!border-[#dde0e4] [&_.ant-input-affix-wrapper]:!px-3 [&_.ant-input]:!text-sm [&_.ant-input]:!text-primary-900 [&_.ant-input::placeholder]:!text-primary-900/45 [&_.ant-input-prefix]:!text-primary-900 [&_.ant-input-prefix]:!mr-2">
+            <SearchInput
+              placeholder="Search church"
+              iconPosition="prefix"
+              setValue={setSearch}
+              setPage={setPage}
+              setPageSize={setPageSize}
+            />
+          </div>
+          {/* Figma parity: the central church list API has no country/location filter; selection is visual only. */}
+          <Select
+            allowClear
+            className="w-[156px] h-10 [&_.ant-select-selector]:!h-10 [&_.ant-select-selector]:!rounded-lg [&_.ant-select-selector]:!border-[#737c8c] [&_.ant-select-selector]:!px-3 [&_.ant-select-selection-item]:!text-sm [&_.ant-select-selection-item]:!text-neutral-700 [&_.ant-select-selection-placeholder]:!text-sm [&_.ant-select-selection-placeholder]:!text-neutral-700"
+            placeholder="All Location"
+            value={selectedCountry}
+            onChange={setSelectedCountry}
+            options={countryOptions}
+          />
+        </div>
+
+        <div className="bg-white [&_.ant-table]:!bg-white [&_.ant-table-thead_>_tr_>_th]:!bg-[#fafafb] [&_.ant-table-thead_>_tr_>_th]:!text-neutral-600 [&_.ant-table-thead_>_tr_>_th]:!text-xs [&_.ant-table-thead_>_tr_>_th]:!font-semibold [&_.ant-table-thead_>_tr_>_th]:!py-2 [&_.ant-table-thead_>_tr_>_th]:!px-4 [&_.ant-table-thead_>_tr_>_th:first-child]:!pl-6 [&_.ant-table-thead_>_tr_>_th:last-child]:!pr-6 [&_.ant-table-thead_>_tr_>_th]:!h-[34px] [&_.ant-table-thead_>_tr_>_th]:!border-b [&_.ant-table-thead_>_tr_>_th]:!border-[#dde0e4] [&_.ant-table-measure-row]:!h-0 [&_.ant-table-measure-row_>_td]:!h-0 [&_.ant-table-measure-row_>_td]:!p-0 [&_.ant-table-measure-row_>_td]:!border-0 [&_.ant-table-row_>_td]:!py-4 [&_.ant-table-row_>_td]:!px-4 [&_.ant-table-row_>_td:first-child]:!pl-6 [&_.ant-table-row_>_td:last-child]:!pr-6 [&_.ant-table-row_>_td]:!border-b [&_.ant-table-row_>_td]:!border-[#dde0e4] [&_.ant-table-pagination.ant-pagination]:!m-0 [&_.ant-table-pagination.ant-pagination]:!px-6 [&_.ant-table-pagination.ant-pagination]:!py-4 [&_.ant-table-pagination.ant-pagination]:!flex [&_.ant-table-pagination.ant-pagination]:!items-center [&_.ant-table-pagination.ant-pagination]:!justify-between [&_.ant-pagination-total-text]:!text-xs [&_.ant-pagination-total-text]:!text-[#8f96a3] [&_.ant-pagination-total-text]:!mr-auto [&_.ant-pagination-item]:!min-w-[32px] [&_.ant-pagination-item]:!h-8 [&_.ant-pagination-item]:!leading-[30px] [&_.ant-pagination-item]:!rounded-lg [&_.ant-pagination-item]:!border [&_.ant-pagination-item]:!border-[#dde0e4] [&_.ant-pagination-item]:!text-xs [&_.ant-pagination-item]:!font-semibold [&_.ant-pagination-item]:!text-neutral-600 [&_.ant-pagination-prev]:!min-w-[32px] [&_.ant-pagination-prev]:!h-8 [&_.ant-pagination-prev]:!rounded-lg [&_.ant-pagination-prev]:!border [&_.ant-pagination-prev]:!border-[#dde0e4] [&_.ant-pagination-next]:!min-w-[32px] [&_.ant-pagination-next]:!h-8 [&_.ant-pagination-next]:!rounded-lg [&_.ant-pagination-next]:!border [&_.ant-pagination-next]:!border-[#dde0e4] [&_.ant-pagination-item-active]:!bg-[#fafafb] [&_.ant-pagination-item-active]:!border-[#fafafb] [&_.ant-pagination-item-active_a]:!text-[#b0b6bf]">
+          <Table<ChurchListItem>
+            rowKey="id"
+            size="small"
+            columns={CentralChurchColumns({
+              canDelete,
+              onOpen: (church) => setSelectedChurchId(church.id),
+              onPurge: setPurgeTarget,
+            })}
+            dataSource={data ?? []}
+            loading={loading}
+            scroll={{ x: 600 }}
+            locale={{ emptyText: <Empty description="No churches found." /> }}
+            onChange={(pagination) => handlePagination(pagination)}
+            pagination={{
+              total,
+              current: page,
+              pageSize,
+              showTotal: (total, range) =>
+                `Showing ${range[0]} - ${range[1]} of ${total.toLocaleString()} churches`,
+            }}
+          />
+        </div>
+      </div>
+
+      {selectedChurchId && (
+        <ContentsCentralChurchDrawer
+          churchId={selectedChurchId}
+          onClose={() => setSelectedChurchId(undefined)}
+        />
+      )}
+
+      {isCreating && <ContentsCentralChurchDrawer onClose={() => setIsCreating(false)} />}
 
       <PurgeChurchModal church={purgeTarget} onClose={() => setPurgeTarget(undefined)} />
     </>

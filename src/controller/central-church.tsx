@@ -302,6 +302,41 @@ export const suspendChurch = async ({
   })
   return updated
 }
+export const unsuspendChurch = async ({
+  churchId,
+  version,
+  actorId,
+  requestId,
+}: {
+  churchId: string
+  version: number
+  actorId: string
+  requestId: string
+}) => {
+  const church = await GET_CHURCH_BY_ID({ churchId })
+  if (!church) throw notFound()
+  if (version !== church.version) throw stale()
+  fromStatuses(churchId, church.status, ['SUSPENDED'], 'APPROVED')
+
+  const updated = await dbTransaction(async (tx) => {
+    const row = await UPDATE_CHURCH_STATUS(
+      { churchId, status: 'APPROVED', approvedBy: actorId, approvedAt: new Date() },
+      tx,
+    )
+    await tx.auditLog.create({
+      data: auditPayload({
+        actorId,
+        action: 'church.unsuspend',
+        resourceType: 'church',
+        resourceId: churchId,
+        outcome: 'success',
+        requestId,
+      }),
+    })
+    return row
+  })
+  return updated
+}
 
 export const archiveChurch = async ({
   churchId,

@@ -5,24 +5,31 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const m = vi.hoisted(() => ({ canDelete: true, onPurge: vi.fn() }))
 const useCentralChurchList = vi.hoisted(() => vi.fn())
+const useCountries = vi.hoisted(() => vi.fn())
 
 vi.mock('@/hooks/data/central', () => ({
   useCentralChurchList,
+  useCountries,
   usePurgeCentralChurch: () => ({ onPurge: m.onPurge, loading: false }),
 }))
 vi.mock('@/hooks/data/access-permission', () => ({
   useAccessPermission: () => ({
     deleteAny: () => ({ granted: m.canDelete }),
     deleteOwn: () => ({ granted: false }),
+    createAny: () => ({ granted: true }),
+    createOwn: () => ({ granted: false }),
   }),
 }))
-vi.mock('@/components/common/dashboard/main-header', () => ({
-  default: ({ title }: { title: string }) => <h1>{title}</h1>,
+vi.mock('./drawer', () => ({
+  default: ({ churchId, onClose }: { churchId: string; onClose: () => void }) => (
+    <div data-testid="church-drawer" data-church-id={churchId}>
+      <button onClick={onClose}>Close drawer</button>
+    </div>
+  ),
 }))
 vi.mock('@/components/common/search-input', () => ({
   default: () => <input aria-label="Search" />,
 }))
-
 import ContentsCentralChurches from './index'
 
 const row = (overrides = {}) => ({
@@ -47,6 +54,9 @@ describe('ContentsCentralChurches (S15)', () => {
     vi.clearAllMocks()
     m.canDelete = true
     m.onPurge.mockResolvedValue(undefined)
+    useCountries.mockReturnValue({
+      data: [{ code: 'EE', name: 'Estonia', enabled: true }],
+    })
     useCentralChurchList.mockReturnValue({
       data: [row(), row({ id: 'ch2', name: 'Another Church', status: 'APPROVED' })],
       total: 2,
@@ -54,14 +64,16 @@ describe('ContentsCentralChurches (S15)', () => {
     })
   })
 
-  it('lists churches with country, organization and state', () => {
+  it('lists churches with country, organization, status and summary line', () => {
     renderWithProviders(<ContentsCentralChurches />)
 
+    expect(screen.getByRole('heading', { level: 1, name: 'Church administration' })).toBeTruthy()
     expect(screen.getByText('Example Church')).toBeTruthy()
-    expect(screen.getAllByText('Estonia').length).toBe(2)
+    expect(screen.getAllByText('Estonia').length).toBeGreaterThanOrEqual(2)
     expect(screen.getAllByText('Tallinn Diocese / Harju Deanery').length).toBe(2)
     expect(screen.getByText('Pending')).toBeTruthy()
     expect(screen.getByText('Approved')).toBeTruthy()
+    expect(screen.getByText(/Showing 1 - 2 of 2 churches/)).toBeTruthy()
   })
 
   it('offers Delete only for a pending church', () => {
@@ -77,12 +89,21 @@ describe('ContentsCentralChurches (S15)', () => {
     expect(screen.queryByRole('button', { name: 'Delete' })).toBeNull()
   })
 
-  it('opens the detail screen from a row', async () => {
+  it('opens the detail drawer when clicking Open or church name, and does not navigate', async () => {
     const user = userEvent.setup()
     renderWithProviders(<ContentsCentralChurches />)
 
+    expect(screen.queryByTestId('church-drawer')).toBeNull()
+
     await user.click(screen.getAllByRole('button', { name: 'Open' })[0])
-    expect(pushMock).toHaveBeenCalledWith('/dashboard/central/churches/ch1')
+    expect(pushMock).not.toHaveBeenCalled()
+    expect(screen.getByTestId('church-drawer').getAttribute('data-church-id')).toBe('ch1')
+
+    await user.click(screen.getByRole('button', { name: 'Close drawer' }))
+    expect(screen.queryByTestId('church-drawer')).toBeNull()
+
+    await user.click(screen.getByText('Example Church'))
+    expect(screen.getByTestId('church-drawer').getAttribute('data-church-id')).toBe('ch1')
   })
 
   it('requires the exact church name before purging, then sends the version', async () => {

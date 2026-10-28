@@ -33,6 +33,7 @@ import {
   getChurch,
   purgeChurch,
   suspendChurch,
+  unsuspendChurch,
   updateChurch,
 } from './central-church'
 import {
@@ -192,6 +193,16 @@ describe('suspend / archive', () => {
     await expect(
       suspendChurch({ churchId: 'ch1', version: 1, actorId: 'actor', requestId: 'r' }),
     ).resolves.toMatchObject({ status: 'SUSPENDED' })
+  })
+  it('unsuspends a suspended church back to approved', async () => {
+    vi.mocked(GET_CHURCH_BY_ID).mockResolvedValue({
+      ...approvedChurch,
+      status: 'SUSPENDED',
+    } as never)
+    vi.mocked(UPDATE_CHURCH_STATUS).mockResolvedValue(approvedChurch as never)
+    await expect(
+      unsuspendChurch({ churchId: 'ch1', version: 1, actorId: 'actor', requestId: 'r' }),
+    ).resolves.toMatchObject({ status: 'APPROVED' })
   })
 
   it('refuses to archive an already-archived church (no destructive re-run)', async () => {
