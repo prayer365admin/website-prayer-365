@@ -29,13 +29,13 @@ export function Hero({
   onSetMainChurch,
 }: HeroProps) {
   const { t } = useSiteI18n()
-  const [failedSrcs, setFailedSrcs] = useState<Record<string, boolean>>({})
-
-  const coverSrc =
-    church.coverUrl && !failedSrcs[church.coverUrl]
-      ? church.coverUrl
-      : !failedSrcs['/images/church.jpeg']
-        ? '/images/church.jpeg'
+  const [failedSrc, setFailedSrc] = useState<string | null>(null)
+  const fallbackSrc = '/images/church.jpeg'
+  const heroSrc =
+    church.heroUrl && church.heroUrl !== failedSrc
+      ? church.heroUrl
+      : fallbackSrc !== failedSrc
+        ? fallbackSrc
         : null
 
   const destinationQuery = church.coordinates
@@ -71,18 +71,15 @@ export function Hero({
 
   return (
     <div className="relative min-h-[380px] w-full overflow-hidden bg-[#0B4497] lg:min-h-[520px]">
-      {/* Background Image / Fallback Gradient */}
-      {coverSrc ? (
+      {heroSrc ? (
         <Image
-          src={coverSrc}
           alt={church.name}
-          fill
-          priority
-          unoptimized
           className="object-cover"
-          onError={() => {
-            setFailedSrcs((prev) => ({ ...prev, [coverSrc]: true }))
-          }}
+          fill
+          onError={() => setFailedSrc(heroSrc)}
+          priority
+          sizes="100vw"
+          src={heroSrc}
         />
       ) : (
         <div className="absolute inset-0 bg-gradient-to-b from-[#0E203E]/60 to-[#0E203E]" />

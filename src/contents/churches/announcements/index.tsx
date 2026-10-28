@@ -5,6 +5,7 @@ import SearchInput from '@/components/common/search-input'
 import { useAccessPermission } from '@/hooks/data/access-permission'
 import { useAnnouncements } from '@/hooks/data/announcement'
 import { useCurrentChurch } from '@/hooks/data/church'
+import { useUrlPagination } from '@/hooks/ui/url-pagination'
 import { AnnouncementInput, AnnouncementOutput, AnnouncementStatus } from '@/models/announcement'
 import { ANNOUNCEMENT_STATUS, announcementStatusLabels } from '@/utils/constant'
 import { PlusCircleFilled } from '@ant-design/icons'
@@ -29,8 +30,7 @@ export default function ContentsChurchAnnouncements({ churchId }: { churchId: st
   const [search, setSearch] = useState<string>()
   const [status, setStatus] = useState<AnnouncementStatus>()
   const [publishedRange, setPublishedRange] = useState<[Dayjs | null, Dayjs | null] | null>(null)
-  const [page, setPage] = useState(1)
-  const [pageSize, setPageSize] = useState(10)
+  const { page, pageSize, setPage, setPageSize } = useUrlPagination()
   const [orderBy, setOrderBy] = useState<'created_at' | 'title' | 'published_at'>('created_at')
   const [orderDirection, setOrderDirection] = useState<'asc' | 'desc'>('desc')
   const [editorOpen, setEditorOpen] = useState(false)

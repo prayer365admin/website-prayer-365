@@ -41,7 +41,11 @@ beforeEach(() => {
       id: 'p1',
       slug: 'peace-in-uncertainty',
       church_id: 'c1',
-      church: { name: 'Hope Church' },
+      church: {
+        name: 'Hope Church',
+        cover_asset: { object_key: 'hope-cover.jpg', purpose: 'IMAGE', status: 'READY' },
+      },
+      featured_asset: { object_key: 'prayer-featured.jpg', purpose: 'IMAGE', status: 'READY' },
       published_at: new Date('2026-10-15T08:00:00Z'),
       published_version_id: 'v1',
     },
@@ -106,6 +110,8 @@ describe('GET_SITE_PRAYER_ARCHIVE', () => {
     const archive = await GET_SITE_PRAYER_ARCHIVE({ userId: 'u1', query })
 
     expect(archive.featured?.id).toBe('p1')
+    expect(archive.featured?.churchCoverUrl).toBe('https://cdn.test/hope-cover.jpg')
+    expect(archive.featured?.featuredImageUrl).toBe('https://cdn.test/prayer-featured.jpg')
     expect(archive.featured?.audio?.url).toBe('https://cdn.test/audio.mp3')
     expect(archive.featured?.audio?.durationSeconds).toBe(125)
     expect(archive.result.map((item) => item.id)).toEqual(['p3'])

@@ -4,6 +4,7 @@ import DashboardMainHeader from '@/components/common/dashboard/main-header'
 import SearchInput from '@/components/common/search-input'
 import { useAccessPermission } from '@/hooks/data/access-permission'
 import { useCountries, useLanguages } from '@/hooks/data/central'
+import { useUrlPagination } from '@/hooks/ui/url-pagination'
 import { CountryData, isLanguageReady, LanguageSummary } from '@/models/registry'
 import { Alert, Button, Col, Drawer, Form, Input, Row, Select, Switch, Table, Tag } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
@@ -59,8 +60,7 @@ export default function ContentsCentralRegistry({ kind }: { kind: 'country' | 'l
   const [search, setSearch] = useState<string | undefined>('')
   const [active, setActive] = useState<Toggle>()
   const [ready, setReady] = useState<Toggle>()
-  const [page, setPage] = useState(1)
-  const [pageSize, setPageSize] = useState(10)
+  const { page, pageSize, setPage, setPageSize } = useUrlPagination()
 
   const [editing, setEditing] = useState<RegistryRow | 'new'>()
   const [form] = Form.useForm<FormValues>()

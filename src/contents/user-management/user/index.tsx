@@ -7,6 +7,7 @@ import { RefreshIcon } from '@/components/icon/refresh'
 import { userMgmtTableTheme } from '@/config/antdTheme'
 import { useUsers } from '@/hooks/data/user'
 import { LoadingOutlined, UserAddOutlined } from '@ant-design/icons'
+import { useUrlPagination } from '@/hooks/ui/url-pagination'
 import { ConfigProvider, Select, Table, TablePaginationConfig } from 'antd'
 import { useRouter } from 'next/navigation'
 import { useState } from 'react'
@@ -24,8 +25,7 @@ export default function ContentsUserManagementUser() {
     orderBy: 'created_at',
     orderDirection: 'desc',
   })
-  const [page, setPage] = useState<number>(1)
-  const [pageSize, setPageSize] = useState<number>(10)
+  const { page, pageSize, setPage, setPageSize } = useUrlPagination()
   const [editingId, setEditingId] = useState<string | null>(null)
   const [creating, setCreating] = useState(false)
 
@@ -59,7 +59,6 @@ export default function ContentsUserManagementUser() {
     onEdit: (id: string) => setEditingId(id),
     onDelete: deleteUser,
   })
-
   return (
     <div className="min-h-screen bg-[#FAFAFB] p-4 sm:p-6">
       {/* Top Header */}

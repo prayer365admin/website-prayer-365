@@ -3,6 +3,7 @@
 import DashboardMainHeader from '@/components/common/dashboard/main-header'
 import SearchInput from '@/components/common/search-input'
 import { RequestKind, useRequests } from '@/hooks/data/request'
+import { useUrlPagination } from '@/hooks/ui/url-pagination'
 import { RequestListSummary } from '@/models/request'
 import { Alert, Col, DatePicker, Empty, Result, Row, Select, Table, Tabs } from 'antd'
 import { Dayjs } from 'dayjs'
@@ -39,8 +40,7 @@ export default function ContentsChurchRequests({ churchId }: { churchId: string 
   const searchParams = useSearchParams()
   // Active tab lives in the URL so back/refresh/share keep it.
   const tab = TABS.find((t) => t.key === searchParams.get('tab')) ?? TABS[0]
-  const [page, setPage] = useState(1)
-  const [pageSize, setPageSize] = useState(25)
+  const { page, pageSize, setPage, setPageSize } = useUrlPagination({ defaultPageSize: 25 })
   const [orderDirection, setOrderDirection] = useState<'asc' | 'desc'>('desc')
   const [search, setSearch] = useState<string>()
   const [classification, setClassification] = useState<'private' | 'standard'>()
@@ -62,10 +62,13 @@ export default function ContentsChurchRequests({ churchId }: { churchId: string 
   })
 
   const selectTab = (key: string) => {
-    setPage(1)
     setClassification(undefined)
     setType(undefined)
-    router.replace(`${pathname}?tab=${key}`)
+    const params = new URLSearchParams(searchParams.toString())
+    params.set('tab', key)
+    params.set('page', '1')
+    params.set('limit', String(pageSize))
+    router.replace(`${pathname}?${params.toString()}`, { scroll: false })
   }
 
   return (

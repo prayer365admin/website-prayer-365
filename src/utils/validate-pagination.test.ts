@@ -67,6 +67,12 @@ describe('parseListQuery', () => {
       page: 1,
       limit: 1,
     })
+    expect(
+      parseListQuery(new URLSearchParams('page=999999999999&limit=Infinity'), allow),
+    ).toMatchObject({
+      page: 999999999999,
+      limit: 25,
+    })
   })
 
   it('rejects a non-allowlisted order_by', () => {

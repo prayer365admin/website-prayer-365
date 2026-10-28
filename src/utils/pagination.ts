@@ -50,10 +50,11 @@ export const parseListQuery = (
   let page = DEFAULT_PAGE
   let limit = DEFAULT_LIMIT
 
-  if (rawPage !== null && rawPage !== '' && !isNaN(+rawPage)) {
-    page = Math.max(1, Math.floor(+rawPage))
+  if (rawPage !== null && rawPage !== '' && Number.isFinite(+rawPage)) {
+    const normalizedPage = Math.max(1, Math.floor(+rawPage))
+    if (Number.isSafeInteger(normalizedPage)) page = normalizedPage
   }
-  if (rawLimit !== null && rawLimit !== '' && !isNaN(+rawLimit)) {
+  if (rawLimit !== null && rawLimit !== '' && Number.isFinite(+rawLimit)) {
     limit = Math.min(MAX_LIMIT, Math.max(1, Math.floor(+rawLimit)))
   }
 

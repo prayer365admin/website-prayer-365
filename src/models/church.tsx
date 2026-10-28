@@ -72,6 +72,7 @@ export const ChurchProfileInputSchema = z
     socialLinks: z.array(SocialLinkSchema).max(50).default([]),
     languageCodes: z.array(z.string().trim().min(1).max(10)).max(50),
     coverAssetId: z.string().uuid().nullish(),
+    heroAssetId: z.string().uuid().nullish(),
     galleryItems: z.array(ChurchGalleryItemInputSchema).optional(),
   })
   .strict()
@@ -92,6 +93,7 @@ export const ChurchProfileOutputSchema = z.object({
   socialLinks: z.unknown(),
   languageCodes: z.array(z.string()),
   coverAssetId: z.string().nullable(),
+  heroAssetId: z.string().nullable(),
   galleryItems: z.array(ChurchGalleryItemOutputSchema).default([]),
   status: z.string(),
   version: z.number(),
@@ -111,6 +113,7 @@ export type ChurchProfileOutput = {
   socialLinks: unknown
   languageCodes: string[]
   coverAssetId: string | null
+  heroAssetId: string | null
   galleryItems?: ChurchGalleryItemOutput[]
   status: string
   version: number

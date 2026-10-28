@@ -272,6 +272,26 @@ describe('patchChurchProfile', () => {
     ).rejects.toMatchObject({ code: 422, error_code: 'INVALID_COVER_ASSET' })
   })
 
+  it('throws 422 when the hero asset does not belong to the target church', async () => {
+    vi.mocked(GET_CHURCH_VERSION).mockResolvedValue(3 as never)
+    vi.mocked(GET_AVAILABLE_LANGUAGE_CODES).mockResolvedValue(new Set(['en']) as never)
+    vi.mocked(GET_CHURCH_READY_IMAGE).mockResolvedValue(null)
+
+    await expect(
+      patchChurchProfile({
+        userId: 'u1',
+        churchId: 'c1',
+        churchIds: new Set(['c1', 'c2']),
+        input: { ...input, heroAssetId: '00000000-0000-0000-0000-000000000000' },
+        requestId: 'r',
+      }),
+    ).rejects.toMatchObject({ code: 422, error_code: 'INVALID_HERO_ASSET' })
+    expect(GET_CHURCH_READY_IMAGE).toHaveBeenCalledWith({
+      churchIds: new Set(['c1']),
+      assetId: '00000000-0000-0000-0000-000000000000',
+    })
+  })
+
   it('clears coordinates and updates the profile', async () => {
     vi.mocked(GET_CHURCH_VERSION).mockResolvedValue(3 as never)
     vi.mocked(GET_AVAILABLE_LANGUAGE_CODES).mockResolvedValue(new Set(['en']) as never)

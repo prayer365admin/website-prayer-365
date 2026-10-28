@@ -4,6 +4,7 @@ import DashboardMainHeader from '@/components/common/dashboard/main-header'
 import SearchInput from '@/components/common/search-input'
 import { useChurches } from '@/hooks/data/church'
 import { useCentralPrayers } from '@/hooks/data/prayer'
+import { useUrlPagination } from '@/hooks/ui/url-pagination'
 import { Col, Row, Select, Table, TablePaginationConfig } from 'antd'
 import { useRouter } from 'next/navigation'
 import { useState } from 'react'
@@ -26,8 +27,7 @@ export default function ContentsCentralPrayers() {
   const [search, setSearch] = useState<string | undefined>('')
   const [status, setStatus] = useState<'current' | 'archive' | undefined>()
   const [churchId, setChurchId] = useState<string | undefined>()
-  const [page, setPage] = useState(1)
-  const [pageSize, setPageSize] = useState(10)
+  const { page, pageSize, setPage, setPageSize } = useUrlPagination()
   const [orderBy, setOrderBy] = useState<'created_at' | 'published_at'>('created_at')
   const [orderDirection, setOrderDirection] = useState<'asc' | 'desc'>('desc')
 
@@ -93,6 +93,8 @@ export default function ContentsCentralPrayers() {
 
       <Table
         columns={CentralPrayerColumns({
+          page,
+          pageSize,
           onOpen: (church, prayer) =>
             router.push(`/dashboard/churches/${church}/prayers/${prayer}`),
         })}

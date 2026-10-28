@@ -1,0 +1,15 @@
+{
+  "applinks": {
+    "details": [
+      {
+        "appIDs": ["<IOS_TEAM_ID>.com.prayer365.mobile"],
+        "components": [
+          {
+            "/": "/donations/*",
+            "comment": "Donation return and monthly-gift portal return"
+          }
+        ]
+      }
+    ]
+  }
+}

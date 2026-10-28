@@ -99,6 +99,12 @@ export default function FormChurchProfileTabs({
       ? `/api/v1/uploads/${initialValues.coverAssetId}/access?churchId=${encodeURIComponent(churchId)}`
       : null,
   })
+  const [heroAsset, setHeroAsset] = useState<{ assetId: string | null; url: string | null }>({
+    assetId: initialValues.heroAssetId ?? null,
+    url: initialValues.heroAssetId
+      ? `/api/v1/uploads/${initialValues.heroAssetId}/access?churchId=${encodeURIComponent(churchId)}`
+      : null,
+  })
 
   const [editingPastor, setEditingPastor] = useState<ChurchPastorSummary | null>(null)
   const [editingPastorImage, setEditingPastorImage] = useState<{
@@ -175,6 +181,7 @@ export default function FormChurchProfileTabs({
       address: addressPayload,
       contacts: contactsPayload,
       coverAssetId: coverAsset.assetId ?? null,
+      heroAssetId: heroAsset.assetId ?? null,
       galleryItems: galleryItems.map((g, idx) => ({
         id: g.id,
         mediaAssetId: g.mediaAssetId,
@@ -242,7 +249,7 @@ export default function FormChurchProfileTabs({
           </Row>
           <Row gutter={24}>
             <Col span={12}>
-              <Form.Item label="Cover image">
+              <Form.Item label="Thumbnail image">
                 <UploadBox
                   formName="coverAssetId"
                   churchId={churchId}
@@ -251,16 +258,34 @@ export default function FormChurchProfileTabs({
                   setUpload={(val) => {
                     const typedVal = val as { url: string | null; assetId?: string | null }
                     setCoverAsset({
-                      assetId: typedVal.assetId ?? coverAsset.assetId,
+                      assetId: typedVal.assetId ?? null,
                       url: typedVal.url,
                     })
-                    if (typedVal.assetId) {
-                      form.setFieldValue('coverAssetId', typedVal.assetId)
-                    }
+                    form.setFieldValue('coverAssetId', typedVal.assetId ?? null)
                   }}
                 />
               </Form.Item>
             </Col>
+            <Col span={12}>
+              <Form.Item label="Hero image">
+                <UploadBox
+                  formName="heroAssetId"
+                  churchId={churchId}
+                  purpose="IMAGE"
+                  upload={heroAsset}
+                  setUpload={(val) => {
+                    const typedVal = val as { url: string | null; assetId?: string | null }
+                    setHeroAsset({
+                      assetId: typedVal.assetId ?? null,
+                      url: typedVal.url,
+                    })
+                    form.setFieldValue('heroAssetId', typedVal.assetId ?? null)
+                  }}
+                />
+              </Form.Item>
+            </Col>
+          </Row>
+          <Row gutter={24}>
             <Col span={12}>
               <Form.Item
                 name={'languageCodes'}

@@ -1,5 +1,6 @@
 import { GeneralQueryParams } from '@/models/general-query-params'
 import { GeneralError } from './general-error'
+import { MAX_LIMIT } from './pagination'
 
 export function parseSearchParams<T extends Record<string, unknown>>(
   searchParams: URLSearchParams,
@@ -25,8 +26,12 @@ export function parseSearchParams<T extends Record<string, unknown>>(
   parsed.search = search
   parsed.order_by = order_by
   parsed.order_direction = order_direction
-  parsed.page = page && !isNaN(+page) ? +page : undefined
-  parsed.limit = limit && !isNaN(+limit) ? +limit : undefined
+  const normalizedPage = page && Number.isFinite(+page) ? Math.max(1, Math.floor(+page)) : undefined
+  parsed.page = Number.isSafeInteger(normalizedPage) ? normalizedPage : undefined
+  parsed.limit =
+    limit && Number.isFinite(+limit)
+      ? Math.min(MAX_LIMIT, Math.max(1, Math.floor(+limit)))
+      : undefined
 
   for (const key in schema) {
     const rawValue = searchParams.get(key)

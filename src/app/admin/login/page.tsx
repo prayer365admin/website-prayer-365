@@ -1,11 +1,9 @@
-import SignInForm from '@/components/auth/sign-in-form'
+import ContentsAdminSignIn, { metadata } from '@/contents/admin/sign-in'
+import redirectAuthenticatedStaff from '@/utils/redirect-authenticated-staff'
 
-export default function Page() {
-  return (
-    <SignInForm
-      brandTitle="Prayer Dashboard"
-      welcome="Sign in to the staff dashboard."
-      redirectTo="/dashboard"
-    />
-  )
+export { metadata }
+
+export default async function Page() {
+  await redirectAuthenticatedStaff()
+  return <ContentsAdminSignIn />
 }
