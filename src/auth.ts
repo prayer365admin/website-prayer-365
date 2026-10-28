@@ -32,6 +32,7 @@ import type { Account, Profile, User } from 'next-auth'
 import { JWT } from 'next-auth/jwt'
 import { getOAuthUser, loginGoogleCustomer, loginUser } from './controller/authentication'
 import { getUserByEmail } from './controller/user'
+import { RECORD_LOGIN } from './providers/user'
 
 declare module 'next-auth/jwt' {
   /** Returned by the `jwt` callback and `auth`, when using JWT sessions */
@@ -79,7 +80,10 @@ export const authCallbacks = {
       name: googleProfile.name || googleProfile.email.split('@')[0],
       profilePicture: googleProfile.picture || null,
     })
-    return !!customer
+    if (!customer) return false
+
+    await RECORD_LOGIN({ user_id: customer.id, provider: 'google' })
+    return true
   },
   jwt: async ({ token, account }: { token: JWT; account?: Account | null }) => {
     const result =

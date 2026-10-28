@@ -57,6 +57,18 @@ describe('createMailTransport', () => {
       }),
     )
   })
+  it('honors credentials passed in the env argument', () => {
+    createMailTransport(
+      'mailgun',
+      env({ MAILGUN_USER: 'custom-user', MAILGUN_PASSWORD: 'custom-password' }),
+    )
+
+    expect(createTransport).toHaveBeenCalledWith(
+      expect.objectContaining({
+        auth: { user: 'custom-user', pass: 'custom-password' },
+      }),
+    )
+  })
 
   it('keeps the mailtrap SMTP transport', () => {
     createMailTransport('mailtrap', env({ MAILTRAP_USER: 'u', MAILTRAP_PASSWORD: 'p' }))

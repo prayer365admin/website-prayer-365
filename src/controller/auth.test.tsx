@@ -1,7 +1,7 @@
 // @vitest-environment node
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-vi.mock('@/controller/mail', () => ({ default: vi.fn() }))
+vi.mock('@/providers/mail-job', () => ({ ENQUEUE_MAIL_SEND: vi.fn() }))
 vi.mock('@/controller/user', () => ({ updateUser: vi.fn() }))
 vi.mock('@/utils/hash', () => ({ hashSecret: vi.fn().mockResolvedValue('hashed') }))
 vi.mock('@/providers/auth-token', () => ({
@@ -17,7 +17,7 @@ vi.mock('@/providers/user', () => ({
   UPDATE_USER: vi.fn(),
 }))
 
-import sendMail from '@/controller/mail'
+import { ENQUEUE_MAIL_SEND } from '@/providers/mail-job'
 import { registerUser } from '@/controller/auth'
 import { USE_AUTH_TOKEN } from '@/providers/auth-token'
 import { CREATE_CUSTOMER, GET_USER_BY_EMAIL } from '@/providers/user'
@@ -55,7 +55,17 @@ describe('registerUser (WB1 / WB-18)', () => {
       main_church_id: 'c1',
       role_name: 'prayer_user',
     })
-    expect(sendMail).toHaveBeenCalledTimes(1)
+    expect(ENQUEUE_MAIL_SEND).toHaveBeenCalledWith(
+      expect.objectContaining({
+        dedupeKeySuffix: 'token-1',
+        message: expect.objectContaining({
+          template_name: 'verify-email',
+          payload: expect.objectContaining({
+            link: expect.stringContaining('token=tok'),
+          }),
+        }),
+      }),
+    )
     expect(result).toEqual({
       id: 'u1',
       email: 'maria@example.com',
@@ -87,7 +97,7 @@ describe('registerUser (WB1 / WB-18)', () => {
     expect(CREATE_CUSTOMER).toHaveBeenCalledWith(
       expect.objectContaining({ main_church_id: undefined, locale: 'sv' }),
     )
-    expect(sendMail).toHaveBeenCalledTimes(1)
+    expect(ENQUEUE_MAIL_SEND).toHaveBeenCalledTimes(1)
   })
 
   it('rejects a non-approved main church with INVALID_MAIN_CHURCH and sends no email', async () => {
@@ -101,7 +111,7 @@ describe('registerUser (WB1 / WB-18)', () => {
       code: 400,
       error_code: 'INVALID_MAIN_CHURCH',
     })
-    expect(sendMail).not.toHaveBeenCalled()
+    expect(ENQUEUE_MAIL_SEND).not.toHaveBeenCalled()
   })
 
   it('fails loudly when the prayer_user role is not seeded', async () => {
@@ -111,7 +121,7 @@ describe('registerUser (WB1 / WB-18)', () => {
       code: 500,
       error_code: 'CUSTOMER_ROLE_MISSING',
     })
-    expect(sendMail).not.toHaveBeenCalled()
+    expect(ENQUEUE_MAIL_SEND).not.toHaveBeenCalled()
   })
 
   it('rejects a duplicate email with USER_EXISTS', async () => {
@@ -122,7 +132,7 @@ describe('registerUser (WB1 / WB-18)', () => {
   })
 
   it('returns a recoverable result when the first verification email fails', async () => {
-    vi.mocked(sendMail).mockRejectedValueOnce(new Error('mail unavailable'))
+    vi.mocked(ENQUEUE_MAIL_SEND).mockRejectedValueOnce(new Error('mail unavailable'))
 
     await expect(registerUser(input)).resolves.toMatchObject({
       id: 'u1',

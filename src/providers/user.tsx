@@ -64,11 +64,24 @@ export const GET_USERS = async ({
         ...(order_by && order_direction ? { [order_by]: order_direction } : { created_at: 'desc' }),
       },
       omit: SAFE,
-      include: { role: { include: { permission: true } } },
+      include: {
+        role: { include: { permission: true } },
+        roleAssignments: {
+          where: { revoked_at: null },
+          include: { org_node: { select: { kind: true, name: true } } },
+          take: 1,
+          orderBy: { created_at: 'asc' },
+        },
+      },
     }),
   ])
 
-  return { result, total }
+  const mapped = result.map((row) => ({
+    ...row,
+    role_assignments: row.roleAssignments,
+  }))
+
+  return { result: mapped, total }
 }
 
 /** Customer list: no role (legacy) or the `prayer_user` customer role (R-01/R-02). */
@@ -251,6 +264,7 @@ export const CREATE_USER = async (payload: {
   password: string
   email_verified_at?: Date | null
   role_id?: string | null
+  profile_picture?: string | null
 }) => {
   const { role_id, ...rest } = payload
   const result = await db.user.create({
@@ -314,6 +328,7 @@ export const UPDATE_USER = async ({
   user_id: string
   payload: {
     name?: string
+    email?: string
     password?: string
     email_verified_at?: Date | null
     profile_picture?: string | null
@@ -327,6 +342,30 @@ export const UPDATE_USER = async ({
     omit: SAFE,
   })
   return result
+}
+
+/** Stamp how and when a user last signed in (call only on a successful sign-in). */
+export const RECORD_LOGIN = async ({ user_id, provider }: { user_id: string; provider: string }) =>
+  db.user.update({
+    where: { id: user_id },
+    data: { last_login_provider: provider, last_active_at: new Date() },
+    omit: SAFE,
+  })
+
+const TOUCH_INTERVAL_MS = 5 * 60 * 1000
+const lastTouched = new Map<string, number>()
+
+/**
+ * Throttled activity stamp: at most one write per user per interval per process.
+ * Fire-and-forget — an activity stamp must never fail an authorized request.
+ */
+export const TOUCH_LAST_ACTIVE = async ({ user_id }: { user_id: string }) => {
+  const now = Date.now()
+  if (now - (lastTouched.get(user_id) ?? 0) < TOUCH_INTERVAL_MS) return
+  lastTouched.set(user_id, now)
+  await db.user
+    .update({ where: { id: user_id }, data: { last_active_at: new Date() } })
+    .catch(() => {})
 }
 
 /**

@@ -23,6 +23,7 @@ export const SUPPORTED_KINDS = [
   'prayer.publish',
   'payment.sync',
   'voice.register',
+  'mail.send',
 ] as const
 
 export type JobKind = (typeof SUPPORTED_KINDS)[number]

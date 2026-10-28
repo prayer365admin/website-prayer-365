@@ -2,6 +2,7 @@ import {
   FIND_OR_CREATE_OAUTH_CUSTOMER,
   GET_USER_BY_EMAIL,
   GET_USER_BY_OAUTH_ACCOUNT,
+  RECORD_LOGIN,
 } from '@/providers/user'
 import { verifySecret } from '@/utils/hash'
 import { CredentialsSignin } from 'next-auth'
@@ -44,6 +45,8 @@ export const loginUser = async ({ email, password }: { email: string; password: 
   if (!result.email_verified_at) {
     throw new SigningError('EMAIL_NOT_VERIFIED')
   }
+
+  await RECORD_LOGIN({ user_id: result.id, provider: 'password' })
 
   return result
 }

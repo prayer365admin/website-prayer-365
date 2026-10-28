@@ -22,9 +22,18 @@ export default function PasswordInput({
                 return Promise.resolve()
               }
 
+              // Empty input is the `required` rule's message — don't stack a second one.
+              if (!value) {
+                return Promise.resolve()
+              }
+
               const regex = /^(?=.*[A-Z])(?=.*[a-z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/
-              if (!value || !regex.test(value)) {
-                return Promise.reject(new Error(`${label} only able to use numbers!`))
+              if (!regex.test(value)) {
+                return Promise.reject(
+                  new Error(
+                    `${label} must be at least 8 characters and include an uppercase letter, a lowercase letter, a number and a symbol (@$!%*?&).`,
+                  ),
+                )
               }
 
               return Promise.resolve()
@@ -47,7 +56,7 @@ export default function PasswordInput({
               if (!value || getFieldValue('password') === value) {
                 return Promise.resolve()
               }
-              return Promise.reject(new Error(`The new ${label} that you entered do not match!`))
+              return Promise.reject(new Error(`${label} and confirmation do not match!`))
             },
           }),
         ]}

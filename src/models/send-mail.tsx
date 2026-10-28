@@ -8,3 +8,5 @@ export interface sendMailRequest {
   baseUrl?: string
   host?: string
 }
+
+export type MailSendRequest = Omit<sendMailRequest, 'attachment'>
