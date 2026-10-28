@@ -7,7 +7,6 @@ import {
   EVENT_TABLE_DATETIME_FORMAT,
   eventInstantToChurchEditorDateTime,
   eventInstantToChurchDateTime,
-  eventInstantToChurchEditorDateTime,
   eventOffsetLabel,
   eventStartStatus,
   formatEventStart,

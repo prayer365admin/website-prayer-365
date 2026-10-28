@@ -39,11 +39,14 @@ import { ChurchPastorSummary } from '@/models/pastor'
 import { useAccessPermission } from '@/hooks/data/access-permission'
 dayjs.extend(customParseFormat)
 
+export type ChurchProfileTabKey = 'details' | 'location' | 'pastors' | 'service-times' | 'gallery'
+
 interface FormChurchProfileTabsProps {
   initialValues: ChurchProfileOutput
   serviceTimes: ServiceTimeEntry[]
   churchId: string
   loading?: boolean
+  visibleTabs?: ChurchProfileTabKey[]
   onSubmit: (payload: ChurchProfileInput) => Promise<ChurchProfileOutput | undefined>
   onSubmitSchedule: (payload: ServiceTimeScheduleInput) => Promise<unknown>
 }
@@ -77,6 +80,7 @@ export default function FormChurchProfileTabs({
   serviceTimes,
   churchId,
   loading,
+  visibleTabs,
   onSubmit,
   onSubmitSchedule,
 }: FormChurchProfileTabsProps) {
@@ -633,7 +637,13 @@ export default function FormChurchProfileTabs({
         }}
         form={form}
       >
-        <Tabs items={tabItems} />
+        <Tabs
+          items={
+            visibleTabs
+              ? tabItems.filter((t) => visibleTabs.includes(t.key as ChurchProfileTabKey))
+              : tabItems
+          }
+        />
         <div className="text-right mt-4">
           <Button type="primary" onClick={handleSubmit} loading={loading}>
             Save
