@@ -17,6 +17,7 @@
     "seed:permissions": "bun src/script/seed-permissions.ts",
     "seed:media": "bun src/script/seed-media.ts",
     "seed:verify": "bun src/script/seed-verify.ts",
+    "env:sync": "bun src/script/sync-env.ts",
     "seed:demo": "bun src/script/seed-media.ts && bunx tsx prisma/seed.ts && bun src/script/seed-verify.ts",
     "seed:viimsi": "bunx tsx prisma/seed-viimsi.ts",
     "request:submit": "bun src/script/submit-request.ts",

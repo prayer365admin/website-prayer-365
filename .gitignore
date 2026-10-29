@@ -33,6 +33,7 @@ bun-error.log*
 .env.test
 .env
 .env.prod
+.env.staging
 
 .vitest
 
