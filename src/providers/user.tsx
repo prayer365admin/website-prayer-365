@@ -36,12 +36,14 @@ export const GET_USERS = async ({
   search,
   role,
   status,
-}: GeneralQueryParams & { role?: string; status?: string }) => {
+  pastorLinked,
+}: GeneralQueryParams & { role?: string; status?: string; pastorLinked?: boolean }) => {
   const offset = page && limit && (page - 1) * limit
 
   const filter: Prisma.UserWhereInput = {
     role: { is: { name: { not: CUSTOMER_ROLE } } },
     ...(role ? { role_id: role } : {}),
+    ...(pastorLinked ? { pastors: { some: { deleted_at: null } } } : {}),
     ...(status === 'active'
       ? { status: 'active', deleted_at: null }
       : status === 'inactive'

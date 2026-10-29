@@ -52,6 +52,8 @@ export const listPastors = async ({
   search,
   assignment,
   staff_assignment,
+  church_id,
+  user_id,
 }: {
   page: number
   limit: number
@@ -60,7 +62,20 @@ export const listPastors = async ({
   search?: string
   assignment?: 'assigned' | 'unassigned'
   staff_assignment?: 'assigned' | 'unassigned'
-}) => GET_PASTORS({ page, limit, order_by, order_direction, search, assignment, staff_assignment })
+  church_id?: string
+  user_id?: string
+}) =>
+  GET_PASTORS({
+    page,
+    limit,
+    order_by,
+    order_direction,
+    search,
+    assignment,
+    staff_assignment,
+    church_id,
+    user_id,
+  })
 
 export const getPastor = async ({ pastorId }: { pastorId: string }) => {
   const pastor = await GET_PASTOR_BY_ID({ pastorId })

@@ -38,6 +38,7 @@ export async function GET(req: NextRequest) {
     })
     const role = searchParams.get('role') ?? undefined
     const status = searchParams.get('status') ?? undefined
+    const pastorLinked = searchParams.get('pastor_linked') === 'true'
     const result = await GET_USERS({
       limit,
       page,
@@ -46,6 +47,7 @@ export async function GET(req: NextRequest) {
       search,
       role,
       status,
+      pastorLinked,
     })
 
     const safeResult = (result.result as Array<Record<string, unknown>>).map((r) => protect(r))

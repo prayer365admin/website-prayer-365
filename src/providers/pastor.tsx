@@ -50,6 +50,8 @@ export const GET_PASTORS = async ({
   search,
   assignment,
   staff_assignment,
+  church_id,
+  user_id,
 }: {
   page: number
   limit: number
@@ -58,6 +60,8 @@ export const GET_PASTORS = async ({
   search?: string
   assignment?: 'assigned' | 'unassigned'
   staff_assignment?: 'assigned' | 'unassigned'
+  church_id?: string
+  user_id?: string
 }) => {
   const term = search?.trim()
   const where: Prisma.PastorWhereInput = {
@@ -87,6 +91,8 @@ export const GET_PASTORS = async ({
       : staff_assignment === 'unassigned'
         ? { user_id: null }
         : {}),
+    ...(church_id ? { churchPastors: { some: { church_id } } } : {}),
+    ...(user_id ? { user_id } : {}),
   }
   const [total, rows] = await db.$transaction([
     db.pastor.count({ where }),
