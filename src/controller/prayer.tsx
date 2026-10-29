@@ -200,6 +200,18 @@ export const getPrayer = async ({
   return row
 }
 
+export const getCentralPrayer = async ({
+  churchIds,
+  prayerId,
+}: {
+  churchIds: Set<string>
+  prayerId: string
+}): Promise<CentralPrayerOutput> => {
+  const prayer = await getPrayer({ churchIds, prayerId })
+  const [church] = await GET_CHURCH_NAMES({ ids: [prayer.churchId] })
+  return { ...prayer, churchName: church?.name ?? '-' }
+}
+
 /** POST: prayer + initial version + pointer in ONE transaction. */
 export const createPrayer = async ({
   userId,

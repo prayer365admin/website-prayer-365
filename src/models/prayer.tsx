@@ -91,6 +91,7 @@ export const PrayerVersionOutputSchema = z.object({
   languageCode: z.string(),
   textHash: z.string(),
   approvedBy: z.string().nullable(),
+  approvedByName: z.string().nullable().optional(),
   approvedAt: z.string().nullable(),
   selectedAudioId: z.string().nullable(),
   latestAudioId: z.string().nullable(),
@@ -108,6 +109,7 @@ export type PrayerVersionOutput = {
   languageCode: string
   textHash: string
   approvedBy: string | null
+  approvedByName?: string | null
   approvedAt: string | null
   selectedAudioId: string | null
   /**
@@ -196,6 +198,7 @@ export const mapVersion = (v: {
   approved_at: Date | null
   selected_audio_id: string | null
   created_at: Date
+  approved_by_user?: { name: string } | null
   /** Newest-first, at most one row (versionFields). Absent on write responses. */
   audio?: { id: string; status: string }[]
 }): PrayerVersionOutput => ({
@@ -208,6 +211,7 @@ export const mapVersion = (v: {
   languageCode: v.language_code,
   textHash: v.text_hash,
   approvedBy: v.approved_by,
+  approvedByName: v.approved_by_user?.name ?? null,
   approvedAt: v.approved_at ? v.approved_at.toISOString() : null,
   selectedAudioId: v.selected_audio_id,
   latestAudioId: v.audio?.[0]?.id ?? null,
