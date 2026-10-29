@@ -36,6 +36,7 @@ vi.mock('@/utils/audit', () => ({ auditPayload: auditPayloadMock }))
 import {
   GET_PRAYER_FOR_PUBLISH_JOB,
   GET_VERSION_APPROVAL,
+  CREATE_PRAYER_WITH_VERSION,
   CREATE_VERSION_SNAPSHOT,
   PUBLISH_PRAYER_BY_JOB,
   SCAN_DUE_SCHEDULED_PRAYERS,
@@ -90,6 +91,120 @@ describe('LIST_PRAYERS', () => {
         }),
       }),
     )
+  })
+})
+
+describe('CREATE_PRAYER_WITH_VERSION', () => {
+  it('creates a stable title slug with the prayer and initial version', async () => {
+    const createdAt = new Date('2026-10-23T00:00:00.000Z')
+    db.prayer.findUnique.mockResolvedValueOnce(null)
+    db.prayer.create.mockResolvedValueOnce({
+      id: 'p1',
+      slug: 'ohtu-rahu',
+      church_id: 'c1',
+      created_by: 'u1',
+      version: 1,
+      created_at: createdAt,
+      current_version_id: null,
+      published_version_id: null,
+      scheduled_version_id: null,
+      scheduled_at: null,
+      published_at: null,
+    })
+    db.prayerVersion.create.mockResolvedValueOnce({
+      id: 'v1',
+      prayer_id: 'p1',
+      version_number: 1,
+      pastor_id: 'pastor-1',
+      title: 'Õhtu rahu',
+      introduction: null,
+      body: 'Amen.',
+      language_code: 'et',
+      text_hash: 'hash',
+      approved_by: null,
+      approved_at: null,
+      selected_audio_id: null,
+      created_at: createdAt,
+    })
+    db.prayer.update.mockResolvedValueOnce({
+      id: 'p1',
+      slug: 'ohtu-rahu',
+      church_id: 'c1',
+      version: 1,
+      created_at: createdAt,
+      current_version_id: 'v1',
+      published_version_id: null,
+      scheduled_version_id: null,
+      scheduled_at: null,
+      published_at: null,
+    })
+
+    await CREATE_PRAYER_WITH_VERSION({
+      churchId: 'c1',
+      data: {
+        pastorId: 'pastor-1',
+        title: 'Õhtu rahu',
+        introduction: null,
+        body: 'Amen.',
+        languageCode: 'et',
+      },
+      actorId: 'u1',
+      requestId: 'request-1',
+    })
+
+    expect(db.prayer.create).toHaveBeenCalledWith({
+      data: {
+        slug: 'ohtu-rahu',
+        church_id: 'c1',
+        created_by: 'u1',
+        featured_asset_id: null,
+      },
+    })
+  })
+
+  it('adds a non-ID suffix when a title slug already exists', async () => {
+    db.prayer.findUnique.mockResolvedValueOnce({ id: 'existing' }).mockResolvedValueOnce(null)
+    db.prayer.create.mockResolvedValueOnce({ id: 'p2' })
+    db.prayerVersion.create.mockResolvedValueOnce({
+      id: 'v2',
+      version_number: 1,
+      pastor_id: 'pastor-1',
+      title: 'Morning Prayer',
+      introduction: null,
+      body: 'Amen.',
+      language_code: 'en',
+      text_hash: 'hash',
+      approved_by: null,
+      approved_at: null,
+      selected_audio_id: null,
+      created_at: new Date(),
+    })
+    db.prayer.update.mockResolvedValueOnce({
+      id: 'p2',
+      church_id: 'c1',
+      version: 1,
+      created_at: new Date(),
+      current_version_id: 'v2',
+      published_version_id: null,
+      scheduled_version_id: null,
+      scheduled_at: null,
+      published_at: null,
+    })
+
+    await CREATE_PRAYER_WITH_VERSION({
+      churchId: 'c1',
+      data: {
+        pastorId: 'pastor-1',
+        title: 'Morning Prayer',
+        introduction: null,
+        body: 'Amen.',
+        languageCode: 'en',
+      },
+      actorId: 'u1',
+      requestId: 'request-2',
+    })
+
+    expect(db.prayer.create.mock.calls[0][0].data.slug).toMatch(/^morning-prayer-[a-z0-9]{6}$/)
   })
 })
 

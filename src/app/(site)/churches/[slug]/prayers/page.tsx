@@ -35,9 +35,10 @@ export default async function ChurchPrayerArchivePage({
   return (
     <PrayerArchive
       archive={archive}
-      basePath={`/churches/${slug}/prayers`}
+      fixedChurchId={archive.churches[0]?.value}
       fixedChurchName={archive.churches[0]?.label}
-      query={query}
+      initialQuery={query}
+      userId={web.session.user.user_id}
     />
   )
 }

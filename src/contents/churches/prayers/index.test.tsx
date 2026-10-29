@@ -10,6 +10,7 @@ const mockPrayers: PrayerOutput[] = [
     churchId: 'c1',
     version: 1,
     createdAt: '2024-12-01T08:00:00Z',
+    featuredAssetId: null,
     current: {
       id: 'pv1',
       versionNumber: 1,
@@ -38,6 +39,7 @@ const mockPrayers: PrayerOutput[] = [
     churchId: 'c1',
     version: 1,
     createdAt: '2024-11-01T08:00:00Z',
+    featuredAssetId: null,
     current: {
       id: 'pv2',
       versionNumber: 1,

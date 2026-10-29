@@ -12,6 +12,7 @@ import {
 import { S3_PUT_OBJECT, S3_DELETE_OBJECT } from '@/providers/s3'
 import { CREATE_PENDING_ASSET, MARK_READY, DELETE_ASSET } from '@/providers/media'
 import { hashBytes } from '@/utils/hash'
+import { richTextToPlainText } from '@/utils/rich-text-plain'
 
 /*
  * audio.generate job (PR-07). Trusted worker: re-proves every business fact
@@ -111,7 +112,7 @@ export const processAudioGenerateJob = async (
   try {
     const speech = await ELEVENLABS.generateSpeech({
       providerVoiceId: resource.voice_profile.provider_voice_id,
-      text: resource.verse.body,
+      text: richTextToPlainText(resource.verse.body),
       languageCode: resource.verse.language_code,
     })
     const objectKey = `media/${churchId}/generated_audio/${crypto.randomUUID()}`

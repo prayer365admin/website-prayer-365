@@ -2,7 +2,7 @@ import { auth } from '@/auth'
 import { GeneralError } from './general-error'
 import { getAccessPermission } from './access-permission'
 import { verifyAccessToken } from './jwt-token'
-import { GET_USER_BY_ID } from '@/providers/user'
+import { GET_USER_BY_ID, TOUCH_LAST_ACTIVE } from '@/providers/user'
 import { NextRequest } from 'next/server'
 
 export default async function requiredAuth(req?: NextRequest) {
@@ -57,6 +57,9 @@ export default async function requiredAuth(req?: NextRequest) {
   // Role-less sessions (website customers, role-less mobile bearers) get an
   // empty role name: every permission check is denied, nothing is granted.
   const permission = accessPermission.can(session.user.role?.name ?? '')
+
+  // Fire-and-forget: every authenticated request is activity (provider throttles writes).
+  void TOUCH_LAST_ACTIVE({ user_id: session.user.user_id })
 
   return {
     session,

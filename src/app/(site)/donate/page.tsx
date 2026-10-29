@@ -1,12 +1,35 @@
 import ContentsSiteDonate from '@/contents/site/donate'
 import { getMyDonationOverview } from '@/controller/donation'
-import { getPublicChurch, listMyChurches } from '@/controller/mobile'
+import { getMe, getPublicChurch, listMyChurches } from '@/controller/mobile'
 import { getNeighborSpotlight } from '@/controller/site'
-import { MobileChurchListQuerySchema } from '@/models/mobile'
 import { isStripeEnabled } from '@/providers/stripe'
+import { withConnectionRetry } from '@/utils/db-retry'
+import { GeneralError } from '@/utils/general-error'
 import requiredWebAuth from '@/utils/required-webauth'
-import { validate } from '@/utils/validate'
+import { firstParam } from '@/utils/search-param'
 import { redirect } from 'next/navigation'
+
+/** The one canonical giving URL shape, shared by both redirects below. */
+const donateHref = (slug: string, oneTime: boolean) => {
+  const query = new URLSearchParams({ church: slug })
+  if (oneTime) query.set('frequency', 'one_time')
+  return `/donate?${query.toString()}`
+}
+
+/**
+ * A church that is missing or not approved is the only EXPECTED failure — it sends
+ * the giver to the directory. Everything else (database down, pool exhausted, bad
+ * config) must reach the `(site)` error boundary instead of being mislabelled
+ * "church not found" and silently redirecting.
+ */
+const getChurchOrNull = async (identifier: string) => {
+  try {
+    return await getPublicChurch({ slug: identifier })
+  } catch (error) {
+    if (error instanceof GeneralError && error.error_code === 'RESOURCE_NOT_FOUND') return null
+    throw error
+  }
+}
 
 // W11 Giving & Stewardship Portal (WB-41). One URL shape: `/donate?church={slug}`
 // names the parish receiving the gift. A bare `/donate` resolves to the giver's
@@ -22,20 +45,18 @@ export default async function Page({
   if (!web) redirect('/login')
 
   const params = await searchParams
-  const churchParam = params.church
-  const churchSlug =
-    (Array.isArray(churchParam) ? churchParam[0] : churchParam)?.trim().toLowerCase() || null
+  // Stored slugs are generated lower-case, so lower-casing only tolerates a pasted link.
+  const identifier = firstParam(params.church)?.toLowerCase() ?? null
   // Home "One-time Offering" deep link.
-  const frequencyParam = params.frequency
-  const oneTime =
-    (Array.isArray(frequencyParam) ? frequencyParam[0] : frequencyParam) === 'one_time'
+  const oneTime = firstParam(params.frequency) === 'one_time'
   const userId = web.session.user.user_id
 
-  if (!churchSlug) {
+  if (!identifier) {
     const myChurches = await listMyChurches({ userId })
     const main = myChurches.find((row) => row.isMain)
-    // Bake the Main Church default into the URL so it always names the beneficiary.
-    if (main?.slug) redirect(`/donate?church=${main.slug}`)
+    // Bake the Main Church default into the URL so it always names the beneficiary,
+    // carrying the one-time flag the deep link may have arrived with.
+    if (main?.slug) redirect(donateHref(main.slug, oneTime))
 
     return (
       <ContentsSiteDonate
@@ -48,14 +69,19 @@ export default async function Page({
     )
   }
 
-  const [church, overview, myChurches] = await Promise.all([
-    getPublicChurch({ slug: churchSlug, query: validate(MobileChurchListQuerySchema, {}) }).catch(
-      () => null,
-    ),
-    getMyDonationOverview({ userId }),
-    listMyChurches({ userId }),
-  ])
+  // One retry when the DB refuses a connection (managed Postgres ceiling): a
+  // momentary capacity blip should cost a few hundred ms, not the error page.
+  const [church, overview, me] = await withConnectionRetry(() =>
+    Promise.all([
+      getChurchOrNull(identifier),
+      getMyDonationOverview({ userId }),
+      getMe({ userId }),
+    ]),
+  )
   if (!church) redirect('/churches')
+  // The lookup accepts id OR slug (the donation-result fallback links with an id),
+  // so rewrite the address bar to the stored slug — canonical, like prayer detail.
+  if (identifier !== church.slug) redirect(donateHref(church.slug, oneTime))
 
   const neighbor = await getNeighborSpotlight({
     churchId: church.id,
@@ -69,7 +95,9 @@ export default async function Page({
         slug: church.slug,
         churchName: church.name,
         donationOptions: church.donationOptions,
-        isMainParish: myChurches.some((row) => row.isMain && row.churchId === church.id),
+        // One request-cached user read answers this; the church list used to be
+        // fetched (with a per-row cover read) just to render one label suffix.
+        isMainParish: me.mainChurchId === church.id,
       }}
       oneTime={oneTime}
       overview={overview}

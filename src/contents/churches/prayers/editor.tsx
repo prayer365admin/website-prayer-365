@@ -1,6 +1,9 @@
 'use client'
 
 import CardTitle from '@/components/common/card-title'
+import RichTextEditor from '@/components/common/rich-text-editor'
+import RichTextContent from '@/components/common/rich-text-content'
+import UploadBox from '@/components/common/upload-box'
 import SelectPastor from '@/components/common/select/pastor'
 import { useChurchProfile } from '@/hooks/data/church'
 import { useChurchPastors } from '@/hooks/data/pastor'
@@ -42,6 +45,7 @@ import timezone from 'dayjs/plugin/timezone'
 import { utcToLocal } from '@/utils/utc-to-local'
 import { useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
+import { plainTextToRichText } from '@/utils/rich-text-plain'
 
 dayjs.extend(utc)
 dayjs.extend(timezone)
@@ -59,13 +63,27 @@ export default function ContentsChurchesPrayersEditor({
 
   const { data: prayer } = usePrayer(churchId, prayerId ?? '')
   const [saved, setSaved] = useState<PrayerOutput | null>(null)
+  const [featuredAsset, setFeaturedAsset] = useState<{
+    assetId: string | null
+    url: string | null
+  }>({ assetId: null, url: null })
 
   useEffect(() => {
     if (!prayer) return
 
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setSaved((prev) => (!prev || prayer.version > prev.version ? prayer : prev))
-  }, [prayer])
+    setFeaturedAsset((current) =>
+      current.assetId === prayer.featuredAssetId
+        ? current
+        : {
+            assetId: prayer.featuredAssetId ?? null,
+            url: prayer.featuredAssetId
+              ? `/api/v1/uploads/${prayer.featuredAssetId}/access?churchId=${encodeURIComponent(churchId)}`
+              : null,
+          },
+    )
+  }, [churchId, prayer])
 
   const { data: profile } = useChurchProfile(churchId)
   const { data: pastors } = useChurchPastors(churchId)
@@ -177,11 +195,12 @@ export default function ContentsChurchesPrayersEditor({
   const saveLoading = createLoading || patchLoading
 
   const handleSubmit = async (payload: PrayerInput) => {
+    const input = { ...payload, featuredAssetId: featuredAsset.assetId }
     if (isEdit && saved) {
-      const result = await onPatch({ ...payload, version: saved.version })
+      const result = await onPatch({ ...input, version: saved.version })
       setSaved(result)
     } else {
-      const result = await onCreate(payload)
+      const result = await onCreate(input)
       router.replace(`/dashboard/churches/${churchId}/prayers/${result.id}`)
     }
   }
@@ -228,8 +247,30 @@ export default function ContentsChurchesPrayersEditor({
       >
         <Input />
       </Form.Item>
+      <Form.Item label="Featured image">
+        <UploadBox
+          formName="featuredAssetId"
+          churchId={churchId}
+          purpose="IMAGE"
+          upload={featuredAsset}
+          setUpload={(value) => {
+            const next = value as { url: string | null; assetId?: string | null }
+            setFeaturedAsset({
+              assetId: next.assetId ?? null,
+              url: next.url,
+            })
+            form.setFieldValue('featuredAssetId', next.assetId ?? null)
+          }}
+          width="320px"
+          height="180px"
+        />
+      </Form.Item>
       <Form.Item name="introduction" label="Introduction">
-        <Input />
+        <RichTextEditor
+          ariaLabel="Introduction"
+          minHeight={120}
+          placeholder="Write a short introduction to the prayer"
+        />
       </Form.Item>
       <Row gutter={16}>
         <Col span={12}>
@@ -252,7 +293,11 @@ export default function ContentsChurchesPrayersEditor({
         label="Full prayer text"
         rules={[{ required: true, message: 'Full prayer text is required.' }]}
       >
-        <Input.TextArea rows={8} />
+        <RichTextEditor
+          ariaLabel="Full prayer text"
+          minHeight={280}
+          placeholder="Write the full prayer text"
+        />
       </Form.Item>
       <div className="flex justify-between items-center">
         <Upload
@@ -262,7 +307,7 @@ export default function ContentsChurchesPrayersEditor({
           onChange={async (info) => {
             if (info.file.originFileObj) {
               const text = await info.file.originFileObj.text()
-              form.setFieldsValue({ body: text })
+              form.setFieldsValue({ body: plainTextToRichText(text) })
             }
           }}
         >
@@ -295,11 +340,15 @@ export default function ContentsChurchesPrayersEditor({
           </div>
           <div>
             <div className="font-semibold text-gray-500">Introduction</div>
-            <div>{saved.current.introduction || '—'}</div>
+            {saved.current.introduction ? (
+              <RichTextContent html={saved.current.introduction} />
+            ) : (
+              <div>—</div>
+            )}
           </div>
           <div>
             <div className="font-semibold text-gray-500">Full prayer text</div>
-            <div className="whitespace-pre-wrap">{saved.current.body}</div>
+            <RichTextContent html={saved.current.body} />
           </div>
           <Row gutter={16}>
             <Col span={12}>

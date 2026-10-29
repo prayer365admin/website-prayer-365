@@ -14,14 +14,9 @@ export default async function PrayerArchivePage({ searchParams }: { searchParams
 
   const raw = await searchParams
   const query = SitePrayerArchiveQuerySchema.parse({
-    page: first(raw.page),
-    limit: 6,
-    search: first(raw.search),
     churchId: first(raw.churchId),
-    language: first(raw.language),
-    format: first(raw.format),
   })
   const archive = await getSitePrayerArchive({ userId: web.session.user.user_id, query })
 
-  return <PrayerArchive archive={archive} query={query} />
+  return <PrayerArchive archive={archive} initialQuery={query} userId={web.session.user.user_id} />
 }

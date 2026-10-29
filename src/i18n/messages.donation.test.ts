@@ -17,6 +17,14 @@ describe('SITE_MESSAGES — WB4 donation keys', () => {
     expect(donationKeys.some((key) => key.startsWith('donate'))).toBe(true)
   })
 
+  it('covers the universal-link return page (no-app fallback)', () => {
+    const returnKeys = donationKeys.filter((key) => key.startsWith('donateReturn'))
+    expect(returnKeys).toContain('donateReturnSuccessTitle')
+    expect(returnKeys).toContain('donateReturnCancelTitle')
+    expect(returnKeys).toContain('donateReturnCannotConfirm')
+    expect(returnKeys.length).toBeGreaterThanOrEqual(9)
+  })
+
   it('is present in all four locales', () => {
     SITE_LOCALES.forEach((locale) => {
       const block = SITE_MESSAGES[locale] as Record<string, string>

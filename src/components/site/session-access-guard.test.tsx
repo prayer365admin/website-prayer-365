@@ -29,10 +29,8 @@ describe('getSessionRedirect', () => {
   })
 
   it('sends authenticated customers away from guest pages', () => {
-    expect(getSessionRedirect('guest', session(null))).toBe('/customer')
-    expect(getSessionRedirect('guest', session({ id: 'r1', name: 'prayer_user' }))).toBe(
-      '/customer',
-    )
+    expect(getSessionRedirect('guest', session(null))).toBe('/')
+    expect(getSessionRedirect('guest', session({ id: 'r1', name: 'prayer_user' }))).toBe('/')
     expect(getSessionRedirect('guest', session({ id: 'r2', name: 'administrator' }))).toBeNull()
     expect(getSessionRedirect('guest', null)).toBeNull()
   })

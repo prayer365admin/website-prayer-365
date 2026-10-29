@@ -58,8 +58,17 @@ describe('POST /api/v1/uploads (global)', () => {
     expect(mockCreate).not.toHaveBeenCalled()
   })
 
-  it('returns 422 on missing churchId (entity context required)', async () => {
+  it('lets the controller enforce the church context (churchId is optional in the body)', async () => {
     const res = await POST(makeReq({ purpose: 'IMAGE', mimeType: 'image/png', byteSize: 1024 }))
-    expect(res.status).toBe(422)
+    expect(res.status).toBe(200)
+    expect(mockCreate).toHaveBeenCalledWith(expect.objectContaining({ churchId: undefined }))
+  })
+
+  it('sends no churchId for a USER_AVATAR upload', async () => {
+    const res = await POST(
+      makeReq({ purpose: 'USER_AVATAR', mimeType: 'image/png', byteSize: 1024 }),
+    )
+    expect(res.status).toBe(200)
+    expect(mockCreate).toHaveBeenCalledWith(expect.objectContaining({ churchId: undefined }))
   })
 })

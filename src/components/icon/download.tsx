@@ -1,37 +1,23 @@
-import type { SVGProps } from 'react'
+'use client'
 
-export interface DownloadIconProps extends SVGProps<SVGSVGElement> {
-  className?: string
-}
+import Icon from '@ant-design/icons'
+import type { GetProps } from 'antd'
 
-export function DownloadIcon({ className, ...props }: DownloadIconProps) {
-  return (
-    <svg
-      width="16"
-      height="16"
-      viewBox="0 0 16 16"
-      fill="none"
-      xmlns="http://www.w3.org/2000/svg"
-      className={className}
-      aria-hidden="true"
-      {...props}
-    >
-      <path
-        d="M2.5 10.5V12.5C2.5 13.0523 2.94772 13.5 3.5 13.5H12.5C13.0523 13.5 13.5 13.0523 13.5 12.5V10.5"
-        stroke="currentColor"
-        strokeWidth="1.6"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-      <path
-        d="M8 2.5V10.5M8 10.5L4.75 7.25M8 10.5L11.25 7.25"
-        stroke="currentColor"
-        strokeWidth="1.6"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
-  )
-}
+type CustomIconComponentProps = GetProps<typeof Icon>
 
-export default DownloadIcon
+// Source: public/icons/icon-download.svg. Fill follows currentColor so the same
+// component can be reused on different control surfaces.
+const IconSvg = () => (
+  <svg width="1em" height="1em" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <path
+      d="M10.9648 12.1836L10.5 12.6484L10.0352 12.1836L6.31641 8.46484L5.85156 8L6.78125 7.07031L7.24609 7.53516L9.84375 10.1328V2.75H11.1562V10.1328L13.7539 7.53516L14.2188 7.07031L15.1484 8L14.6836 8.46484L10.9648 12.1836ZM5.6875 12.1562V15.4375H15.3125V11.5H16.625V16.75H4.375V11.5H5.6875V12.1562Z"
+      fill="currentColor"
+    />
+  </svg>
+)
+
+const CustomIcon = (props: Partial<CustomIconComponentProps>) => (
+  <Icon component={IconSvg} {...props} />
+)
+
+export { CustomIcon as DownloadIcon }

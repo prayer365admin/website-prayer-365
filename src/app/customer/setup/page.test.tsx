@@ -57,10 +57,21 @@ describe('/customer/setup page', () => {
     expect(screen.getByText('Setup step 2')).toBeTruthy()
   })
 
-  it('redirects a customer who finished onboarding (both steps saved) to /customer', async () => {
+  it('redirects a customer who finished onboarding (both steps saved) to the home page', async () => {
     m.getSetupProgress.mockResolvedValue({ churchStepDone: true, completed: true })
 
-    await expect(Page()).rejects.toThrow('REDIRECT /customer')
+    await expect(Page()).rejects.toThrow('REDIRECT /')
     expect(m.getSetupProgress).toHaveBeenCalledWith({ userId: 'u1' })
+  })
+
+  // Plan 022: onboarding is a customer flow; staff belong on the dashboard.
+  it('sends a staff session to the dashboard without reading progress', async () => {
+    m.requiredWebAuth.mockResolvedValue({
+      session: { user: { user_id: 'u1', role: { id: 'r1', name: 'prayer_church_admin' } } },
+      user: {},
+    })
+
+    await expect(Page()).rejects.toThrow('REDIRECT /dashboard')
+    expect(m.getSetupProgress).not.toHaveBeenCalled()
   })
 })

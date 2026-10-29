@@ -5,7 +5,7 @@ import { DEMO_CHURCH_NAME, DEMO_CHURCH_NODE_NAME, getAdminUser } from './test-co
 // Second church for multi-church manual-testing (CH-04 selector needs >= 2
 // churches under one scope). One CHURCH org node keeps the single-church
 // account (prayer_church_admin) scoped to Tallinn only.
-const SECOND_CHURCH_NAME = 'Tartu Demo Church'
+export const SECOND_CHURCH_NAME = 'Tartu Demo Church'
 const SECOND_CHURCH_NODE_NAME = 'Tartu Demo Church Node'
 
 const seedSlug = (text: string) => customSlugify({ text, isExists: false })
@@ -109,24 +109,18 @@ export const TARTU_SERVICE_TIMES = [
   },
 ]
 
+/*
+ * Church ROWS only. Covers, galleries and prayers are filled afterwards by
+ * seedChurchContent / seedChurchPrayers — the cover needs a media asset that
+ * exists in the active bucket, which is the uploader's job, not this one's.
+ */
 export const seedChurches = async () => {
-  const coverAsset = await db.mediaAsset.findFirst({
-    where: {
-      purpose: 'IMAGE',
-      OR: [{ object_key: '/images/church.jpeg' }, { object_key: { contains: DEMO_CHURCH_NAME } }],
-    },
-    orderBy: { created_at: 'desc' },
-  })
-
   const existing = await db.church.findFirst({ where: { name: DEMO_CHURCH_NAME } })
   let churchId: string
   if (existing) {
     await db.church.update({
       where: { id: existing.id },
-      data: {
-        ...TALLINN_CHURCH_PROFILE,
-        ...(coverAsset ? { cover_asset_id: coverAsset.id } : {}),
-      },
+      data: TALLINN_CHURCH_PROFILE,
     })
     churchId = existing.id
   } else {
@@ -142,7 +136,6 @@ export const seedChurches = async () => {
         approved_by: admin.id,
         approved_at: new Date(),
         ...TALLINN_CHURCH_PROFILE,
-        cover_asset_id: coverAsset?.id ?? null,
       },
     })
     churchId = church.id
@@ -320,14 +313,6 @@ export const ST_JOHNS_STAFF = [
   },
 ]
 
-export const ST_JOHNS_GALLERY = [
-  { caption: 'Central Nave & Neo-Gothic Vaults', order_index: 0 },
-  { caption: '1867 Walcker Pipe Organ', order_index: 1 },
-  { caption: 'Chancel Stained Glass', order_index: 2 },
-  { caption: 'Crypt Intercession Corner', order_index: 3 },
-  { caption: 'Tower & Spire over Freedom Square', order_index: 4 },
-]
-
 export const ST_JOHNS_EVENTS = [
   {
     offsetDays: 3,
@@ -381,62 +366,18 @@ export const ST_JOHNS_ANNOUNCEMENTS = [
   },
 ]
 
-export const ST_JOHNS_PRAYERS = [
-  {
-    title: 'Peace in Uncertain Times',
-    introduction:
-      'Scripture meditation on Philippians 4:6–7 • Led by Pastor Daniel Carter, Hope Church',
-    body: "Scripture meditation on Philippians 4:6–7. Do not be anxious about anything, but in every situation, by prayer and petition, with thanksgiving, present your requests to God. And the peace of God, which transcends all understanding, will guard your hearts and your minds in Christ Jesus. Heavenly Father, calm our restless minds, still our anxious hearts, and envelop our spirits with Your transcendent peace that surpasses all earthly understanding. In Christ's holy name we pray. Amen.",
-    pastor_name: 'Rev. Daniel Mäkinen',
-    audio_key: '/audio/peace-in-uncertain-times.mp3',
-    byte_size: 960000,
-  },
-  {
-    title: 'The Shepherd’s Protection & Still Waters',
-    introduction: "Psalm 23 Contemplation • Led by Rev. Daniel Mäkinen, St. John's Church",
-    body: "Psalm 23 meditation. The Lord is my shepherd; I shall not want. He makes me lie down in green pastures. He leads me beside still waters. He restores my soul. He leads me in paths of righteousness for His name's sake. Even though I walk through the valley of the shadow of death, I will fear no evil, for You are with me; Your rod and Your staff, they comfort me. Lord, walk beside us in darkness, restore our strength, and lead us into Your eternal light. Amen.",
-    pastor_name: 'Rev. Daniel Mäkinen',
-    audio_key: '/audio/shepherds-protection.mp3',
-    byte_size: 720000,
-  },
-  {
-    title: 'Morning Liturgy & Eucharist Preparation',
-    introduction:
-      "Liturgical preparation for Holy Communion • Led by Rev. Daniel Mäkinen, St. John's Church",
-    body: 'Lord Jesus Christ, Holy Bread of eternal life and Cup of salvation, prepare our hearts to approach Your holy altar with pure devotion, humble reverence, and joyful thanksgiving. Feed our hungry souls, forgive our transgressions, and knit us together as one holy fellowship in Your divine love. Amen.',
-    pastor_name: 'Rev. Daniel Mäkinen',
-    audio_key: '/audio/morning-liturgy.mp3',
-    byte_size: 800000,
-  },
-  {
-    title: 'Choral Organ Vespers & Evening Stillness',
-    introduction: "Compline night vigil • Led by Chaplain Eva Reinla, St. John's Church",
-    body: 'Into Your hands, Lord, we commend our spirits as night descends upon the sanctuary. Keep us as the apple of Your eye; hide us under the shadow of Your wings. Grant rest to the weary, peace to the dying, comfort to the grieving, and holy rest to all Your faithful servants. In the name of the Father, Son, and Holy Spirit. Amen.',
-    pastor_name: 'Chaplain Eva Reinla',
-    audio_key: '/audio/choral-vespers.mp3',
-    byte_size: 880000,
-  },
-]
-
 /** Third church: St. John's Church (Parish Profile & Sanctuary matching W08 Figma). */
 export const seedStJohnsChurch = async () => {
   const admin = await getAdminUser()
   if (!admin) throw new Error('seedStJohnsChurch: admin missing')
 
-  // Cover asset
-  let coverAsset = await db.mediaAsset.findUnique({
-    where: { object_key: '/images/st-johns-church.jpeg' },
-  })
   const existing = await db.church.findFirst({ where: { name: ST_JOHNS_CHURCH_NAME } })
   let churchId: string
 
   if (existing) {
     await db.church.update({
       where: { id: existing.id },
-      data: {
-        ...ST_JOHNS_CHURCH_PROFILE,
-        ...(coverAsset ? { cover_asset_id: coverAsset.id } : {}),
-      },
+      data: ST_JOHNS_CHURCH_PROFILE,
     })
     churchId = existing.id
   } else {
@@ -472,29 +413,9 @@ export const seedStJohnsChurch = async () => {
         approved_by: admin.id,
         approved_at: new Date(),
         ...ST_JOHNS_CHURCH_PROFILE,
-        cover_asset_id: coverAsset?.id ?? null,
       },
     })
     churchId = church.id
-  }
-
-  if (!coverAsset) {
-    coverAsset = await db.mediaAsset.create({
-      data: {
-        church_id: churchId,
-        object_key: '/images/st-johns-church.jpeg',
-        purpose: 'IMAGE',
-        mime_type: 'image/jpeg',
-        byte_size: BigInt(50388),
-        status: 'READY',
-        checksum: '41e8f23b32cba394ab67f8326d218667',
-        uploaded_by: admin.id,
-      },
-    })
-    await db.church.update({
-      where: { id: churchId },
-      data: { cover_asset_id: coverAsset.id },
-    })
   }
 
   // Languages
@@ -562,28 +483,6 @@ export const seedStJohnsChurch = async () => {
     }
   }
 
-  // Gallery items (use same picture as cover)
-  for (const item of ST_JOHNS_GALLERY) {
-    const existingGalleryItem = await db.churchGalleryItem.findFirst({
-      where: { church_id: churchId, order_index: item.order_index },
-    })
-    if (!existingGalleryItem) {
-      await db.churchGalleryItem.create({
-        data: {
-          church_id: churchId,
-          media_asset_id: coverAsset.id,
-          caption: item.caption,
-          order_index: item.order_index,
-        },
-      })
-    } else {
-      await db.churchGalleryItem.update({
-        where: { id: existingGalleryItem.id },
-        data: { caption: item.caption, media_asset_id: coverAsset.id },
-      })
-    }
-  }
-
   // Events
   for (const ev of ST_JOHNS_EVENTS) {
     const starts_at = new Date(Date.now() + ev.offsetDays * 24 * 60 * 60 * 1000)
@@ -633,135 +532,6 @@ export const seedStJohnsChurch = async () => {
           body: a.body,
           published_at: new Date(),
         },
-      })
-    }
-  }
-
-  // Voice profile: look up voice from other pastor seeder (seedVoiceProfiles)
-  let voiceProfile = await db.voiceProfile.findFirst({
-    where: { registration_state: 'READY' },
-  })
-  if (!voiceProfile) {
-    const demoVoice = await db.voiceProfile.findFirst()
-    if (demoVoice) {
-      voiceProfile = demoVoice
-    }
-  }
-
-  // Seed all prayers with generated text and audio
-  for (let i = 0; i < ST_JOHNS_PRAYERS.length; i++) {
-    const pDef = ST_JOHNS_PRAYERS[i]
-
-    let audioAsset = await db.mediaAsset.findUnique({ where: { object_key: pDef.audio_key } })
-    if (!audioAsset) {
-      audioAsset = await db.mediaAsset.create({
-        data: {
-          church_id: churchId,
-          object_key: pDef.audio_key,
-          purpose: 'GENERATED_AUDIO',
-          mime_type: 'audio/mpeg',
-          byte_size: BigInt(pDef.byte_size),
-          status: 'READY',
-          checksum: `st-johns-audio-checksum-${i}`,
-          uploaded_by: admin.id,
-        },
-      })
-    }
-
-    const assignedPastor =
-      (await db.pastor.findFirst({ where: { name: pDef.pastor_name } })) ??
-      (await db.pastor.findFirst({ where: { name: 'Rev. Daniel Mäkinen' } })) ??
-      (await db.pastor.findFirst())
-    if (!assignedPastor) continue
-
-    let prayer = await db.prayer.findFirst({
-      where: {
-        church_id: churchId,
-        versions: { some: { title: pDef.title } },
-      },
-    })
-
-    if (!prayer) {
-      prayer = await db.prayer.create({
-        data: {
-          church_id: churchId,
-          created_by: admin.id,
-          published_at: new Date(Date.now() - i * 3600 * 1000),
-        },
-      })
-    }
-
-    let version = await db.prayerVersion.findFirst({
-      where: { prayer_id: prayer.id, title: pDef.title },
-    })
-    if (!version) {
-      version = await db.prayerVersion.create({
-        data: {
-          prayer_id: prayer.id,
-          version_number: 1,
-          pastor_id: assignedPastor.id,
-          title: pDef.title,
-          introduction: pDef.introduction,
-          body: pDef.body,
-          language_code: 'et',
-          text_hash: `st-johns-prayer-hash-${i}`,
-          approved_by: admin.id,
-          approved_at: new Date(),
-        },
-      })
-    } else {
-      await db.prayerVersion.update({
-        where: { id: version.id },
-        data: {
-          introduction: pDef.introduction,
-          body: pDef.body,
-        },
-      })
-    }
-
-    if (voiceProfile && audioAsset) {
-      let audio = await db.prayerAudio.findFirst({
-        where: { prayer_version_id: version.id },
-      })
-      if (!audio) {
-        audio = await db.prayerAudio.create({
-          data: {
-            prayer_version_id: version.id,
-            voice_profile_id: voiceProfile.id,
-            status: 'APPROVED',
-            asset_id: audioAsset.id,
-            provider_request_id: `st_johns_gen_req_${i}`,
-            approved_by: admin.id,
-            approved_at: new Date(),
-          },
-        })
-      } else {
-        await db.prayerAudio.update({
-          where: { id: audio.id },
-          data: { asset_id: audioAsset.id },
-        })
-      }
-      await db.prayerVersion.update({
-        where: { id: version.id },
-        data: { selected_audio_id: audio.id },
-      })
-    }
-
-    await db.prayer.update({
-      where: { id: prayer.id },
-      data: { current_version_id: version.id, published_version_id: version.id },
-    })
-  }
-
-  // Activate voice profile for Lead Pastor
-  if (voiceProfile) {
-    const pastorLink = await db.churchPastor.findFirst({
-      where: { church_id: churchId, pastor: { name: 'Rev. Daniel Mäkinen' } },
-    })
-    if (pastorLink) {
-      await db.churchPastor.update({
-        where: { church_id_pastor_id: { church_id: churchId, pastor_id: pastorLink.pastor_id } },
-        data: { active_voice_profile_id: voiceProfile.id },
       })
     }
   }

@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { richTextToPlainText } from '@/utils/rich-text-plain'
 
 /*
  * Prayer DTOs (SPEC §6.2 / Tasks 21-25).
@@ -21,6 +22,11 @@ export const PrayerInputSchema = z
     body: z.string().trim().min(1).max(40000),
     pastorId: z.string().uuid(),
     languageCode: z.string().trim().min(1).max(10),
+    featuredAssetId: z.string().uuid().nullish(),
+  })
+  .refine((value) => richTextToPlainText(value.body).length > 0, {
+    message: 'Full prayer text is required.',
+    path: ['body'],
   })
   .strict()
 
@@ -118,22 +124,36 @@ export const PrayerOutputSchema = z.object({
   churchId: z.string(),
   version: z.number(),
   createdAt: z.string(),
+  featuredAssetId: z.string().nullable(),
   current: PrayerVersionOutputSchema.nullable(),
   published: z.object({ prayerVersionId: z.string(), publishedAt: z.string() }).nullable(),
   scheduled: z.object({ prayerVersionId: z.string(), scheduledAt: z.string() }).nullable(),
   textApproved: z.boolean(),
 })
 
+/** Central (cross-church) row: the church list item plus the church name (plan 023). */
+export const CentralPrayerOutputSchema = PrayerOutputSchema.extend({ churchName: z.string() })
+
+/** Central list filters: the church list query plus an optional church narrowing. */
+export const CentralPrayerListQuerySchema = PrayerListQuerySchema.extend({
+  churchId: z.string().optional(),
+})
+
+export type CentralPrayerListQuery = z.infer<typeof CentralPrayerListQuerySchema>
+
 export type PrayerOutput = {
   id: string
   churchId: string
   version: number
   createdAt: string
+  featuredAssetId: string | null
   current: PrayerVersionOutput | null
   published: { prayerVersionId: string; publishedAt: string } | null
   scheduled: { prayerVersionId: string; scheduledAt: string } | null
   textApproved: boolean
 }
+
+export type CentralPrayerOutput = PrayerOutput & { churchName: string }
 
 export const PrayerAudioOutputSchema = z.object({
   id: z.string(),

@@ -1,5 +1,6 @@
 import { useMainNotification } from '@/hooks/ui/notification'
 import {
+  CentralPrayerOutput,
   PrayerActionInput,
   PrayerAudioEnqueueInput,
   PrayerAudioOutput,
@@ -71,6 +72,68 @@ export const usePrayers = (options: PrayerListOptions) => {
       }
     },
     enabled: !!enableFetch && !!churchId,
+  })
+
+  return { data: data?.result ?? [], total: data?.total ?? 0, loading: isLoading }
+}
+
+/**
+ * Central (cross-church) prayer list (plan 023). Same shape as the per-church list
+ * plus the church name, so the table shows which parish each prayer belongs to.
+ */
+export interface CentralPrayerListOptions {
+  page?: number
+  limit?: number
+  orderBy?: 'created_at' | 'published_at'
+  orderDirection?: 'asc' | 'desc'
+  status?: 'current' | 'archive'
+  search?: string
+  churchId?: string
+}
+
+export const useCentralPrayers = (options: CentralPrayerListOptions = {}) => {
+  const {
+    page = 1,
+    limit = 25,
+    orderBy = 'created_at',
+    orderDirection = 'desc',
+    status,
+    search,
+    churchId,
+  } = options
+  const { data: session } = useSession()
+  const userId = session?.user.user_id ?? null
+
+  const params = new URLSearchParams({
+    page: String(page),
+    limit: String(limit),
+    order_by: orderBy,
+    order_direction: orderDirection,
+  })
+  if (status) params.set('status', status)
+  if (search) params.set('search', search)
+  if (churchId) params.set('churchId', churchId)
+
+  const { data, isLoading } = useQuery({
+    queryKey: [
+      'prayers',
+      'central',
+      userId,
+      page,
+      limit,
+      orderBy,
+      orderDirection,
+      status,
+      search,
+      churchId,
+    ],
+    queryFn: async () => {
+      const response = await axios.get(`/api/v1/admin/central/prayers?${params.toString()}`)
+      return {
+        result: response.data.result as CentralPrayerOutput[],
+        total: response.data.total as number,
+      }
+    },
   })
 
   return { data: data?.result ?? [], total: data?.total ?? 0, loading: isLoading }

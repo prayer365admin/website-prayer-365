@@ -70,7 +70,7 @@ describe('ContentsChurches', () => {
 
     expect(axiosMock.get).toHaveBeenCalledTimes(1)
     expect(axiosMock.get).toHaveBeenCalledWith(
-      '/api/v1/admin/churches?&limit=100&page=1&order_by=name&order_direction=asc',
+      '/api/v1/admin/churches?&limit=10&page=1&order_by=name&order_direction=asc',
     )
   })
 

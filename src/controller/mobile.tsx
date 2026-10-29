@@ -1,3 +1,4 @@
+import { cache } from 'react'
 import { GeneralError } from '@/utils/general-error'
 import { withIdempotency } from '@/utils/idempotency'
 import {
@@ -81,13 +82,14 @@ export const getPublicChurch = async ({
 }: {
   slug?: string
   churchId?: string
-  query: MobileChurchListQuery
+  /** Directory filters are optional: a single-church read needs no page/search query. */
+  query?: MobileChurchListQuery
 }): Promise<MobilePublicChurch> => {
   const target = slug ?? churchId ?? ''
   const row = await GET_PUBLIC_CHURCH({
     slug: target,
-    lat: query.latitude,
-    lng: query.longitude,
+    lat: query?.latitude,
+    lng: query?.longitude,
   })
   if (!row) throw notFoundChurch()
   return row
@@ -99,8 +101,18 @@ export const getPublicChurch = async ({
 
 export const getHome = async ({ userId }: { userId: string }) => GET_HOME({ userId })
 
+/*
+ * Request-scoped reads. The `(site)` layout and the page inside it both need the
+ * same user record and church list, and React's cache() collapses the pair into
+ * one query (same pattern as utils/required-webauth.ts). Keyed on the primitive
+ * user id on purpose — an object argument is a new identity on every call, so it
+ * would always miss. Outside a React render (API routes) this simply calls through.
+ */
+const getMeProfileOnce = cache((userId: string) => GET_ME_PROFILE({ userId }))
+const listMyChurchesOnce = cache((userId: string) => LIST_MY_CHURCHES({ userId }))
+
 export const getMe = async ({ userId }: { userId: string }): Promise<MobileMe> => {
-  const me = await GET_ME_PROFILE({ userId })
+  const me = await getMeProfileOnce(userId)
   if (!me) throw notFound('User not found.')
   return {
     id: me.id,
@@ -143,7 +155,7 @@ export const patchMe = async ({
 }
 
 export const listMyChurches = async ({ userId }: { userId: string }): Promise<MobileMyChurch[]> =>
-  LIST_MY_CHURCHES({ userId })
+  listMyChurchesOnce(userId)
 
 export const setFollow = async ({
   userId,

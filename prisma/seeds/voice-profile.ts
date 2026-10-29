@@ -1,7 +1,17 @@
 import { db } from '../../src/utils/db-connection'
 import { DEMO_CHURCH_NAME, DEMO_PASTOR_NAME, getAdminUser } from './test-context'
 
-// Placeholder voice profile (approved + ready) for the demo pastor/church.
+/*
+ * Placeholder voice profile (approved + ready) for the demo pastor/church.
+ *
+ * `provider_voice_id` MUST be a voice that exists in the PRAYER ElevenLabs
+ * account, otherwise every audio job fails at the provider and the live
+ * "generate audio" step shows an error. Override with DEMO_VOICE_PROVIDER_ID;
+ * list the account's voices with:
+ *   curl -s https://api.elevenlabs.io/v1/voices -H "xi-api-key: $ELEVENLABS_API_KEY"
+ */
+const providerVoiceId = process.env.DEMO_VOICE_PROVIDER_ID ?? 'EXAVITQu4vr4xn8SDxMaL'
+
 export const seedVoiceProfiles = async () => {
   const existing = await db.voiceProfile.findFirst({ where: { registration_state: 'READY' } })
   if (existing) return
@@ -21,7 +31,7 @@ export const seedVoiceProfiles = async () => {
       submitted_by: actor.id,
       provider: 'elevenlabs',
       cloning_method: 'instant',
-      provider_voice_id: 'demo_voice_id', // placeholder, server-managed in prod
+      provider_voice_id: providerVoiceId,
       consent_id: consent.id,
       samples: { create: [{ asset_id: sample.id, position: 0, checksum: sample.checksum }] },
       submitted_at: new Date(),

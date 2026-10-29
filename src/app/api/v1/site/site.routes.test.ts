@@ -125,6 +125,27 @@ describe('website /me routes (WB-16, cookie session)', () => {
     })
   })
 
+  // Plan 022: a staff session must never write customer data (onboarding flags,
+  // user_churches rows) — the dashboard counts those rows as church members.
+  it.each([
+    ['PATCH me', () => patchMeRoute(json({ mainChurchId: CHURCH }))],
+    ['PUT follow', () => followRoute(json({}), ctx)],
+    ['DELETE follow', () => unfollowRoute(json({}), ctx)],
+  ])('%s refuses a staff session with 403 STAFF_ACCOUNT', async (_label, call) => {
+    m.requiredWebAuth.mockResolvedValue({
+      session: { user: { user_id: 'u1', role: { id: 'r1', name: 'prayer_church_admin' } } },
+      user: {},
+    })
+
+    const res = await call()
+    const body = await res.json()
+
+    expect(res.status).toBe(403)
+    expect(body.error_code).toBe('STAFF_ACCOUNT')
+    expect(m.patchMe).not.toHaveBeenCalled()
+    expect(m.setFollow).not.toHaveBeenCalled()
+  })
+
   it('POST avatar signs a user-scoped upload and rejects non-images', async () => {
     m.createMobileAvatar.mockResolvedValue({
       uploadUrl: 'u',

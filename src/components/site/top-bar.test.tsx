@@ -1,7 +1,13 @@
 import { SiteI18nProvider } from '@/i18n/site-i18n'
 import { SITE_MESSAGES } from '@/i18n/messages'
-import { axiosMock, pathnameMock, renderWithProviders, sessionMock } from '@/test/frontend/render'
-import { fireEvent, screen, waitFor } from '@testing-library/react'
+import {
+  axiosMock,
+  pathnameMock,
+  renderWithProviders,
+  searchParamsMock,
+  sessionMock,
+} from '@/test/frontend/render'
+import { fireEvent, screen, waitFor, within } from '@testing-library/react'
 import { beforeEach, describe, expect, it } from 'vitest'
 import SiteTopBar from './top-bar'
 
@@ -11,6 +17,7 @@ describe('SiteTopBar', () => {
   beforeEach(() => {
     sessionMock.mockReturnValue({ data: { user: { user_id: 'u1' } }, status: 'authenticated' })
     pathnameMock.mockReturnValue('/dashboard/customers')
+    searchParamsMock.get.mockReturnValue(null)
   })
 
   it('shows the general customer navigation, church control, locale and account menu', () => {
@@ -21,7 +28,7 @@ describe('SiteTopBar', () => {
     )
 
     expect(screen.getByRole('link', { name: 'Prayer 365 home' })).toBeTruthy()
-    expect(screen.getByRole('link', { name: 'Discover Churches' })).toBeTruthy()
+    expect(screen.getByRole('link', { name: 'Discovery Churches' })).toBeTruthy()
     expect(screen.getByText('Choose a church')).toBeTruthy()
     expect(screen.getByRole('combobox')).toBeTruthy()
     expect(screen.getByRole('combobox').getAttribute('aria-label')).toBe('Language')
@@ -54,6 +61,22 @@ describe('SiteTopBar', () => {
     expect(screen.queryByText('Sign out')).toBeNull()
   })
 
+  // Plan 022: a staff session's account button points at the dashboard, not the
+  // customer profile (which redirects staff away anyway).
+  it('points the account link at the dashboard for a staff session', async () => {
+    sessionMock.mockReturnValue({
+      data: { user: { user_id: 'u1', role: { id: 'r1', name: 'administrator' } } },
+      status: 'authenticated',
+    })
+    renderWithProviders(
+      <SiteI18nProvider initialLocale="en">
+        <SiteTopBar />
+      </SiteI18nProvider>,
+    )
+
+    await waitFor(() => expect(link('Dashboard').getAttribute('href')).toBe('/dashboard'))
+  })
+
   it('renders the server-loaded avatar before the client session resolves', () => {
     sessionMock.mockReturnValue({ data: null, status: 'loading' })
     renderWithProviders(
@@ -83,12 +106,20 @@ describe('SiteTopBar', () => {
       </SiteI18nProvider>,
     )
 
-    expect(link(SITE_MESSAGES.en.headerDiscoverChurches).getAttribute('href')).toBe('/churches')
-    expect(link(SITE_MESSAGES.en.headerEvents).getAttribute('href')).toBe('/events')
-    expect(link(SITE_MESSAGES.en.headerGiving).getAttribute('href')).toBe('/donate')
-    expect(link(SITE_MESSAGES.en.headerPrayers).getAttribute('href')).toBe('/prayers')
-    expect(link(SITE_MESSAGES.en.headerSearch).getAttribute('href')).toBe('/search')
-    expect(link(SITE_MESSAGES.en.headerNotifications).getAttribute('href')).toBe('/notifications')
+    const navigation = screen.getByRole('navigation', { name: SITE_MESSAGES.en.headerPrimaryNav })
+    expect(
+      Array.from(navigation.querySelectorAll('a')).map((item) => [
+        item.textContent,
+        item.getAttribute('href'),
+      ]),
+    ).toEqual([
+      [SITE_MESSAGES.en.headerDiscoverChurches, '/churches'],
+      [SITE_MESSAGES.en.headerPrayers, '/prayers'],
+      [SITE_MESSAGES.en.headerGiving, '/donate'],
+    ])
+    expect(screen.queryByRole('link', { name: SITE_MESSAGES.en.headerEvents })).toBeNull()
+    expect(screen.queryByRole('link', { name: SITE_MESSAGES.en.headerSearch })).toBeNull()
+    expect(screen.queryByRole('link', { name: /notifications/i })).toBeNull()
   })
 
   it('marks the current page and its sub-pages in the navigation', () => {
@@ -129,6 +160,73 @@ describe('SiteTopBar', () => {
     expect(link(SITE_MESSAGES.en.headerPrayers).className).toContain('activeNavigationLink')
   })
 
+  it.each(['/donate', '/donate/c1', '/donate/result'])(
+    'keeps Giving & Stewardship active on %s',
+    (pathname) => {
+      pathnameMock.mockReturnValue(pathname)
+
+      renderWithProviders(
+        <SiteI18nProvider initialLocale="en">
+          <SiteTopBar />
+        </SiteI18nProvider>,
+      )
+
+      const givingLink = link(SITE_MESSAGES.en.headerGiving)
+      expect(givingLink.getAttribute('aria-current')).toBe('page')
+      expect(givingLink.className).toContain('activeNavigationLink')
+    },
+  )
+
+  it('shows the selected prayer church and switches the archive from the header', async () => {
+    pathnameMock.mockReturnValue('/prayers')
+    searchParamsMock.get.mockImplementation((key) => (key === 'churchId' ? 'c2' : null))
+    const churches = [
+      {
+        churchId: 'c1',
+        slug: 'hope-church',
+        churchName: 'Hope Church',
+        city: null,
+        address: null,
+        coverAssetId: null,
+        coverUrl: null,
+        isMain: true,
+        isFollowed: true,
+      },
+      {
+        churchId: 'c2',
+        slug: 'grace-church',
+        churchName: 'Grace Church',
+        city: null,
+        address: null,
+        coverAssetId: null,
+        coverUrl: null,
+        isMain: false,
+        isFollowed: true,
+      },
+    ]
+
+    renderWithProviders(
+      <SiteI18nProvider initialLocale="en">
+        <SiteTopBar initialChurches={churches} />
+      </SiteI18nProvider>,
+    )
+
+    expect(screen.getByText('Grace Church')).toBeTruthy()
+    const picker = screen.getByRole('button', { name: SITE_MESSAGES.en.headerChooseChurch })
+    fireEvent.click(picker)
+    const hope = await screen.findByRole('link', { name: 'Hope Church' })
+    expect(hope.getAttribute('href')).toBe('/prayers?churchId=c1')
+    expect(screen.getByRole('link', { name: 'Grace Church' }).getAttribute('aria-current')).toBe(
+      'page',
+    )
+    expect(
+      screen
+        .getByRole('link', { name: SITE_MESSAGES.en.headerBrowseChurches })
+        .getAttribute('href'),
+    ).toBe('/churches')
+    expect(picker.getAttribute('aria-expanded')).toBe('true')
+  })
+
   it('does not mark Prayers active for a similarly prefixed route', () => {
     pathnameMock.mockReturnValue('/prayers-archive')
 
@@ -149,10 +247,72 @@ describe('SiteTopBar', () => {
       </SiteI18nProvider>,
     )
 
-    fireEvent.click(screen.getByRole('button', { name: SITE_MESSAGES.en.headerChooseChurch }))
+    const picker = screen.getByRole('button', { name: SITE_MESSAGES.en.headerChooseChurch })
+    fireEvent.click(picker)
 
     const browse = await screen.findByRole('link', { name: SITE_MESSAGES.en.headerBrowseChurches })
     expect(browse.getAttribute('href')).toBe('/churches')
+    fireEvent.click(browse)
+    await waitFor(() => expect(picker.getAttribute('aria-expanded')).toBe('false'))
+  })
+
+  it('uses a responsive modal church picker', async () => {
+    renderWithProviders(
+      <SiteI18nProvider initialLocale="en">
+        <SiteTopBar
+          initialChurches={[
+            {
+              churchId: 'c1',
+              slug: 'hope-church',
+              churchName: 'Hope Church',
+              city: 'Tallinn',
+              address: null,
+              coverAssetId: null,
+              coverUrl: null,
+              isMain: true,
+              isFollowed: true,
+            },
+          ]}
+        />
+      </SiteI18nProvider>,
+    )
+
+    const picker = screen.getByRole('button', { name: SITE_MESSAGES.en.headerChooseChurch })
+    fireEvent.click(picker)
+
+    expect(await screen.findByRole('dialog')).toBeTruthy()
+    expect(screen.getByRole('link', { name: 'Hope Church' })).toBeTruthy()
+    const browseChurches = screen.getByRole('link', {
+      name: SITE_MESSAGES.en.headerBrowseChurches,
+    })
+    expect(browseChurches).toBeTruthy()
+
+    fireEvent.click(browseChurches)
+
+    await waitFor(() => expect(picker.getAttribute('aria-expanded')).toBe('false'))
+  })
+
+  it('opens a menu drawer with the navigation links for small screens', async () => {
+    pathnameMock.mockReturnValue('/donate')
+    renderWithProviders(
+      <SiteI18nProvider initialLocale="en">
+        <SiteTopBar />
+      </SiteI18nProvider>,
+    )
+
+    const menu = screen.getByRole('button', { name: SITE_MESSAGES.en.headerMenu })
+    fireEvent.click(menu)
+
+    const drawer = await screen.findByRole('dialog')
+    const giving = within(drawer).getByRole('link', { name: SITE_MESSAGES.en.headerGiving })
+    expect(giving.getAttribute('aria-current')).toBe('page')
+    expect(within(drawer).getByRole('link', { name: SITE_MESSAGES.en.headerHome })).toBeTruthy()
+    expect(within(drawer).getByRole('combobox', { name: SITE_MESSAGES.en.language })).toBeTruthy()
+    expect(within(drawer).getByText('English')).toBeTruthy()
+
+    fireEvent.click(giving)
+
+    await waitFor(() => expect(menu.getAttribute('aria-expanded')).toBe('false'))
   })
 
   it('shows the account-flow navigation without customer discovery links', () => {
@@ -163,8 +323,11 @@ describe('SiteTopBar', () => {
     )
 
     expect(screen.getByRole('navigation', { name: 'Account navigation' })).toBeTruthy()
-    expect(screen.getByRole('link', { name: 'Begin Fellowship' })).toBeTruthy()
-    expect(screen.queryByRole('link', { name: 'Discover Churches' })).toBeNull()
+    expect(screen.getByRole('link', { name: SITE_MESSAGES.en.signInBeginFellowship })).toBeTruthy()
+    expect(screen.queryByRole('link', { name: SITE_MESSAGES.en.headerHome })).toBeNull()
+    expect(screen.queryByRole('link', { name: SITE_MESSAGES.en.account })).toBeNull()
+    expect(screen.queryByRole('link', { name: SITE_MESSAGES.en.headerSpiritualWalk })).toBeNull()
+    expect(screen.queryByRole('link', { name: 'Discovery Churches' })).toBeNull()
   })
 
   it('marks the sign-in link active on the sign-in page', () => {
@@ -226,7 +389,7 @@ describe('SiteTopBar', () => {
       </SiteI18nProvider>,
     )
 
-    expect(link('Home').getAttribute('aria-current')).toBe('page')
+    expect(link('Homepage').getAttribute('aria-current')).toBe('page')
 
     unmount()
     pathnameMock.mockReturnValue('/events')
@@ -236,7 +399,7 @@ describe('SiteTopBar', () => {
       </SiteI18nProvider>,
     )
 
-    expect(link('Home').getAttribute('aria-current')).toBeNull()
+    expect(link('Homepage').getAttribute('aria-current')).toBeNull()
   })
 
   it('renders the navigation in the provider language', () => {

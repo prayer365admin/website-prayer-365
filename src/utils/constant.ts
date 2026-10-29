@@ -2,6 +2,28 @@ import { EventCategory } from '@/models/event'
 
 export const ID_COLUMN_WIDTH = 80
 export const ACTION_COLUMN_WIDTH = 125
+export const USER_MANAGEMENT_ACTION_WIDTH = 140
+
+/**
+ * The platform super-admin role (SPEC §3.3). Seeded to hold EVERY permission row,
+ * and the single role that gets the automatic GLOBAL org assignment when a staff
+ * account is created with it (`controller/user` → `ensureGlobalAdminAssignment`).
+ */
+export const ADMINISTRATOR_ROLE = 'administrator'
+
+/**
+ * Where a STAFF session belongs on the web app: the customer website is for
+ * customers only (plan 022), so /customer* redirects here and the site header's
+ * account button points here for a staff session.
+ */
+export const STAFF_HOME = '/dashboard'
+
+/**
+ * Where a signed-in customer lands: the website home (W06). The profile page
+ * (/customer, W13) is a destination the user chooses, never a landing page.
+ */
+export const SITE_HOME = '/'
+
 export const ADDITIONAL_COLUMN_CONFIG: {
   align: 'center' | 'left' | 'right'
   ellipsis: boolean
@@ -152,6 +174,16 @@ export const DENOMINATION_OPTIONS = [
   { value: 'Orthodox', label: 'Orthodox' },
   { value: 'Catholic', label: 'Catholic' },
 ] as const
+
+/**
+ * IANA zone names for church setup. `Intl.supportedValuesOf` is native in every
+ * runtime this app targets (Node 20+, modern browsers), so no list is vendored.
+ */
+export const TIMEZONE_OPTIONS = (
+  (Intl as unknown as { supportedValuesOf?: (key: 'timeZone') => string[] }).supportedValuesOf?.(
+    'timeZone',
+  ) ?? []
+).map((zone) => ({ label: zone, value: zone }))
 
 export const LANGUAGE_OPTIONS = [
   { value: 'et', label: 'Eesti (ET)' },

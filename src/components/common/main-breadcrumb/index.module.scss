@@ -1,0 +1,37 @@
+.breadcrumb {
+  color: #5c6370;
+  font-family: var(--font-text);
+  font-size: 12px;
+  font-style: normal;
+  font-weight: 400;
+  letter-spacing: 0;
+  line-height: 150%;
+  vertical-align: middle;
+
+  :global(ol) {
+    align-items: center;
+  }
+
+  :global(.ant-breadcrumb-link),
+  :global(.ant-breadcrumb-link a),
+  :global(.ant-breadcrumb-separator) {
+    color: #5c6370 !important;
+    font-family: var(--font-text) !important;
+    font-size: 12px !important;
+    font-style: normal !important;
+    font-weight: 400 !important;
+    letter-spacing: 0 !important;
+    line-height: 150% !important;
+  }
+
+  :global(.ant-breadcrumb-link) {
+    display: inline-flex;
+    align-items: center;
+  }
+
+  :global(.ant-breadcrumb-separator) {
+    display: inline-flex;
+    align-items: center;
+    transform: translateY(2px);
+  }
+}

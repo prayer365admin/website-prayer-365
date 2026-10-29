@@ -6,10 +6,10 @@ import PrayerQuotePanel from '@/components/site/prayer/prayer-quote-panel'
 import { useSiteI18n } from '@/i18n/site-i18n'
 import { SitePrayerArchiveItem } from '@/models/site-prayer'
 import Image from 'next/image'
-import Link from 'next/link'
+import { prayerTextForDisplay } from '@/utils/rich-text-plain'
 
 export const excerpt = (value: string | null, fallback: string, max = 180) => {
-  const source = value?.trim() || fallback.trim()
+  const source = prayerTextForDisplay(value || fallback)
   return source.length > max ? `${source.slice(0, max).trimEnd()}…` : source
 }
 
@@ -49,13 +49,16 @@ export const FeaturedPrayer = ({
   prayer,
   eyebrow,
   detail = false,
+  userId,
 }: {
   prayer: SitePrayerArchiveItem
   eyebrow: string
   detail?: boolean
+  userId: string
 }) => {
   const { t } = useSiteI18n()
   const Title = detail ? 'h1' : 'h2'
+  const prayerTitle = prayerTextForDisplay(prayer.title)
   return (
     <section className="overflow-hidden rounded-2xl bg-white shadow-[0_8px_30px_rgba(24,74,140,0.12)] lg:grid lg:grid-cols-[minmax(0,58fr)_minmax(0,42fr)]">
       <div className="bg-[linear-gradient(135deg,rgba(194,217,255,0.35)_0%,rgba(255,255,255,0)_100%)] p-5 sm:p-7">
@@ -64,19 +67,19 @@ export const FeaturedPrayer = ({
           {eyebrow}
         </span>
         <article className="mt-4 rounded-2xl bg-[linear-gradient(135deg,rgba(194,217,255,0.4)_0%,rgba(255,255,255,0)_100%)] p-4 shadow-[0_1px_2px_#0000000D] sm:p-5">
-          <div className="flex items-start justify-between gap-4">
+          <div className="flex items-start gap-4">
             <div className="min-w-0">
               <p className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[2px] text-primary-500">
                 <MaskIcon className="bg-primary-500" size={14} src="/icons/icon-sound-wave.svg" />
                 {t('prayerArchiveGuided')}
               </p>
               <Title className="mt-1 text-xl font-semibold leading-tight text-primary-900 sm:text-2xl">
-                {prayer.title}
+                {prayerTitle}
               </Title>
               <p className="mt-1 line-clamp-2 text-xs text-neutral-600">
                 {detail
                   ? [
-                      prayer.introduction,
+                      prayer.introduction && prayerTextForDisplay(prayer.introduction),
                       t('prayerDetailLedBy', {
                         pastor: prayer.pastorName,
                         church: prayer.churchName,
@@ -87,25 +90,6 @@ export const FeaturedPrayer = ({
                   : excerpt(prayer.introduction, prayer.body)}
               </p>
             </div>
-            {detail ? (
-              <button
-                aria-label={t('homeSaveUnavailable')}
-                className="flex size-8 shrink-0 cursor-not-allowed items-center justify-center rounded-lg border border-neutral-200 bg-white"
-                disabled
-                title={t('homeSaveUnavailable')}
-                type="button"
-              >
-                <MaskIcon className="bg-blue-800" size={16} src="/icons/icon-bookmark.svg" />
-              </button>
-            ) : (
-              <Link
-                aria-label={t('prayerArchiveView')}
-                className="flex size-8 shrink-0 items-center justify-center rounded-lg border border-neutral-200 bg-white"
-                href={`/prayers/${prayer.id}`}
-              >
-                <MaskIcon className="bg-blue-800" size={16} src="/icons/icon-bookmark.svg" />
-              </Link>
-            )}
           </div>
           <div className="mt-4">
             <Pastor prayer={prayer} />
@@ -113,19 +97,26 @@ export const FeaturedPrayer = ({
           {prayer.audio && (
             <DevotionalAudioPlayer
               prayerId={prayer.id}
+              prayerSlug={prayer.slug}
               showTranscript={!detail}
               src={prayer.audio.url}
+              userId={userId}
             />
           )}
         </article>
       </div>
       <PrayerQuotePanel
+        showActions={detail}
+        showLoveAction={false}
         prayer={{
           id: prayer.id,
-          title: prayer.title,
+          slug: prayer.slug,
+          title: prayerTitle,
           body: prayer.body,
           languageCode: prayer.languageCode,
           churchName: prayer.churchName,
+          churchCoverUrl: prayer.churchCoverUrl,
+          featuredImageUrl: prayer.featuredImageUrl ?? null,
         }}
       />
     </section>

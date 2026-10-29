@@ -14,7 +14,13 @@ const db = vi.hoisted(() => ({
 
 vi.mock('@/utils/db-connection', () => ({ db }))
 
-import { CREATE_CUSTOMER, FIND_OR_CREATE_OAUTH_CUSTOMER, GET_CUSTOMERS, GET_USERS } from './user'
+import {
+  COUNT_ACTIVE_CUSTOMERS,
+  CREATE_CUSTOMER,
+  FIND_OR_CREATE_OAUTH_CUSTOMER,
+  GET_CUSTOMERS,
+  GET_USERS,
+} from './user'
 
 const payload = {
   email: 'maria@example.com',
@@ -115,6 +121,19 @@ describe('staff vs customer lists (R-01/R-02)', () => {
       OR: [{ role_id: null }, { role: { is: { name: 'prayer_user' } } }],
     })
     expect(where.AND[1].OR.length).toBeGreaterThan(0)
+  })
+
+  it('counts only active, non-deleted customer accounts for the public fellowship total', async () => {
+    db.user.count.mockResolvedValue(37)
+
+    await expect(COUNT_ACTIVE_CUSTOMERS()).resolves.toBe(37)
+    expect(db.user.count).toHaveBeenCalledWith({
+      where: {
+        deleted_at: null,
+        status: 'active',
+        OR: [{ role_id: null }, { role: { is: { name: 'prayer_user' } } }],
+      },
+    })
   })
 })
 

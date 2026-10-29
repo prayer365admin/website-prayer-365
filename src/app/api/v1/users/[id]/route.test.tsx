@@ -12,19 +12,21 @@ vi.mock('@/providers/user', () => ({
 
 vi.mock('@/controller/user', () => ({
   updateUser: vi.fn(),
+  deactivateUser: vi.fn(),
 }))
 
-import { updateUser } from '@/controller/user'
+import { deactivateUser, updateUser } from '@/controller/user'
 import { GET_USER_BY_ID } from '@/providers/user'
 import requiredAuth from '@/utils/required-auth'
 import { GeneralError } from '@/utils/general-error'
-import { GET, PUT } from './route'
+import { GET, PUT, DELETE } from './route'
 
 const makeAuth = (granted: boolean) => ({
   session: { user: { user_id: 'u1' } },
   permission: {
     readAny: () => ({ granted }),
     updateAny: () => ({ granted }),
+    deleteAny: () => ({ granted }),
   },
 })
 
@@ -82,6 +84,7 @@ describe('PUT /api/v1/users/[id]', () => {
 
   it('updates via controller when prayer_administrator updateAny granted', async () => {
     vi.mocked(requiredAuth).mockResolvedValue(makeAuth(true) as never)
+    vi.mocked(GET_USER_BY_ID).mockResolvedValue({ id: 'u1', name: 'A' } as never)
     vi.mocked(updateUser).mockResolvedValue({ id: 'u1', name: 'B' } as never)
 
     const req = new NextRequest('http://localhost/api/v1/users/u1', {
@@ -90,11 +93,14 @@ describe('PUT /api/v1/users/[id]', () => {
     })
     const res = (await PUT(req, params as never))!
     expect(res.status).toBe(200)
-    expect(updateUser).toHaveBeenCalledWith({ user_id: 'u1', payload: { name: 'B' } })
+    expect(updateUser).toHaveBeenCalledWith(
+      expect.objectContaining({ user_id: 'u1', payload: { name: 'B' } }),
+    )
   })
 
   it('rejects role_id on update (422 through controller)', async () => {
     vi.mocked(requiredAuth).mockResolvedValue(makeAuth(true) as never)
+    vi.mocked(GET_USER_BY_ID).mockResolvedValue({ id: 'u1', name: 'A' } as never)
     vi.mocked(updateUser).mockRejectedValue(
       new GeneralError({
         code: 422,
@@ -122,5 +128,46 @@ describe('PUT /api/v1/users/[id]', () => {
     })
     const res = (await PUT(req, params as never))!
     expect(res.status).toBe(403)
+  })
+})
+
+describe('DELETE /api/v1/users/[id] (deactivate)', () => {
+  beforeEach(() => vi.clearAllMocks())
+
+  it('deactivates through the controller when the delete grant is present', async () => {
+    vi.mocked(requiredAuth).mockResolvedValue(makeAuth(true) as never)
+    vi.mocked(deactivateUser).mockResolvedValue({ id: 'u1', status: 'inactive' } as never)
+
+    const req = new NextRequest('http://localhost/api/v1/users/u1', { method: 'DELETE' })
+    const res = (await DELETE(req, params as never))!
+
+    expect(res.status).toBe(200)
+    expect(deactivateUser).toHaveBeenCalledWith(
+      expect.objectContaining({ user_id: 'u1', actorId: 'u1' }),
+    )
+  })
+
+  it('returns 403 without permission', async () => {
+    vi.mocked(requiredAuth).mockResolvedValue(makeAuth(false) as never)
+    const req = new NextRequest('http://localhost/api/v1/users/u1', { method: 'DELETE' })
+    const res = (await DELETE(req, params as never))!
+    expect(res.status).toBe(403)
+    expect(deactivateUser).not.toHaveBeenCalled()
+  })
+
+  it('maps the controller conflict to 409', async () => {
+    vi.mocked(requiredAuth).mockResolvedValue(makeAuth(true) as never)
+    vi.mocked(deactivateUser).mockRejectedValue(
+      new GeneralError({
+        code: 409,
+        error: 'CONFLICT',
+        error_code: 'LAST_ADMIN',
+        details: 'The last active super admin cannot be deactivated.',
+      }),
+    )
+
+    const req = new NextRequest('http://localhost/api/v1/users/u1', { method: 'DELETE' })
+    const res = (await DELETE(req, params as never))!
+    expect(res.status).toBe(409)
   })
 })

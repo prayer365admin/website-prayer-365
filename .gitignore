@@ -32,6 +32,8 @@ bun-error.log*
 .env*.local
 .env.test
 .env
+.env.prod
+.env.staging
 
 .vitest
 
@@ -51,3 +53,4 @@ next-env.d.ts
 /.claude/
 /docs/website/design/
 /docs/website/REPORT/
+/docs/admin/SEED-DATA/

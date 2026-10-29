@@ -1,10 +1,10 @@
 import { createUser } from '@/controller/user'
 import { GET_USERS } from '@/providers/user'
-import { ok, list, httpError } from '@/utils/response'
+import { ok, list, httpError, requestId } from '@/utils/response'
 import { registerPath } from '@/utils/openapi'
 import { GeneralError } from '@/utils/general-error'
 import { validate } from '@/utils/validate'
-import { parseSearchParams } from '@/utils/parse-search-params'
+import { parseListQuery } from '@/utils/pagination'
 import requiredAuth from '@/utils/required-auth'
 import { z } from 'zod'
 import { NextRequest } from 'next/server'
@@ -18,8 +18,6 @@ function protect<T extends PasswordShaped>(row: T): Omit<T, 'password'> {
 
 export async function GET(req: NextRequest) {
   const searchParams = req.nextUrl.searchParams
-  const { limit, order_by, order_direction, page, search } = parseSearchParams(searchParams)
-  const role = searchParams.get('role') ?? undefined
 
   try {
     const { permission } = await requiredAuth(req)
@@ -35,6 +33,12 @@ export async function GET(req: NextRequest) {
       )
     }
 
+    const { limit, order_by, order_direction, page, search } = parseListQuery(searchParams, {
+      allowOrderBy: ['created_at', 'name', 'email'],
+    })
+    const role = searchParams.get('role') ?? undefined
+    const status = searchParams.get('status') ?? undefined
+    const pastorLinked = searchParams.get('pastor_linked') === 'true'
     const result = await GET_USERS({
       limit,
       page,
@@ -42,10 +46,12 @@ export async function GET(req: NextRequest) {
       order_direction,
       search,
       role,
+      status,
+      pastorLinked,
     })
 
     const safeResult = (result.result as Array<Record<string, unknown>>).map((r) => protect(r))
-    return list(safeResult, result.total, page ?? 1, limit ?? 25, 'Successfully get all users')
+    return list(safeResult, result.total, page, limit, 'Successfully get all users')
   } catch (error) {
     return httpError(error)
   }
@@ -56,11 +62,12 @@ const createUserSchema = z.object({
   name: z.string().min(1),
   password: z.string().min(8),
   role_id: z.string().min(1).optional(),
+  profile_asset_id: z.string().min(1).optional(),
 })
 
 export async function POST(req: NextRequest) {
   try {
-    const { permission } = await requiredAuth(req)
+    const { session, permission } = await requiredAuth(req)
 
     if (!permission.createAny('prayer_administrator').granted) {
       return httpError(
@@ -82,6 +89,9 @@ export async function POST(req: NextRequest) {
       name: data.name,
       password: data.password,
       role_id: data.role_id,
+      ...(data.profile_asset_id ? { profile_asset_id: data.profile_asset_id } : {}),
+      actorId: session.user.user_id,
+      requestId: requestId(),
     })
 
     return ok(protect(result), 'Successfully create new user!', 201)
@@ -116,7 +126,8 @@ registerPath({
 registerPath({
   path: '/users',
   method: 'post',
-  summary: 'Create staff (role_id rejected, password never returned)',
+  summary:
+    'Create staff (password never returned). Role `administrator` also gets its GLOBAL scope assignment automatically.',
   request: {
     body: createUserSchema,
   },

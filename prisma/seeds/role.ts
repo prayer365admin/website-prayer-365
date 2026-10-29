@@ -11,7 +11,9 @@ import { PRAYER_ROLES } from './prayer-roles'
  * without any role (mobile auth D1 + no staff grant by registration).
  */
 
-export const ADMINISTRATOR_ROLE = 'administrator'
+import { ADMINISTRATOR_ROLE } from '../../src/utils/constant'
+
+export { ADMINISTRATOR_ROLE }
 
 export const seedRoles = async () => {
   await db.role.upsert({

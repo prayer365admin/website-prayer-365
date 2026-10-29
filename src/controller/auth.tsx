@@ -1,4 +1,4 @@
-import sendMail from '@/controller/mail'
+import { ENQUEUE_MAIL_SEND } from '@/providers/mail-job'
 import { GeneralError } from '@/utils/general-error'
 import { hashSecret } from '@/utils/hash'
 import { AuthTokenType } from '@prisma/client'
@@ -47,18 +47,21 @@ const sendVerificationEmail = async ({
   })
 
   try {
-    await sendMail({
-      from: process.env.MAIL_FROM || 'info@example.com',
-      to: email,
-      subject: 'Verify your email',
-      template_name: 'verify-email',
-      payload: {
-        customerName: name,
-        link: `${baseUrl}/verify-email?token=${createdToken.token}`,
-        companyName: process.env.NEXT_PUBLIC_COMPANY_NAME,
-        currentYear: dayjs().year(),
+    await ENQUEUE_MAIL_SEND({
+      dedupeKeySuffix: createdToken.id,
+      message: {
+        from: process.env.MAIL_FROM || 'info@example.com',
+        to: email,
+        subject: 'Verify your email',
+        template_name: 'verify-email',
+        payload: {
+          customerName: name,
+          link: `${baseUrl}/verify-email?token=${createdToken.token}`,
+          companyName: process.env.NEXT_PUBLIC_COMPANY_NAME,
+          currentYear: dayjs().year(),
+        },
+        baseUrl: baseUrl,
       },
-      baseUrl: baseUrl,
     })
   } catch (error) {
     // Do not let an undelivered token trigger the resend cooldown.
@@ -367,18 +370,21 @@ export const requestPasswordReset = async ({
   // current `${baseUrl}/reset-password` web behavior.
   const linkBase = linkPrefix ?? baseUrl
 
-  await sendMail({
-    from: process.env.MAIL_FROM || 'info@example.com',
-    to: user.email,
-    subject: 'Reset Your Password',
-    template_name: 'forgot-password',
-    payload: {
-      customerName: user.name,
-      link: `${linkBase}/reset-password?token=${createdToken.token}`,
-      companyName: process.env.NEXT_PUBLIC_COMPANY_NAME,
-      currentYear: dayjs().year(),
+  await ENQUEUE_MAIL_SEND({
+    dedupeKeySuffix: createdToken.id,
+    message: {
+      from: process.env.MAIL_FROM || 'info@example.com',
+      to: user.email,
+      subject: 'Reset Your Password',
+      template_name: 'forgot-password',
+      payload: {
+        customerName: user.name,
+        link: `${linkBase}/reset-password?token=${createdToken.token}`,
+        companyName: process.env.NEXT_PUBLIC_COMPANY_NAME,
+        currentYear: dayjs().year(),
+      },
+      baseUrl: baseUrl,
     },
-    baseUrl: baseUrl,
   })
 
   return { success: true }

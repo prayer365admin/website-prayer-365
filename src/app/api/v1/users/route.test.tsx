@@ -88,7 +88,36 @@ describe('GET /api/v1/users', () => {
       order_by: 'created_at',
       order_direction: 'asc',
       search: 'jo',
+      role: undefined,
+      status: undefined,
+      pastorLinked: false,
     })
+  })
+
+  it('passes the pastor-linked filter through to the provider', async () => {
+    vi.mocked(requiredAuth).mockResolvedValue(makeAuth(true) as never)
+    vi.mocked(GET_USERS).mockResolvedValue({ result: [], total: 0 } as never)
+
+    await GET(new NextRequest('http://localhost/api/v1/users?pastor_linked=true'))
+
+    expect(GET_USERS).toHaveBeenCalledWith(expect.objectContaining({ pastorLinked: true }))
+  })
+
+  it('caps page size without capping the page number and rejects unsafe sort fields', async () => {
+    vi.mocked(requiredAuth).mockResolvedValue(makeAuth(true) as never)
+    vi.mocked(GET_USERS).mockResolvedValue({ result: [], total: 0 } as never)
+
+    const clamped = await GET(
+      new NextRequest('http://localhost/api/v1/users?page=999999999999&limit=999999'),
+    )
+    expect(clamped?.status).toBe(200)
+    expect(GET_USERS).toHaveBeenCalledWith(
+      expect.objectContaining({ page: 999999999999, limit: 100 }),
+    )
+
+    const rejected = await GET(new NextRequest('http://localhost/api/v1/users?order_by=password'))
+    expect(rejected?.status).toBe(400)
+    expect((await rejected?.json()).error_code).toBe('INVALID_ORDER_BY')
   })
 })
 
@@ -152,5 +181,25 @@ describe('POST /api/v1/users', () => {
     })
     const res = (await POST(req!))!
     expect(res.status).toBe(403)
+  })
+
+  it('forwards profile_asset_id so the uploaded avatar is actually saved', async () => {
+    vi.mocked(requiredAuth).mockResolvedValue(makeAuth(true) as never)
+    vi.mocked(createUser).mockResolvedValue({ id: 'u9', email: 'a@b.com', name: 'A' } as never)
+
+    const req = new NextRequest('http://localhost/api/v1/users', {
+      method: 'POST',
+      body: JSON.stringify({
+        name: 'A',
+        password: 'Strong@123',
+        email: 'a@b.com',
+        profile_asset_id: 'asset-1',
+      }),
+    })
+    const res = (await POST(req!))!
+    expect(res.status).toBe(201)
+    expect(createUser).toHaveBeenCalledWith(
+      expect.objectContaining({ profile_asset_id: 'asset-1' }),
+    )
   })
 })

@@ -41,7 +41,10 @@ describe('PersonalProfile', () => {
     expect(screen.queryByText('Main Church')).toBeNull()
     expect(screen.queryByText('Phone')).toBeNull()
     expect(screen.queryByText('Liturgical & Chime Timezone')).toBeNull()
-    expect(screen.getByText('Ministry involvement will be available soon.')).toBeTruthy()
+    expect(screen.getByText('Anchoring Scripture Passages')).toBeTruthy()
+    expect(screen.queryByText('Spiritual Reflections & Calling')).toBeNull()
+    expect(screen.queryByText('Diaconal Volunteer & Ministry Involvement')).toBeNull()
+    expect(screen.queryByText('Ministry involvement will be available soon.')).toBeNull()
   })
 
   it('does not show a verification badge for an unverified email', () => {

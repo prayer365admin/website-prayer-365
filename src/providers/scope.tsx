@@ -54,6 +54,14 @@ export const GET_USER_SCOPE_DATA = async ({
 }
 
 /**
+ * The single GLOBAL org node (hierarchy root). Used when a super admin needs the
+ * tenancy layer: requiredScope authorizes from role_assignments, so an
+ * administrator holding only the identity role sees every church list empty.
+ */
+export const GET_GLOBAL_ORG_NODE = async (): Promise<{ id: string } | null> =>
+  db.orgNode.findFirst({ where: { kind: 'GLOBAL' }, select: { id: true } })
+
+/**
  * Resolve the target org node for an /admin/access query. Exactly ONE of
  * churchId/regionId must be present (the controller enforces). Returns the
  * target node's id/kind/name, or null when the referenced entity is unknown.

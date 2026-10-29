@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from 'react'
 import { ChurchIcon } from '@/components/icon/church'
 import { SparklesIcon } from '@/components/icon/sparkles'
 import { WaveformIcon } from '@/components/icon/waveform'
-import { HandHeartIcon } from '@/components/icon/hand-heart'
+import { DonationBanner } from '@/components/site/donation-banner'
 import { useSiteChurchPrayers, useSiteChurchProfile } from '@/hooks/data/site/churches'
 import { useSiteHome } from '@/hooks/data/site/home'
 import { useMe, useMyChurches } from '@/hooks/data/site/me'
@@ -211,6 +211,39 @@ function getStaffInitials(name: string): string {
   return name.slice(0, 2).toUpperCase()
 }
 
+function PastorAvatar({
+  name,
+  imageUrl,
+  round = false,
+}: {
+  name: string
+  imageUrl?: string | null
+  round?: boolean
+}) {
+  const [failedImageUrl, setFailedImageUrl] = useState<string | null>(null)
+  const currentImageUrl = imageUrl && imageUrl !== failedImageUrl ? imageUrl : null
+
+  return (
+    <div
+      className={`flex size-12 shrink-0 items-center justify-center overflow-hidden bg-[#E6EDFB] text-xl font-semibold text-[#2F7AD2] ${round ? 'rounded-full' : 'rounded-xl'}`}
+    >
+      {currentImageUrl ? (
+        <Image
+          alt={name}
+          className="size-12 object-cover"
+          height={256}
+          onError={() => setFailedImageUrl(currentImageUrl)}
+          src={currentImageUrl}
+          unoptimized
+          width={256}
+        />
+      ) : (
+        <span>{getStaffInitials(name)}</span>
+      )}
+    </div>
+  )
+}
+
 function GalleryImage({
   src,
   fallbackSrc,
@@ -356,8 +389,12 @@ export default function ContentsSiteChurchProfile({ slug }: { slug: string }) {
 
               {(data.pastorName || data.denomination) && (
                 <div className="mt-6 flex items-center gap-3.5 border-t border-[#DDE0E4] pt-4">
-                  <div className="relative flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-[#16629B] font-bold text-white text-base">
-                    <span>{(data.pastorName || data.name).charAt(0)}</span>
+                  <div className="relative shrink-0">
+                    <PastorAvatar
+                      imageUrl={data.pastorImageUrl}
+                      name={data.pastorName || data.name}
+                      round
+                    />
                     <div className="absolute -bottom-0.5 -right-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-[#0B4497] text-white">
                       <ChurchIcon className="text-[8px]" />
                     </div>
@@ -587,26 +624,13 @@ export default function ContentsSiteChurchProfile({ slug }: { slug: string }) {
               {data.staff?.length ? (
                 <div className="space-y-2">
                   {data.staff.map((person, idx) => {
-                    const initials = getStaffInitials(person.name)
                     return (
                       <div
                         key={idx}
                         className="flex h-16 items-center justify-between rounded-lg bg-[#FAFAFB] p-2"
                       >
                         <div className="flex items-center gap-2">
-                          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-[#E6EDFB] text-xl font-semibold text-[#2F7AD2]">
-                            {person.imageUrl ? (
-                              <Image
-                                src={person.imageUrl}
-                                alt={person.name}
-                                width={48}
-                                height={48}
-                                className="h-full w-full rounded-xl object-cover"
-                              />
-                            ) : (
-                              <span>{initials}</span>
-                            )}
-                          </div>
+                          <PastorAvatar imageUrl={person.imageUrl} name={person.name} />
                           <div>
                             <div className="text-base font-semibold leading-snug text-[#0E203E]">
                               {person.name}
@@ -671,24 +695,11 @@ export default function ContentsSiteChurchProfile({ slug }: { slug: string }) {
 
       {/* 5. Donation banner */}
       <div className="mx-auto max-w-[1152px] px-4 pb-12 sm:px-6">
-        <section className="overflow-hidden rounded-2xl bg-gradient-to-b from-[#163B66] to-[#0E294A] p-6 text-white shadow-[0_12px_32px_-6px_rgba(11,68,151,0.2)] sm:p-8">
-          <div className="flex flex-col items-center justify-between gap-6 sm:flex-row sm:items-center">
-            <div className="flex items-center gap-4 text-center sm:text-left">
-              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-white/15 text-white">
-                <HandHeartIcon className="text-2xl" />
-              </div>
-              <p className="max-w-xl text-sm leading-relaxed text-white/90 sm:text-base">
-                {t('donationBannerBody')}
-              </p>
-            </div>
-            <Link
-              href={`/donate?church=${data.slug}`}
-              className="inline-flex h-11 shrink-0 items-center justify-center rounded-xl bg-white px-6 text-sm font-semibold text-[#0E203E] shadow-sm transition-colors hover:bg-white/90 active:scale-95"
-            >
-              {t('donationBannerCta')}
-            </Link>
-          </div>
-        </section>
+        <DonationBanner
+          body={t('donationBannerBody')}
+          ctaLabel={t('donationBannerCta')}
+          href={`/donate?church=${data.slug}`}
+        />
       </div>
     </div>
   )

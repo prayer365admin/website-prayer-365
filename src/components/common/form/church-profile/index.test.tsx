@@ -196,7 +196,7 @@ describe('FormChurchProfileTabs', () => {
     expect(await screen.findByText('Pastor A')).toBeTruthy()
     expect(screen.queryByRole('button', { name: 'Edit' })).toBeNull()
   })
-  it('renders cover image placeholder on Details tab when no coverAssetId', () => {
+  it('renders thumbnail and hero image placeholders on Details tab', () => {
     renderWithProviders(
       <FormChurchProfileTabs
         initialValues={profile as unknown as ChurchProfileOutput}
@@ -206,8 +206,9 @@ describe('FormChurchProfileTabs', () => {
         onSubmitSchedule={vi.fn()}
       />,
     )
-    expect(screen.getAllByText('Cover image')[0]).toBeTruthy()
-    expect(screen.getByText('Upload')).toBeTruthy()
+    expect(screen.getByText('Thumbnail image')).toBeTruthy()
+    expect(screen.getByText('Hero image')).toBeTruthy()
+    expect(screen.getAllByText('Upload')).toHaveLength(2)
   })
 
   it('renders map fallback in Location tab', async () => {

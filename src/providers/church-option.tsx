@@ -1,4 +1,5 @@
 import { db } from '@/utils/db-connection'
+import { CUSTOMER_ACCOUNT_FILTER } from '@/utils/customer-role'
 import { ChurchOption, ChurchOptionQuery } from '@/models/church-option'
 
 /*
@@ -51,7 +52,11 @@ export const LIST_CHURCH_OPTIONS = async ({
 export const LIST_FREQUENT_CHURCHES = async (): Promise<ChurchOption[]> => {
   const counts = await db.userChurch.groupBy({
     by: ['church_id'],
-    where: { OR: [{ is_followed: true }, { is_main: true }], church: { status: APPROVED } },
+    where: {
+      OR: [{ is_followed: true }, { is_main: true }],
+      church: { status: APPROVED },
+      user: CUSTOMER_ACCOUNT_FILTER,
+    },
     _count: { church_id: true },
     orderBy: [{ _count: { church_id: 'desc' } }, { church_id: 'asc' }],
     take: FREQUENT_LIMIT,

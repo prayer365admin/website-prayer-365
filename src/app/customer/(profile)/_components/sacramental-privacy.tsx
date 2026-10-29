@@ -5,7 +5,7 @@ import { GuardIcon } from '@/components/icon/guard'
 import { LockIcon } from '@/components/icon/lock'
 import { UserDeleteIcon } from '@/components/icon/user-delete'
 import { useSiteI18n } from '@/i18n/site-i18n'
-import { CodeOutlined, DownloadOutlined, WarningOutlined } from '@ant-design/icons'
+import { DownloadOutlined, WarningOutlined } from '@ant-design/icons'
 import s from './sacramental-privacy.module.scss'
 
 // Data export and in-site account deletion are out of website scope (FEATURE "Out of scope"),
@@ -58,15 +58,6 @@ export default function SacramentalPrivacy() {
               title={unavailable}
             >
               {t('profileExportPdf')}
-            </SiteButton>
-            <SiteButton
-              className={s.exportButton}
-              disabled
-              icon={<CodeOutlined aria-hidden />}
-              size="xs"
-              title={unavailable}
-            >
-              {t('profileExportJson')}
             </SiteButton>
           </div>
         </section>

@@ -1,4 +1,11 @@
-import { CfnOutput, Duration, RemovalPolicy, Stack, type StackProps } from 'aws-cdk-lib'
+import {
+  CfnOutput,
+  Duration,
+  RemovalPolicy,
+  SecretValue,
+  Stack,
+  type StackProps,
+} from 'aws-cdk-lib'
 import {
   CfnEIP,
   CfnEIPAssociation,
@@ -10,12 +17,14 @@ import {
   SubnetType,
   Vpc,
 } from 'aws-cdk-lib/aws-ec2'
+import { AccessKey, Effect, PolicyStatement, User } from 'aws-cdk-lib/aws-iam'
 import {
   DatabaseInstance,
   DatabaseInstanceEngine,
   PostgresEngineVersion,
   StorageType,
 } from 'aws-cdk-lib/aws-rds'
+import { EmailIdentity, Identity } from 'aws-cdk-lib/aws-ses'
 import { Secret } from 'aws-cdk-lib/aws-secretsmanager'
 import { Queue } from 'aws-cdk-lib/aws-sqs'
 import { StringParameter } from 'aws-cdk-lib/aws-ssm'
@@ -116,6 +125,9 @@ export class DataStack extends Stack {
     }
 
     if (config.database.mode === 'create' && this.vpc) {
+      // A public instance must sit in a PUBLIC subnet: RDS only assigns a public
+      // address there (`publiclyAccessible` is inferred from the subnet type).
+      const publicDb = config.database.publiclyAccessible
       this.database = new DatabaseInstance(this, 'Postgres', {
         engine: DatabaseInstanceEngine.postgres({ version: PostgresEngineVersion.VER_16 }),
         // Free tier: db.t4g.micro + 20 GB gp3, single-AZ, no standby.
@@ -124,8 +136,10 @@ export class DataStack extends Stack {
         storageType: StorageType.GP3,
         databaseName: 'prayer365',
         vpc: this.vpc,
-        vpcSubnets: { subnetType: SubnetType.PRIVATE_WITH_EGRESS },
-        publiclyAccessible: false,
+        vpcSubnets: {
+          subnetType: publicDb ? SubnetType.PUBLIC : SubnetType.PRIVATE_WITH_EGRESS,
+        },
+        publiclyAccessible: publicDb,
         multiAz: false,
         storageEncrypted: true,
         backupRetention: Duration.days(config.database.backupRetentionDays),
@@ -134,10 +148,103 @@ export class DataStack extends Stack {
           config.removalPolicy === 'retain' ? RemovalPolicy.RETAIN : RemovalPolicy.DESTROY,
       })
 
+      /*
+       * The construct's default security group has NO inbound rules, so a reach
+       * rule is mandatory in both shapes. Public: the web app runs on Vercel with
+       * no fixed egress IPs, so the only usable rule is the whole internet —
+       * `sslmode=require` and the RDS-generated password are the guard (temporary
+       * posture, same spirit as the public media bucket, D13).
+       */
+      if (publicDb) {
+        this.database.connections.allowDefaultPortFrom(
+          Peer.anyIpv4(),
+          'Web app on Vercel + operator migrations (temporary, no fixed egress IPs)',
+        )
+      } else {
+        this.database.connections.allowDefaultPortFrom(
+          Peer.ipv4(this.vpc.vpcCidrBlock),
+          'Lambdas in this VPC',
+        )
+      }
+
       new CfnOutput(this, 'DatabaseEndpoint', { value: this.database.dbInstanceEndpointAddress })
       new CfnOutput(this, 'DatabasePort', { value: this.database.dbInstanceEndpointPort })
       new CfnOutput(this, 'DatabaseInstanceIdentifier', {
         value: this.database.instanceIdentifier,
+      })
+    }
+
+    /*
+     * Transactional email (SES). The identity is per-region, so it lives beside
+     * the rest of the environment's data. `create` makes a new domain identity and
+     * emits the DKIM records the domain owner has to publish; `existing` adopts a
+     * domain verified earlier (catatia.com) — CDK cannot read an imported
+     * identity's DKIM tokens, so read those with
+     * `aws sesv2 get-email-identity --email-identity <domain>`.
+     */
+    const email = config.email
+    new StringParameter(this, 'SesDomainParam', {
+      parameterName: `/prayer365/${config.name}/ses-domain`,
+      stringValue: email.domain,
+    })
+    new CfnOutput(this, 'SesDomain', { value: email.domain })
+    if (email.mailFromDomain) {
+      new CfnOutput(this, 'SesMailFromDomain', { value: email.mailFromDomain })
+    }
+
+    if (email.mode === 'create') {
+      const identity = new EmailIdentity(this, 'EmailIdentity', {
+        identity: Identity.domain(email.domain),
+        mailFromDomain: email.mailFromDomain,
+      })
+      const tokens: [string, string][] = [
+        [identity.dkimDnsTokenName1, identity.dkimDnsTokenValue1],
+        [identity.dkimDnsTokenName2, identity.dkimDnsTokenValue2],
+        [identity.dkimDnsTokenName3, identity.dkimDnsTokenValue3],
+      ]
+      tokens.forEach(([name, value], index) => {
+        new CfnOutput(this, `SesDkimTokenName${index + 1}`, { value: name })
+        new CfnOutput(this, `SesDkimTokenValue${index + 1}`, { value: value })
+      })
+    } else {
+      EmailIdentity.fromEmailIdentityName(this, 'EmailIdentity', email.domain)
+    }
+
+    /*
+     * The web app runs on Vercel, outside this account, so it authenticates with a
+     * static key pair — the same pattern the shared catatia account uses. Created
+     * only for environments that own their resources (`storage.mode: 'create'`);
+     * the pair lands in a secret container and is copied to Vercel by hand.
+     */
+    if (config.storage.mode === 'create') {
+      const appUser = new User(this, 'AppUser', { userName: `prayer365-${config.name}-app` })
+      appUser.addToPolicy(
+        new PolicyStatement({
+          effect: Effect.ALLOW,
+          actions: ['s3:GetObject', 's3:PutObject', 's3:DeleteObject', 's3:ListBucket'],
+          resources: [
+            `arn:aws:s3:::prayer365-${config.name}-media`,
+            `arn:aws:s3:::prayer365-${config.name}-media/*`,
+          ],
+        }),
+      )
+      appUser.addToPolicy(
+        new PolicyStatement({
+          effect: Effect.ALLOW,
+          actions: ['ses:SendEmail', 'ses:SendRawEmail'],
+          // Scoped to the verified identity, so the key cannot send as another domain.
+          resources: [`arn:aws:ses:${this.region}:${this.account}:identity/${email.domain}`],
+        }),
+      )
+
+      const accessKey = new AccessKey(this, 'AppUserAccessKey', { user: appUser })
+      new Secret(this, 'AppCredentials', {
+        secretName: `/prayer365/${config.name}/app-credentials`,
+        description: 'AWS key pair for the Vercel deployment: media bucket + SES sending',
+        secretObjectValue: {
+          AWS_ACCESS_KEY_ID: SecretValue.unsafePlainText(accessKey.accessKeyId),
+          AWS_SECRET_ACCESS_KEY: accessKey.secretAccessKey,
+        },
       })
     }
 

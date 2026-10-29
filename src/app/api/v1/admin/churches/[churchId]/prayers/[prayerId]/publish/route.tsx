@@ -7,6 +7,8 @@ import { validate } from '@/utils/validate'
 import { registerPath } from '@/utils/openapi'
 import { PrayerOutputSchema, PublishInputSchema } from '@/models/prayer'
 import { publishPrayer } from '@/controller/prayer'
+import { revalidateTag } from 'next/cache'
+import { SITE_PUBLIC_TAG } from '@/utils/site-cache-tags'
 
 /*
  * POST /api/v1/admin/churches/:churchId/prayers/:prayerId/publish (Task 25).
@@ -59,6 +61,8 @@ export async function POST(
       idempotencyKey: req.headers.get('idempotency-key') ?? undefined,
       requestId: requestId(),
     })
+    // Publish must be visible immediately: expire 0 = no stale window.
+    revalidateTag(SITE_PUBLIC_TAG, { expire: 0 })
     return ok(result, 'Prayer published.')
   } catch (e) {
     return httpError(e)

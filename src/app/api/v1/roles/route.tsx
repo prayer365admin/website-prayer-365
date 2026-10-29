@@ -1,7 +1,10 @@
+import { createRole } from '@/controller/role'
 import { GET_ROLES } from '@/providers/role'
-import { ok, httpError } from '@/utils/response'
+import { RolePayloadCrateSchema, RolePayloadCrateModel } from '@/models/role'
+import { ok, httpError, requestId } from '@/utils/response'
 import { registerPath } from '@/utils/openapi'
 import { GeneralError } from '@/utils/general-error'
+import { validate } from '@/utils/validate'
 import requiredAuth from '@/utils/required-auth'
 import { RoleType } from '@prisma/client'
 import { z } from 'zod'
@@ -33,17 +36,36 @@ export async function GET(req: NextRequest) {
   }
 }
 
-// Inherited role creation is disabled (SPEC §8.3) — role wiring is done via
-// scoped role assignments. Never retain this as an authorization bypass.
-export async function POST(_req: NextRequest) {
-  return httpError(
-    new GeneralError({
-      code: 403,
-      error: 'FORBIDDEN',
-      error_code: 'ROUTE_DISABLED',
-      details: 'Role creation is disabled; roles are managed via role assignments.',
-    }),
-  )
+// Role creation is enabled again (plan 023) with the guards in controller/role:
+// `administrator` and SYSTEM roles are protected, names must be unique.
+export async function POST(req: NextRequest) {
+  try {
+    const { session, permission } = await requiredAuth(req)
+
+    if (!permission.createAny('user_management_role').granted) {
+      return httpError(
+        new GeneralError({
+          code: 403,
+          error: 'UNAUTHORIZED',
+          error_code: 'NOT_ALLOWED',
+          details: 'This account is not allowed for this action.',
+        }),
+      )
+    }
+
+    const payload: RolePayloadCrateModel = validate(
+      RolePayloadCrateSchema,
+      await req.json().catch(() => ({})),
+    )
+    const result = await createRole({
+      payload,
+      actorId: session.user.user_id,
+      requestId: requestId(),
+    })
+    return ok(result, 'Role created.', 201)
+  } catch (error) {
+    return httpError(error)
+  }
 }
 
 registerPath({
@@ -72,6 +94,13 @@ registerPath({
 registerPath({
   path: '/roles',
   method: 'post',
-  summary: 'Disabled — role creation is disabled (403)',
-  responses: [{ status: 403, description: 'Route disabled' }],
+  summary: 'Create a role with its permission matrix (user_management_role create)',
+  request: { body: RolePayloadCrateSchema },
+  responses: [
+    { status: 201, description: 'Role created' },
+    { status: 401, description: 'Not authenticated' },
+    { status: 403, description: 'Not allowed / administrator role locked' },
+    { status: 409, description: 'Role name already exists' },
+    { status: 422, description: 'Validation error' },
+  ],
 })

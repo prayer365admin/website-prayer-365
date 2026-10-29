@@ -1,6 +1,7 @@
 'use client'
 
 import { isCustomerRole } from '@/utils/customer-role'
+import { SITE_HOME } from '@/utils/constant'
 import type { Session } from 'next-auth'
 import { getSession } from 'next-auth/react'
 import { useCallback, useEffect, useRef } from 'react'
@@ -9,7 +10,7 @@ export type SessionAccess = 'protected' | 'guest'
 
 export const getSessionRedirect = (access: SessionAccess, session: Session | null) => {
   if (access === 'protected' && !session?.user) return '/login'
-  if (access === 'guest' && session?.user && isCustomerRole(session.user.role)) return '/customer'
+  if (access === 'guest' && session?.user && isCustomerRole(session.user.role)) return SITE_HOME
   return null
 }
 

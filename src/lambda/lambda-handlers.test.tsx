@@ -15,6 +15,7 @@ const mocks = vi.hoisted(() => {
     publish: fns(['processPrayerPublishJob']),
     payment: fns(['processPaymentSyncJob']),
     voice: fns(['processVoiceRegisterJob']),
+    mail: fns(['processMailSendJob']),
     dispatch: fns(['runDispatcher']),
     logger: fns(['info', 'error']),
   }
@@ -24,9 +25,16 @@ vi.mock('@/controller/audio-generate-job', () => mocks.audio)
 vi.mock('@/controller/prayer-publish-job', () => mocks.publish)
 vi.mock('@/controller/payment-sync-job', () => mocks.payment)
 vi.mock('@/controller/voice-register-job', () => mocks.voice)
+vi.mock('@/controller/mail-send-job', () => mocks.mail)
 vi.mock('@/controller/job-dispatch', () => ({
   runDispatcher: mocks.dispatch.runDispatcher,
-  SUPPORTED_KINDS: ['audio.generate', 'prayer.publish', 'payment.sync', 'voice.register'],
+  SUPPORTED_KINDS: [
+    'audio.generate',
+    'mail.send',
+    'payment.sync',
+    'prayer.publish',
+    'voice.register',
+  ],
 }))
 vi.mock('@/utils/logger', () => ({ logger: mocks.logger }))
 
@@ -47,6 +55,7 @@ beforeEach(() => {
   mocks.publish.processPrayerPublishJob.mockResolvedValue('succeeded')
   mocks.payment.processPaymentSyncJob.mockResolvedValue('succeeded')
   mocks.voice.processVoiceRegisterJob.mockResolvedValue('succeeded')
+  mocks.mail.processMailSendJob.mockResolvedValue('succeeded')
 })
 
 describe('consumer handler', () => {
@@ -138,6 +147,7 @@ describe('dispatcher handler', () => {
   it('exposes a processor for every supported kind', () => {
     expect(Object.keys(HANDLERS).sort()).toEqual([
       'audio.generate',
+      'mail.send',
       'payment.sync',
       'prayer.publish',
       'voice.register',

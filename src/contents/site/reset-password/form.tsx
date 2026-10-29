@@ -1,15 +1,20 @@
 'use client'
 
 import SiteButton from '@/components/common/button'
+import { ArrowRightIcon } from '@/components/icon/arrow-right'
 import { LockIcon } from '@/components/icon/lock'
-import Confirmation from '@/components/site/auth/confirmation'
-import PasswordStrength from '@/components/site/auth/password-strength'
+import {
+  RecoveryBackLink,
+  RecoveryCard,
+  RecoveryHeading,
+  RecoveryLockMark,
+  RecoveryResult,
+} from '@/components/site/auth/recovery-layout'
 import FormError from '@/components/site/form-error'
 import { useResetPassword } from '@/hooks/data/site/password'
 import { errorCodeOf } from '@/hooks/data/site/verify'
 import { useSiteI18n } from '@/i18n/site-i18n'
 import { Form, Input } from 'antd'
-import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
 import { useState } from 'react'
 
@@ -25,7 +30,6 @@ export default function ResetPasswordForm() {
   const { t } = useSiteI18n()
   const token = useSearchParams().get('token') ?? ''
   const [form] = Form.useForm<Values>()
-  const password = Form.useWatch('password', form) ?? ''
   const { onReset, resetting } = useResetPassword()
   const [state, setState] = useState<State>(token ? 'form' : 'invalid')
   const [failed, setFailed] = useState(false)
@@ -48,89 +52,94 @@ export default function ResetPasswordForm() {
 
   if (state === 'done') {
     return (
-      <Confirmation linkHref="/login" linkLabel={t('signUpSignIn')} title={t('resetDoneTitle')}>
-        {t('resetDoneBody')}
-      </Confirmation>
+      <RecoveryResult
+        actionHref="/login"
+        actionLabel={t('recoveryLogin')}
+        body={t('resetDoneBody')}
+        eyebrow={t('recoveryCongratulations')}
+        title={t('resetDoneTitle')}
+      />
     )
   }
 
   if (state === 'invalid') {
     return (
-      <Confirmation
-        linkHref="/forgot-password"
-        linkLabel={t('resetRequestNew')}
+      <RecoveryResult
+        actionHref="/forgot-password"
+        actionLabel={t('resetRequestNew')}
+        body={t('resetInvalidBody')}
         status="error"
         title={t('resetInvalidTitle')}
-      >
-        {t('resetInvalidBody')}
-      </Confirmation>
+      />
     )
   }
 
   return (
-    <Form
-      className="site-form"
-      disabled={resetting}
-      form={form}
-      layout="vertical"
-      onFinish={submit}
-      requiredMark={false}
-      validateTrigger="onSubmit"
-    >
-      <Form.Item
-        className="!mb-2"
-        label={t('resetNewLabel')}
-        name="password"
-        rules={[
-          { required: true, message: t('signUpErrorPassword') },
-          { min: 8, message: t('signUpErrorPassword') },
-        ]}
-      >
-        <Input.Password
-          autoComplete="new-password"
-          placeholder="••••••••••••"
-          prefix={<LockIcon aria-hidden className="!text-primary-900" />}
-        />
-      </Form.Item>
-      <PasswordStrength password={password} />
-      <Form.Item
-        className="!mt-4"
-        dependencies={['password']}
-        label={t('resetConfirmLabel')}
-        name="confirm"
-        rules={[
-          { required: true, message: t('resetMismatch') },
-          ({ getFieldValue }) => ({
-            validator: (_, value) =>
-              !value || value === getFieldValue('password')
-                ? Promise.resolve()
-                : Promise.reject(new Error(t('resetMismatch'))),
-          }),
-        ]}
-      >
-        <Input.Password
-          autoComplete="new-password"
-          placeholder="••••••••••••"
-          prefix={<LockIcon aria-hidden className="!text-primary-900" />}
-        />
-      </Form.Item>
+    <RecoveryCard>
+      <RecoveryLockMark />
+      <RecoveryHeading title={t('resetTitle')} />
 
-      {failed && <FormError className="mb-4">{t('error')}</FormError>}
+      <Form
+        className="site-form mt-8"
+        disabled={resetting}
+        form={form}
+        layout="vertical"
+        onFinish={submit}
+        requiredMark={false}
+        validateTrigger="onSubmit"
+      >
+        <Form.Item
+          label={t('resetNewLabel')}
+          name="password"
+          rules={[
+            { required: true, message: t('signUpErrorPassword') },
+            { min: 8, message: t('signUpErrorPassword') },
+          ]}
+        >
+          <Input.Password
+            autoComplete="new-password"
+            placeholder="••••••••••••"
+            prefix={<LockIcon aria-hidden className="!text-primary-900" />}
+          />
+        </Form.Item>
+        <Form.Item
+          dependencies={['password']}
+          label={t('resetConfirmLabel')}
+          name="confirm"
+          rules={[
+            { required: true, message: t('resetMismatch') },
+            ({ getFieldValue }) => ({
+              validator: (_, value) =>
+                !value || value === getFieldValue('password')
+                  ? Promise.resolve()
+                  : Promise.reject(new Error(t('resetMismatch'))),
+            }),
+          ]}
+        >
+          <Input.Password
+            autoComplete="new-password"
+            placeholder="••••••••••••"
+            prefix={<LockIcon aria-hidden className="!text-primary-900" />}
+          />
+        </Form.Item>
 
-      <div className="flex flex-col items-start gap-4 md:flex-row md:items-center md:justify-between">
+        {failed && <FormError className="mb-4">{t('error')}</FormError>}
+
         <SiteButton
-          className="w-full md:w-auto"
-          desktopSize="lg"
+          className="w-full"
+          icon={<ArrowRightIcon aria-hidden style={{ fontSize: 18 }} />}
+          iconPlacement="end"
           loading={resetting}
-          size="md"
+          size="lg"
           type="submit"
         >
           {t('resetSubmit')}
         </SiteButton>
-        <Link className="self-center text-sm font-semibold text-primary-500" href="/login">
-          {t('signUpSuccessAction')}
-        </Link>
-      </div>
-    </Form>
+
+        <div className="mt-8">
+          <RecoveryBackLink />
+        </div>
+      </Form>
+    </RecoveryCard>
   )
 }

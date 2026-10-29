@@ -15,6 +15,7 @@ const store = vi.hoisted(() => ({
   church: [] as Row[],
   userChurch: [] as Row[],
   authToken: [] as Row[],
+  outboxJob: [] as Row[],
   mails: [] as Row[],
 }))
 
@@ -102,12 +103,23 @@ vi.mock('@/utils/db-connection', () => {
       return created
     },
   })
+  const outboxJob = fake.table(() => store.outboxJob, {
+    create: async ({ data }: Row) => {
+      const row = { id: fake.id(), created_at: new Date(), ...data }
+      store.outboxJob.push(row)
+      if (data.kind === 'mail.send' && data.payload) {
+        store.mails.push(data.payload)
+      }
+      return row
+    },
+  })
   const db: Row = {
     user,
     userChurch,
     role: fake.table(() => store.role),
     church: fake.table(() => store.church),
     authToken: fake.table(() => store.authToken),
+    outboxJob,
   }
   // ponytail: no rollback; enough for the happy paths and guards tested here.
   db.$transaction = async (fn: (tx: Row) => unknown) => fn(db)

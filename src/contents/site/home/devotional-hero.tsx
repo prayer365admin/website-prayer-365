@@ -5,7 +5,7 @@ import DevotionalAudioPlayer from '@/components/site/prayer/devotional-audio-pla
 import PrayerQuotePanel from '@/components/site/prayer/prayer-quote-panel'
 import { useSiteI18n } from '@/i18n/site-i18n'
 import { MobilePublishedPrayer } from '@/models/mobile'
-import Image from 'next/image'
+import { prayerTextForDisplay } from '@/utils/rich-text-plain'
 import Link from 'next/link'
 
 const firstName = (name?: string | null) => name?.trim().split(/\s+/)[0] || 'friend'
@@ -15,10 +15,12 @@ export default function DevotionalHero({
   prayer,
   name,
   now,
+  userId,
 }: {
   prayer?: MobilePublishedPrayer
   name?: string | null
   now: string
+  userId: string
 }) {
   const { locale, t } = useSiteI18n()
   const date = new Date(now)
@@ -31,13 +33,17 @@ export default function DevotionalHero({
     day: 'numeric',
     timeZone: 'UTC',
   }).format(date)
+  const prayerTitle = prayer ? prayerTextForDisplay(prayer.version.title) : ''
+  const prayerIntroduction = prayer?.version.introduction
+    ? prayerTextForDisplay(prayer.version.introduction)
+    : ''
 
   return (
     <section
       aria-labelledby="home-devotional-title"
       className="grid overflow-hidden rounded-3xl bg-white sm:rounded-[28px] shadow-[0_18px_50px_rgba(24,74,140,0.10)] lg:grid-cols-[minmax(0,7fr)_minmax(0,5fr)] xl:grid-cols-[minmax(0,672px)_minmax(0,480px)]"
     >
-      <div className="bg-[linear-gradient(135deg,rgba(194,217,255,0.4)_0%,rgba(255,255,255,0)_100%)] p-5 sm:p-8">
+      <div className="min-w-0 bg-[linear-gradient(135deg,rgba(194,217,255,0.4)_0%,rgba(255,255,255,0)_100%)] p-5 sm:p-8">
         <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2 text-xs font-medium text-blue-800">
           <span className="inline-flex items-center gap-1.5 rounded-full bg-white px-3 py-1.5 text-blue-800 sm:px-4 sm:py-2 shadow-sm">
             <MaskIcon className="bg-primary-500" size={12} src="/icons/icon-stars.svg" />
@@ -62,29 +68,20 @@ export default function DevotionalHero({
         </p>
 
         {prayer ? (
-          <article className="mt-6 rounded-[20px] sm:mt-8 bg-[linear-gradient(135deg,rgba(194,217,255,0.4)_0%,rgba(255,255,255,0)_100%)] p-4 sm:p-6 shadow-[0_1px_2px_0_rgba(0,0,0,0.05),-1px_-1px_2px_0_#FFFFFF]">
-            <div className="flex items-start justify-between gap-3">
-              <div className="min-w-0">
+          <article className="mt-6 min-w-0 overflow-hidden rounded-[20px] sm:mt-8 bg-[linear-gradient(135deg,rgba(194,217,255,0.4)_0%,rgba(255,255,255,0)_100%)] p-4 sm:p-6 shadow-[0_1px_2px_0_rgba(0,0,0,0.05),-1px_-1px_2px_0_#FFFFFF]">
+            <div className="flex items-start gap-3">
+              <div className="min-w-0 flex-1">
                 <p className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-primary-500 sm:tracking-[0.22em]">
                   <MaskIcon className="bg-primary-500" size={14} src="/icons/icon-sound-wave.svg" />{' '}
                   {t('homeGuidedContemplation')}
                 </p>
-                <h2 className="mt-1 text-xl font-semibold sm:text-2xl tracking-[-0.035em] text-primary-900">
-                  {prayer.version.title}
+                <h2 className="mt-1 break-words text-xl font-semibold sm:text-2xl tracking-[-0.035em] text-primary-900">
+                  {prayerTitle}
                 </h2>
-                <p className="mt-1 text-xs text-neutral-600 sm:text-sm">
-                  {prayer.version.introduction || t('homeDailyPrayer')} · {prayer.churchName}
+                <p className="mt-1 whitespace-normal break-words [overflow-wrap:anywhere] text-xs text-neutral-600 sm:text-sm">
+                  {prayerIntroduction || t('homeDailyPrayer')} · {prayer.churchName}
                 </p>
               </div>
-              <button
-                aria-label={t('homeSaveUnavailable')}
-                className="flex size-9 shrink-0 cursor-not-allowed items-center justify-center rounded-lg border border-neutral-200 bg-white text-primary-700 opacity-60"
-                disabled
-                title={t('homeSaveUnavailable')}
-                type="button"
-              >
-                <Image alt="" aria-hidden height={15} src="/icons/icon-bookmark.svg" width={11} />
-              </button>
             </div>
 
             <div className="mt-5 flex items-center gap-3">
@@ -102,7 +99,12 @@ export default function DevotionalHero({
               </div>
             </div>
 
-            <DevotionalAudioPlayer prayerId={prayer.id} src={prayer.audio?.assetUrl ?? null} />
+            <DevotionalAudioPlayer
+              prayerId={prayer.id}
+              prayerSlug={prayer.slug}
+              src={prayer.audio?.assetUrl ?? null}
+              userId={userId}
+            />
           </article>
         ) : (
           <div className="mt-8 rounded-[20px] border border-white bg-white/70 px-6 py-8">
@@ -123,13 +125,17 @@ export default function DevotionalHero({
           prayer
             ? {
                 id: prayer.id,
-                title: prayer.version.title,
+                slug: prayer.slug,
+                title: prayerTitle,
                 body: prayer.version.body,
                 languageCode: prayer.version.languageCode,
                 churchName: prayer.churchName,
+                churchCoverUrl: prayer.churchCoverUrl,
+                featuredImageUrl: prayer.featuredImageUrl ?? null,
               }
             : null
         }
+        showActions={false}
       />
     </section>
   )

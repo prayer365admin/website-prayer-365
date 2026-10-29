@@ -1,19 +1,27 @@
 import { db } from '@/utils/db-connection'
 import { S3_PUBLIC_URL } from '@/providers/s3'
 import { stripAudioTags } from '@/utils/strip-audio-tags'
+import { sanitizePrayerRichText } from '@/utils/sanitize-prayer-rich-text'
+import { generatedAudioDurationSeconds, prayerDurationMinutes } from '@/utils/prayer-duration'
 import {
   SitePrayerArchive,
   SitePrayerArchiveItem,
   SitePrayerArchiveQuery,
   SitePrayerDetail,
+  SiteLoginPrayer,
 } from '@/models/site-prayer'
 
 const APPROVED = 'APPROVED'
 
 type PublishedRow = {
   id: string
+  slug: string
   church_id: string
-  church: { name: string }
+  church: {
+    name: string
+    cover_asset: { object_key: string; purpose: string; status: string } | null
+  }
+  featured_asset: { object_key: string; purpose: string; status: string } | null
   published_at: Date | null
   published_version_id: string | null
 }
@@ -23,8 +31,15 @@ const includes = (value: string | null, search: string) =>
 
 const publishedSelect = {
   id: true,
+  slug: true,
   church_id: true,
-  church: { select: { name: true } },
+  church: {
+    select: {
+      name: true,
+      cover_asset: { select: { object_key: true, purpose: true, status: true } },
+    },
+  },
+  featured_asset: { select: { object_key: true, purpose: true, status: true } },
   published_at: true,
   published_version_id: true,
 } as const
@@ -46,7 +61,7 @@ const toItems = async (prayers: PublishedRow[]): Promise<SitePrayerArchiveItem[]
         where: { id: { in: versionIds } },
         include: {
           pastor: { include: { image_asset: { select: { object_key: true } } } },
-          selected_audio: { include: { asset: { select: { object_key: true } } } },
+          selected_audio: { include: { asset: { select: { object_key: true, byte_size: true } } } },
         },
       })
     : []
@@ -70,6 +85,7 @@ const toItems = async (prayers: PublishedRow[]): Promise<SitePrayerArchiveItem[]
     const assignment = churchPastorByKey.get(`${prayer.church_id}:${version.pastor_id}`)
     const imageKey = assignment?.image_asset?.object_key ?? version.pastor.image_asset?.object_key
     const selectedAudio = version.selected_audio
+    const durationSeconds = generatedAudioDurationSeconds(selectedAudio?.asset?.byte_size)
     const audioUrl =
       selectedAudio?.status === 'APPROVED' && selectedAudio.asset
         ? S3_PUBLIC_URL({ key: selectedAudio.asset.object_key })
@@ -77,8 +93,18 @@ const toItems = async (prayers: PublishedRow[]): Promise<SitePrayerArchiveItem[]
     return [
       {
         id: prayer.id,
+        slug: prayer.slug,
         churchId: prayer.church_id,
         churchName: prayer.church.name,
+        churchCoverUrl:
+          prayer.church.cover_asset?.purpose === 'IMAGE' &&
+          prayer.church.cover_asset.status === 'READY'
+            ? S3_PUBLIC_URL({ key: prayer.church.cover_asset.object_key })
+            : null,
+        featuredImageUrl:
+          prayer.featured_asset?.purpose === 'IMAGE' && prayer.featured_asset.status === 'READY'
+            ? S3_PUBLIC_URL({ key: prayer.featured_asset.object_key })
+            : null,
         publishedAt: prayer.published_at.toISOString(),
         pastorId: version.pastor_id,
         pastorName: version.pastor.name,
@@ -86,8 +112,9 @@ const toItems = async (prayers: PublishedRow[]): Promise<SitePrayerArchiveItem[]
         pastorRole: assignment?.pastoral_role ?? null,
         pastorImageUrl: imageKey ? S3_PUBLIC_URL({ key: imageKey }) : null,
         title: stripAudioTags(version.title),
-        introduction: version.introduction && stripAudioTags(version.introduction),
-        body: stripAudioTags(version.body),
+        introduction:
+          version.introduction && sanitizePrayerRichText(stripAudioTags(version.introduction)),
+        body: sanitizePrayerRichText(stripAudioTags(version.body)),
         languageCode: version.language_code,
         audio:
           selectedAudio?.status === 'APPROVED' && audioUrl
@@ -95,6 +122,7 @@ const toItems = async (prayers: PublishedRow[]): Promise<SitePrayerArchiveItem[]
                 prayerAudioId: selectedAudio.id,
                 url: audioUrl,
                 approvedAt: selectedAudio.approved_at?.toISOString() ?? '',
+                ...(durationSeconds ? { durationSeconds } : {}),
               }
             : null,
       },
@@ -115,6 +143,27 @@ export const COUNT_SITE_PRAYERS = ({ userId }: { userId: string }): Promise<numb
     },
   })
 
+/** Most recently published public prayer that has an approved, playable audio asset. */
+export const GET_LATEST_PLAYABLE_SITE_PRAYER = async (): Promise<SiteLoginPrayer | null> => {
+  const prayers = (await db.prayer.findMany({
+    where: publishedWhere,
+    orderBy: [{ published_at: 'desc' }, { id: 'desc' }],
+    select: publishedSelect,
+  })) as PublishedRow[]
+  const prayer = (await toItems(prayers)).find((item) => item.audio)
+
+  if (!prayer?.audio) return null
+
+  return {
+    id: prayer.id,
+    title: prayer.title,
+    churchName: prayer.churchName,
+    pastorName: prayer.pastorName,
+    languageCode: prayer.languageCode,
+    audioUrl: prayer.audio.url,
+  }
+}
+
 export const GET_SITE_PRAYER_ARCHIVE = async ({
   userId,
   query,
@@ -132,7 +181,7 @@ export const GET_SITE_PRAYER_ARCHIVE = async ({
       OR: [{ is_main: true }, { is_followed: true }],
       church: { status: APPROVED },
     },
-    select: { church_id: true, church: { select: { name: true, slug: true } } },
+    select: { church_id: true, is_main: true, church: { select: { name: true, slug: true } } },
     orderBy: { church: { name: 'asc' } },
   })
 
@@ -154,15 +203,21 @@ export const GET_SITE_PRAYER_ARCHIVE = async ({
   }
 
   const allowedIds = scopedChurches.map((church) => church.value)
+  const defaultChurchId =
+    relationships.find((relationship) => relationship.is_main)?.church_id ??
+    relationships[0]?.church_id ??
+    ''
   const selectedChurchId =
     scopedChurches.length === 1 && (fixedChurchSlug || fixedChurchId)
       ? scopedChurches[0].value
-      : fixedChurchId || query.churchId
+      : fixedChurchId || query.churchId || defaultChurchId
   const churchIds = selectedChurchId
     ? allowedIds.includes(selectedChurchId)
       ? [selectedChurchId]
       : []
     : allowedIds
+  const selectedChurchName =
+    scopedChurches.find((church) => church.value === selectedChurchId)?.label ?? null
 
   if (churchIds.length === 0) {
     return {
@@ -174,6 +229,8 @@ export const GET_SITE_PRAYER_ARCHIVE = async ({
       totalPages: 1,
       churches: scopedChurches,
       languages: [],
+      selectedChurchId: null,
+      selectedChurchName: null,
     }
   }
 
@@ -185,12 +242,19 @@ export const GET_SITE_PRAYER_ARCHIVE = async ({
 
   const all = await toItems(prayers)
 
+  const featured = all[0] ?? null
   const languages = Array.from(new Set(all.map((prayer) => prayer.languageCode))).sort()
   const needle = query.search.toLocaleLowerCase()
-  const filtered = all.filter((prayer) => {
+  const filtered = all.slice(1).filter((prayer) => {
     if (query.language && prayer.languageCode !== query.language) return false
     if (query.format === 'audio' && !prayer.audio) return false
     if (query.format === 'text' && prayer.audio) return false
+
+    const minutes = prayerDurationMinutes(prayer.body, prayer.audio?.durationSeconds)
+    if (query.duration === 'short' && minutes >= 3) return false
+    if (query.duration === 'medium' && (minutes < 3 || minutes > 5)) return false
+    if (query.duration === 'long' && minutes < 6) return false
+
     if (!needle) return true
     return [
       prayer.title,
@@ -200,13 +264,10 @@ export const GET_SITE_PRAYER_ARCHIVE = async ({
       prayer.churchName,
     ].some((value) => includes(value, needle))
   })
-
-  const featured = filtered.find((prayer) => prayer.audio) ?? null
-  const grid = featured ? filtered.filter((prayer) => prayer.id !== featured.id) : filtered
-  const total = grid.length
+  const total = filtered.length
   const totalPages = Math.max(1, Math.ceil(total / query.limit))
   const page = Math.min(query.page, totalPages)
-  const result = grid.slice((page - 1) * query.limit, page * query.limit)
+  const result = filtered.slice((page - 1) * query.limit, page * query.limit)
 
   return {
     result,
@@ -217,17 +278,19 @@ export const GET_SITE_PRAYER_ARCHIVE = async ({
     totalPages,
     churches: scopedChurches,
     languages,
+    selectedChurchId,
+    selectedChurchName,
   }
 }
 
 /** One published prayer for the reader (W10) with its church and up to three newer/older siblings. */
 export const GET_SITE_PRAYER_DETAIL = async ({
-  prayerId,
+  prayerSlug,
 }: {
-  prayerId: string
+  prayerSlug: string
 }): Promise<SitePrayerDetail | null> => {
   const row = (await db.prayer.findFirst({
-    where: { id: prayerId, ...publishedWhere },
+    where: { OR: [{ slug: prayerSlug }, { id: prayerSlug }], ...publishedWhere },
     select: publishedSelect,
   })) as PublishedRow | null
   if (!row) return null
@@ -236,7 +299,14 @@ export const GET_SITE_PRAYER_DETAIL = async ({
     toItems([row]),
     db.church.findUnique({
       where: { id: row.church_id },
-      select: { id: true, slug: true, name: true, address: true },
+      select: {
+        id: true,
+        slug: true,
+        name: true,
+        address: true,
+        contacts: true,
+        cover_asset: { select: { object_key: true, purpose: true, status: true } },
+      },
     }),
     db.prayer.findMany({
       where: { church_id: row.church_id, id: { not: row.id }, ...publishedWhere },
@@ -248,6 +318,12 @@ export const GET_SITE_PRAYER_DETAIL = async ({
   if (!prayer || !church) return null
 
   const address = church.address as { city?: string } | null
+  const contacts = church.contacts as { phone?: unknown } | null
+  const phone = typeof contacts?.phone === 'string' ? contacts.phone.trim() || null : null
+  const imageUrl =
+    church.cover_asset?.purpose === 'IMAGE' && church.cover_asset.status === 'READY'
+      ? S3_PUBLIC_URL({ key: church.cover_asset.object_key })
+      : null
   return {
     prayer,
     church: {
@@ -255,6 +331,8 @@ export const GET_SITE_PRAYER_DETAIL = async ({
       slug: church.slug,
       name: church.name,
       city: address?.city ?? null,
+      phone,
+      imageUrl,
     },
     related: await toItems(siblings),
   }

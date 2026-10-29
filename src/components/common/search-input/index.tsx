@@ -9,13 +9,17 @@ export default function SearchInput({
   setPageSize,
   loading = false,
   debounceMs = 500,
+  iconPosition = 'suffix',
+  className,
 }: {
+  className?: string
   placeholder?: string
   setValue?: Dispatch<SetStateAction<string | undefined>>
   setPage: Dispatch<SetStateAction<number>>
   setPageSize: Dispatch<SetStateAction<number>>
   loading?: boolean
   debounceMs?: number
+  iconPosition?: 'prefix' | 'suffix'
 }) {
   const [currentValue, setCurrentValue] = useState('')
   const debouncedRef = useRef(currentValue)
@@ -60,25 +64,30 @@ export default function SearchInput({
     setPageSize(10)
   }
 
+  const searchIcon = loading ? (
+    <LoadingOutlined spin style={{ color: 'rgb(107 114 128)' }} />
+  ) : (
+    <SearchOutlined
+      style={{ color: 'rgb(107 114 128)', cursor: 'pointer' }}
+      onMouseDown={handleSubmit}
+    />
+  )
+
   return (
     <Input
       placeholder={placeholder}
       value={currentValue}
       onChange={handleChange}
       onPressEnter={handleSubmit}
+      prefix={iconPosition === 'prefix' ? searchIcon : undefined}
       suffix={
-        loading ? (
-          <LoadingOutlined spin style={{ color: 'rgb(107 114 128)' }} />
-        ) : !currentValue ? (
-          <SearchOutlined
-            style={{ color: 'rgb(107 114 128)', cursor: 'pointer' }}
-            onMouseDown={handleSubmit}
-          />
-        ) : (
+        currentValue ? (
           <CloseCircleFilled style={{ cursor: 'pointer' }} onMouseDown={handleReset} />
-        )
+        ) : iconPosition === 'suffix' ? (
+          searchIcon
+        ) : undefined
       }
-      className="truncate"
+      className={`truncate !h-10 !rounded-lg !border-[#DDE0E4] ${className ?? ''}`.trim()}
     />
   )
 }

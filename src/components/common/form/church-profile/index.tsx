@@ -39,11 +39,14 @@ import { ChurchPastorSummary } from '@/models/pastor'
 import { useAccessPermission } from '@/hooks/data/access-permission'
 dayjs.extend(customParseFormat)
 
+export type ChurchProfileTabKey = 'details' | 'location' | 'pastors' | 'service-times' | 'gallery'
+
 interface FormChurchProfileTabsProps {
   initialValues: ChurchProfileOutput
   serviceTimes: ServiceTimeEntry[]
   churchId: string
   loading?: boolean
+  visibleTabs?: ChurchProfileTabKey[]
   onSubmit: (payload: ChurchProfileInput) => Promise<ChurchProfileOutput | undefined>
   onSubmitSchedule: (payload: ServiceTimeScheduleInput) => Promise<unknown>
 }
@@ -77,6 +80,7 @@ export default function FormChurchProfileTabs({
   serviceTimes,
   churchId,
   loading,
+  visibleTabs,
   onSubmit,
   onSubmitSchedule,
 }: FormChurchProfileTabsProps) {
@@ -97,6 +101,12 @@ export default function FormChurchProfileTabs({
     assetId: initialValues.coverAssetId ?? null,
     url: initialValues.coverAssetId
       ? `/api/v1/uploads/${initialValues.coverAssetId}/access?churchId=${encodeURIComponent(churchId)}`
+      : null,
+  })
+  const [heroAsset, setHeroAsset] = useState<{ assetId: string | null; url: string | null }>({
+    assetId: initialValues.heroAssetId ?? null,
+    url: initialValues.heroAssetId
+      ? `/api/v1/uploads/${initialValues.heroAssetId}/access?churchId=${encodeURIComponent(churchId)}`
       : null,
   })
 
@@ -138,7 +148,9 @@ export default function FormChurchProfileTabs({
     countryCode?: string
   }
   const contacts = (initialValues.contacts ?? {}) as { email?: string; phone?: string }
-  const socialLinks = (initialValues.socialLinks ?? []) as Array<{ label: string; url: string }>
+  const socialLinks = Array.isArray(initialValues.socialLinks)
+    ? (initialValues.socialLinks as Array<{ label: string; url: string }>)
+    : []
 
   const handleSubmit = async () => {
     // @ts-expect-error schedule is part of the form values but not the profile input type
@@ -175,6 +187,7 @@ export default function FormChurchProfileTabs({
       address: addressPayload,
       contacts: contactsPayload,
       coverAssetId: coverAsset.assetId ?? null,
+      heroAssetId: heroAsset.assetId ?? null,
       galleryItems: galleryItems.map((g, idx) => ({
         id: g.id,
         mediaAssetId: g.mediaAssetId,
@@ -242,7 +255,7 @@ export default function FormChurchProfileTabs({
           </Row>
           <Row gutter={24}>
             <Col span={12}>
-              <Form.Item label="Cover image">
+              <Form.Item label="Thumbnail image">
                 <UploadBox
                   formName="coverAssetId"
                   churchId={churchId}
@@ -251,16 +264,34 @@ export default function FormChurchProfileTabs({
                   setUpload={(val) => {
                     const typedVal = val as { url: string | null; assetId?: string | null }
                     setCoverAsset({
-                      assetId: typedVal.assetId ?? coverAsset.assetId,
+                      assetId: typedVal.assetId ?? null,
                       url: typedVal.url,
                     })
-                    if (typedVal.assetId) {
-                      form.setFieldValue('coverAssetId', typedVal.assetId)
-                    }
+                    form.setFieldValue('coverAssetId', typedVal.assetId ?? null)
                   }}
                 />
               </Form.Item>
             </Col>
+            <Col span={12}>
+              <Form.Item label="Hero image">
+                <UploadBox
+                  formName="heroAssetId"
+                  churchId={churchId}
+                  purpose="IMAGE"
+                  upload={heroAsset}
+                  setUpload={(val) => {
+                    const typedVal = val as { url: string | null; assetId?: string | null }
+                    setHeroAsset({
+                      assetId: typedVal.assetId ?? null,
+                      url: typedVal.url,
+                    })
+                    form.setFieldValue('heroAssetId', typedVal.assetId ?? null)
+                  }}
+                />
+              </Form.Item>
+            </Col>
+          </Row>
+          <Row gutter={24}>
             <Col span={12}>
               <Form.Item
                 name={'languageCodes'}
@@ -332,9 +363,7 @@ export default function FormChurchProfileTabs({
               </Form.Item>
             </Col>
           </Row>
-          <Form.Item name={'socialLinks'} label="Social links (optional)">
-            {/* The model allows social links as an array of {label, url}, but a simple representation could be complex without Form.List. We'll use Form.List for this properly, or just leave it for now based on the plan text. Plan says `<Input placeholder="Optional links" />` which won't map perfectly to the object array without custom transform, but let's see. Wait, plan actually specifies: `<Form.Item name={'socialLinks'} label="Social links (optional)"><Input placeholder="Optional links" /></Form.Item>`. For arrays of objects, standard Input won't work well on send, but we'll stick to the plan for UI and fix payload later if needed. Actually I'll implement Form.List since it's `socialLinks: {label, url}[]`. But to keep it simple, I'll follow plan initially, maybe refine. Actually, the form payload expects `Array<{label, url}>`. So if we have an Input, validateFields will produce a string. We should probably use `Form.List` or ignore the mismatch if the backend accepts string (it doesn't, it strictly wants array of objects). Let's use `Form.List`. */}
-            {/* Wait, to stick exactly to plan, I will just use Form.List for correctness. */}
+          <Form.Item label="Social links (optional)">
             <Form.List name={'socialLinks'}>
               {(fields, { add, remove }) => (
                 <>
@@ -608,7 +637,13 @@ export default function FormChurchProfileTabs({
         }}
         form={form}
       >
-        <Tabs items={tabItems} />
+        <Tabs
+          items={
+            visibleTabs
+              ? tabItems.filter((t) => visibleTabs.includes(t.key as ChurchProfileTabKey))
+              : tabItems
+          }
+        />
         <div className="text-right mt-4">
           <Button type="primary" onClick={handleSubmit} loading={loading}>
             Save

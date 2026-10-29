@@ -1,5 +1,8 @@
 import { GET_ROLE_BY_ID } from '@/providers/role'
-import { ok, httpError } from '@/utils/response'
+import { deleteRole, updateRole } from '@/controller/role'
+import { RolePayloadUpdateSchema } from '@/models/role'
+import { ok, httpError, requestId } from '@/utils/response'
+import { validate } from '@/utils/validate'
 import { registerPath } from '@/utils/openapi'
 import { GeneralError } from '@/utils/general-error'
 import requiredAuth from '@/utils/required-auth'
@@ -44,27 +47,62 @@ export async function GET(req: NextRequest, segmentData: { params: Params }) {
   }
 }
 
-// Inherited role mutation is disabled (SPEC §8.3). Keep as a deny, not a bypass.
-export async function PUT(_req: NextRequest, _segmentData: { params: Params }) {
-  return httpError(
-    new GeneralError({
-      code: 403,
-      error: 'FORBIDDEN',
-      error_code: 'ROUTE_DISABLED',
-      details: 'Role editing is disabled.',
-    }),
-  )
+// Role editing is enabled again (plan 023): SYSTEM roles keep their name and the
+// super-admin role is immutable — see controller/role.tsx for the guards.
+export async function PUT(req: NextRequest, segmentData: { params: Params }) {
+  const params = await segmentData.params
+  try {
+    const { session, permission } = await requiredAuth(req)
+
+    if (!permission.updateAny('user_management_role').granted) {
+      return httpError(
+        new GeneralError({
+          code: 403,
+          error: 'UNAUTHORIZED',
+          error_code: 'NOT_ALLOWED',
+          details: 'This account is not allowed for this action.',
+        }),
+      )
+    }
+
+    const payload = validate(RolePayloadUpdateSchema, await req.json().catch(() => ({})))
+    const result = await updateRole({
+      role_id: params.id,
+      payload,
+      actorId: session.user.user_id,
+      requestId: requestId(),
+    })
+    return ok(result, 'Role updated.')
+  } catch (error) {
+    return httpError(error)
+  }
 }
 
-export async function DELETE(_req: NextRequest, _segmentData: { params: Params }) {
-  return httpError(
-    new GeneralError({
-      code: 403,
-      error: 'FORBIDDEN',
-      error_code: 'ROUTE_DISABLED',
-      details: 'Role deletion is disabled.',
-    }),
-  )
+export async function DELETE(req: NextRequest, segmentData: { params: Params }) {
+  const params = await segmentData.params
+  try {
+    const { session, permission } = await requiredAuth(req)
+
+    if (!permission.deleteAny('user_management_role').granted) {
+      return httpError(
+        new GeneralError({
+          code: 403,
+          error: 'UNAUTHORIZED',
+          error_code: 'NOT_ALLOWED',
+          details: 'This account is not allowed for this action.',
+        }),
+      )
+    }
+
+    const result = await deleteRole({
+      role_id: params.id,
+      actorId: session.user.user_id,
+      requestId: requestId(),
+    })
+    return ok(result, 'Role deleted.')
+  } catch (error) {
+    return httpError(error)
+  }
 }
 
 registerPath({
@@ -92,13 +130,23 @@ registerPath({
 registerPath({
   path: '/roles/{id}',
   method: 'put',
-  summary: 'Disabled — role editing disabled (403)',
-  responses: [{ status: 403, description: 'Route disabled' }],
+  summary: 'Rename / re-permission a role (user_management_role update)',
+  responses: [
+    { status: 200, description: 'Role updated' },
+    { status: 403, description: 'Not allowed / administrator role locked' },
+    { status: 404, description: 'Role not found' },
+    { status: 409, description: 'Name taken / SYSTEM role rename' },
+  ],
 })
 
 registerPath({
   path: '/roles/{id}',
   method: 'delete',
-  summary: 'Disabled — role deletion disabled (403)',
-  responses: [{ status: 403, description: 'Route disabled' }],
+  summary: 'Delete an unused USER role (user_management_role delete)',
+  responses: [
+    { status: 200, description: 'Role deleted' },
+    { status: 403, description: 'Not allowed / administrator role locked' },
+    { status: 404, description: 'Role not found' },
+    { status: 409, description: 'SYSTEM role or role still in use' },
+  ],
 })

@@ -1,6 +1,7 @@
 import { VoiceProfileListItem, VoiceTimelineEvent } from '@/models/voice'
 import { VOICE_TIMELINE_REGISTRATION_STEPS, VOICE_TIMELINE_REVIEW_STEPS } from '@/utils/constant'
-import { Timeline } from 'antd'
+import { CheckOutlined } from '@ant-design/icons'
+import styles from './timeline.module.scss'
 import { registrationLabel } from './status'
 
 /*
@@ -13,8 +14,19 @@ type Step = { color: string; title: string; when?: string; detail?: string; load
 
 const lastWhere = (steps: Step[], test: (s: Step) => boolean) => [...steps].reverse().find(test)
 
-const when = (e: VoiceTimelineEvent) =>
-  `${new Date(e.at).toLocaleString()} · ${e.actorName ? `by ${e.actorName}` : 'by system'}`
+const when = (e: VoiceTimelineEvent) => {
+  const date = new Date(e.at)
+  const formatted = new Intl.DateTimeFormat('en-GB', {
+    day: '2-digit',
+    hour: '2-digit',
+    hour12: false,
+    minute: '2-digit',
+    month: '2-digit',
+    second: '2-digit',
+    year: 'numeric',
+  }).format(date)
+  return `${formatted} · ${e.actorName ? `by ${e.actorName}` : 'by system'}`
+}
 
 const pick = (
   events: VoiceTimelineEvent[],
@@ -51,27 +63,47 @@ export const registrationSteps = (p: VoiceProfileListItem): Step[] => {
   return steps
 }
 
-const toItems = (steps: Step[]) =>
-  steps.map((s, i) => ({
-    key: i,
-    color: s.color,
-    loading: s.loading,
-    title: s.title,
-    content: (s.when || s.detail) && (
-      <div className="text-gray-500 text-sm">
-        {s.when && <div>{s.when}</div>}
-        {s.detail && <div>{s.detail}</div>}
+const markerClass = (color: string) => {
+  if (color === 'green') return styles.green
+  if (color === 'red') return styles.red
+  if (color === 'blue') return styles.blue
+  if (color === 'orange') return styles.orange
+  return styles.gray
+}
+
+function TimelineTrack({ title, steps }: { title: string; steps: Step[] }) {
+  return (
+    <section className={styles.track}>
+      <div className={styles.trackHeader}>
+        <span aria-hidden="true" className={styles.headerMarker} />
+        <h3>{title}</h3>
       </div>
-    ),
-  }))
+      <ol className={styles.steps}>
+        {steps.map((step, index) => (
+          <li className={styles.step} key={`${step.title}-${step.when ?? index}`}>
+            <span
+              aria-hidden="true"
+              className={`${styles.marker} ${markerClass(step.color)} ${step.loading ? styles.loading : ''}`}
+            >
+              {step.color === 'green' && <CheckOutlined />}
+            </span>
+            <div className={styles.stepContent}>
+              <div className={styles.stepTitle}>{step.title}</div>
+              {step.when && <div className={styles.meta}>{step.when}</div>}
+              {step.detail && <div className={styles.meta}>{step.detail}</div>}
+            </div>
+          </li>
+        ))}
+      </ol>
+    </section>
+  )
+}
 
 export default function VoiceTimeline({ profile }: { profile: VoiceProfileListItem }) {
   return (
-    <div>
-      <h4 className="font-semibold mb-3">Admin review</h4>
-      <Timeline items={toItems(reviewSteps(profile))} />
-      <h4 className="font-semibold mb-3">Registration</h4>
-      <Timeline items={toItems(registrationSteps(profile))} />
+    <div className={styles.timeline}>
+      <TimelineTrack steps={reviewSteps(profile)} title="Admin Review" />
+      <TimelineTrack steps={registrationSteps(profile)} title="Registration" />
     </div>
   )
 }

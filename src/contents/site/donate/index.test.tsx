@@ -80,9 +80,21 @@ describe('ContentsSiteDonate (W11)', () => {
     renderScreen()
 
     expect(screen.getByRole('heading', { level: 1, name: /support god's work/i })).toBeTruthy()
+    expect(
+      screen
+        .getByRole('heading', { level: 2, name: 'Make an Offering' })
+        .closest('section')
+        ?.classList.contains('self-start'),
+    ).toBe(true)
     expect(screen.getByText('Quiet & Private')).toBeTruthy()
     expect(screen.getByText('Tax-Exempt')).toBeTruthy()
     expect(screen.getByText('100%')).toBeTruthy()
+    // Release's sustaining dial (kept on top of this branch's donate rewrite).
+    expect(screen.getByText('2025 Sustaining Goal')).toBeTruthy()
+    expect(screen.queryByText('Annual Report & Statements')).toBeNull()
+    const stewardshipPill = screen.getByText('REVERENT & TRANSPARENT STEWARDSHIP').parentElement
+    expect(stewardshipPill?.classList.contains('w-fit')).toBe(true)
+    expect(stewardshipPill?.classList.contains('self-start')).toBe(true)
   })
 
   it('shows the route church as the fixed beneficiary and marks the registered parish', () => {
@@ -292,13 +304,12 @@ describe('ContentsSiteDonate (W11)', () => {
     expect(screen.getByText('Pastor Joel')).toBeTruthy()
   })
 
-  it('does not render the removed payment method, trust, annual report, or goal elements', () => {
+  it('does not render the removed payment method, certificate, or transparency elements', () => {
     renderScreen()
 
     expect(screen.queryByText(/Payment Method/i)).toBeNull()
     expect(screen.queryByText(/256-bit Stripe security/i)).toBeNull()
     expect(screen.queryByText(/Annual Report & Statements/i)).toBeNull()
-    expect(screen.queryByText(/Sustaining Goal/i)).toBeNull()
     expect(screen.queryByText(/Financial Transparency Promise/i)).toBeNull()
     expect(screen.queryByText(/Download Annual Tax Certificate/i)).toBeNull()
   })

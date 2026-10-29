@@ -1,7 +1,13 @@
 import { GeneralError } from '@/utils/general-error'
+import { sanitizePrayerRichText } from '@/utils/sanitize-prayer-rich-text'
+import { richTextToPlainText } from '@/utils/rich-text-plain'
 import { withIdempotency } from '@/utils/idempotency'
 import { auditPayload } from '@/utils/audit'
-import { GET_AVAILABLE_LANGUAGE_CODES } from '@/providers/church'
+import {
+  GET_AVAILABLE_LANGUAGE_CODES,
+  GET_CHURCH_NAMES,
+  GET_CHURCH_READY_IMAGE,
+} from '@/providers/church'
 import { GET_CHURCH_PASTOR } from '@/providers/pastor'
 import {
   APPROVE_TEXT,
@@ -13,6 +19,8 @@ import {
   SCHEDULE_PRAYER,
 } from '@/providers/prayer'
 import {
+  CentralPrayerListQuery,
+  CentralPrayerOutput,
   PrayerActionInput,
   PrayerInput,
   PrayerListQuery,
@@ -21,6 +29,22 @@ import {
   PublishInput,
   ScheduleInput,
 } from '@/models/prayer'
+
+const sanitizePrayerCopy = (input: PrayerInput) => {
+  const introduction = input.introduction
+    ? sanitizePrayerRichText(input.introduction) || null
+    : null
+  const body = sanitizePrayerRichText(input.body)
+  if (!richTextToPlainText(body)) {
+    throw new GeneralError({
+      code: 422,
+      error: 'VALIDATION_ERROR',
+      error_code: 'BODY_REQUIRED',
+      details: 'Full prayer text is required.',
+    })
+  }
+  return { introduction, body }
+}
 
 /*
  * Prayer business logic (Tasks 21/22/25).
@@ -110,6 +134,21 @@ const validatePastorAndLanguage = async ({
   }
 }
 
+const validateFeaturedAsset = async (churchId: string, assetId: string | null | undefined) => {
+  if (!assetId) return null
+  const asset = await GET_CHURCH_READY_IMAGE({ churchIds: new Set([churchId]), assetId })
+  if (!asset) {
+    throw new GeneralError({
+      code: 422,
+      error: 'VALIDATION_ERROR',
+      error_code: 'INVALID_FEATURED_ASSET',
+      details: 'featuredAssetId must be a ready image owned by this church.',
+      fields: { featuredAssetId: 'Not a ready image of this church.' },
+    })
+  }
+  return assetId
+}
+
 export const listPrayers = async ({
   churchIds,
   query,
@@ -117,6 +156,37 @@ export const listPrayers = async ({
   churchIds: Set<string>
   query: PrayerListQuery
 }): Promise<{ result: PrayerOutput[]; total: number }> => LIST_PRAYERS({ churchIds, query })
+
+/**
+ * Central (cross-church) prayer list (plan 023). Reuses the church list query with
+ * the caller's whole central subtree; a `churchId` filter only NARROWS inside that
+ * scope, so it can never reach a church outside the caller's coverage.
+ */
+export const listCentralPrayers = async ({
+  churchIds,
+  query,
+}: {
+  churchIds: Set<string>
+  query: CentralPrayerListQuery
+}): Promise<{ result: CentralPrayerOutput[]; total: number }> => {
+  const scope = query.churchId
+    ? churchIds.has(query.churchId)
+      ? new Set([query.churchId])
+      : new Set<string>()
+    : churchIds
+  const { result, total } = await LIST_PRAYERS({ churchIds: scope, query })
+  if (result.length === 0) return { result: [], total }
+
+  const names = await GET_CHURCH_NAMES({ ids: Array.from(new Set(result.map((p) => p.churchId))) })
+  const nameById = new Map(names.map((c) => [c.id, c.name]))
+  return {
+    result: result.map((prayer) => ({
+      ...prayer,
+      churchName: nameById.get(prayer.churchId) ?? '-',
+    })),
+    total,
+  }
+}
 
 export const getPrayer = async ({
   churchIds,
@@ -150,14 +220,17 @@ export const createPrayer = async ({
     pastorId: input.pastorId,
     languageCode: input.languageCode,
   })
+  const copy = sanitizePrayerCopy(input)
+  const featuredAssetId = await validateFeaturedAsset(churchId, input.featuredAssetId)
   return CREATE_PRAYER_WITH_VERSION({
     churchId,
     data: {
       pastorId: input.pastorId,
       title: input.title,
-      introduction: input.introduction ?? null,
-      body: input.body,
+      introduction: copy.introduction,
+      body: copy.body,
       languageCode: input.languageCode,
+      featuredAssetId,
     },
     actorId: userId,
     requestId,
@@ -196,6 +269,8 @@ export const patchPrayer = async ({
     pastorId: input.pastorId,
     languageCode: input.languageCode,
   })
+  const copy = sanitizePrayerCopy(input)
+  const featuredAssetId = await validateFeaturedAsset(churchId, input.featuredAssetId)
   return CREATE_VERSION_SNAPSHOT({
     churchIds,
     prayerId,
@@ -203,9 +278,10 @@ export const patchPrayer = async ({
     data: {
       pastorId: input.pastorId,
       title: input.title,
-      introduction: input.introduction ?? null,
-      body: input.body,
+      introduction: copy.introduction,
+      body: copy.body,
       languageCode: input.languageCode,
+      featuredAssetId,
     },
     actorId: userId,
     requestId,

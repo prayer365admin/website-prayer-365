@@ -7,6 +7,8 @@ import { validate } from '@/utils/validate'
 import { registerPath } from '@/utils/openapi'
 import { AnnouncementOutputSchema, AnnouncementPublishInputSchema } from '@/models/announcement'
 import { publishAnnouncement } from '@/controller/announcement'
+import { revalidateTag } from 'next/cache'
+import { SITE_PUBLIC_TAG } from '@/utils/site-cache-tags'
 
 /*
  * POST /api/v1/admin/churches/:churchId/announcements/:announcementId/publish
@@ -56,6 +58,8 @@ export async function POST(
       input,
       requestId: requestId(),
     })
+    // Publish must be visible immediately: expire 0 = no stale window.
+    revalidateTag(SITE_PUBLIC_TAG, { expire: 0 })
     return ok(result, 'Announcement published.')
   } catch (e) {
     return httpError(e)

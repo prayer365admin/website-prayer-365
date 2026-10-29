@@ -8,6 +8,7 @@ import { ChurchIcon } from '@/components/icon/church'
 import { DirectionIcon } from '@/components/icon/direction'
 import { useSiteI18n } from '@/i18n/site-i18n'
 import type { MobilePublicChurch } from '@/models/mobile'
+import { richTextFirstSentence } from '@/utils/rich-text-plain'
 
 interface HeroProps {
   church: MobilePublicChurch
@@ -28,13 +29,13 @@ export function Hero({
   onSetMainChurch,
 }: HeroProps) {
   const { t } = useSiteI18n()
-  const [failedSrcs, setFailedSrcs] = useState<Record<string, boolean>>({})
-
-  const coverSrc =
-    church.coverUrl && !failedSrcs[church.coverUrl]
-      ? church.coverUrl
-      : !failedSrcs['/images/church.jpeg']
-        ? '/images/church.jpeg'
+  const [failedSrc, setFailedSrc] = useState<string | null>(null)
+  const fallbackSrc = '/images/church.jpeg'
+  const heroSrc =
+    church.heroUrl && church.heroUrl !== failedSrc
+      ? church.heroUrl
+      : fallbackSrc !== failedSrc
+        ? fallbackSrc
         : null
 
   const destinationQuery = church.coordinates
@@ -60,6 +61,7 @@ export function Hero({
   if (addressSummary) {
     metaParts.push(addressSummary)
   }
+  const descriptionSummary = church.description ? richTextFirstSentence(church.description) : null
 
   const handleShare = () => {
     if (typeof window !== 'undefined' && navigator.clipboard) {
@@ -69,18 +71,15 @@ export function Hero({
 
   return (
     <div className="relative min-h-[380px] w-full overflow-hidden bg-[#0B4497] lg:min-h-[520px]">
-      {/* Background Image / Fallback Gradient */}
-      {coverSrc ? (
+      {heroSrc ? (
         <Image
-          src={coverSrc}
           alt={church.name}
-          fill
-          priority
-          unoptimized
           className="object-cover"
-          onError={() => {
-            setFailedSrcs((prev) => ({ ...prev, [coverSrc]: true }))
-          }}
+          fill
+          onError={() => setFailedSrc(heroSrc)}
+          priority
+          sizes="100vw"
+          src={heroSrc}
         />
       ) : (
         <div className="absolute inset-0 bg-gradient-to-b from-[#0E203E]/60 to-[#0E203E]" />
@@ -131,17 +130,10 @@ export function Hero({
               </p>
             )}
 
-            {/* Native name / tagline in quote serif italic */}
-            {church.denomination && (
-              <p className="font-font_quote text-base italic text-[#D0E4FF] sm:text-lg">
-                {church.denomination}
-              </p>
-            )}
-
-            {/* Description */}
-            {church.description && (
-              <p className="text-base font-normal leading-relaxed text-white/95 sm:text-lg lg:text-xl">
-                {church.description}
+            {/* Concise overview; the complete welcome remains in the content card below. */}
+            {descriptionSummary && (
+              <p className="max-w-2xl text-sm font-normal leading-relaxed text-white/95 sm:text-base lg:text-lg">
+                {descriptionSummary}
               </p>
             )}
 

@@ -1,6 +1,6 @@
 import { SITE_MESSAGES } from '@/i18n/messages'
 import { SiteI18nProvider } from '@/i18n/site-i18n'
-import { axiosMock, pushMock, renderWithProviders, searchParamsMock } from '@/test/frontend/render'
+import { axiosMock, renderWithProviders, searchParamsMock } from '@/test/frontend/render'
 import { screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
@@ -40,8 +40,7 @@ describe('Verify email — /verify-email (W03 confirm)', () => {
 
     expect(await screen.findByText(en.verifySuccessTitle)).toBeTruthy()
     expect(axiosMock.post).toHaveBeenCalledWith('/api/v1/auth/verify-email', { token: 'tok' })
-    await userEvent.click(screen.getByRole('button', { name: new RegExp(en.signUpSignIn) }))
-    expect(pushMock).toHaveBeenCalledWith('/login')
+    expect(screen.getByRole('link', { name: en.recoveryLogin }).getAttribute('href')).toBe('/login')
   })
 
   it('an invalid or expired link shows the resend form', async () => {

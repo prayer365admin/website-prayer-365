@@ -177,6 +177,7 @@ const assertSampleAsset = async ({
     asset.purpose !== 'VOICE_SAMPLE' ||
     asset.status !== 'READY' ||
     asset.uploaded_by !== userId ||
+    !asset.church_id ||
     !churchIds.has(asset.church_id)
   ) {
     throw invalidAsset('sampleAssetIds', 'Invalid or unowned voice sample asset.')
@@ -280,6 +281,7 @@ export const createVoiceConsent = async ({
     asset.purpose !== 'CONSENT_EVIDENCE' ||
     asset.status !== 'READY' ||
     asset.uploaded_by !== userId ||
+    !asset.church_id ||
     !churchIds.has(asset.church_id)
   ) {
     throw invalidEvidence()

@@ -16,10 +16,15 @@ import { DeleteOutlined, UploadOutlined } from '@ant-design/icons'
 import { Alert, App, Button, Card, Col, Collapse, Result, Row, Select, Upload } from 'antd'
 import axios from 'axios'
 import { useEffect, useState } from 'react'
+import { useRouter } from 'next/navigation'
+import { useAccessPermission } from '@/hooks/data/access-permission'
 import RecordingTips from './recording-tips'
 import SamplePlayer, { formatDuration } from './sample-player'
 import { RegistrationStateTag, ReviewStateTag, registrationHelp } from './status'
 import VoiceTimeline from './timeline'
+
+/** The review queue a non-pastor staff account can actually use (plan 023). */
+const CENTRAL_VOICE_PROFILES = '/dashboard/central/voice-profiles'
 
 /*
  * S27 My Voice (F4VO VO-04). Pastor identity comes from the signed-in account.
@@ -57,7 +62,12 @@ function SampleList({
       {samples.map((s) => (
         <div key={s.assetId} className="flex flex-wrap items-center gap-3">
           <span className="min-w-32">{s.name}</span>
-          <SamplePlayer churchId={churchId} assetId={s.assetId} onDuration={onDuration} />
+          <SamplePlayer
+            assetId={s.assetId}
+            churchId={churchId}
+            label={s.name}
+            onDuration={onDuration}
+          />
           {onRemove && (
             <Button
               size="small"
@@ -345,6 +355,7 @@ function ReadOnlyRevision({ profile }: { profile: VoiceProfileListItem }) {
 }
 
 export default function ContentsMyVoice() {
+  const router = useRouter()
   const { data: submissions, loading, error } = useMyVoiceSubmissions()
   // Pastor's own assignments (church_pastors), not the role-scoped church list:
   // a pastor has no prayer_church:read.
@@ -355,6 +366,10 @@ export default function ContentsMyVoice() {
   const unlinked =
     axios.isAxiosError(error) &&
     (error.response?.status === 403 || error.response?.data?.error_code === 'UNLINKED_PASTOR')
+  // A platform admin has no pastor row, so this page can never be used by them;
+  // give the review screen as the way forward instead of a bare dead end (plan 023).
+  const permission = useAccessPermission()
+  const canReviewVoices = permission.readAny('prayer_voice_profile').granted
 
   const latest = submissions[0] ?? null
   const draft = latest?.reviewState === 'DRAFT' ? latest : null
@@ -375,6 +390,13 @@ export default function ContentsMyVoice() {
         status="info"
         title="Your account is not linked to a pastor profile"
         subTitle="Ask a central administrator to link your staff account to your pastor profile."
+        extra={
+          canReviewVoices ? (
+            <Button type="primary" onClick={() => router.push(CENTRAL_VOICE_PROFILES)}>
+              Review voice profiles in Central
+            </Button>
+          ) : undefined
+        }
       />
     )
 

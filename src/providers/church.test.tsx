@@ -8,6 +8,7 @@ import {
   GET_REQUEST_OVERVIEW,
 } from './church'
 import { Prisma } from '@prisma/client'
+import { CUSTOMER_ACCOUNT_FILTER } from '@/utils/customer-role'
 
 const { db, tx } = vi.hoisted(() => {
   const txObj = {
@@ -331,7 +332,11 @@ describe('Church Provider', () => {
       expect(db.announcement.count).toHaveBeenCalledWith({
         where: { church_id: 'c1', published_at: { not: null }, deleted_at: null },
       })
-      expect(db.userChurch.count).toHaveBeenCalledWith({ where: { church_id: 'c1' } })
+      // Plan 022: the member count must exclude staff accounts that picked or
+      // followed a parish on the website.
+      expect(db.userChurch.count).toHaveBeenCalledWith({
+        where: { church_id: 'c1', user: CUSTOMER_ACCOUNT_FILTER },
+      })
       expect(db.mediaAsset.count).toHaveBeenCalledWith({ where: { church_id: 'c1' } })
 
       expect(result?.church.id).toBe('c1')

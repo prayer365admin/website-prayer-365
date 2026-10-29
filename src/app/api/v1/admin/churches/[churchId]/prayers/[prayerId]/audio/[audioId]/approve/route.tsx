@@ -7,6 +7,8 @@ import { validate } from '@/utils/validate'
 import { registerPath } from '@/utils/openapi'
 import { PrayerActionInputSchema, PrayerAudioOutputSchema } from '@/models/prayer'
 import { approveAudio } from '@/controller/prayer-audio'
+import { revalidateTag } from 'next/cache'
+import { SITE_PUBLIC_TAG } from '@/utils/site-cache-tags'
 
 /*
  * POST /api/v1/admin/churches/:churchId/prayers/:prayerId/audio/:audioId/approve
@@ -58,6 +60,8 @@ export async function POST(
       input,
       requestId: requestId(),
     })
+    // A newly approved take becomes the playable prayer on the website.
+    revalidateTag(SITE_PUBLIC_TAG, { expire: 0 })
     return ok(result, 'Prayer audio approved.')
   } catch (e) {
     return httpError(e)

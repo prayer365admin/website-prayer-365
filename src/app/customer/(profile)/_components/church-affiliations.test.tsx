@@ -54,6 +54,7 @@ describe('ChurchAffiliations', () => {
     expect(
       screen.getByRole('button', { name: 'Notifications off for Followed Church' }),
     ).toBeTruthy()
+    expect(screen.queryByText('Spiritual Reflections & Calling')).toBeNull()
   })
 
   const extraChurches: MobileMyChurch[] = [
@@ -178,7 +179,7 @@ describe('ChurchAffiliations', () => {
     expect(screen.getByRole('heading', { level: 2, name: 'Followed Church' })).toBeTruthy()
   })
 
-  it('shows upcoming events from the primary church', async () => {
+  it('keeps upcoming events hidden for the primary church', async () => {
     axiosMock.get.mockImplementation((url: string) =>
       Promise.resolve({
         data: {
@@ -203,7 +204,9 @@ describe('ChurchAffiliations', () => {
 
     renderWithProviders(<ChurchAffiliations initialChurches={churches} initialMe={me} />)
 
-    expect(await screen.findByText('Sunday Eucharistic Service')).toBeTruthy()
-    expect(axiosMock.get).toHaveBeenCalledWith('/api/v1/site/churches/c1/events')
+    await waitFor(() =>
+      expect(axiosMock.get).toHaveBeenCalledWith('/api/v1/site/churches/c1/events'),
+    )
+    expect(screen.queryByText('Sunday Eucharistic Service')).toBeNull()
   })
 })

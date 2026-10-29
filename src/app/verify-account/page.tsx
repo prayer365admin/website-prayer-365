@@ -13,7 +13,7 @@ export default async function Page() {
   return (
     <SiteI18nProvider initialLocale={locale}>
       <SessionAccessGuard access="guest" />
-      <SiteShell footerVariant="legal-only" headerVariant="auth">
+      <SiteShell footerVariant="legal-only" headerVariant="none">
         <ContentsSiteVerify locale={locale} mode="pending" />
       </SiteShell>
     </SiteI18nProvider>

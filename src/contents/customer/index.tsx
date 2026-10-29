@@ -1,13 +1,13 @@
 'use client'
 
 import { useCustomers } from '@/hooks/data/customer'
+import { useUrlPagination } from '@/hooks/ui/url-pagination'
 import { Table } from 'antd'
-import { Fragment, useState } from 'react'
+import { Fragment } from 'react'
 import { CustomerColumns } from './columns'
 
 export default function ContentsCustomer() {
-  const [page, setPage] = useState<number>(1)
-  const [pageSize, setPageSize] = useState<number>(10)
+  const { page, pageSize, setPage, setPageSize } = useUrlPagination()
   const {
     data: customerData,
     loading: customerLoading,
@@ -20,7 +20,7 @@ export default function ContentsCustomer() {
     orderDirection: 'desc',
   })
 
-  const columns = CustomerColumns()
+  const columns = CustomerColumns({ page, pageSize })
 
   return (
     <Fragment>

@@ -2,6 +2,7 @@ import { ChurchIcon } from '@/components/icon/church'
 import { GuardIcon } from '@/components/icon/guard'
 import { LocationIcon } from '@/components/icon/location'
 import { SanctuaryIcon } from '@/components/icon/sanctuary'
+import { UsersGroupIcon } from '@/components/icon/users-group'
 import { VerifyIcon } from '@/components/icon/verify'
 import { SiteT } from '@/i18n/messages'
 import { RegionalSanctuaryStats } from '@/models/regional-sanctuary-stats'
@@ -82,7 +83,13 @@ export default function SignUpAside({
           )}
         </div>
         {stats && (
-          <div className="mt-4">
+          <div className="mt-4 grid grid-cols-2 gap-3">
+            <Stat
+              hint={t('vespersHint')}
+              icon={<UsersGroupIcon aria-hidden />}
+              label={t('vespersLabel')}
+              value={number.format(stats.publishedPrayers)}
+            />
             <Stat
               hint={t('diocesesHint')}
               icon={<LocationIcon aria-hidden />}

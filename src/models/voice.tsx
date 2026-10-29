@@ -162,6 +162,8 @@ export const VoiceProfileListItemSchema = z.object({
   id: z.string(),
   pastorId: z.string(),
   pastorName: z.string(),
+  pastorImageAssetId: z.string().nullable(),
+  pastorImageChurchId: z.string().nullable(),
   churchId: z.string(),
   churchName: z.string(),
   version: z.number(),
@@ -194,6 +196,8 @@ export type VoiceProfileListItem = {
   id: string
   pastorId: string
   pastorName: string
+  pastorImageAssetId: string | null
+  pastorImageChurchId: string | null
   churchId: string
   churchName: string
   version: number

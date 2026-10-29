@@ -18,7 +18,11 @@ vi.mock('@/utils/redirect-authenticated-customer', () => ({
 describe('Register route page', () => {
   it('renders the customer sign-up wizard in the cookie language', async () => {
     cookies.mockResolvedValue({ get: () => ({ value: 'fi' }) })
-    getRegionalSanctuaryStats.mockResolvedValue({ approvedChurches: 12, dioceses: 3 })
+    getRegionalSanctuaryStats.mockResolvedValue({
+      approvedChurches: 12,
+      dioceses: 3,
+      publishedPrayers: 4812,
+    })
 
     renderWithProviders(await Page())
 
@@ -28,5 +32,6 @@ describe('Register route page', () => {
     ).toBeTruthy()
     expect(screen.getByLabelText(SITE_MESSAGES.fi.signUpNameLabel)).toBeTruthy()
     expect(screen.getByText('12 seurakuntaa')).toBeTruthy()
+    expect(screen.getByText(/4\s812/)).toBeTruthy()
   })
 })

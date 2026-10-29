@@ -1,4 +1,5 @@
 import { db } from '@/utils/db-connection'
+import { CUSTOMER_ACCOUNT_FILTER } from '@/utils/customer-role'
 import {
   AnalyticsMetrics,
   AttendanceSummary,
@@ -159,7 +160,7 @@ export const GET_REGION_SUMMARY = async ({
   const range = { gte: from ?? undefined, lte: to ?? undefined }
   const [memberCount, checkInCount, eventCount, prayerCount, donationCount] = await db.$transaction(
     [
-      db.userChurch.count({ where: { church_id: { in: ids } } }),
+      db.userChurch.count({ where: { church_id: { in: ids }, user: CUSTOMER_ACCOUNT_FILTER } }),
       db.checkIn.count({ where: { church_id: { in: ids }, occurred_at: range } }),
       db.event.count({ where: { church_id: { in: ids }, starts_at: range } }),
       db.prayer.count({ where: { church_id: { in: ids }, created_at: range } }),

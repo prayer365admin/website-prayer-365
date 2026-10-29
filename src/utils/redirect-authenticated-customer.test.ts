@@ -15,11 +15,11 @@ describe('redirectAuthenticatedCustomer', () => {
   beforeEach(() => vi.clearAllMocks())
 
   it.each([null, { id: 'customer-role', name: 'prayer_user' }])(
-    'redirects an authenticated customer with role %j to /customer',
+    'redirects an authenticated customer with role %j to the home page',
     async (role) => {
       m.requiredWebAuth.mockResolvedValue({ session: { user: { role } } })
 
-      await expect(redirectAuthenticatedCustomer()).rejects.toThrow('REDIRECT /customer')
+      await expect(redirectAuthenticatedCustomer()).rejects.toThrow('REDIRECT /')
     },
   )
 

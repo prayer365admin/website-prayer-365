@@ -5,6 +5,7 @@ const m = vi.hoisted(() => ({
   loginGoogleCustomer: vi.fn(),
   getOAuthUser: vi.fn(),
   getUserByEmail: vi.fn(),
+  recordLogin: vi.fn(),
 }))
 
 vi.mock('@/controller/authentication', () => ({
@@ -13,6 +14,7 @@ vi.mock('@/controller/authentication', () => ({
   getOAuthUser: m.getOAuthUser,
 }))
 vi.mock('@/controller/user', () => ({ getUserByEmail: m.getUserByEmail }))
+vi.mock('./providers/user', () => ({ RECORD_LOGIN: m.recordLogin }))
 
 // The real NextAuth init pulls in `next/server`, which vitest (jsdom) cannot
 // resolve. Mock it so we can unit-test the branch helpers in isolation.
@@ -113,6 +115,7 @@ describe('customer sign-in branch', () => {
       name: 'Customer',
       profilePicture: 'https://example.com/avatar.png',
     })
+    expect(m.recordLogin).toHaveBeenCalledWith({ user_id: 'c1', provider: 'google' })
   })
 
   it('rejects an unverified Google email', async () => {

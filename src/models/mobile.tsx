@@ -129,11 +129,14 @@ export const MobilePublicChurchSchema = z.object({
   socialLinks: z.array(MobileSocialLinkSchema),
   coverAssetId: z.string().nullable(),
   coverUrl: z.string().nullable(),
+  heroAssetId: z.string().nullable(),
+  heroUrl: z.string().nullable(),
   languageCodes: z.array(z.string()),
   serviceTimes: z.array(MobileServiceTimeSchema),
   distanceKm: z.number().nullable(),
   pastorName: z.string().nullable().optional(),
   pastorRole: z.string().nullable().optional(),
+  pastorImageUrl: z.string().nullable().optional(),
   gallery: z.array(MobileChurchGalleryItemSchema).optional(),
   staff: z.array(MobileChurchStaffSchema).optional(),
   deaneryName: z.string().nullable().optional(),
@@ -244,8 +247,12 @@ export type MobilePublishedAudio = z.infer<typeof MobilePublishedAudioSchema>
 
 export const MobilePublishedPrayerSchema = z.object({
   id: z.string(),
+  slug: z.string(),
   churchId: z.string(),
   churchName: z.string(),
+  churchCoverUrl: z.string().nullable(),
+  featuredAssetId: z.string().nullable(),
+  featuredImageUrl: z.string().nullable(),
   publishedAt: z.string(),
   version: z.object({
     prayerVersionId: z.string(),
@@ -262,8 +269,12 @@ export const MobilePublishedPrayerSchema = z.object({
 
 export type MobilePublishedPrayer = {
   id: string
+  slug: string
   churchId: string
   churchName: string
+  churchCoverUrl: string | null
+  featuredAssetId: string | null
+  featuredImageUrl: string | null
   publishedAt: string
   version: {
     prayerVersionId: string

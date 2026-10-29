@@ -21,12 +21,19 @@ vi.mock('@/components/common/dashboard/main-header', () => ({
   default: ({ title }: { title: string }) => <h1>{title}</h1>,
 }))
 
+const access = vi.hoisted(() => ({ useAccessPermission: vi.fn() }))
+vi.mock('@/hooks/data/access-permission', () => ({
+  useAccessPermission: access.useAccessPermission,
+}))
+
 import ContentsMyVoice from './my-voice'
 
 const profile = (over: Record<string, unknown> = {}) => ({
   id: 'v1',
   pastorId: 'p1',
   pastorName: 'Pastor A',
+  pastorImageAssetId: null,
+  pastorImageChurchId: null,
   churchId: 'ch1',
   churchName: 'Example Church',
   version: 2,
@@ -61,6 +68,7 @@ describe('ContentsMyVoice (S27)', () => {
       data: [{ id: 'ch1', name: 'Example Church' }],
       loading: false,
     })
+    access.useAccessPermission.mockReturnValue({ readAny: () => ({ granted: false }) })
   })
 
   it('explains when the pastor is not assigned to any church (no form)', () => {
@@ -75,6 +83,20 @@ describe('ContentsMyVoice (S27)', () => {
     list([], Object.assign(new Error('x'), { isAxiosError: true, response: { status: 403 } }))
     renderWithProviders(<ContentsMyVoice />)
     expect(screen.getByText('Your account is not linked to a pastor profile')).toBeTruthy()
+  })
+
+  // Plan 023: a platform admin (no pastor row) must still have a way forward.
+  it('offers the central review queue when the caller can review voice profiles', () => {
+    list([], Object.assign(new Error('x'), { isAxiosError: true, response: { status: 403 } }))
+    access.useAccessPermission.mockReturnValue({ readAny: () => ({ granted: true }) })
+    renderWithProviders(<ContentsMyVoice />)
+    expect(screen.getByRole('button', { name: 'Review voice profiles in Central' })).toBeTruthy()
+  })
+
+  it('shows no review shortcut without the voice-review permission', () => {
+    list([], Object.assign(new Error('x'), { isAxiosError: true, response: { status: 403 } }))
+    renderWithProviders(<ContentsMyVoice />)
+    expect(screen.queryByRole('button', { name: 'Review voice profiles in Central' })).toBeNull()
   })
 
   it('starts an empty draft with submit blocked until samples + evidence exist', () => {
@@ -134,7 +156,7 @@ describe('ContentsMyVoice (S27)', () => {
   it('keeps review and registration status separate for an approved voice', () => {
     list([profile({ reviewState: 'APPROVED', registrationState: 'VERIFICATION_REQUIRED' })])
     renderWithProviders(<ContentsMyVoice />)
-    expect(screen.getByText('Admin review')).toBeTruthy()
+    expect(screen.getByText('Admin Review')).toBeTruthy()
     expect(screen.getByText('Registration')).toBeTruthy()
     expect(screen.getAllByText('Verification required').length).toBeGreaterThan(0)
     expect(screen.getByText(/Generation stays blocked/)).toBeTruthy()

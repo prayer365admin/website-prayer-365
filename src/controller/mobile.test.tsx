@@ -77,6 +77,19 @@ describe('Task 39 / discovery — approved church gating', () => {
     expect(res).not.toHaveProperty('status')
   })
 
+  it('getPublicChurch is a detail read: no directory query required', async () => {
+    vi.mocked(GET_PUBLIC_CHURCH).mockResolvedValue(CHURCH as never)
+
+    const res = await getPublicChurch({ slug: 'grace' })
+
+    expect(res.id).toBe('c1')
+    expect(GET_PUBLIC_CHURCH).toHaveBeenCalledWith({
+      slug: 'grace',
+      lat: undefined,
+      lng: undefined,
+    })
+  })
+
   it('getPublicChurch hides an unapproved/suspended church as 404', async () => {
     vi.mocked(GET_PUBLIC_CHURCH).mockResolvedValue(null as never)
     await expect(

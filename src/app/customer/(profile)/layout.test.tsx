@@ -73,4 +73,17 @@ describe('/customer layout', () => {
     await expect(layout()).rejects.toThrow('REDIRECT /login')
     expect(m.getMe).not.toHaveBeenCalled()
   })
+
+  // Plan 022: the customer area is customer-only; a staff session is sent to the
+  // dashboard before any read (it has no customer data and must not create any).
+  it('sends a staff session to the dashboard before loading profile data', async () => {
+    m.requiredWebAuth.mockResolvedValue({
+      session: { user: { user_id: 'u1', role: { id: 'r1', name: 'administrator' } } },
+      user: {},
+    })
+
+    await expect(layout()).rejects.toThrow('REDIRECT /dashboard')
+    expect(m.getMe).not.toHaveBeenCalled()
+    expect(m.listMyChurches).not.toHaveBeenCalled()
+  })
 })

@@ -1,7 +1,9 @@
 import { EventCategory, Prisma, RequestKind } from '@prisma/client'
+import { unstable_cache } from 'next/cache'
 import { db } from '@/utils/db-connection'
 import { GeneralError } from '@/utils/general-error'
 import { auditPayload } from '@/utils/audit'
+import { SITE_PUBLIC_TAG } from '@/utils/site-cache-tags'
 import { fromKind } from '@/providers/request'
 import { S3_PUBLIC_URL } from '@/providers/s3'
 import {
@@ -20,6 +22,7 @@ import {
   MobilePublishedPrayer,
   MobileRequestInput,
 } from '@/models/mobile'
+import { richTextToPlainText } from '@/utils/rich-text-plain'
 
 /*
  * Mobile shared backend adapter (SPEC §8.4 / Tasks 39-43).
@@ -54,14 +57,22 @@ const notFoundChurch = () =>
   })
 
 /** Church must exist AND be APPROVED for any mobile read/write. */
-const activeChurchWhere = (slug: string): Prisma.ChurchWhereInput => ({
-  slug,
-  status: APPROVED,
-})
-
 const activeChurchWhereId = (id: string): Prisma.ChurchWhereInput => ({
   id,
   status: APPROVED,
+})
+
+/*
+ * A public church addressed by EITHER identifier. Route params are named
+ * `:churchId`, and the mobile clients only ever hold `id` (folders: church
+ * profile, prayers, events, announcements), while website URLs and share links
+ * carry `slug`. Resolving on only one of the two made every id-addressed call a
+ * 404 — the URL segment is an opaque identifier, so accept both. `id` and `slug`
+ * are both unique, so an OR can never return the wrong church.
+ */
+const activeChurchWhereAny = (identifier: string): Prisma.ChurchWhereInput => ({
+  status: APPROVED,
+  OR: [{ id: identifier }, { slug: identifier }],
 })
 
 /* ── Church cover URLs (MB-17) ───────────────────────────────────────────────
@@ -86,6 +97,32 @@ const withCover = async <T extends { coverAssetId: string | null }>(
   ...row,
   coverUrl: await coverUrlFor(row.coverAssetId),
 })
+
+/**
+ * Same result as `withCover` for a list, but resolves every cover in ONE query.
+ * Mapping `withCover` over a page of churches was an N+1 (one mediaAsset read
+ * per row) — on a 24-row directory that is 24 extra round trips.
+ */
+const withCovers = async <T extends { coverAssetId: string | null }>(
+  rows: T[],
+): Promise<(T & { coverUrl: string | null })[]> => {
+  const assetIds = Array.from(
+    new Set(rows.map((row) => row.coverAssetId).filter((id): id is string => !!id)),
+  )
+  if (assetIds.length === 0) return rows.map((row) => ({ ...row, coverUrl: null }))
+
+  const assets = await db.mediaAsset.findMany({
+    where: { id: { in: assetIds }, status: 'READY', purpose: 'IMAGE' },
+    select: { id: true, object_key: true },
+  })
+  const urlById = new Map(
+    assets.map((asset) => [asset.id, S3_PUBLIC_URL({ key: asset.object_key })]),
+  )
+  return rows.map((row) => ({
+    ...row,
+    coverUrl: row.coverAssetId ? (urlById.get(row.coverAssetId) ?? null) : null,
+  }))
+}
 
 const galleryUrlFor = (asset: { object_key: string | null } | null | undefined): string | null => {
   if (!asset?.object_key) return null
@@ -259,6 +296,8 @@ const mapPublicChurch = (
     website: string | null
     social_links: unknown
     cover_asset_id: string | null
+    hero_asset_id: string | null
+    hero_asset?: { object_key: string; purpose: string; status: string } | null
     churchLanguages: { language_code: string }[]
     serviceTimes: {
       weekday: number
@@ -317,6 +356,11 @@ const mapPublicChurch = (
       ? (c.social_links as Array<{ label: string; url: string }>)
       : [],
     coverAssetId: c.cover_asset_id,
+    heroAssetId: c.hero_asset_id ?? null,
+    heroUrl:
+      c.hero_asset?.purpose === 'IMAGE' && c.hero_asset.status === 'READY'
+        ? S3_PUBLIC_URL({ key: c.hero_asset.object_key })
+        : null,
     languageCodes: (c.churchLanguages ?? []).map((l) => l.language_code),
     serviceTimes: (c.serviceTimes ?? []).map((s) => ({
       weekday: s.weekday,
@@ -328,6 +372,12 @@ const mapPublicChurch = (
     distanceKm,
     pastorName: c.pastors?.[0]?.pastor?.name ?? null,
     pastorRole: c.pastors?.[0]?.pastoral_role ?? null,
+    pastorImageUrl: c.pastors?.[0]
+      ? staffImageUrlFor(
+          c.pastors[0].image_asset?.object_key ?? null,
+          c.pastors[0].pastor.image_asset?.object_key ?? null,
+        )
+      : null,
     gallery: (c.galleryItems ?? []).map((g) => ({
       assetId: g.media_asset?.id ?? '',
       url: galleryUrlFor(g.media_asset),
@@ -354,7 +404,7 @@ const mapPublicChurch = (
 // Task 39 — discovery / public profile
 // ---------------------------------------------------------------------------
 
-export const LIST_PUBLIC_CHURCHES = async ({
+const LIST_PUBLIC_CHURCHES_UNCACHED = async ({
   query,
 }: {
   query: MobileChurchListQuery
@@ -393,9 +443,7 @@ export const LIST_PUBLIC_CHURCHES = async ({
       }),
     ])
     return {
-      result: await Promise.all(
-        rows.map((r) => withCover(toSummary(r, query.latitude, query.longitude))),
-      ),
+      result: await withCovers(rows.map((r) => toSummary(r, query.latitude, query.longitude))),
       total,
     }
   }
@@ -456,12 +504,23 @@ export const LIST_PUBLIC_CHURCHES = async ({
 
   const total = pairs.length
   const paged = pairs.slice((query.page - 1) * query.limit, query.page * query.limit)
-  const result = await Promise.all(paged.map((p) => withCover(p.summary)))
+  const result = await withCovers(paged.map((p) => p.summary))
 
   return { result, total }
 }
 
-export const GET_PUBLIC_CHURCH = async ({
+/**
+ * Public church directory. Identical for every visitor, so it is cached for a
+ * minute and tagged for invalidation (approving/editing a church should call
+ * `revalidateTag(SITE_PUBLIC_TAG)`).
+ */
+export const LIST_PUBLIC_CHURCHES = unstable_cache(
+  LIST_PUBLIC_CHURCHES_UNCACHED,
+  ['site-public-churches'],
+  { revalidate: 60, tags: [SITE_PUBLIC_TAG] },
+)
+
+const GET_PUBLIC_CHURCH_UNCACHED = async ({
   slug,
   churchId,
   lat,
@@ -472,9 +531,9 @@ export const GET_PUBLIC_CHURCH = async ({
   lat?: number
   lng?: number
 }): Promise<MobilePublicChurch | null> => {
-  const targetSlug = slug ?? churchId ?? ''
+  const target = slug ?? churchId ?? ''
   const row = await db.church.findFirst({
-    where: activeChurchWhere(targetSlug),
+    where: activeChurchWhereAny(target),
     include: {
       churchLanguages: { select: { language_code: true } },
       serviceTimes: {
@@ -508,6 +567,7 @@ export const GET_PUBLIC_CHURCH = async ({
           },
         },
       },
+      hero_asset: { select: { object_key: true, purpose: true, status: true } },
       org_node: {
         select: {
           parent: {
@@ -523,6 +583,13 @@ export const GET_PUBLIC_CHURCH = async ({
   if (!row) return null
   return withCover(mapPublicChurch(row as never, lat, lng))
 }
+
+/** Public church profile — cached like the directory (same tag). */
+export const GET_PUBLIC_CHURCH = unstable_cache(
+  GET_PUBLIC_CHURCH_UNCACHED,
+  ['site-public-church'],
+  { revalidate: 60, tags: [SITE_PUBLIC_TAG] },
+)
 
 // ---------------------------------------------------------------------------
 // Task 40 — home / me / my churches / follows
@@ -654,21 +721,21 @@ export const LIST_MY_CHURCHES = async ({
       },
     },
   })
-  return Promise.all(
+  // One mediaAsset read for the whole list: mapping `withCover` here made this an
+  // N+1 (a read per followed church) — the same defect the directory already fixed.
+  return withCovers(
     rows
       .filter((r) => r.church.status === APPROVED)
-      .map((r) =>
-        withCover({
-          churchId: r.church.id,
-          slug: r.church.slug,
-          churchName: r.church.name,
-          city: (r.church.address as { city?: string } | null)?.city ?? null,
-          address: churchAddressLabel(r.church.address),
-          coverAssetId: r.church.cover_asset_id,
-          isMain: r.is_main,
-          isFollowed: r.is_followed,
-        }),
-      ),
+      .map((r) => ({
+        churchId: r.church.id,
+        slug: r.church.slug,
+        churchName: r.church.name,
+        city: (r.church.address as { city?: string } | null)?.city ?? null,
+        address: churchAddressLabel(r.church.address),
+        coverAssetId: r.church.cover_asset_id,
+        isMain: r.is_main,
+        isFollowed: r.is_followed,
+      })),
   )
 }
 
@@ -715,50 +782,54 @@ export const GET_HOME = async ({ userId }: { userId: string }): Promise<MobileHo
       r.is_main || r.is_followed,
   )
   const mainRow = approved.find((r) => r.is_main)
-  let mainChurch: MobilePublicChurch | null = null
-  let latestPrayers: MobilePublishedPrayer[] = []
-  let latestEvents: MobilePublicEvent[] = []
-  let latestAnnouncements: MobilePublicAnnouncement[] = []
-  if (mainRow) {
-    mainChurch = await GET_PUBLIC_CHURCH({ slug: mainRow.church?.slug ?? mainRow.church_id })
-    if (mainChurch) {
-      latestEvents = (
-        await LIST_PUBLIC_EVENTS({ churchId: mainRow.church_id, query: { page: 1, limit: 3 } })
-      ).result
-      latestAnnouncements = (
-        await LIST_PUBLIC_ANNOUNCEMENTS({
-          churchId: mainRow.church_id,
-          query: { page: 1, limit: 3 },
-        })
-      ).result
-    }
-  }
   const prayerChurchIds = Array.from(
     new Set(approved.filter((r) => r.is_main || r.is_followed).map((r) => r.church_id)),
   )
-  if (prayerChurchIds.length) {
-    latestPrayers = await LIST_LATEST_PUBLISHED_PRAYERS({ churchIds: prayerChurchIds, limit: 3 })
-  }
   const followedIds = approved.filter((r) => r.is_followed).map((r) => r.church_id)
-  const followed = followedIds.length
-    ? await db.church.findMany({
-        where: { id: { in: followedIds }, status: APPROVED },
-        select: {
-          id: true,
-          slug: true,
-          name: true,
-          denomination: true,
-          church_style: true,
-          address: true,
-          cover_asset_id: true,
-          latitude: true,
-          longitude: true,
-        },
-      })
-    : []
+
+  // Everything below depends only on the rows above, so it runs in parallel —
+  // the previous version awaited main church -> events -> announcements -> prayers
+  // one after another (4 round trips instead of 1).
+  const [mainChurch, latestEvents, latestAnnouncements, latestPrayers, followedRows] =
+    await Promise.all([
+      mainRow
+        ? GET_PUBLIC_CHURCH({ slug: mainRow.church?.slug ?? mainRow.church_id })
+        : Promise.resolve(null),
+      mainRow
+        ? LIST_PUBLIC_EVENTS({ churchId: mainRow.church_id, query: { page: 1, limit: 3 } }).then(
+            (page) => page.result,
+          )
+        : Promise.resolve([] as MobilePublicEvent[]),
+      mainRow
+        ? LIST_PUBLIC_ANNOUNCEMENTS({
+            churchId: mainRow.church_id,
+            query: { page: 1, limit: 3 },
+          }).then((page) => page.result)
+        : Promise.resolve([] as MobilePublicAnnouncement[]),
+      prayerChurchIds.length
+        ? LIST_LATEST_PUBLISHED_PRAYERS({ churchIds: prayerChurchIds, limit: 3 })
+        : Promise.resolve([] as MobilePublishedPrayer[]),
+      followedIds.length
+        ? db.church.findMany({
+            where: { id: { in: followedIds }, status: APPROVED },
+            select: {
+              id: true,
+              slug: true,
+              name: true,
+              denomination: true,
+              church_style: true,
+              address: true,
+              cover_asset_id: true,
+              latitude: true,
+              longitude: true,
+            },
+          })
+        : Promise.resolve([]),
+    ])
+
   return {
     mainChurch,
-    followedChurches: await Promise.all(followed.map((f) => withCover(toSummary(f)))),
+    followedChurches: await withCovers(followedRows.map((f) => toSummary(f))),
     latestPrayers,
     latestEvents,
     latestAnnouncements,
@@ -778,8 +849,14 @@ const publishedPrayerWhere = (churchId: string | string[]): Prisma.PrayerWhereIn
 
 const mapPublishedPrayer = (p: {
   id: string
+  slug: string
   church_id: string
-  church: { name: string }
+  church: {
+    name: string
+    cover_asset: { object_key: string; purpose: string; status: string } | null
+  }
+  featured_asset_id: string | null
+  featured_asset: { object_key: string; purpose: string; status: string } | null
   published_at: Date | null
   version: {
     id: string
@@ -804,8 +881,18 @@ const mapPublishedPrayer = (p: {
   const approved = audio && audio.status === 'APPROVED' && audio.asset
   return {
     id: p.id,
+    slug: p.slug,
     churchId: p.church_id,
     churchName: p.church.name,
+    churchCoverUrl:
+      p.church.cover_asset?.purpose === 'IMAGE' && p.church.cover_asset.status === 'READY'
+        ? S3_PUBLIC_URL({ key: p.church.cover_asset.object_key })
+        : null,
+    featuredAssetId: p.featured_asset_id ?? null,
+    featuredImageUrl:
+      p.featured_asset?.purpose === 'IMAGE' && p.featured_asset.status === 'READY'
+        ? S3_PUBLIC_URL({ key: p.featured_asset.object_key })
+        : null,
     publishedAt: toIso(p.published_at) ?? '',
     version: {
       prayerVersionId: p.version.id,
@@ -813,8 +900,10 @@ const mapPublishedPrayer = (p: {
       pastorId: p.version.pastor_id,
       pastorName: p.version.pastor.name,
       title: p.version.title,
-      introduction: p.version.introduction,
-      body: p.version.body,
+      introduction: p.version.introduction
+        ? richTextToPlainText(p.version.introduction) || null
+        : null,
+      body: richTextToPlainText(p.version.body),
       languageCode: p.version.language_code,
     },
     audio: approved
@@ -829,7 +918,7 @@ const mapPublishedPrayer = (p: {
   }
 }
 
-export const LIST_PUBLISHED_PRAYERS = async ({
+const LIST_PUBLISHED_PRAYERS_UNCACHED = async ({
   churchId,
   query,
 }: {
@@ -846,8 +935,16 @@ export const LIST_PUBLISHED_PRAYERS = async ({
       orderBy: [{ published_at: 'desc' }, { id: 'asc' }],
       select: {
         id: true,
+        slug: true,
         church_id: true,
-        church: { select: { name: true } },
+        featured_asset_id: true,
+        featured_asset: { select: { object_key: true, purpose: true, status: true } },
+        church: {
+          select: {
+            name: true,
+            cover_asset: { select: { object_key: true, purpose: true, status: true } },
+          },
+        },
         published_at: true,
         published_version_id: true,
       },
@@ -868,7 +965,10 @@ export const LIST_PUBLISHED_PRAYERS = async ({
     .map((r) =>
       mapPublishedPrayer({
         id: r.id,
+        slug: r.slug,
         church_id: r.church_id,
+        featured_asset_id: r.featured_asset_id,
+        featured_asset: r.featured_asset,
         church: r.church,
         published_at: r.published_at,
         version: r.published_version_id
@@ -880,8 +980,22 @@ export const LIST_PUBLISHED_PRAYERS = async ({
   return { result, total }
 }
 
+/**
+ * Public, per-church published prayers: identical for every visitor, so it is
+ * cached for a minute and tagged — the prayer publish and audio-approve routes
+ * already call `revalidateTag(SITE_PUBLIC_TAG)`, so a new prayer appears at once.
+ * Uncached this cost ~12 round trips per call, which the W11 neighbour spotlight
+ * paid for every probed parish on each /donate render (measured 507 ms, 25 Oct
+ * 2026 — the heaviest single read on the giving page).
+ */
+export const LIST_PUBLISHED_PRAYERS = unstable_cache(
+  LIST_PUBLISHED_PRAYERS_UNCACHED,
+  ['site-public-published-prayers'],
+  { revalidate: 60, tags: [SITE_PUBLIC_TAG] },
+)
+
 /** Latest published prayers across the customer's main and followed churches. */
-export const LIST_LATEST_PUBLISHED_PRAYERS = async ({
+const LIST_LATEST_PUBLISHED_PRAYERS_UNCACHED = async ({
   churchIds,
   limit,
 }: {
@@ -896,8 +1010,16 @@ export const LIST_LATEST_PUBLISHED_PRAYERS = async ({
     orderBy: [{ published_at: 'desc' }, { id: 'asc' }],
     select: {
       id: true,
+      slug: true,
       church_id: true,
-      church: { select: { name: true } },
+      featured_asset_id: true,
+      featured_asset: { select: { object_key: true, purpose: true, status: true } },
+      church: {
+        select: {
+          name: true,
+          cover_asset: { select: { object_key: true, purpose: true, status: true } },
+        },
+      },
       published_at: true,
       published_version_id: true,
     },
@@ -917,7 +1039,10 @@ export const LIST_LATEST_PUBLISHED_PRAYERS = async ({
     .map((row) =>
       mapPublishedPrayer({
         id: row.id,
+        slug: row.slug,
         church_id: row.church_id,
+        featured_asset_id: row.featured_asset_id,
+        featured_asset: row.featured_asset,
         church: row.church,
         published_at: row.published_at,
         version: row.published_version_id
@@ -942,8 +1067,16 @@ export const GET_PUBLISHED_PRAYER = async ({
     },
     select: {
       id: true,
+      slug: true,
       church_id: true,
-      church: { select: { name: true } },
+      featured_asset_id: true,
+      featured_asset: { select: { object_key: true, purpose: true, status: true } },
+      church: {
+        select: {
+          name: true,
+          cover_asset: { select: { object_key: true, purpose: true, status: true } },
+        },
+      },
       published_at: true,
       published_version_id: true,
     },
@@ -958,12 +1091,22 @@ export const GET_PUBLISHED_PRAYER = async ({
   })
   return mapPublishedPrayer({
     id: p.id,
+    slug: p.slug,
     church_id: p.church_id,
+    featured_asset_id: p.featured_asset_id,
+    featured_asset: p.featured_asset,
     church: p.church,
     published_at: p.published_at,
     version: (version as never) ?? null,
   })
 }
+
+/** Latest published prayers for a set of churches — public content, cached. */
+export const LIST_LATEST_PUBLISHED_PRAYERS = unstable_cache(
+  LIST_LATEST_PUBLISHED_PRAYERS_UNCACHED,
+  ['site-public-latest-prayers'],
+  { revalidate: 60, tags: [SITE_PUBLIC_TAG] },
+)
 
 // ---------------------------------------------------------------------------
 // Task 42 — published events + announcements

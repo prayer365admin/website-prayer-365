@@ -12,7 +12,7 @@ const db = vi.hoisted(() => ({
   event: { count: vi.fn(), findMany: vi.fn() },
   announcement: { count: vi.fn(), findMany: vi.fn() },
   checkIn: { createMany: vi.fn(), findFirst: vi.fn() },
-  mediaAsset: { findFirst: vi.fn() },
+  mediaAsset: { findFirst: vi.fn(), findMany: vi.fn() },
   analyticsEvent: { createMany: vi.fn() },
   request: { count: vi.fn(), findFirst: vi.fn() },
   auditLog: { create: vi.fn() },
@@ -45,6 +45,7 @@ beforeEach(() => {
   vi.clearAllMocks()
   s3.S3_PUBLIC_URL.mockImplementation(({ key }: { key: string }) => `https://cdn.test/${key}`)
   db.mediaAsset.findFirst.mockResolvedValue(null)
+  db.mediaAsset.findMany.mockResolvedValue([])
 })
 
 describe('churchLocalDate (D7 local-day foundation)', () => {
@@ -304,15 +305,35 @@ describe('GET_PUBLIC_CHURCH — admin profile reflected in mobile contract', () 
     expect(result).toBeNull()
   })
 
-  it('queries with status APPROVED and church slug in where-clause', async () => {
+  it('queries by id OR slug with status APPROVED, so both identifiers resolve', async () => {
     db.church.findFirst.mockResolvedValueOnce(null)
-    await GET_PUBLIC_CHURCH({ slug: 'c1' })
+    await GET_PUBLIC_CHURCH({ slug: 'grace-church' })
     expect(db.church.findFirst).toHaveBeenCalledWith(
       expect.objectContaining({
-        where: expect.objectContaining({
-          slug: 'c1',
+        where: {
           status: 'APPROVED',
-        }),
+          OR: [{ id: 'grace-church' }, { slug: 'grace-church' }],
+        },
+      }),
+    )
+  })
+
+  it('resolves a church UUID — the only identifier the mobile clients send', async () => {
+    const uuid = '01a0f73b-7860-75cc-a58d-febcab0ac0f7'
+    db.church.findFirst.mockResolvedValueOnce({
+      id: uuid,
+      name: 'Tallinn Demo Church',
+      timezone: 'Europe/Tallinn',
+      churchLanguages: [],
+      serviceTimes: [],
+    })
+
+    const result = await GET_PUBLIC_CHURCH({ churchId: uuid })
+
+    expect(result?.id).toBe(uuid)
+    expect(db.church.findFirst).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { status: 'APPROVED', OR: [{ id: uuid }, { slug: uuid }] },
       }),
     )
   })
@@ -408,6 +429,7 @@ describe('GET_PUBLIC_CHURCH — admin profile reflected in mobile contract', () 
         imageUrl: null,
       },
     ])
+    expect(result?.pastorImageUrl).toBe('https://cdn.test/churches/c1/override.jpg')
     for (const member of result?.staff ?? []) {
       expect(member).not.toHaveProperty('email')
       expect(member).not.toHaveProperty('phone')
@@ -912,8 +934,18 @@ describe('mapPublishedPrayer (via GET_PUBLISHED_PRAYER)', () => {
   it('returns audio: null when audio snapshot is READY but not APPROVED', async () => {
     db.prayer.findFirst.mockResolvedValueOnce({
       id: 'p1',
+      slug: 'prayer',
       church_id: 'c1',
-      church: { name: 'Hope Church' },
+      church: {
+        name: 'Hope Church',
+        cover_asset: { object_key: 'hope-cover.jpg', purpose: 'IMAGE', status: 'READY' },
+      },
+      featured_asset_id: 'featured-1',
+      featured_asset: {
+        object_key: 'prayer-featured.jpg',
+        purpose: 'IMAGE',
+        status: 'READY',
+      },
       published_at: new Date(),
       published_version_id: 'v1',
     })
@@ -935,12 +967,16 @@ describe('mapPublishedPrayer (via GET_PUBLISHED_PRAYER)', () => {
 
     const result = await GET_PUBLISHED_PRAYER({ prayerId: 'p1' })
     expect(result).not.toBeNull()
+    expect(result?.churchCoverUrl).toBe('https://cdn.test/hope-cover.jpg')
+    expect(result?.featuredAssetId).toBe('featured-1')
+    expect(result?.featuredImageUrl).toBe('https://cdn.test/prayer-featured.jpg')
     expect(result?.audio).toBeNull()
   })
 
   it('returns audio: null when audio snapshot is APPROVED but lacks asset_id', async () => {
     db.prayer.findFirst.mockResolvedValueOnce({
       id: 'p1',
+      slug: 'prayer',
       church_id: 'c1',
       church: { name: 'Hope Church' },
       published_at: new Date(),
@@ -970,6 +1006,7 @@ describe('mapPublishedPrayer (via GET_PUBLISHED_PRAYER)', () => {
   it('returns audio details when audio snapshot is APPROVED and has asset_id', async () => {
     db.prayer.findFirst.mockResolvedValueOnce({
       id: 'p1',
+      slug: 'prayer',
       church_id: 'c1',
       church: { name: 'Hope Church' },
       published_at: new Date(),
@@ -1009,6 +1046,7 @@ describe('LIST_PUBLISHED_PRAYERS — historical pastor attribution', () => {
     const publishedRows = [
       {
         id: 'prayer-1',
+        slug: 'morning-prayer',
         church_id: 'church-1',
         church: { name: 'Hope Church' },
         published_at: new Date('2026-09-30T12:00:00.000Z'),
@@ -1191,16 +1229,44 @@ describe('church cover URLs (MB-17)', () => {
 
   it('LIST_MY_CHURCHES adds coverUrl for a READY IMAGE asset', async () => {
     db.userChurch.findMany.mockResolvedValueOnce([myChurchRow()])
-    db.mediaAsset.findFirst.mockResolvedValueOnce({ object_key: 'media/c1/image/abc' })
+    db.mediaAsset.findMany.mockResolvedValueOnce([{ id: 'm1', object_key: 'media/c1/image/abc' }])
 
     const res = await LIST_MY_CHURCHES({ userId: 'u1' })
 
     expect(res[0].coverAssetId).toBe('m1')
     expect(res[0].coverUrl).toBe('https://cdn.test/media/c1/image/abc')
-    expect(db.mediaAsset.findFirst).toHaveBeenCalledWith({
-      where: { id: 'm1', status: 'READY', purpose: 'IMAGE' },
-      select: { object_key: true },
+    expect(db.mediaAsset.findMany).toHaveBeenCalledWith({
+      where: { id: { in: ['m1'] }, status: 'READY', purpose: 'IMAGE' },
+      select: { id: true, object_key: true },
     })
+  })
+
+  it('LIST_MY_CHURCHES reads every cover in ONE query (no N+1)', async () => {
+    db.userChurch.findMany.mockResolvedValueOnce([
+      myChurchRow(),
+      myChurchRow({
+        church: {
+          id: 'c2',
+          name: 'Hope',
+          address: null,
+          cover_asset_id: 'm2',
+          status: 'APPROVED',
+        },
+      }),
+    ])
+    db.mediaAsset.findMany.mockResolvedValueOnce([
+      { id: 'm1', object_key: 'media/c1/image/abc' },
+      { id: 'm2', object_key: 'media/c2/image/def' },
+    ])
+
+    const res = await LIST_MY_CHURCHES({ userId: 'u1' })
+
+    expect(res.map((row) => row.coverUrl)).toEqual([
+      'https://cdn.test/media/c1/image/abc',
+      'https://cdn.test/media/c2/image/def',
+    ])
+    expect(db.mediaAsset.findMany).toHaveBeenCalledTimes(1)
+    expect(db.mediaAsset.findFirst).not.toHaveBeenCalled()
   })
 
   it('coverUrl is null when the church has no cover_asset_id', async () => {
@@ -1219,12 +1285,12 @@ describe('church cover URLs (MB-17)', () => {
     const res = await LIST_MY_CHURCHES({ userId: 'u1' })
 
     expect(res[0].coverUrl).toBeNull()
-    expect(db.mediaAsset.findFirst).not.toHaveBeenCalled()
+    expect(db.mediaAsset.findMany).not.toHaveBeenCalled()
   })
 
-  it('coverUrl is null when the asset is not READY (findFirst -> null)', async () => {
+  it('coverUrl is null when the asset is not READY (no asset row -> null)', async () => {
     db.userChurch.findMany.mockResolvedValueOnce([myChurchRow()])
-    db.mediaAsset.findFirst.mockResolvedValueOnce(null)
+    db.mediaAsset.findMany.mockResolvedValueOnce([])
 
     const res = await LIST_MY_CHURCHES({ userId: 'u1' })
     expect(res[0].coverUrl).toBeNull()
@@ -1232,19 +1298,21 @@ describe('church cover URLs (MB-17)', () => {
 
   it('coverUrl is null (no throw, no 500) when storage is not configured', async () => {
     db.userChurch.findMany.mockResolvedValueOnce([myChurchRow()])
-    db.mediaAsset.findFirst.mockResolvedValueOnce({ object_key: 'media/c1/image/abc' })
+    db.mediaAsset.findMany.mockResolvedValueOnce([{ id: 'm1', object_key: 'media/c1/image/abc' }])
     s3.S3_PUBLIC_URL.mockReturnValueOnce(null)
 
     const res = await LIST_MY_CHURCHES({ userId: 'u1' })
     expect(res[0].coverUrl).toBeNull()
   })
 
-  it('GET_PUBLIC_CHURCH exposes coverAssetId + coverUrl on the public profile', async () => {
+  it('GET_PUBLIC_CHURCH exposes thumbnail and dedicated hero assets', async () => {
     db.church.findFirst.mockResolvedValueOnce({
       id: 'c1',
       name: 'Grace',
       timezone: 'UTC',
       cover_asset_id: 'm1',
+      hero_asset_id: 'hero-1',
+      hero_asset: { object_key: 'media/c1/image/hero', purpose: 'IMAGE', status: 'READY' },
       churchLanguages: [],
       serviceTimes: [],
     })
@@ -1254,6 +1322,8 @@ describe('church cover URLs (MB-17)', () => {
 
     expect(res?.coverAssetId).toBe('m1')
     expect(res?.coverUrl).toBe('https://cdn.test/media/c1/image/abc')
+    expect(res?.heroAssetId).toBe('hero-1')
+    expect(res?.heroUrl).toBe('https://cdn.test/media/c1/image/hero')
   })
 })
 
@@ -1278,6 +1348,7 @@ describe('GET_HOME — MB-10 typed projection', () => {
     db.prayer.findMany.mockResolvedValueOnce([
       {
         id: 'p1',
+        slug: 'prayer',
         church_id: 'c1',
         church: { name: 'Main' },
         published_at: new Date(),
@@ -1335,6 +1406,7 @@ describe('GET_HOME — MB-10 typed projection', () => {
     db.prayer.findMany.mockResolvedValueOnce([
       {
         id: 'p2',
+        slug: 'followed-prayer',
         church_id: 'c2',
         church: { name: 'Followed Church' },
         published_at: new Date('2026-10-15T06:00:00.000Z'),

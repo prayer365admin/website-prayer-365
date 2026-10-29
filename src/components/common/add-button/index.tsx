@@ -8,11 +8,15 @@ export default function AddButton({
   onClick,
   permissionSubject,
   disabled,
+  loading: loadingProp,
+  className,
 }: {
   label: string
-  onClick?: () => void
+  onClick?: () => void | Promise<unknown>
   permissionSubject?: string
   disabled?: boolean
+  loading?: boolean
+  className?: string
 }) {
   const [loading, setLoading] = useState<boolean>(false)
 
@@ -22,20 +26,28 @@ export default function AddButton({
       permission.createOwn(permissionSubject).granted
     : true
 
-  const handleClick = () => {
-    onClick?.()
-    setLoading(true)
+  const handleClick = async () => {
+    if (!onClick) return
+    const res = onClick() as unknown
+    if (res && typeof (res as Promise<unknown>).then === 'function') {
+      setLoading(true)
+      try {
+        await res
+      } finally {
+        setLoading(false)
+      }
+    }
   }
 
   return (
     havePermission && (
-      <div className="w-full mb-5 flex items-center justify-end">
+      <div className={className ?? 'w-full mb-5 flex items-center justify-end'}>
         <Button
           type="primary"
           icon={<PlusCircleFilled />}
           size="large"
           onClick={handleClick}
-          loading={loading}
+          loading={loadingProp ?? loading}
           disabled={disabled}
         >
           {label}

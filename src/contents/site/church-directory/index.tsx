@@ -10,13 +10,12 @@ import {
   PlusOutlined,
   SearchOutlined,
 } from '@ant-design/icons'
-import Link from 'next/link'
 import { BalticBadgeIcon } from '@/components/icon/baltic-badge'
 import { ChurchIcon } from '@/components/icon/church'
 import { PointerIcon } from '@/components/icon/pointer'
 import { CompassIcon } from '@/components/icon/compass'
 import { LayersIcon } from '@/components/icon/layers'
-import { HandHeartIcon } from '@/components/icon/hand-heart'
+import { DonationBanner } from '@/components/site/donation-banner'
 import { useSiteI18n } from '@/i18n/site-i18n'
 import { useSiteChurches } from '@/hooks/data/site/churches'
 import { useSiteHome } from '@/hooks/data/site/home'
@@ -185,6 +184,7 @@ export default function ContentsSiteChurchDirectory() {
 
   const activeId = selectedId ?? orderedChurches[0]?.id
   const selectedChurch = orderedChurches.find((c) => c.id === activeId)
+  const mapRegion = [selectedChurch?.district, selectedChurch?.city].filter(Boolean).join(', ')
 
   return (
     <div className="bg-[#F7F9FB]">
@@ -233,7 +233,7 @@ export default function ContentsSiteChurchDirectory() {
           {/* Search row */}
           <div className="flex flex-col gap-2 pt-4 lg:flex-row">
             <Input
-              className="!h-12 !py-0 flex-1 rounded-lg border-[#5C6370] bg-white hover:border-[#5C6370] focus:border-primary_color focus:shadow-none [&_.ant-input]:text-sm [&_.ant-input]:text-[#393E46]"
+              className="!h-12 !py-0 rounded-lg lg:flex-1 border-[#5C6370] bg-white hover:border-[#5C6370] focus:border-primary_color focus:shadow-none [&_.ant-input]:text-sm [&_.ant-input]:text-[#393E46]"
               prefix={
                 <SearchOutlined className="mr-1 text-[16px] text-[#0E203E]" aria-hidden="true" />
               }
@@ -274,7 +274,7 @@ export default function ContentsSiteChurchDirectory() {
               }}
               prefix={<PointerIcon className="text-[20px] text-[#0E203E]" />}
               options={radiusOptions}
-              className="h-12 w-full lg:w-[195px] [&_.ant-select-selector]:!h-12 [&_.ant-select-selector]:!rounded-lg [&_.ant-select-selector]:!border-[#5C6370] [&_.ant-select-selection-item]:text-sm [&_.ant-select-selection-item]:text-[#0E203E]"
+              className="h-12 w-full lg:w-[195px] [&_.ant-select-selector]:!h-12 [&_.ant-select-selector]:!rounded-lg [&_.ant-select-selector]:!border-[#5C6370] [&_.ant-select-content]:text-sm [&_.ant-select-content]:text-[#0E203E]"
             />
 
             {/* Denomination combo: presets + free-typed custom values (e.g.
@@ -293,7 +293,7 @@ export default function ContentsSiteChurchDirectory() {
               placeholder={denomination ? undefined : t('allDenominations')}
               prefix={<ChurchIcon className="text-[20px] text-[#0E203E]" />}
               options={denominationOptions}
-              className="h-12 w-full lg:w-[231px] [&_.ant-select-selector]:!h-12 [&_.ant-select-selector]:!rounded-lg [&_.ant-select-selector]:!border-[#5C6370] [&_.ant-select-selection-item]:text-sm [&_.ant-select-selection-item]:text-[#0E203E] [&_.ant-select-content]:!py-2"
+              className="h-12 w-full lg:w-[231px] [&_.ant-select-selector]:!h-12 [&_.ant-select-selector]:!rounded-lg [&_.ant-select-selector]:!border-[#5C6370] [&_.ant-select-content]:text-sm [&_.ant-select-content]:text-[#0E203E] [&_.ant-select-placeholder]:text-sm [&_.ant-select-content]:!py-2"
             />
           </div>
 
@@ -313,7 +313,7 @@ export default function ContentsSiteChurchDirectory() {
                   setPage(1)
                 }}
                 options={languageOptions}
-                className="h-8 min-w-[130px] [&_.ant-select-selector]:!h-8 [&_.ant-select-selector]:!rounded-lg [&_.ant-select-selector]:!border-[#DDE0E4] [&_.ant-select-selection-item]:text-xs [&_.ant-select-selection-item]:text-[#22252A]"
+                className="h-8 min-w-[130px] [&_.ant-select-selector]:!h-8 [&_.ant-select-selector]:!rounded-lg [&_.ant-select-selector]:!border-[#DDE0E4] [&_.ant-select-content]:text-xs [&_.ant-select-content]:text-[#22252A]"
               />
             </div>
           </div>
@@ -396,7 +396,8 @@ export default function ContentsSiteChurchDirectory() {
                 <div className="pointer-events-auto flex items-center gap-2 rounded-full border border-[#ECEEF0] bg-white/90 px-3.5 py-1.5 shadow-sm backdrop-blur-md">
                   <CompassIcon className="text-[13px] text-[#2F7AD2]" aria-hidden="true" />
                   <span className="text-[11px] font-bold tracking-wider text-[#414752] uppercase">
-                    TALLINN DIOCESE • SANCTUARY MAP
+                    {mapRegion ? `${mapRegion} • ` : ''}
+                    {t('sanctuaryMap')}
                   </span>
                 </div>
               </div>
@@ -479,24 +480,11 @@ export default function ContentsSiteChurchDirectory() {
           </div>
         </section>
         {/* Donation banner */}
-        <section className="overflow-hidden rounded-2xl bg-gradient-to-b from-[#163B66] to-[#0E294A] p-6 text-white shadow-[0_12px_32px_-6px_rgba(11,68,151,0.2)] sm:p-8">
-          <div className="flex flex-col items-center justify-between gap-6 sm:flex-row sm:items-center">
-            <div className="flex items-center gap-4 text-center sm:text-left">
-              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-white/15 text-white">
-                <HandHeartIcon className="text-2xl" />
-              </div>
-              <p className="max-w-xl text-sm leading-relaxed text-white/90 sm:text-base">
-                {t('directoryDonationBannerBody')}
-              </p>
-            </div>
-            <Link
-              href="/donate"
-              className="inline-flex h-11 shrink-0 items-center justify-center rounded-xl bg-white px-6 text-sm font-semibold text-[#0E203E] shadow-sm transition-colors hover:bg-white/90 active:scale-95"
-            >
-              {t('directoryDonationBannerCta')}
-            </Link>
-          </div>
-        </section>
+        <DonationBanner
+          body={t('directoryDonationBannerBody')}
+          ctaLabel={t('directoryDonationBannerCta')}
+          href="/donate"
+        />
       </div>
     </div>
   )

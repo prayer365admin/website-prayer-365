@@ -32,11 +32,12 @@ describe('Forgot password (W04)', () => {
     axiosMock.post.mockReset()
   })
 
-  it('is the sign-in card with its own title, the quote, and no aside', () => {
+  it('renders the recovery card, scripture quote, and safeguards', () => {
     renderPage()
 
     expect(screen.getByRole('heading', { level: 1, name: en.forgotTitle })).toBeTruthy()
-    expect(screen.getByText(en.signInQuote)).toBeTruthy()
+    expect(screen.getByText(new RegExp(en.recoveryQuote))).toBeTruthy()
+    expect(screen.getByRole('heading', { name: en.recoverySafeguardsTitle })).toBeTruthy()
     expect(screen.queryByText(en.sealTitle)).toBeNull()
   })
 

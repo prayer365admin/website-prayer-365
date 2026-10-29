@@ -2,13 +2,22 @@ import { PrayerOutput } from '@/models/prayer'
 import { ID_COLUMN_WIDTH, ACTION_COLUMN_WIDTH, ADDITIONAL_COLUMN_CONFIG } from '@/utils/constant'
 import { Button, TableProps } from 'antd'
 
-export const PrayerColumns = ({ onOpen }: { onOpen: (prayerId: string) => void }) => {
+export const PrayerColumns = ({
+  onOpen,
+  page,
+  pageSize,
+}: {
+  onOpen: (prayerId: string) => void
+  page: number
+  pageSize: number
+}) => {
   const column: TableProps<PrayerOutput>['columns'] = [
     {
       key: 'no',
       title: 'No.',
       width: ID_COLUMN_WIDTH,
-      render: (_text, _record, index) => (index + 1).toString().padStart(2, '0'),
+      render: (_text, _record, index) =>
+        (index + 1 + (page - 1) * pageSize).toString().padStart(2, '0'),
     },
     {
       key: 'title',

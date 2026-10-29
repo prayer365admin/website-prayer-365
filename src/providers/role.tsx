@@ -1,12 +1,13 @@
-import { RolePayloadCrateModel } from '@/models/role'
 import { db } from '@/utils/db-connection'
-import { RoleType } from '@prisma/client'
+import { Prisma, RoleType } from '@prisma/client'
+
+const ROLE_INCLUDE = { permission: true } as const
 
 export const GET_ROLES = async ({ type }: { type?: RoleType } = {}) => {
   const result = await db.role.findMany({
     where: { type: type },
     orderBy: { created_at: 'desc' },
-    include: { permission: true },
+    include: ROLE_INCLUDE,
   })
   return result
 }
@@ -14,48 +15,68 @@ export const GET_ROLES = async ({ type }: { type?: RoleType } = {}) => {
 export const GET_ROLE_BY_ID = async ({ role_id }: { role_id: string }) => {
   const result = await db.role.findUnique({
     where: { id: role_id },
-    include: { permission: true },
+    include: ROLE_INCLUDE,
   })
   return result
 }
 
-export const CREATE_ROLE = async (payload: RolePayloadCrateModel) => {
-  const result = await db.role.create({ data: payload })
-  return result
-}
-
-export const UPDATE_ROLE = async ({
-  role_id,
+export const GET_ROLE_BY_NAME = async ({
   name,
-  permission_list,
-  type,
+}: {
+  name: string
+}): Promise<{ id: string; name: string; type: RoleType } | null> =>
+  db.role.findUnique({ where: { name }, select: { id: true, name: true, type: true } })
+
+/** Rows that would break a hard delete: identity bindings and org assignments. */
+export const COUNT_ROLE_USAGE = async ({
+  role_id,
 }: {
   role_id: string
-  name: string
-  permission_list: { [key: string]: boolean }
-  type: RoleType
-}) => {
+}): Promise<{ users: number; assignments: number }> => {
+  const [users, assignments] = await db.$transaction([
+    db.user.count({ where: { role_id } }),
+    db.roleAssignment.count({ where: { role_id } }),
+  ])
+  return { users, assignments }
+}
+
+export const CREATE_ROLE = async (
+  payload: Prisma.RoleCreateInput,
+  tx: Prisma.TransactionClient = db,
+) => tx.role.create({ data: payload })
+
+export const UPDATE_ROLE = async (
+  {
+    role_id,
+    name,
+    permission_list,
+    type,
+  }: {
+    role_id: string
+    name: string
+    permission_list: { [key: string]: boolean }
+    type: RoleType
+  },
+  tx: Prisma.TransactionClient = db,
+) => {
   const connect_permission_list = Object.keys(permission_list).filter(
     (uuid) => permission_list[uuid],
   )
 
-  const result = await db.role.update({
+  return tx.role.update({
     data: {
       name: name,
       type: type,
       permission: {
         set: [],
-        connect: connect_permission_list.map((item) => {
-          return { id: item }
-        }),
+        connect: connect_permission_list.map((item) => ({ id: item })),
       },
     },
     where: { id: role_id },
   })
-  return result
 }
 
-export const DELETE_ROLE = async ({ role_id }: { role_id: string }) => {
-  const result = await db.role.delete({ where: { id: role_id } })
-  return result
-}
+export const DELETE_ROLE = async (
+  { role_id }: { role_id: string },
+  tx: Prisma.TransactionClient = db,
+) => tx.role.delete({ where: { id: role_id } })

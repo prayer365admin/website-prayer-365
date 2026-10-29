@@ -22,6 +22,12 @@ export const catatia: EnvConfig = {
    * instance then gives the Lambdas one fixed egress IP to allow-list.
    */
   network: { mode: 'public' },
+  /*
+   * Transactional email. The domain identity already exists in this account
+   * (verified, DKIM SUCCESS, custom MAIL FROM mail.catatia.com), so it is adopted,
+   * not created — the DNS records are in docs/admin/SES-DNS.md.
+   */
+  email: { mode: 'existing', domain: 'catatia.com', mailFromDomain: 'mail.catatia.com' },
   workers: {
     // Deployed on catatia 2026-10-14: dispatcher + consumer are live and the
     // schedule fires every minute. Set false to pause without deleting.

@@ -1,4 +1,4 @@
-import { renderWithProviders } from '@/test/frontend/render'
+import { renderWithProviders, sessionMock } from '@/test/frontend/render'
 import { fireEvent, screen } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import MainHeader from '.'
@@ -13,7 +13,18 @@ vi.mock('@/hooks/data/church', () => ({
 describe('MainHeader church label', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    sessionMock.mockReset()
     m.useChurches.mockReturnValue({ data: undefined, loading: false })
+  })
+
+  it('shows a profile loading state until the session is available', () => {
+    sessionMock.mockReturnValue({ data: null, status: 'loading' })
+    m.useCurrentChurch.mockReturnValue({ data: undefined, loading: false })
+
+    renderWithProviders(<MainHeader />)
+
+    expect(screen.getByRole('status', { name: 'Loading user profile' })).toBeTruthy()
+    expect(screen.queryByText('Staff Member')).toBeNull()
   })
 
   it('uses a neutral label when the route church is not assigned', () => {

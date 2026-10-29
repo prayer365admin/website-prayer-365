@@ -1,0 +1,48 @@
+.drawer {
+  :global(.ant-drawer-content-wrapper) {
+    right: 1.5rem !important;
+    top: 1.5rem !important;
+    bottom: 1.5rem !important;
+    height: calc(100vh - 3rem) !important;
+    max-height: 880px !important;
+    margin: auto 0 !important;
+    padding: 0 !important;
+    box-shadow: none !important;
+  }
+
+  :global(.ant-drawer-content) {
+    border-radius: 16px !important;
+    overflow: hidden !important;
+    box-shadow: 0 25px 50px -12px rgba(14, 32, 62, 0.15) !important;
+    height: 100% !important;
+    background: #ffffff !important;
+  }
+
+  :global(.ant-drawer-body) {
+    padding: 0 !important;
+    display: flex !important;
+    flex-direction: column !important;
+    height: 100% !important;
+    overflow: hidden !important;
+  }
+
+  :global(.ant-drawer-mask) {
+    background-color: rgba(14, 32, 62, 0.35) !important;
+  }
+}
+
+.bodyScroll {
+  scrollbar-width: thin;
+  scrollbar-color: #e2e8f0 transparent;
+
+  &::-webkit-scrollbar {
+    width: 6px;
+  }
+  &::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  &::-webkit-scrollbar-thumb {
+    background: #e2e8f0;
+    border-radius: 9999px;
+  }
+}

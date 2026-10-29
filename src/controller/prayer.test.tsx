@@ -10,7 +10,10 @@ vi.mock('@/providers/prayer', () => ({
   SCHEDULE_PRAYER: vi.fn(),
 }))
 vi.mock('@/providers/pastor', () => ({ GET_CHURCH_PASTOR: vi.fn() }))
-vi.mock('@/providers/church', () => ({ GET_AVAILABLE_LANGUAGE_CODES: vi.fn() }))
+vi.mock('@/providers/church', () => ({
+  GET_AVAILABLE_LANGUAGE_CODES: vi.fn(),
+  GET_CHURCH_READY_IMAGE: vi.fn(),
+}))
 vi.mock('@/utils/idempotency', () => ({ withIdempotency: vi.fn() }))
 
 import {
@@ -23,7 +26,7 @@ import {
   SCHEDULE_PRAYER,
 } from '@/providers/prayer'
 import { GET_CHURCH_PASTOR } from '@/providers/pastor'
-import { GET_AVAILABLE_LANGUAGE_CODES } from '@/providers/church'
+import { GET_AVAILABLE_LANGUAGE_CODES, GET_CHURCH_READY_IMAGE } from '@/providers/church'
 import { withIdempotency } from '@/utils/idempotency'
 import {
   approveText,
@@ -125,6 +128,29 @@ describe('createPrayer', () => {
     await expect(
       createPrayer({ userId: 'u1', churchId: 'c1', churchIds: scope, input, requestId: 'r' }),
     ).rejects.toMatchObject({ code: 422, error_code: 'UNKNOWN_LANGUAGE' })
+  })
+
+  it('rejects a featured image that is not a ready image of the target church', async () => {
+    vi.mocked(GET_CHURCH_PASTOR).mockResolvedValue({ id: PASTOR_ID } as never)
+    vi.mocked(GET_AVAILABLE_LANGUAGE_CODES).mockResolvedValue(new Set(['en']))
+    vi.mocked(GET_CHURCH_READY_IMAGE).mockResolvedValue(null)
+
+    await expect(
+      createPrayer({
+        userId: 'u1',
+        churchId: 'c1',
+        churchIds: new Set(['c1', 'c2']),
+        input: {
+          ...input,
+          featuredAssetId: '00000000-0000-0000-0000-000000000004',
+        },
+        requestId: 'r',
+      }),
+    ).rejects.toMatchObject({ code: 422, error_code: 'INVALID_FEATURED_ASSET' })
+    expect(GET_CHURCH_READY_IMAGE).toHaveBeenCalledWith({
+      churchIds: new Set(['c1']),
+      assetId: '00000000-0000-0000-0000-000000000004',
+    })
   })
 })
 

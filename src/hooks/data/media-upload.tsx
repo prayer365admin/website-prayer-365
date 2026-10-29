@@ -29,8 +29,8 @@ export const useMediaUpload = ({
   churchId,
   purpose,
 }: {
-  churchId: string
-  purpose: 'IMAGE' | 'VOICE_SAMPLE' | 'CONSENT_EVIDENCE'
+  churchId?: string
+  purpose: 'IMAGE' | 'VOICE_SAMPLE' | 'CONSENT_EVIDENCE' | 'USER_AVATAR'
 }) => {
   const { notification } = App.useApp()
   const { mutateAsync: onUpload, isPending: loading } = useMutation({
@@ -41,7 +41,7 @@ export const useMediaUpload = ({
         }
 
         const initiate = await axios.post('/api/v1/uploads', {
-          churchId,
+          ...(churchId ? { churchId } : {}),
           purpose,
           mimeType: file.type || 'application/octet-stream',
           byteSize: file.size,
@@ -64,11 +64,17 @@ export const useMediaUpload = ({
 
         // Complete: verify object size/content-type server-side + checksum → READY.
         const checksum = await sha256hex(await file.arrayBuffer())
-        await axios.post(`/api/v1/uploads/${assetId}/complete`, { churchId, checksum })
+        await axios.post(`/api/v1/uploads/${assetId}/complete`, {
+          ...(churchId ? { churchId } : {}),
+          checksum,
+        })
 
         return {
           assetId,
-          url: `/api/v1/uploads/${assetId}/access?churchId=${encodeURIComponent(churchId)}`,
+          url: churchId
+            ? `/api/v1/uploads/${assetId}/access?churchId=${encodeURIComponent(churchId)}`
+            : // User-scoped assets have no scoped access route; the caller only needs a preview.
+              URL.createObjectURL(file),
         }
       },
       [churchId, purpose, notification],

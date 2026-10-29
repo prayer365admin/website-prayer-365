@@ -96,22 +96,22 @@ No separate database schema needed. The website reads existing Prisma models.
 
 ## 4. Page route map
 
-| Route                         | Screen          | Auth   | Backend called (controller)                                                                                              |
-| ----------------------------- | --------------- | ------ | ------------------------------------------------------------------------------------------------------------------------ |
-| `/`                           | Home (W06)      | Yes    | `getHome`                                                                                                                |
-| `/login`                      | Sign In (W01)   | Public | NextAuth credentials                                                                                                     |
-| `/register`                   | Register (W02)  | Public | `registerUser`                                                                                                           |
-| `/verify-email`               | Verify (W03)    | Public | `verifyEmail`                                                                                                            |
-| `/forgot-password`            | Forgot (W04)    | Public | Send reset email                                                                                                         |
-| `/reset-password`             | Reset (W04)     | Public | `resetPassword`                                                                                                          |
-| `/customer/setup`             | Setup (W05)     | Yes    | Patch locale + main/follow                                                                                               |
-| `/churches`                   | Directory (W07) | Yes    | `listPublicChurches` (search, radius, denomination, language, quick filters)                                             |
-| `/churches/:churchId`         | Profile (W08)   | Yes    | `getPublicChurch` (gallery, staff), `listPublicEvents`, `listPublicAnnouncements`, `getHome`                             |
-| `/churches/:churchId/prayers` | Prayers (W09)   | Yes    | `listPublishedPrayers`                                                                                                   |
-| `/prayers/:prayerId`          | Prayer (W10)    | Yes    | `getPublishedPrayer`                                                                                                     |
-| `/donate`                     | Donation (W11)  | Yes    | `?church={slug}` names the beneficiary; bare `/donate` resolves the Main Church, else a gated beneficiary picker (WB-41) |
-| `/donate/result`              | Result (W12)    | Yes    | Donor / attempt status                                                                                                   |
-| `/customer`                   | Profile (W13)   | Yes    | `getMe` / `patchMe` / avatar upload                                                                                      |
+| Route                     | Screen          | Auth   | Backend called (controller)                                                                                              |
+| ------------------------- | --------------- | ------ | ------------------------------------------------------------------------------------------------------------------------ |
+| `/`                       | Home (W06)      | Yes    | `getHome`                                                                                                                |
+| `/login`                  | Sign In (W01)   | Public | NextAuth credentials                                                                                                     |
+| `/register`               | Register (W02)  | Public | `registerUser`                                                                                                           |
+| `/verify-email`           | Verify (W03)    | Public | `verifyEmail`                                                                                                            |
+| `/forgot-password`        | Forgot (W04)    | Public | Send reset email                                                                                                         |
+| `/reset-password`         | Reset (W04)     | Public | `resetPassword`                                                                                                          |
+| `/customer/setup`         | Setup (W05)     | Yes    | Patch locale + main/follow                                                                                               |
+| `/churches`               | Directory (W07) | Yes    | `listPublicChurches` (search, radius, denomination, language, quick filters)                                             |
+| `/churches/:slug`         | Profile (W08)   | Yes    | `getPublicChurch` (gallery, staff), `listPublicEvents`, `listPublicAnnouncements`, `getHome`                             |
+| `/churches/:slug/prayers` | Prayers (W09)   | Yes    | `listPublishedPrayers`                                                                                                   |
+| `/prayers/:slug`          | Prayer (W10)    | Yes    | `getPublishedPrayer`                                                                                                     |
+| `/donate`                 | Donation (W11)  | Yes    | `?church={slug}` names the beneficiary; bare `/donate` resolves the Main Church, else a gated beneficiary picker (WB-41) |
+| `/donate/result`          | Result (W12)    | Yes    | Donor / attempt status                                                                                                   |
+| `/customer`               | Profile (W13)   | Yes    | `getMe` / `patchMe` / avatar upload                                                                                      |
 
 Routing guard: any website page except the four public account pages requires
 a session; unauthenticated visitors go to `/login`. Content is never rendered
@@ -219,7 +219,7 @@ Website reads call shared controllers directly (section 2.2). No separate read e
 | Password                | `POST /api/v1/auth/reset-password`, forgot                                                 | Built  |
 | Discover                | `GET /api/v1/site/churches` (controller `listPublicChurches`)                              | Built  |
 | Home                    | `GET /api/v1/mobile/home` (shared controller)                                              | Built  |
-| Prayers                 | `GET .../prayers`, `GET /prayers/:prayerId`                                                | Built  |
+| Prayers                 | `GET .../prayers`, `GET /prayers/:slug`                                                    | Built  |
 | Profile                 | `GET/PATCH /me`, avatar upload                                                             | Built  |
 | Church events           | `GET /api/v1/site/churches/:churchId/events` (controller `listPublicEvents`)               | Built  |
 | Church announcements    | `GET /api/v1/site/churches/:churchId/announcements` (controller `listPublicAnnouncements`) | Built  |
@@ -284,7 +284,7 @@ All profile interactions run through shared controllers guarded by `requiredWebA
 
 1. `/register` (name, email, password) → `registerUser` → user with the `prayer_user` role, locale `null` until onboarding + verification email.
 2. User clicks verification link, setting `email_verified_at`.
-3. `/login` (NextAuth credentials, W1 Option B) → session.
+3. `/login` (NextAuth credentials, W1 Option B) → session, then a full page load of `/` (`SITE_HOME`, the website home); a signed-in customer visiting `/login`/`/register` is sent there too.
 4. First visit to a website page without completed onboarding → `/customer/setup`: parish (optional) then language. Step 1 immediately saves the selected parish (or `null` when skipped); step 2 immediately saves the selected locale, or English when skipped, and completes onboarding.
 5. `/customer` (profile) → view/edit name, locale, picture; set, change or clear the main church; follows.
 
@@ -299,7 +299,7 @@ Directory flows filter approved congregations across the region:
 5. Directory displays a split layout:
    - Left: cards with service times and contact links.
    - Right: interactive map synchronized with filtered pins and selection state.
-6. Opening `/churches/:churchId` loads public profile details, gallery items, upcoming events, published announcements, pastoral staff, and the primary parish badge when matching `mainChurch.id`.
+6. Opening `/churches/:slug` (church slug, migration `20261022120000_add_church_slug`) loads public profile details, gallery items, upcoming events, published announcements, pastoral staff, and the primary parish badge when matching `mainChurch.id`.
 
 ### 7.3 WF3: Prayer
 

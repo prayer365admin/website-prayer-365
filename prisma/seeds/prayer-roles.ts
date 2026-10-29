@@ -38,7 +38,9 @@ const ANY_CRUD = (subject: string, actions = 'read,create,update,delete'): Praye
  */
 export const PRAYER_CATALOGUE: PrayerGrant[] = [
   // Church & organization
-  ...ANY_CRUD('prayer_church', 'read,create,update'), // no delete
+  // `delete` here means PURGE of a pending church with no dependent rows
+  // (plan 020 / SPEC §4); it never cascades over content or financial records.
+  ...ANY_CRUD('prayer_church'),
   { subject: 'prayer_church_lifecycle', actions: 'read,update', scope: 'ANY' },
   ...ANY_CRUD('prayer_pastor'),
   ...ANY_CRUD('prayer_service_time', 'read,create,update,delete'),
@@ -72,9 +74,11 @@ export const PRAYER_CATALOGUE: PrayerGrant[] = [
   { subject: 'prayer_platform_statistics', actions: 'read', scope: 'ANY' },
 
   // Central registry
+  // `delete` on country/language is a real hard delete, refused with 409 while
+  // any church / user still references the code (controller guard).
   ...ANY_CRUD('prayer_hierarchy', 'read,create,update'),
-  ...ANY_CRUD('prayer_country', 'read,create,update'),
-  ...ANY_CRUD('prayer_language', 'read,create,update'),
+  ...ANY_CRUD('prayer_country', 'read,create,update,delete'),
+  ...ANY_CRUD('prayer_language', 'read,create,update,delete'),
 
   // Staff / roles / permissions
   ...ANY_CRUD('prayer_administrator', 'read,create,update'),
@@ -98,7 +102,7 @@ export const PRAYER_ROLES: PrayerRole[] = [
   {
     name: 'prayer_global_admin',
     grants: [
-      { subject: 'prayer_church', actions: 'read,create,update', scope: 'ANY' },
+      { subject: 'prayer_church', actions: 'read,create,update,delete', scope: 'ANY' },
       { subject: 'prayer_church_lifecycle', actions: 'update', scope: 'ANY' },
       { subject: 'prayer_pastor', actions: 'read,create,update,delete', scope: 'ANY' },
       { subject: 'prayer_prayer', actions: 'read,create,update', scope: 'ANY' },
@@ -116,8 +120,8 @@ export const PRAYER_ROLES: PrayerRole[] = [
       { subject: 'prayer_attendance', actions: 'read', scope: 'ANY' },
       { subject: 'prayer_platform_statistics', actions: 'read', scope: 'ANY' },
       { subject: 'prayer_hierarchy', actions: 'read,create,update', scope: 'ANY' },
-      { subject: 'prayer_country', actions: 'read,create,update', scope: 'ANY' },
-      { subject: 'prayer_language', actions: 'read,create,update', scope: 'ANY' },
+      { subject: 'prayer_country', actions: 'read,create,update,delete', scope: 'ANY' },
+      { subject: 'prayer_language', actions: 'read,create,update,delete', scope: 'ANY' },
       { subject: 'prayer_administrator', actions: 'read,create,update', scope: 'ANY' },
       { subject: 'prayer_role', actions: 'read,update', scope: 'ANY' },
       { subject: 'prayer_permission', actions: 'read', scope: 'ANY' },

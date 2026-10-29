@@ -12,6 +12,10 @@ import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import ContentsSiteSignIn from '.'
 
+const { hardNavigate } = vi.hoisted(() => ({ hardNavigate: vi.fn() }))
+// Sign-in ends in a FULL page load (plan 025), never a client navigation.
+vi.mock('@/utils/hard-navigate', () => ({ hardNavigate }))
+
 const en = SITE_MESSAGES.en
 
 const renderPage = () =>
@@ -53,7 +57,7 @@ describe('Customer sign-in (W01)', () => {
     expect(screen.getByText(en.sealTitle)).toBeTruthy()
   })
 
-  it('signs in with the trimmed email and goes to /customer once setup is complete', async () => {
+  it('signs in with the trimmed email and loads the home page once setup is complete', async () => {
     renderPage()
     await fillAndSubmit('  maria@example.com ')
 
@@ -62,7 +66,11 @@ describe('Customer sign-in (W01)', () => {
       password: 'Secret@123',
       redirect: false,
     })
-    await waitFor(() => expect(pushMock).toHaveBeenCalledWith('/customer'))
+    await waitFor(() => expect(hardNavigate).toHaveBeenCalledWith('/'))
+    // Regression guard (plan 025): a client push after the session changed
+    // replays the router cache collected before sign-in (a guest visit of a
+    // protected page stays cached as its `/login` redirect).
+    expect(pushMock).not.toHaveBeenCalled()
     expect(axiosMock.get).toHaveBeenCalledWith('/api/v1/site/me/setup-progress')
     expect(JSON.parse(localStorage.getItem('prayer365.setupProgress.u1') ?? '{}')).toMatchObject({
       completed: true,
@@ -76,10 +84,10 @@ describe('Customer sign-in (W01)', () => {
     renderPage()
     await fillAndSubmit('maria@example.com')
 
-    await waitFor(() => expect(pushMock).toHaveBeenCalledWith('/customer/setup'))
+    await waitFor(() => expect(hardNavigate).toHaveBeenCalledWith('/customer/setup'))
   })
 
-  it('goes to /customer without asking again when this browser already asked', async () => {
+  it('goes to the home page without asking again when this browser already asked', async () => {
     localStorage.setItem(
       'prayer365.setupProgress.u1',
       JSON.stringify({ churchStepDone: false, localeStepDone: false, completed: false }),
@@ -87,16 +95,16 @@ describe('Customer sign-in (W01)', () => {
     renderPage()
     await fillAndSubmit('maria@example.com')
 
-    await waitFor(() => expect(pushMock).toHaveBeenCalledWith('/customer'))
+    await waitFor(() => expect(hardNavigate).toHaveBeenCalledWith('/'))
     expect(axiosMock.get).not.toHaveBeenCalled()
   })
 
-  it('falls back to /customer when progress cannot be read', async () => {
+  it('falls back to the home page when progress cannot be read', async () => {
     axiosMock.get.mockRejectedValue(new Error('network down'))
     renderPage()
     await fillAndSubmit('maria@example.com')
 
-    await waitFor(() => expect(pushMock).toHaveBeenCalledWith('/customer'))
+    await waitFor(() => expect(hardNavigate).toHaveBeenCalledWith('/'))
   })
 
   it('requires both fields before calling sign-in', async () => {
@@ -129,7 +137,7 @@ describe('Customer sign-in (W01)', () => {
     expect(screen.getByLabelText(en.signInPasswordLabel)).toHaveProperty('disabled', true)
 
     resolve({ error: undefined })
-    await waitFor(() => expect(pushMock).toHaveBeenCalledWith('/customer'))
+    await waitFor(() => expect(hardNavigate).toHaveBeenCalledWith('/'))
   })
 
   it('sends an unverified customer to the verify page', async () => {

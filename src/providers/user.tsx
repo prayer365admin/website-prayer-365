@@ -5,12 +5,24 @@ import { RoleType } from '@prisma/client'
 import { db } from '@/utils/db-connection'
 import keywordSearch from '@/utils/keyword-search'
 import { Prisma } from '@prisma/client'
-import { CUSTOMER_ROLE, isCustomerRole } from '@/utils/customer-role'
+import { CUSTOMER_ACCOUNT_FILTER, CUSTOMER_ROLE, isCustomerRole } from '@/utils/customer-role'
+import { ADMINISTRATOR_ROLE } from '@/utils/constant'
+import { S3_PUBLIC_URL } from '@/providers/s3'
 
 const data = 'user'
 
 // Never return the password hash from any read/write that surfaces a DTO.
 const SAFE = { password: true }
+
+/** Public fellowship total: active customer accounts only, never staff or deleted users. */
+export const COUNT_ACTIVE_CUSTOMERS = (): Promise<number> =>
+  db.user.count({
+    where: {
+      deleted_at: null,
+      status: 'active',
+      ...CUSTOMER_ACCOUNT_FILTER,
+    },
+  })
 
 /**
  * Staff list: users with a staff role (not the `prayer_user` customer role, R-02).
@@ -23,12 +35,20 @@ export const GET_USERS = async ({
   order_direction,
   search,
   role,
-}: GeneralQueryParams & { role?: string }) => {
+  status,
+  pastorLinked,
+}: GeneralQueryParams & { role?: string; status?: string; pastorLinked?: boolean }) => {
   const offset = page && limit && (page - 1) * limit
 
   const filter: Prisma.UserWhereInput = {
     role: { is: { name: { not: CUSTOMER_ROLE } } },
     ...(role ? { role_id: role } : {}),
+    ...(pastorLinked ? { pastors: { some: { deleted_at: null } } } : {}),
+    ...(status === 'active'
+      ? { status: 'active', deleted_at: null }
+      : status === 'inactive'
+        ? { NOT: { status: 'active', deleted_at: null } }
+        : {}),
     ...(search && {
       OR: [
         ...keywordSearch({ keyword: search, name: 'name' }),
@@ -47,11 +67,30 @@ export const GET_USERS = async ({
         ...(order_by && order_direction ? { [order_by]: order_direction } : { created_at: 'desc' }),
       },
       omit: SAFE,
-      include: { role: { include: { permission: true } } },
+      include: {
+        role: { include: { permission: true } },
+        profile_asset: { select: { object_key: true, purpose: true, status: true } },
+        roleAssignments: {
+          where: { revoked_at: null },
+          include: { org_node: { select: { kind: true, name: true } } },
+          take: 1,
+          orderBy: { created_at: 'asc' },
+        },
+      },
     }),
   ])
 
-  return { result, total }
+  const mapped = result.map((row) => ({
+    ...row,
+    role_assignments: row.roleAssignments,
+    avatarUrl:
+      row.profile_asset?.purpose === 'USER_AVATAR' && row.profile_asset.status === 'READY'
+        ? S3_PUBLIC_URL({ key: row.profile_asset.object_key })
+        : null,
+    profile_asset: undefined,
+  }))
+
+  return { result: mapped, total }
 }
 
 /** Customer list: no role (legacy) or the `prayer_user` customer role (R-01/R-02). */
@@ -234,6 +273,8 @@ export const CREATE_USER = async (payload: {
   password: string
   email_verified_at?: Date | null
   role_id?: string | null
+  profile_picture?: string | null
+  profile_asset_id?: string | null
 }) => {
   const { role_id, ...rest } = payload
   const result = await db.user.create({
@@ -297,9 +338,11 @@ export const UPDATE_USER = async ({
   user_id: string
   payload: {
     name?: string
+    email?: string
     password?: string
     email_verified_at?: Date | null
     profile_picture?: string | null
+    profile_asset_id?: string | null
     role_id?: string | null
   }
 }) => {
@@ -310,6 +353,30 @@ export const UPDATE_USER = async ({
     omit: SAFE,
   })
   return result
+}
+
+/** Stamp how and when a user last signed in (call only on a successful sign-in). */
+export const RECORD_LOGIN = async ({ user_id, provider }: { user_id: string; provider: string }) =>
+  db.user.update({
+    where: { id: user_id },
+    data: { last_login_provider: provider, last_active_at: new Date() },
+    omit: SAFE,
+  })
+
+const TOUCH_INTERVAL_MS = 5 * 60 * 1000
+const lastTouched = new Map<string, number>()
+
+/**
+ * Throttled activity stamp: at most one write per user per interval per process.
+ * Fire-and-forget — an activity stamp must never fail an authorized request.
+ */
+export const TOUCH_LAST_ACTIVE = async ({ user_id }: { user_id: string }) => {
+  const now = Date.now()
+  if (now - (lastTouched.get(user_id) ?? 0) < TOUCH_INTERVAL_MS) return
+  lastTouched.set(user_id, now)
+  await db.user
+    .update({ where: { id: user_id }, data: { last_active_at: new Date() } })
+    .catch(() => {})
 }
 
 /**
@@ -355,11 +422,43 @@ export const DELETE_USER = async ({ user_id }: { user_id: string }) => {
 }
 
 /** D1: bump `auth_version` on password change / account disable → invalidates all outstanding tokens. */
-export const INCREMENT_AUTH_VERSION = async ({ user_id }: { user_id: string }) => {
-  const result = await db.user.update({
+export const INCREMENT_AUTH_VERSION = async (
+  { user_id }: { user_id: string },
+  tx: Prisma.TransactionClient = db,
+) => {
+  const result = await tx.user.update({
     data: { auth_version: { increment: 1 } },
     where: { id: user_id },
     select: { id: true, auth_version: true },
   })
   return result
 }
+
+/**
+ * Soft delete (plan 023): status inactive + deleted_at keeps the row (history,
+ * foreign keys) while both guards and login refuse a non-active account.
+ */
+export const DEACTIVATE_USER = async (
+  { user_id }: { user_id: string },
+  tx: Prisma.TransactionClient = db,
+) =>
+  tx.user.update({
+    where: { id: user_id },
+    data: { status: 'inactive', deleted_at: new Date() },
+    omit: SAFE,
+  })
+
+/** Other ACTIVE accounts bound to the super-admin role (last-admin guard). */
+export const COUNT_ACTIVE_ADMINS = async ({
+  excludeUserId,
+}: {
+  excludeUserId: string
+}): Promise<number> =>
+  db.user.count({
+    where: {
+      id: { not: excludeUserId },
+      deleted_at: null,
+      status: 'active',
+      role: { is: { name: ADMINISTRATOR_ROLE } },
+    },
+  })

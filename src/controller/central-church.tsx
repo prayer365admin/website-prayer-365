@@ -1,13 +1,24 @@
 import { ChurchStatus } from '@prisma/client'
-import { ChurchCreate, ChurchSummary, ChurchUpdate } from '@/models/central-church'
 import {
+  ChurchCreate,
+  ChurchDetail,
+  ChurchSummary,
+  ChurchPurge,
+  ChurchUpdate,
+} from '@/models/central-church'
+import {
+  COUNT_CHURCH_DEPENDENTS,
   CREATE_CHURCH,
   CREATE_ORG_NODE,
+  DELETE_CHURCH_ROW,
+  DELETE_ORG_NODE_ROW,
   GET_CHURCHES,
   GET_CHURCH_BY_ID,
   GET_ORG_NODE_BY_ID,
+  GET_ORG_NODE_MAP,
   UPDATE_CHURCH,
   UPDATE_CHURCH_STATUS,
+  churchOrgPath,
 } from '@/providers/central-church'
 import { auditPayload } from '@/utils/audit'
 import { dbTransaction } from '@/utils/db-transaction'
@@ -17,6 +28,8 @@ import { GeneralError } from '@/utils/general-error'
  * Central church business logic (SPEC §8.3 / Tasks 17-18). Creation writes an
  * OrgNode (CHURCH) + a PENDING Church in ONE transaction. Lifecycle approve /
  * suspend / archive carry a version, are audited, and never hard-delete.
+ * `purgeChurch` is the single exception (plan 020 D-A): a PENDING church with
+ * zero dependent rows only.
  */
 
 const notFound = (error_code = 'CHURCH_NOT_FOUND') =>
@@ -47,7 +60,28 @@ export const listChurches = async ({
 export const getChurch = async ({ churchId }: { churchId: string }) => {
   const church = await GET_CHURCH_BY_ID({ churchId })
   if (!church) throw notFound()
-  return church
+  const nodes = await GET_ORG_NODE_MAP()
+  const path = churchOrgPath(nodes, church.org_node_id)
+  const detail: ChurchDetail = {
+    id: church.id,
+    orgNodeId: church.org_node_id,
+    name: church.name,
+    status: church.status,
+    timezone: church.timezone,
+    description: church.description,
+    denomination: church.denomination,
+    church_style: church.church_style,
+    latitude: church.latitude === null ? null : Number(church.latitude),
+    longitude: church.longitude === null ? null : Number(church.longitude),
+    sunday_live_stream: church.sunday_live_stream,
+    taize_chants: church.taize_chants,
+    youth_ministry: church.youth_ministry,
+    ...path,
+    approvedAt: church.approved_at?.toISOString() ?? null,
+    version: church.version,
+    createdAt: church.created_at.toISOString(),
+  }
+  return detail
 }
 
 export const createChurch = async ({
@@ -268,6 +302,41 @@ export const suspendChurch = async ({
   })
   return updated
 }
+export const unsuspendChurch = async ({
+  churchId,
+  version,
+  actorId,
+  requestId,
+}: {
+  churchId: string
+  version: number
+  actorId: string
+  requestId: string
+}) => {
+  const church = await GET_CHURCH_BY_ID({ churchId })
+  if (!church) throw notFound()
+  if (version !== church.version) throw stale()
+  fromStatuses(churchId, church.status, ['SUSPENDED'], 'APPROVED')
+
+  const updated = await dbTransaction(async (tx) => {
+    const row = await UPDATE_CHURCH_STATUS(
+      { churchId, status: 'APPROVED', approvedBy: actorId, approvedAt: new Date() },
+      tx,
+    )
+    await tx.auditLog.create({
+      data: auditPayload({
+        actorId,
+        action: 'church.unsuspend',
+        resourceType: 'church',
+        resourceId: churchId,
+        outcome: 'success',
+        requestId,
+      }),
+    })
+    return row
+  })
+  return updated
+}
 
 export const archiveChurch = async ({
   churchId,
@@ -307,4 +376,82 @@ export const archiveChurch = async ({
     return row
   })
   return updated
+}
+
+/**
+ * Hard delete (purge) — the only destructive path for a church (plan 020 D-A).
+ *
+ * Guards run in this order, cheapest and most explicit first:
+ *   1. not found           → 404 CHURCH_NOT_FOUND
+ *   2. version mismatch    → 409 STALE_VERSION
+ *   3. not PENDING         → 409 INVALID_TRANSITION (archive instead)
+ *   4. name mismatch       → 422 CONFIRMATION_MISMATCH
+ *   5. any dependents      → 409 CHURCH_HAS_CONTENT (counts in `fields`)
+ *
+ * Deleting the Church row and its OrgNode happens in one transaction, so a
+ * failure never leaves an orphan node behind. `church.purge` is audited.
+ */
+export const purgeChurch = async ({
+  churchId,
+  payload,
+  actorId,
+  requestId,
+}: {
+  churchId: string
+  payload: ChurchPurge
+  actorId: string
+  requestId: string
+}) => {
+  const church = await GET_CHURCH_BY_ID({ churchId })
+  if (!church) throw notFound()
+  if (payload.version !== church.version) throw stale()
+
+  if (church.status !== 'PENDING') {
+    throw new GeneralError({
+      code: 409,
+      error: 'CONFLICT',
+      error_code: 'INVALID_TRANSITION',
+      details: 'Only a pending church can be deleted. Archive this church instead.',
+    })
+  }
+
+  if (payload.confirmName.trim() !== church.name.trim()) {
+    throw new GeneralError({
+      code: 422,
+      error: 'VALIDATION_ERROR',
+      error_code: 'CONFIRMATION_MISMATCH',
+      details: 'Type the church name exactly as shown to confirm deletion.',
+    })
+  }
+
+  const dependents = await COUNT_CHURCH_DEPENDENTS({
+    churchId,
+    orgNodeId: church.org_node_id,
+  })
+  const blockers = Object.entries(dependents).filter(([, count]) => count > 0)
+  if (blockers.length > 0) {
+    throw new GeneralError({
+      code: 409,
+      error: 'CONFLICT',
+      error_code: 'CHURCH_HAS_CONTENT',
+      details:
+        'This church still has related records, so it cannot be deleted. Archive it instead.',
+      fields: Object.fromEntries(blockers.map(([key, count]) => [key, String(count)])),
+    })
+  }
+
+  await dbTransaction(async (tx) => {
+    await DELETE_CHURCH_ROW({ churchId }, tx)
+    await DELETE_ORG_NODE_ROW({ orgNodeId: church.org_node_id }, tx)
+    await tx.auditLog.create({
+      data: auditPayload({
+        actorId,
+        action: 'church.purge',
+        resourceType: 'church',
+        resourceId: churchId,
+        outcome: 'success',
+        requestId,
+      }),
+    })
+  })
 }
