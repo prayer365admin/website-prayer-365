@@ -43,6 +43,10 @@ type PastorListOptions = Pick<
   orderBy?: 'name' | 'introduction' | 'staff_account' | 'churches'
   assignment?: 'assigned' | 'unassigned'
   staffAssignment?: 'assigned' | 'unassigned'
+  /** Exact church filter: pastors assigned to this church. */
+  churchId?: string
+  /** Exact staff-account filter: pastors linked to this user. */
+  userId?: string
 }
 
 type StaffOption = {
@@ -115,6 +119,8 @@ export const usePastors = ({
   orderBy = 'name',
   assignment,
   staffAssignment,
+  churchId,
+  userId: accountId,
 }: PastorListOptions = {}) => {
   const { data: session } = useSession()
   const userId = session?.user.user_id
@@ -124,7 +130,17 @@ export const usePastors = ({
   const query = useQuery({
     queryKey: [
       ...pastorKeys.lists(userId),
-      { search, limit, page, orderDirection, orderBy, assignment, staffAssignment },
+      {
+        search,
+        limit,
+        page,
+        orderDirection,
+        orderBy,
+        assignment,
+        staffAssignment,
+        churchId,
+        accountId,
+      },
     ],
     queryFn: async () => {
       const params = new URLSearchParams({
@@ -136,6 +152,8 @@ export const usePastors = ({
       if (search?.trim()) params.set('search', search.trim())
       if (assignment) params.set('assignment', assignment)
       if (staffAssignment) params.set('staff_assignment', staffAssignment)
+      if (churchId) params.set('church_id', churchId)
+      if (accountId) params.set('user_id', accountId)
 
       const response = await axios.get(centralPastorsUrl, { params })
       return {
@@ -286,11 +304,14 @@ export const usePastor = (pastorId: string) => {
   }
 }
 
-export const usePastorStaffOptions = (enableFetch = true) => {
+export const usePastorStaffOptions = (
+  enableFetch = true,
+  { pastorLinked = false }: { pastorLinked?: boolean } = {},
+) => {
   const { data: session } = useSession()
 
   return useQuery({
-    queryKey: ['central', 'pastor-staff-options', session?.user.user_id],
+    queryKey: ['central', 'pastor-staff-options', session?.user.user_id, { pastorLinked }],
     queryFn: async () => {
       const response = await axios.get('/api/v1/users', {
         params: {
@@ -298,6 +319,7 @@ export const usePastorStaffOptions = (enableFetch = true) => {
           limit: 100,
           order_by: 'name',
           order_direction: 'asc',
+          ...(pastorLinked ? { pastor_linked: 'true' } : {}),
         },
       })
       return response.data.result as StaffOption[]

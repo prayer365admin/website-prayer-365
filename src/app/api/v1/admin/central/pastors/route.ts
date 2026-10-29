@@ -46,13 +46,11 @@ export async function GET(req: NextRequest) {
       order_by: q.order_by as 'name' | 'introduction' | 'staff_account' | 'churches',
       search: q.search,
       assignment: req.nextUrl.searchParams.get('assignment') as
-        | 'assigned'
-        | 'unassigned'
-        | undefined,
+        'assigned' | 'unassigned' | undefined,
       staff_assignment: req.nextUrl.searchParams.get('staff_assignment') as
-        | 'assigned'
-        | 'unassigned'
-        | undefined,
+        'assigned' | 'unassigned' | undefined,
+      church_id: req.nextUrl.searchParams.get('church_id') ?? undefined,
+      user_id: req.nextUrl.searchParams.get('user_id') ?? undefined,
     })
     return list(data.result, data.total, q.page, q.limit, 'Successfully fetched pastors')
   } catch (e) {

@@ -88,7 +88,19 @@ describe('GET /api/v1/users', () => {
       order_by: 'created_at',
       order_direction: 'asc',
       search: 'jo',
+      role: undefined,
+      status: undefined,
+      pastorLinked: false,
     })
+  })
+
+  it('passes the pastor-linked filter through to the provider', async () => {
+    vi.mocked(requiredAuth).mockResolvedValue(makeAuth(true) as never)
+    vi.mocked(GET_USERS).mockResolvedValue({ result: [], total: 0 } as never)
+
+    await GET(new NextRequest('http://localhost/api/v1/users?pastor_linked=true'))
+
+    expect(GET_USERS).toHaveBeenCalledWith(expect.objectContaining({ pastorLinked: true }))
   })
 
   it('caps page size without capping the page number and rejects unsafe sort fields', async () => {
