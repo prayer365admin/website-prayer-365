@@ -584,6 +584,19 @@ export const SITE_MESSAGES = {
     donateResultNextStepsBody:
       'Stripe emails the receipt for this payment. Estonian tax-deductible statements are issued each January.',
     donateResultTryAgain: 'Try again',
+    // --- WB4b return page (universal-link / no-app fallback) ---
+    donateReturnSuccessTitle: 'Thank you — your gift is being confirmed',
+    donateReturnSuccessBody:
+      'Open the Prayer365 app to see the result. The gift is confirmed in our own records, not on this page.',
+    donateReturnCancelTitle: 'Payment cancelled',
+    donateReturnCancelBody: 'You cancelled before paying, so nothing was charged.',
+    donateReturnDefaultTitle: 'Back to Prayer365',
+    donateReturnDefaultBody:
+      'If you were in the middle of a gift, open the Prayer365 app to see the result.',
+    donateReturnCannotConfirm:
+      'This page cannot change or confirm a payment — the app reads the result from our records.',
+    donateReturnBackToDonate: 'Back to giving',
+    donateReturnBrowseChurches: 'Browse churches',
     prayerArchiveRequest: 'Request Pastoral Intercession',
     prayerArchiveBannerTitle:
       'Ecumenical Lectionary Cycle: Year B · Season of Ordinary Time & Pentecost',
@@ -1233,6 +1246,19 @@ export const SITE_MESSAGES = {
     donateResultNextStepsBody:
       'Stripe saadab selle makse kviitungi e-postiga. Eesti maksuvabastuskviitungid väljastatakse igal jaanuaril.',
     donateResultTryAgain: 'Proovi uuesti',
+    // --- WB4b tagastusleht (universaallink / rakendus puudub) ---
+    donateReturnSuccessTitle: 'Aitäh — sinu annetust kinnitatakse',
+    donateReturnSuccessBody:
+      'Ava Prayer 365 rakendus, et tulemust näha. Annetus kinnitatakse meie enda raamatus, mitte sellel lehel.',
+    donateReturnCancelTitle: 'Makse katkestati',
+    donateReturnCancelBody: 'Katkestasid enne maksmist, seega midagi ei võetud.',
+    donateReturnDefaultTitle: 'Tagasi Prayer 365 juurde',
+    donateReturnDefaultBody:
+      'Kui olid annetust tegemas, ava Prayer 365 rakendus, et tulemust näha.',
+    donateReturnCannotConfirm:
+      'See leht ei saa makset muuta ega kinnitada — rakendus loeb tulemuse meie raamatust.',
+    donateReturnBackToDonate: 'Tagasi annetuste juurde',
+    donateReturnBrowseChurches: 'Vaata kogudusi',
     // --- WB1-PROFILE (routed customer profile) ---
     profileMenuPersonal: 'Isiklik profiil',
     profileMenuAffiliations: 'Koguduse kuuluvus',
@@ -1855,6 +1881,19 @@ export const SITE_MESSAGES = {
     donateResultNextStepsBody:
       'Stripe mailar kvittot för betalningen. Estniska skatteavdragsurdrag utfärdas varje januari.',
     donateResultTryAgain: 'Försök igen',
+    // --- WB4b retursida (universallänk / appen saknas) ---
+    donateReturnSuccessTitle: 'Tack — din gåva bekräftas',
+    donateReturnSuccessBody:
+      'Öppna appen Prayer365 för att se resultatet. Gåvan bekräftas i våra egna register, inte på den här sidan.',
+    donateReturnCancelTitle: 'Betalningen avbröts',
+    donateReturnCancelBody: 'Du avbröt innan betalningen, så inget drogs.',
+    donateReturnDefaultTitle: 'Tillbaka till Prayer365',
+    donateReturnDefaultBody:
+      'Om du höll på med en gåva, öppna appen Prayer365 för att se resultatet.',
+    donateReturnCannotConfirm:
+      'Den här sidan kan inte ändra eller bekräfta en betalning — appen läser resultatet från våra register.',
+    donateReturnBackToDonate: 'Tillbaka till givandet',
+    donateReturnBrowseChurches: 'Bläddra bland församlingar',
     // --- WB1-PROFILE (routed customer profile) ---
     profileMenuPersonal: 'Personlig profil',
     profileMenuAffiliations: 'Kyrkotillhörighet',
@@ -2477,6 +2516,19 @@ export const SITE_MESSAGES = {
     donateResultNextStepsBody:
       'Stripe lähettää kuitin tästä maksusta sähköpostitse. Viron verovähennystodistukset myönnetään joka tammikuu.',
     donateResultTryAgain: 'Yritä uudelleen',
+    // --- WB4b paluusivu (universaalilinkki / sovellus puuttuu) ---
+    donateReturnSuccessTitle: 'Kiitos — lahjaasi vahvistetaan',
+    donateReturnSuccessBody:
+      'Avaa Prayer365-sovellus nähdäksesi tuloksen. Lahja vahvistetaan omassa rekisterissämme, ei tällä sivulla.',
+    donateReturnCancelTitle: 'Maksu peruutettiin',
+    donateReturnCancelBody: 'Peruutit ennen maksua, joten mitään ei veloitettu.',
+    donateReturnDefaultTitle: 'Takaisin Prayer365-palveluun',
+    donateReturnDefaultBody:
+      'Jos olit antamassa lahjaa, avaa Prayer365-sovellus nähdäksesi tuloksen.',
+    donateReturnCannotConfirm:
+      'Tämä sivu ei voi muuttaa tai vahvistaa maksua — sovellus lukee tuloksen rekisteristämme.',
+    donateReturnBackToDonate: 'Takaisin lahjoittamiseen',
+    donateReturnBrowseChurches: 'Selaa seurakuntia',
     // --- WB1-PROFILE (routed customer profile) ---
     profileMenuPersonal: 'Henkilökohtainen profiili',
     profileMenuAffiliations: 'Seurakuntakuuluvuus',

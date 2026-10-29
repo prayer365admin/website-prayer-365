@@ -71,3 +71,22 @@ export type MobileDonationStatusQuery = z.infer<typeof MobileDonationStatusQuery
 export const MobileBillingPortalRequestSchema = z.object({ returnUrl: appReturnUrl }).strict()
 
 export type MobileBillingPortalRequest = z.infer<typeof MobileBillingPortalRequestSchema>
+
+/*
+ * BA-4 read: the caller's own active monthly pledge.
+ *
+ * `GET_MY_ACTIVE_GIFT` selects no frequency — every row it returns is an active
+ * subscription, so the wire contract states `frequency: 'monthly'` explicitly
+ * instead of leaving the client to infer it. `currency` is lower-cased like every
+ * other mobile donation payload. A caller with no live pledge is `result: null`,
+ * not a 404: "no pledge" is the normal answer for most givers.
+ */
+export const MobileActiveDonationSchema = z.object({
+  churchId: z.string(),
+  churchName: z.string(),
+  amountMinor: z.number().int().positive(),
+  currency: z.string().length(3),
+  frequency: z.literal('monthly'),
+})
+
+export type MobileActiveDonation = z.infer<typeof MobileActiveDonationSchema>
