@@ -3,10 +3,16 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { ChurchIcon } from '@/components/icon/church'
-import { CompassIcon } from '@/components/icon/compass'
 import { LayersIcon } from '@/components/icon/layers'
 import { APIProvider, Map, useMap } from '@vis.gl/react-google-maps'
-import { AimOutlined, MinusOutlined, PlusOutlined, SearchOutlined } from '@ant-design/icons'
+import {
+  AimOutlined,
+  CloseOutlined,
+  LoadingOutlined,
+  MinusOutlined,
+  PlusOutlined,
+  SearchOutlined,
+} from '@ant-design/icons'
 import { Button, Input, Typography } from 'antd'
 
 export const GOOGLE_MAPS_API_KEY =
@@ -375,7 +381,7 @@ export function GoogleMapPicker({
   const [query, setQuery] = useState('')
   const [searching, setSearching] = useState(false)
   const [notFound, setNotFound] = useState(false)
-  const [mapZoom, setMapZoom] = useState(latitude != null && longitude != null ? 14 : 11)
+  const [mapZoom, setMapZoom] = useState(latitude != null && longitude != null ? 16 : 11)
   const [mapType, setMapType] = useState<'roadmap' | 'hybrid'>('roadmap')
 
   const hasCoords =
@@ -410,7 +416,7 @@ export function GoogleMapPicker({
         const loc = data.results[0].geometry.location
         const nextPoint = { lat: loc.lat, lng: loc.lng }
         setCenter(nextPoint)
-        setMapZoom(14)
+        setMapZoom(16)
         onChange({ latitude: nextPoint.lat, longitude: nextPoint.lng })
       } else {
         setNotFound(true)
@@ -431,38 +437,55 @@ export function GoogleMapPicker({
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           onPressEnter={() => handleSearch(query)}
-          prefix={<SearchOutlined className="text-neutral-400 mr-1.5 text-sm" />}
-          className="!h-10 !rounded-lg !border-[#64748b] hover:!border-primary-500 focus-within:!border-primary-500 !py-0 !px-3 text-sm flex-1 [&_.ant-input]:!h-full [&_.ant-input]:!border-0 [&_.ant-input]:!p-0 [&_.ant-input]:!shadow-none [&_.ant-input]:!bg-transparent [&_.ant-input-prefix]:!flex [&_.ant-input-prefix]:!items-center"
+          suffix={
+            searching ? (
+              <LoadingOutlined className="text-[#0E203E] text-lg" aria-label="Loading" />
+            ) : (
+              <SearchOutlined
+                className="text-[#0E203E] text-lg cursor-pointer hover:text-[#2F7AD2] transition-colors"
+                onClick={() => handleSearch(query)}
+                role="button"
+                aria-label="Search"
+              />
+            )
+          }
+          className="!h-12 !rounded-lg !border-[#737C8C] hover:!border-primary-500 focus-within:!border-primary-500 !px-4 text-sm text-[#393E46] flex-1 [&_.ant-input]:!h-full [&_.ant-input]:!border-0 [&_.ant-input]:!p-0 [&_.ant-input]:!shadow-none [&_.ant-input]:!bg-transparent [&_.ant-input]:!text-[#393E46] [&_.ant-input::placeholder]:!text-[#737C8C]"
         />
         <Button
-          type="primary"
-          className="!h-10 !rounded-lg px-4 text-xs font-semibold inline-flex items-center justify-center shrink-0"
-          onClick={() => handleSearch(query)}
-          loading={searching}
-        >
-          Find address
-        </Button>
-        <Button
-          className="!h-10 !rounded-lg px-3.5 text-xs font-semibold !border-[#64748b] text-neutral-700 hover:!text-neutral-900 hover:!border-neutral-900 shrink-0"
+          aria-label="Clear"
+          className="!h-12 !rounded-xl !border-[#2F7AD2] !bg-white !text-[#2F7AD2] hover:!text-[#2555A7] hover:!border-[#2555A7] text-base font-semibold px-5 flex items-center justify-center gap-2 shrink-0"
           onClick={() => {
             setQuery('')
             onChange(null)
           }}
         >
-          Clear marker
+          <span>Clear</span>
+          <CloseOutlined className="text-base text-[#2F7AD2]" aria-hidden="true" />
         </Button>
       </div>
       {notFound && <Typography.Text type="warning">Address not found</Typography.Text>}
       {!GOOGLE_MAPS_API_KEY ? (
         <div
-          className="flex h-[320px] w-full items-center justify-center rounded-2xl border border-[#ECEEF0] bg-[#F4F8FA] text-gray-500"
+          className="relative flex h-[488px] lg:h-[544px] w-full items-center justify-center rounded-lg border border-[#DDE0E4] bg-[#F5F7FF] text-gray-500 overflow-hidden"
           aria-label={label}
         >
           Map unavailable
+          {hasCoords && (
+            <div
+              className="pointer-events-none absolute inset-x-0 bottom-0 z-10 flex h-[85px] items-end px-4 pb-4"
+              style={{
+                background: 'linear-gradient(180deg, rgba(255, 255, 255, 0) 0%, #FFFFFF 100%)',
+              }}
+            >
+              <span className="font-['Manrope'] text-sm font-normal text-[#393E46]">
+                {latitude!.toFixed(6)}, {longitude!.toFixed(6)}
+              </span>
+            </div>
+          )}
         </div>
       ) : (
         <div
-          className="relative h-[320px] w-full overflow-hidden rounded-2xl border border-[#ECEEF0] bg-[#F4F8FA] shadow-[0_4px_24px_-4px_rgba(0,92,173,0.12)]"
+          className="relative h-[488px] lg:h-[544px] w-full overflow-hidden rounded-lg border border-[#DDE0E4] bg-[#F5F7FF]"
           aria-label={label}
         >
           <APIProvider apiKey={GOOGLE_MAPS_API_KEY} libraries={['geocoding', 'marker']}>
@@ -474,7 +497,6 @@ export function GoogleMapPicker({
               gestureHandling="greedy"
               disableDefaultUI
               clickableIcons={false}
-              styles={SANCTUARY_MAP_STYLES}
               onClick={(e) => {
                 // SAFETY: Fallback for Google Maps event object structure in react-google-maps wrapper
                 const fallbackLatLng = (
@@ -494,17 +516,7 @@ export function GoogleMapPicker({
             >
               <CameraHandler center={hasCoords ? currentCenter : center} zoom={mapZoom} />
 
-              {/* Top-Left Floating Header Badge matching /churches */}
-              <div className="pointer-events-none absolute left-3.5 top-3.5 z-10">
-                <div className="pointer-events-auto flex items-center gap-2 rounded-full border border-[#ECEEF0] bg-white/90 px-3.5 py-1.5 shadow-sm backdrop-blur-md">
-                  <CompassIcon className="text-[13px] text-[#2F7AD2]" aria-hidden="true" />
-                  <span className="text-[11px] font-bold tracking-wider text-[#414752] uppercase">
-                    {label ? `${label} • ` : ''}SANCTUARY MAP
-                  </span>
-                </div>
-              </div>
-
-              {/* Top-Right Floating Controls matching /churches */}
+              {/* Top-Right Floating Controls matching design */}
               <div className="absolute right-3.5 top-3.5 z-10 flex flex-col items-end gap-2.5">
                 {/* Zoom Controls */}
                 <div className="flex flex-col overflow-hidden rounded-xl border border-[#ECEEF0] bg-white/95 shadow-md backdrop-blur-md">
@@ -560,20 +572,43 @@ export function GoogleMapPicker({
                 </button>
               </div>
 
-              {/* Custom Sanctuary Church Pin matching /churches */}
+              {/* Red GPS Marker Pin */}
               {hasCoords && (
                 <CustomMapMarker position={currentCenter} title={label} zIndex={100}>
-                  <div className="relative flex flex-col items-center pointer-events-auto">
-                    <div className="relative flex h-14 w-14 items-center justify-center">
-                      <div className="absolute h-14 w-14 animate-pulse rounded-full bg-[#005CAD]/30 pointer-events-none" />
-                      <div className="relative flex h-10 w-10 items-center justify-center rounded-full border-2 border-white bg-[#005CAD] text-white shadow-md">
-                        <ChurchIcon centered className="text-[20px] text-white" />
-                      </div>
-                    </div>
+                  <div className="relative flex flex-col items-center pointer-events-auto -translate-y-1/2">
+                    <svg
+                      width="28"
+                      height="36"
+                      viewBox="0 0 28 36"
+                      fill="none"
+                      xmlns="http://www.w3.org/2000/svg"
+                      className="drop-shadow-md"
+                      aria-hidden="true"
+                    >
+                      <path
+                        d="M14 0C6.268 0 0 6.268 0 14c0 10.5 14 22 14 22s14-11.5 14-22c0-7.732-6.268-14-14-14z"
+                        fill="#E64C4C"
+                      />
+                      <circle cx="14" cy="14" r="5" fill="#FFFFFF" />
+                    </svg>
                   </div>
                 </CustomMapMarker>
               )}
             </Map>
+
+            {/* Coordinates Overlay Strip */}
+            {hasCoords && (
+              <div
+                className="pointer-events-none absolute inset-x-0 bottom-0 z-10 flex h-[85px] items-end px-4 pb-4"
+                style={{
+                  background: 'linear-gradient(180deg, rgba(255, 255, 255, 0) 0%, #FFFFFF 100%)',
+                }}
+              >
+                <span className="font-['Manrope'] text-sm font-normal text-[#393E46]">
+                  {latitude!.toFixed(6)}, {longitude!.toFixed(6)}
+                </span>
+              </div>
+            )}
           </APIProvider>
         </div>
       )}

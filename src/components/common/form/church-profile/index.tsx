@@ -59,6 +59,24 @@ interface FormChurchProfileTabsProps {
 }
 
 const LANGUAGE_CODES = ['en', 'et', 'fi']
+const SOCIAL_PLATFORM_OPTIONS = [
+  { value: 'Facebook', label: 'Facebook' },
+  { value: 'Instagram', label: 'Instagram' },
+  { value: 'TikTok', label: 'TikTok' },
+  { value: 'Linkedin', label: 'Linkedin' },
+  { value: 'Twitter', label: 'Twitter' },
+  { value: 'YouTube', label: 'YouTube' },
+]
+
+const NORMALIZE_PLATFORM: Record<string, string> = {
+  FACEBOOK: 'Facebook',
+  INSTAGRAM: 'Instagram',
+  'TIK-TOK': 'TikTok',
+  TIKTOK: 'TikTok',
+  LINKEDIN: 'Linkedin',
+  TWITTER: 'Twitter',
+  YOUTUBE: 'YouTube',
+}
 
 const toRows = (list: ServiceTimeEntry[]) =>
   list.map((st) => ({
@@ -242,7 +260,10 @@ export default function FormChurchProfileTabs({
   }
   const contacts = (initialValues.contacts ?? {}) as { email?: string; phone?: string }
   const socialLinks = Array.isArray(initialValues.socialLinks)
-    ? (initialValues.socialLinks as Array<{ label: string; url: string }>)
+    ? (initialValues.socialLinks as Array<{ label: string; url: string }>).map((s) => ({
+        ...s,
+        label: (s.label ? NORMALIZE_PLATFORM[s.label.toUpperCase()] : undefined) ?? s.label,
+      }))
     : []
 
   const handleSubmit = async () => {
@@ -678,77 +699,118 @@ export default function FormChurchProfileTabs({
       label: 'Location & Contact',
       forceRender: true,
       children: (
-        <div className="border border-[#DDE0E4] rounded-lg p-4 sm:p-6">
-          <Row gutter={24}>
-            <Col span={12}>
+        <div className="border border-[#DDE0E4] rounded-lg p-4">
+          <div className="flex flex-col lg:flex-row gap-4 lg:gap-6">
+            <div className="flex-1 min-w-0 w-full lg:max-w-[560px] flex flex-col gap-4">
               <Form.Item
                 name={['address', 'line1']}
-                label="Address"
+                label={<span className="text-sm font-semibold text-[#393E46]">Address</span>}
                 rules={[{ required: true, message: 'Please input address line' }]}
+                className="!mb-0"
               >
-                <Input placeholder="Church address" />
+                <Input
+                  placeholder="Church address"
+                  className="!h-12 !rounded-lg !border-[#737C8C] !px-4 text-sm text-[#393E46]"
+                />
               </Form.Item>
               <Form.Item
                 name={['address', 'city']}
-                label="City"
+                label={<span className="text-sm font-semibold text-[#393E46]">City</span>}
                 rules={[{ required: true, message: 'Please input city' }]}
+                className="!mb-0"
               >
-                <Input placeholder="Tallinn" />
+                <Input
+                  placeholder="Tallinn"
+                  className="!h-12 !rounded-lg !border-[#737C8C] !px-4 text-sm text-[#393E46]"
+                />
               </Form.Item>
-              <div className="flex gap-4">
-                <Form.Item name={['contacts', 'email']} label="Contact details" className="flex-1">
-                  <Input placeholder="Church email" />
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <Form.Item
+                  name={['contacts', 'email']}
+                  label={
+                    <span className="text-sm font-semibold text-[#393E46]">Email address</span>
+                  }
+                  className="!mb-0"
+                >
+                  <Input
+                    placeholder="Church email"
+                    className="!h-12 !rounded-lg !border-[#737C8C] !px-4 text-sm text-[#393E46]"
+                  />
                 </Form.Item>
-                <Form.Item name={['contacts', 'phone']} label=" " className="flex-1">
-                  <Input placeholder="Telephone" />
+                <Form.Item
+                  name={['contacts', 'phone']}
+                  label={<span className="text-sm font-semibold text-[#393E46]">Phone number</span>}
+                  className="!mb-0"
+                >
+                  <Input
+                    placeholder="Telephone"
+                    className="!h-12 !rounded-lg !border-[#737C8C] !px-4 text-sm text-[#393E46]"
+                  />
                 </Form.Item>
               </div>
-              <Form.Item name={'website'} label="Website">
-                <Input placeholder="https://example.org" />
+              <Form.Item
+                name="website"
+                label={<span className="text-sm font-semibold text-[#393E46]">Website</span>}
+                className="!mb-0"
+              >
+                <Input
+                  placeholder="https://example.org"
+                  className="!h-12 !rounded-lg !border-[#737C8C] !px-4 text-sm text-[#393E46]"
+                />
               </Form.Item>
-            </Col>
-            <Col span={12}>
-              <Form.Item label=" ">
-                <div className="flex flex-col gap-2">
-                  <GoogleMapPicker
-                    label="Church location"
-                    latitude={pickerCoords?.latitude}
-                    longitude={pickerCoords?.longitude}
-                    onChange={(next) => setPickerCoords(next)}
-                  />
-                  {pickerCoords && (
-                    <Typography.Text type="secondary" data-testid="coords-preview">
-                      {pickerCoords.latitude.toFixed(6)}, {pickerCoords.longitude.toFixed(6)}
-                    </Typography.Text>
-                  )}
-                </div>
-              </Form.Item>
-            </Col>
-          </Row>
-          <Form.Item label="Social links (optional)">
-            <Form.List name={'socialLinks'}>
-              {(fields, { add, remove }) => (
-                <>
-                  {fields.map(({ key, name, ...restField }) => (
-                    <div key={key} className="flex gap-2 mb-2">
-                      <Form.Item {...restField} name={[name, 'label']} className="mb-0 w-1/3">
-                        <Input placeholder="Label" />
-                      </Form.Item>
-                      <Form.Item {...restField} name={[name, 'url']} className="mb-0 flex-1">
-                        <Input placeholder="URL" />
-                      </Form.Item>
-                      <Button onClick={() => remove(name)} type="text" danger>
-                        Remove
+              <div className="flex flex-col gap-2">
+                <span className="text-sm font-semibold text-[#393E46]">Social Links</span>
+                <Form.List name="socialLinks">
+                  {(fields, { add, remove }) => (
+                    <div className="flex flex-col gap-2">
+                      {fields.map(({ key, name, ...restField }) => (
+                        <div key={key} className="flex items-center gap-2">
+                          <Form.Item {...restField} name={[name, 'label']} className="!mb-0">
+                            <Select
+                              placeholder="Facebook"
+                              options={SOCIAL_PLATFORM_OPTIONS}
+                              className="!h-12 w-[160px] shrink-0 [&_.ant-select-selector]:!h-12 [&_.ant-select-selector]:!rounded-lg [&_.ant-select-selector]:!border-[#737C8C] [&_.ant-select-selection-item]:!leading-[46px] [&_.ant-select-selection-placeholder]:!leading-[46px] [&_.ant-select-selection-item]:!text-sm [&_.ant-select-selection-item]:!text-[#393E46]"
+                            />
+                          </Form.Item>
+                          <Form.Item {...restField} name={[name, 'url']} className="!mb-0 flex-1">
+                            <Input
+                              placeholder="https://facebook.com/..."
+                              className="!h-12 !rounded-lg !border-[#737C8C] !px-4 text-sm text-[#393E46]"
+                            />
+                          </Form.Item>
+                          <Button
+                            type="primary"
+                            danger
+                            aria-label="Remove social link"
+                            onClick={() => remove(name)}
+                            className="!h-12 !w-12 !p-0 !rounded-xl !bg-[#E64C4C] !border-[#E64C4C] flex items-center justify-center shrink-0 hover:!bg-[#D93838]"
+                          >
+                            <DeleteOutlined className="text-lg text-white" />
+                          </Button>
+                        </div>
+                      ))}
+                      <Button
+                        type="dashed"
+                        onClick={() => add()}
+                        className="!h-[39px] w-full !rounded-md !border-dashed !border-[#B0B6BF] !text-[#5C6370] text-sm font-semibold flex items-center justify-center gap-2 hover:!border-primary-500 hover:!text-primary-500"
+                      >
+                        <span>Add social link</span>
+                        <PlusOutlined className="text-sm text-[#5C6370]" />
                       </Button>
                     </div>
-                  ))}
-                  <Button type="dashed" onClick={() => add()} block>
-                    + Add social link
-                  </Button>
-                </>
-              )}
-            </Form.List>
-          </Form.Item>
+                  )}
+                </Form.List>
+              </div>
+            </div>
+            <div className="w-full lg:w-[542px] flex-none">
+              <GoogleMapPicker
+                label="Church location"
+                latitude={pickerCoords?.latitude}
+                longitude={pickerCoords?.longitude}
+                onChange={(next) => setPickerCoords(next)}
+              />
+            </div>
+          </div>
         </div>
       ),
     },

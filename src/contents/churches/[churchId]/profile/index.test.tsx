@@ -316,7 +316,7 @@ describe('Church Profile Screen', () => {
       await screen.findByLabelText('Address')
       expect(screen.getByLabelText('City')).toBeTruthy()
       expect(screen.getByLabelText('Website')).toBeTruthy()
-      expect(screen.getByText('Social links (optional)')).toBeTruthy()
+      expect(screen.getByText('Social Links')).toBeTruthy()
     })
   })
 

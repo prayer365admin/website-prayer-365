@@ -267,10 +267,7 @@ describe('FormChurchProfileTabs', () => {
     )
     await userEvent.click(screen.getByRole('tab', { name: 'Location & Contact' }))
 
-    expect(screen.getByTestId('coords-preview').textContent).toContain('58.000000, 26.000000')
-
     await user.click(screen.getByText('Find address'))
-    expect(screen.getByTestId('coords-preview').textContent).toContain('59.400000, 24.700000')
 
     await user.click(screen.getByText('Save'))
     await waitFor(() => {
@@ -279,13 +276,37 @@ describe('FormChurchProfileTabs', () => {
     expect(submitSpy.mock.calls[0][0].coordinates).toEqual({ latitude: 59.4, longitude: 24.7 })
 
     await user.click(screen.getByText('Clear marker'))
-    expect(screen.queryByTestId('coords-preview')).toBeNull()
 
     await user.click(screen.getByText('Save'))
     await waitFor(() => {
       expect(submitSpy).toHaveBeenCalledTimes(2)
     })
     expect(submitSpy.mock.calls[1][0].coordinates).toBeNull()
+  })
+
+  it('allows adding and removing social links in Location & Contact tab', async () => {
+    const user = userEvent.setup()
+    const submitSpy = vi.fn().mockResolvedValue({ ...profile, version: 4 })
+
+    renderWithProviders(
+      <FormChurchProfileTabs
+        initialValues={profile as unknown as ChurchProfileOutput}
+        serviceTimes={serviceTimes}
+        churchId="church-1"
+        onSubmit={submitSpy}
+        onSubmitSchedule={vi.fn()}
+      />,
+    )
+    await userEvent.click(screen.getByRole('tab', { name: 'Location & Contact' }))
+
+    // Add social link
+    await user.click(screen.getByText('Add social link'))
+    expect(screen.getByPlaceholderText('https://facebook.com/...')).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Remove social link' })).toBeTruthy()
+
+    // Remove social link
+    await user.click(screen.getByRole('button', { name: 'Remove social link' }))
+    expect(screen.queryByPlaceholderText('https://facebook.com/...')).toBeNull()
   })
 
   it('save with unchanged schedule does not call onSubmitSchedule', async () => {
