@@ -1,6 +1,9 @@
 'use client'
 
+import SiteButton from '@/components/common/button'
 import DashboardMainHeader from '@/components/common/dashboard/main-header'
+import { AudioWavePlayerSkeleton } from '@/components/common/audio-wave-player'
+import { useAccessPermission } from '@/hooks/data/access-permission'
 import { useMediaUpload } from '@/hooks/data/media-upload'
 import {
   useCreateVoiceConsent,
@@ -12,30 +15,34 @@ import {
 } from '@/hooks/data/voice'
 import { VOICE_SAMPLE_MAX_FILES, VoiceProfileListItem } from '@/models/voice'
 import { VOICE_CONSENT_TERMS_VERSION } from '@/utils/constant'
-import { DeleteOutlined, UploadOutlined } from '@ant-design/icons'
-import { Alert, App, Button, Card, Col, Collapse, Result, Row, Select, Upload } from 'antd'
+import {
+  CheckOutlined,
+  CloseOutlined,
+  DeleteOutlined,
+  EditOutlined,
+  ExclamationCircleOutlined,
+  InfoCircleOutlined,
+  UploadOutlined,
+} from '@ant-design/icons'
+import { Alert, App, Button, Drawer, Modal, Result, Select, Upload } from 'antd'
 import axios from 'axios'
-import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { useAccessPermission } from '@/hooks/data/access-permission'
+import { useEffect, useState } from 'react'
 import RecordingTips from './recording-tips'
 import SamplePlayer, { formatDuration } from './sample-player'
 import { RegistrationStateTag, ReviewStateTag, registrationHelp } from './status'
 import VoiceTimeline from './timeline'
+import styles from './my-voice.module.scss'
 
-/** The review queue a non-pastor staff account can actually use (plan 023). */
 const CENTRAL_VOICE_PROFILES = '/dashboard/central/voice-profiles'
-
-/*
- * S27 My Voice (F4VO VO-04). Pastor identity comes from the signed-in account.
- * Only a DRAFT is editable; anything submitted is read-only, and a change after
- * review is a new revision that needs its own approval.
- */
-
 type Sample = { assetId: string; name: string }
 
 const durationHint = (seconds: number) => {
-  if (seconds === 0) return null
+  if (seconds === 0)
+    return {
+      type: 'warning' as const,
+      text: 'Add at least 1 minute long audio for a better result.',
+    }
   if (seconds < 60)
     return { type: 'warning' as const, text: 'Under 1 minute. Add more audio for a better clone.' }
   if (seconds > 180)
@@ -44,6 +51,20 @@ const durationHint = (seconds: number) => {
       text: 'Over 3 minutes. Extra length adds little and can make the clone worse.',
     }
   return { type: 'success' as const, text: 'Good length.' }
+}
+
+const formatDate = (value?: string | null) =>
+  value
+    ? new Intl.DateTimeFormat('en-GB', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
+      }).format(new Date(value))
+    : null
+
+const evidenceFormat = (fileName: string) => {
+  const extension = fileName.split('.').pop()?.toLowerCase()
+  return extension && ['pdf', 'png', 'jpg', 'jpeg'].includes(extension) ? `.${extension}` : 'file'
 }
 
 function SampleList({
@@ -58,23 +79,27 @@ function SampleList({
   onDuration?: (assetId: string, seconds: number) => void
 }) {
   return (
-    <div className="space-y-2">
-      {samples.map((s) => (
-        <div key={s.assetId} className="flex flex-wrap items-center gap-3">
-          <span className="min-w-32">{s.name}</span>
+    <div className={styles.sampleList}>
+      {samples.map((sample) => (
+        <div
+          className={`${styles.sampleRow} ${onRemove ? styles.editableSampleRow : ''}`}
+          key={sample.assetId}
+        >
           <SamplePlayer
-            assetId={s.assetId}
+            assetId={sample.assetId}
             churchId={churchId}
-            label={s.name}
+            label={sample.name}
             onDuration={onDuration}
           />
           {onRemove && (
-            <Button
-              size="small"
-              icon={<DeleteOutlined />}
-              aria-label={`Remove ${s.name}`}
-              onClick={() => onRemove(s.assetId)}
-            />
+            <button
+              aria-label={`Remove ${sample.name}`}
+              className={styles.removeSample}
+              onClick={() => onRemove(sample.assetId)}
+              type="button"
+            >
+              <DeleteOutlined aria-hidden />
+            </button>
           )}
         </div>
       ))}
@@ -87,20 +112,27 @@ function DraftForm({
   churchId,
   replacesProfileId,
   onCancel,
+  onSaved,
+  onSubmitted,
 }: {
   draft: VoiceProfileListItem | null
   churchId: string
   replacesProfileId?: string
-  onCancel?: () => void
+  onCancel: () => void
+  onSaved: () => void
+  onSubmitted: () => void
 }) {
-  const { modal, notification } = App.useApp()
+  const { notification } = App.useApp()
   const [samples, setSamples] = useState<Sample[]>(
-    draft?.samples.map((s, i) => ({ assetId: s.assetId, name: `Sample ${i + 1}` })) ?? [],
+    draft?.samples.map((sample, index) => ({
+      assetId: sample.assetId,
+      name: `Sample ${index + 1}`,
+    })) ?? [],
   )
   const [evidence, setEvidence] = useState<{ assetId: string; name: string } | null>(null)
   const [durations, setDurations] = useState<Record<string, number>>({})
   const [dirty, setDirty] = useState(false)
-
+  const [activeAction, setActiveAction] = useState<'save' | 'submit' | null>(null)
   const { onUpload: uploadSample, loading: sampleUploading } = useMediaUpload({
     churchId,
     purpose: 'VOICE_SAMPLE',
@@ -113,20 +145,21 @@ function DraftForm({
   const { onCreate, loading: createLoading } = useCreateVoiceSubmission()
   const { onPatch, loading: patchLoading } = usePatchVoiceSubmission()
   const { onSubmit, loading: submitLoading } = useSubmitVoiceSubmission()
-  const saving = consentLoading || createLoading || patchLoading || submitLoading
+  const mutationLoading = consentLoading || createLoading || patchLoading || submitLoading
+  const busy = activeAction !== null || mutationLoading
 
   useEffect(() => {
     if (!dirty) return
-    const warn = (e: BeforeUnloadEvent) => e.preventDefault()
+    const warn = (event: BeforeUnloadEvent) => event.preventDefault()
     window.addEventListener('beforeunload', warn)
     return () => window.removeEventListener('beforeunload', warn)
   }, [dirty])
 
-  const totalSeconds = samples.reduce((sum, s) => sum + (durations[s.assetId] ?? 0), 0)
+  const totalSeconds = samples.reduce((sum, sample) => sum + (durations[sample.assetId] ?? 0), 0)
   const hint = durationHint(totalSeconds)
   const missingEvidence = !draft && !evidence
 
-  const save = async (): Promise<VoiceProfileListItem> => {
+  const save = async () => {
     const consentId = evidence
       ? (
           await onCreateConsent({
@@ -135,7 +168,7 @@ function DraftForm({
           })
         ).id
       : undefined
-    const sampleAssetIds = samples.map((s) => s.assetId)
+    const sampleAssetIds = samples.map((sample) => sample.assetId)
     const saved = draft
       ? await onPatch({
           id: draft.id,
@@ -153,20 +186,29 @@ function DraftForm({
     return saved
   }
 
-  const handleSave = () => save().catch(() => undefined)
-
-  const handleSubmit = () =>
-    modal.confirm({
-      title: 'Submit for review?',
-      content:
-        'Submitted samples and authorization cannot be changed. Any later change needs a new submission and a new approval.',
-      okText: 'Submit for review',
-      onOk: async () => {
-        const saved = dirty || !draft ? await save() : draft
-        await onSubmit({ id: saved.id, version: saved.version })
-      },
-    })
-
+  const handleSave = async () => {
+    setActiveAction('save')
+    try {
+      await save()
+      onSaved()
+    } catch {
+      // The mutation hook presents the contextual error notification.
+    } finally {
+      setActiveAction(null)
+    }
+  }
+  const handleSubmit = async () => {
+    setActiveAction('submit')
+    try {
+      const saved = dirty || !draft ? await save() : draft
+      await onSubmit({ id: saved.id, version: saved.version })
+      onSubmitted()
+    } catch {
+      // The mutation hook presents the contextual error notification.
+    } finally {
+      setActiveAction(null)
+    }
+  }
   const uploadRequest =
     (
       upload: (file: File) => Promise<{ assetId: string }>,
@@ -178,209 +220,406 @@ function DraftForm({
       onError,
     }: {
       file: unknown
-      onSuccess?: (b: unknown) => void
-      onError?: (e: Error) => void
+      onSuccess?: (body: unknown) => void
+      onError?: (error: Error) => void
     }) => {
       try {
-        const f = file as File
-        const result = await upload(f)
-        onDone(result.assetId, f.name)
+        const selectedFile = file as File
+        const result = await upload(selectedFile)
+        onDone(result.assetId, selectedFile.name)
         setDirty(true)
         onSuccess?.(result)
-      } catch (e) {
-        if (!axios.isAxiosError(e))
+      } catch (error) {
+        if (!axios.isAxiosError(error))
           notification.error({ title: 'Upload Failed', description: 'Please try another file.' })
-        onError?.(e as Error)
+        onError?.(error as Error)
       }
     }
 
   return (
-    // Samples and authorization are separate steps, so each gets its own inner card.
-    <div className="space-y-4">
-      <Card
-        type="inner"
-        title={
-          <span className="flex items-center gap-2">
-            Voice samples <RecordingTips />
-          </span>
-        }
-      >
-        <SampleList
-          churchId={churchId}
-          samples={samples}
-          onRemove={(assetId) => {
-            setSamples((list) => list.filter((s) => s.assetId !== assetId))
-            setDirty(true)
-          }}
-          onDuration={(assetId, seconds) => setDurations((d) => ({ ...d, [assetId]: seconds }))}
-        />
-        <div className="flex flex-wrap items-center gap-3 mt-3">
-          <Upload
-            accept="audio/*"
-            showUploadList={false}
-            disabled={samples.length >= VOICE_SAMPLE_MAX_FILES || saving}
-            customRequest={uploadRequest(uploadSample, (assetId, name) =>
-              setSamples((list) => [...list, { assetId, name }]),
-            )}
-          >
-            <Button
-              icon={<UploadOutlined />}
-              loading={sampleUploading}
-              disabled={samples.length >= VOICE_SAMPLE_MAX_FILES || saving}
-            >
-              Add audio file
-            </Button>
-          </Upload>
-          <span className="text-gray-500">
-            {samples.length}/{VOICE_SAMPLE_MAX_FILES} files
-            {totalSeconds > 0 && ` · ${formatDuration(totalSeconds)} total`}
-          </span>
-        </div>
-        <p className="text-gray-500 mt-2 mb-0">
-          Use 1–2 minutes of clear prayer-style speech in total. One speaker, no music and minimal
-          echo.
-        </p>
-        {hint && <Alert className="mt-2" type={hint.type} showIcon title={hint.text} />}
-      </Card>
-
-      <Card type="inner" title="Offline authorization evidence">
-        <div className="flex flex-wrap items-center gap-3">
-          <Upload
-            accept="application/pdf,image/jpeg,image/png"
-            showUploadList={false}
-            disabled={saving}
-            customRequest={uploadRequest(uploadEvidence, (assetId, name) =>
-              setEvidence({ assetId, name }),
-            )}
-          >
-            <Button icon={<UploadOutlined />} loading={evidenceUploading} disabled={saving}>
-              {draft || evidence ? 'Replace signed evidence' : 'Choose signed evidence'}
-            </Button>
-          </Upload>
-          <span className="text-gray-500">
-            {evidence?.name ?? (draft ? 'Authorization evidence attached' : 'PDF, JPG or PNG')}
-          </span>
-        </div>
-      </Card>
-
-      <div className="flex flex-wrap gap-3">
-        {onCancel && (
-          <Button onClick={onCancel} disabled={saving}>
-            Cancel
-          </Button>
+    <div className={styles.drawerForm}>
+      <div className={styles.drawerScrollArea}>
+        {replacesProfileId && (
+          <Alert
+            className={styles.revisionNotice}
+            icon={<InfoCircleOutlined />}
+            showIcon
+            title="Your current voice stays active until the new one is approved and ready."
+            type="info"
+          />
         )}
-        <Button
-          onClick={handleSave}
-          loading={saving}
-          disabled={samples.length === 0 || missingEvidence || (!!draft && !dirty)}
-        >
-          Save draft
-        </Button>
-        <Button
-          type="primary"
-          onClick={handleSubmit}
-          disabled={samples.length === 0 || missingEvidence || saving}
-        >
-          Submit for review
-        </Button>
+        <section className={styles.formPanel}>
+          <div className={styles.panelHeading}>
+            <strong>Voice samples</strong>
+            <RecordingTips />
+          </div>
+          <div className={styles.panelBody}>
+            <Alert
+              className={styles.durationAlert}
+              icon={<ExclamationCircleOutlined />}
+              showIcon
+              title={hint.text}
+              type={hint.type}
+            />
+            <SampleList
+              churchId={churchId}
+              samples={samples}
+              onDuration={(assetId, seconds) =>
+                setDurations((current) => ({ ...current, [assetId]: seconds }))
+              }
+              onRemove={(assetId) => {
+                setSamples((current) => current.filter((sample) => sample.assetId !== assetId))
+                setDirty(true)
+              }}
+            />
+            <div className={styles.uploadRow}>
+              <Upload
+                accept="audio/*"
+                customRequest={uploadRequest(uploadSample, (assetId, name) =>
+                  setSamples((current) => [...current, { assetId, name }]),
+                )}
+                disabled={samples.length >= VOICE_SAMPLE_MAX_FILES || busy}
+                showUploadList={false}
+              >
+                <Button
+                  disabled={samples.length >= VOICE_SAMPLE_MAX_FILES || busy}
+                  icon={<UploadOutlined />}
+                  iconPosition="end"
+                  loading={sampleUploading}
+                >
+                  Add audio file
+                </Button>
+              </Upload>
+              <span>
+                {samples.length}/{VOICE_SAMPLE_MAX_FILES} files
+                {totalSeconds > 0 && ` · ${formatDuration(totalSeconds)} total`}
+              </span>
+            </div>
+            <p className={styles.recordingGuidance}>
+              Use 1–2 minutes of clear prayer-style speech in total. One speaker, no music and
+              minimal echo.
+            </p>
+          </div>
+        </section>
+
+        <section className={styles.formPanel}>
+          <div className={styles.panelHeading}>
+            <strong>Offline authorization evidence</strong>
+          </div>
+          <div className={styles.evidenceBody}>
+            {evidence ? (
+              <div className={styles.evidenceFile}>
+                <span className={styles.fileBadge}>{evidenceFormat(evidence.name)}</span>
+                <div>
+                  <div className={styles.fileName}>{evidence.name}</div>
+                  <Upload
+                    accept="application/pdf,image/jpeg,image/png"
+                    customRequest={uploadRequest(uploadEvidence, (assetId, name) =>
+                      setEvidence({ assetId, name }),
+                    )}
+                    disabled={busy}
+                    showUploadList={false}
+                  >
+                    <Button icon={<UploadOutlined />} loading={evidenceUploading}>
+                      Change
+                    </Button>
+                  </Upload>
+                </div>
+              </div>
+            ) : (
+              <Upload
+                accept="application/pdf,image/jpeg,image/png"
+                customRequest={uploadRequest(uploadEvidence, (assetId, name) =>
+                  setEvidence({ assetId, name }),
+                )}
+                disabled={busy}
+                showUploadList={false}
+              >
+                <button className={styles.evidenceUpload} disabled={busy} type="button">
+                  <span className={styles.uploadTile}>
+                    <UploadOutlined aria-hidden />
+                    Upload
+                  </span>
+                  <span>
+                    <strong>{draft ? 'Replace signed evidence' : 'Choose signed evidence'}</strong>
+                    <small>PDF, JPG or PNG</small>
+                  </span>
+                </button>
+              </Upload>
+            )}
+            {draft && !evidence && (
+              <span className={styles.attachedEvidence}>Authorization evidence attached</span>
+            )}
+          </div>
+        </section>
       </div>
-      {(samples.length === 0 || missingEvidence) && (
-        <p className="text-gray-500 m-0">
-          Add at least one voice sample and the signed authorization evidence to continue.
-        </p>
-      )}
+
+      <footer className={styles.drawerFooter}>
+        <SiteButton
+          className={styles.cancelButton}
+          disabled={busy}
+          onClick={onCancel}
+          size="sm"
+          variant="outlined"
+        >
+          Cancel
+        </SiteButton>
+        <div className={styles.primaryActions}>
+          <SiteButton
+            disabled={samples.length === 0 || missingEvidence || (!!draft && !dirty) || busy}
+            icon={
+              <span aria-hidden="true">
+                <EditOutlined />
+              </span>
+            }
+            iconPlacement="end"
+            loading={activeAction === 'save'}
+            onClick={handleSave}
+            size="sm"
+            variant="outlined"
+          >
+            Save draft
+          </SiteButton>
+          <SiteButton
+            disabled={samples.length === 0 || missingEvidence || busy}
+            icon={
+              <span aria-hidden="true">
+                <CheckOutlined />
+              </span>
+            }
+            iconPlacement="end"
+            loading={activeAction === 'submit'}
+            onClick={handleSubmit}
+            size="sm"
+          >
+            Submit for review
+          </SiteButton>
+        </div>
+      </footer>
     </div>
   )
 }
 
 function StatusCard({ profile }: { profile: VoiceProfileListItem | null }) {
   return (
-    <Card title="Submission status" className="h-full">
-      <div className="space-y-4">
-        <Card type="inner" title="Current status">
-          {profile ? (
-            <div className="space-y-3">
-              <VoiceTimeline profile={profile} />
-              {profile.reviewState === 'REJECTED' && profile.reviewReason && (
-                <Alert
-                  type="error"
-                  showIcon
-                  title="Rejected by the reviewer"
-                  description={profile.reviewReason}
-                />
-              )}
-              {profile.reviewState === 'APPROVED' && (
-                <p className="m-0">
-                  {registrationHelp(profile.registrationState, profile.lastErrorCode)}
-                </p>
-              )}
-            </div>
-          ) : (
-            <p className="text-gray-500 m-0">Nothing submitted yet.</p>
-          )}
-        </Card>
-        <Card type="inner" title="What happens next">
-          <div className="richtext">
+    <aside className={styles.statusCard}>
+      <h2>Submission status</h2>
+      <div className={styles.statusContent}>
+        {profile ? (
+          <>
+            <VoiceTimeline profile={profile} />
+            {profile.reviewState === 'REJECTED' && profile.reviewReason && (
+              <Alert
+                description={profile.reviewReason}
+                showIcon
+                title="Rejected by the reviewer"
+                type="error"
+              />
+            )}
+            {profile.reviewState === 'APPROVED' && profile.registrationState === 'READY' && (
+              <Alert
+                className={styles.readyAlert}
+                showIcon
+                title="This voice can now be used for prayer audio"
+                type="success"
+              />
+            )}
+            {profile.reviewState === 'APPROVED' && profile.registrationState !== 'READY' && (
+              <p className={styles.registrationHelp}>
+                {registrationHelp(profile.registrationState, profile.lastErrorCode)}
+              </p>
+            )}
+          </>
+        ) : (
+          <p className={styles.emptyStatus}>Nothing submitted yet.</p>
+        )}
+        <section className={styles.nextPanel}>
+          <h3>What happens next</h3>
+          <div>
             <p>
               After you submit, an admin reviews your samples and authorization. Approval starts
-              voice registration automatically.
+              voice registration automatically. If rejected, the reason appears here and you can
+              submit a corrected sample.
             </p>
-            <p>If rejected, the reason appears here and you can submit a corrected sample.</p>
             <p>
               If provider verification is required, your voice stays unavailable until that step is
               completed.
             </p>
           </div>
-        </Card>
+        </section>
       </div>
-    </Card>
+    </aside>
   )
 }
 
-function ReadOnlyRevision({ profile }: { profile: VoiceProfileListItem }) {
+function CurrentSubmission({
+  profile,
+  onRevise,
+  actionLabel = 'Start new revision',
+}: {
+  profile: VoiceProfileListItem
+  onRevise?: () => void
+  actionLabel?: string
+}) {
   return (
-    <Card type="inner" title="Submitted samples">
-      <div className="text-gray-500 mb-2">
-        {profile.submittedAt
-          ? `Submitted ${new Date(profile.submittedAt).toLocaleDateString()}`
-          : 'Not submitted'}{' '}
-        · {profile.samples.length} sample{profile.samples.length === 1 ? '' : 's'}
+    <article className={styles.voiceCard}>
+      <header className={styles.profileHeader}>
+        <h2>{profile.pastorName}</h2>
+        <p>
+          {profile.submittedAt && (
+            <>
+              Submitted {formatDate(profile.submittedAt)} <span>•</span>{' '}
+            </>
+          )}
+          {profile.churchName} <span>•</span> Your linked profile
+        </p>
+      </header>
+      <div className={styles.currentSamples}>
+        <SampleList
+          churchId={profile.churchId}
+          samples={profile.samples.map((sample, index) => ({
+            assetId: sample.assetId,
+            name: `Sample ${index + 1}`,
+          }))}
+        />
+        {onRevise && (
+          <SiteButton
+            className={styles.revisionButton}
+            icon={
+              <span aria-hidden className={styles.plusIcon}>
+                +
+              </span>
+            }
+            iconPlacement="end"
+            onClick={onRevise}
+            size="sm"
+            variant="outlined"
+          >
+            {actionLabel}
+          </SiteButton>
+        )}
       </div>
-      <SampleList
-        churchId={profile.churchId}
-        samples={profile.samples.map((s, i) => ({ assetId: s.assetId, name: `Sample ${i + 1}` }))}
-      />
-    </Card>
+    </article>
+  )
+}
+
+function RevisionHistory({ submissions }: { submissions: VoiceProfileListItem[] }) {
+  if (submissions.length <= 1) return null
+  return (
+    <section className={styles.history}>
+      <h2>
+        Earlier revision <span>({submissions.length - 1})</span>
+      </h2>
+      <div className={styles.historyList}>
+        {submissions.slice(1).map((profile) => (
+          <div className={styles.historyItem} key={profile.id}>
+            <div>
+              <span>{formatDate(profile.createdAt)}</span>
+              <ReviewStateTag state={profile.reviewState} />
+              <RegistrationStateTag state={profile.registrationState} />
+            </div>
+            {profile.reviewReason && <p>{profile.reviewReason}</p>}
+          </div>
+        ))}
+      </div>
+    </section>
+  )
+}
+
+function TimelineTrackSkeleton({ rows = 3 }: { rows?: number }) {
+  return (
+    <div className={styles.timelineTrackSkeleton}>
+      <div className={styles.timelineHeaderSkeleton}>
+        <span className={`${styles.skeletonBlock} ${styles.timelineHeaderDotSkeleton}`} />
+        <span className={`${styles.skeletonBlock} ${styles.timelineHeadingSkeleton}`} />
+      </div>
+      <div className={styles.timelineRowsSkeleton}>
+        {Array.from({ length: rows }, (_, index) => (
+          <div className={styles.timelineRowSkeleton} key={index}>
+            <span className={`${styles.skeletonBlock} ${styles.timelineDotSkeleton}`} />
+            <div>
+              <span className={`${styles.skeletonBlock} ${styles.timelineTitleSkeleton}`} />
+              <span className={`${styles.skeletonBlock} ${styles.timelineMetaSkeleton}`} />
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+function MyVoiceContentSkeleton() {
+  return (
+    <div
+      aria-label="Loading My Voice content"
+      aria-live="polite"
+      className={styles.grid}
+      role="status"
+    >
+      <div className={styles.leftColumn}>
+        <article className={styles.voiceCard}>
+          <header className={`${styles.profileHeader} ${styles.profileHeaderSkeleton}`}>
+            <span className={`${styles.skeletonBlock} ${styles.profileNameSkeleton}`} />
+            <span className={`${styles.skeletonBlock} ${styles.profileMetaSkeleton}`} />
+          </header>
+          <div className={styles.currentSamples}>
+            <div className={styles.sampleList}>
+              <AudioWavePlayerSkeleton label="voice sample 1" />
+              <AudioWavePlayerSkeleton label="voice sample 2" />
+            </div>
+            <span className={`${styles.skeletonBlock} ${styles.revisionButtonSkeleton}`} />
+          </div>
+        </article>
+        <section className={styles.history}>
+          <div className={styles.historyHeadingSkeleton}>
+            <span className={`${styles.skeletonBlock} ${styles.historyTitleSkeleton}`} />
+          </div>
+          <div className={styles.historyItemSkeleton}>
+            <span className={`${styles.skeletonBlock} ${styles.historyDateSkeleton}`} />
+            <span className={`${styles.skeletonBlock} ${styles.historyTagSkeleton}`} />
+          </div>
+        </section>
+      </div>
+
+      <aside className={styles.statusCard}>
+        <h2>Submission status</h2>
+        <div className={styles.statusContent}>
+          <TimelineTrackSkeleton rows={4} />
+          <TimelineTrackSkeleton rows={3} />
+          <span className={`${styles.skeletonBlock} ${styles.readyBannerSkeleton}`} />
+          <section className={styles.nextPanel}>
+            <h3>What happens next</h3>
+            <div className={styles.nextCopySkeleton}>
+              <span className={`${styles.skeletonBlock} ${styles.copyLineSkeleton}`} />
+              <span className={`${styles.skeletonBlock} ${styles.copyLineSkeleton}`} />
+              <span className={`${styles.skeletonBlock} ${styles.shortCopyLineSkeleton}`} />
+            </div>
+          </section>
+        </div>
+      </aside>
+    </div>
   )
 }
 
 export default function ContentsMyVoice() {
   const router = useRouter()
   const { data: submissions, loading, error } = useMyVoiceSubmissions()
-  // Pastor's own assignments (church_pastors), not the role-scoped church list:
-  // a pastor has no prayer_church:read.
   const { data: churches, loading: churchesLoading } = useMyVoiceChurches()
   const [startNew, setStartNew] = useState(false)
+  const [drawerDismissed, setDrawerDismissed] = useState(false)
   const [selectedChurchId, setSelectedChurchId] = useState<string>()
-
+  const [submitted, setSubmitted] = useState(false)
   const unlinked =
     axios.isAxiosError(error) &&
     (error.response?.status === 403 || error.response?.data?.error_code === 'UNLINKED_PASTOR')
-  // A platform admin has no pastor row, so this page can never be used by them;
-  // give the review screen as the way forward instead of a bare dead end (plan 023).
-  const permission = useAccessPermission()
-  const canReviewVoices = permission.readAny('prayer_voice_profile').granted
-
+  const canReviewVoices = useAccessPermission().readAny('prayer_voice_profile').granted
   const latest = submissions[0] ?? null
   const draft = latest?.reviewState === 'DRAFT' ? latest : null
-  const editing = !!draft || startNew || (!loading && !latest && !error)
   const canRevise = latest?.reviewState === 'REJECTED' || latest?.reviewState === 'APPROVED'
+  const shouldOpenExisting = !!draft || (!loading && !latest && !error && !!churches?.length)
+  const drawerOpen = startNew || (shouldOpenExisting && !drawerDismissed)
   const churchId =
     draft?.churchId ?? selectedChurchId ?? latest?.churchId ?? churches?.[0]?.id ?? ''
-  const churchName =
-    draft?.churchName ?? churches?.find((c) => c.id === churchId)?.name ?? latest?.churchName ?? ''
-  // A new revision after approval replaces the current voice; after rejection it
-  // keeps whatever the rejected one was replacing.
   const replacesProfileId =
     latest?.reviewState === 'APPROVED' ? latest.id : (latest?.replacesProfileId ?? undefined)
 
@@ -401,107 +640,147 @@ export default function ContentsMyVoice() {
     )
 
   return (
-    <>
-      <DashboardMainHeader title="My Voice" description="Submit your sample for admin approval." />
-
-      {error && !unlinked && (
+    <section className={styles.page}>
+      <DashboardMainHeader description="Submit your sample for admin approval." title="My Voice" />
+      {error && (
         <Alert
-          className="mb-4"
-          type="error"
+          className={styles.loadError}
+          description="Refresh the page or try again shortly."
           showIcon
           title="Your voice submissions could not be loaded"
-          description="Refresh the page or try again shortly."
+          type="error"
         />
       )}
-
-      <Row gutter={[16, 16]}>
-        <Col xs={24} lg={15} className="flex flex-col gap-4">
-          <Col>
-            <Card loading={loading}>
-              <div className="mb-4">
-                <div className="text-lg font-semibold">{latest?.pastorName ?? 'Your voice'}</div>
-                {editing && !draft && (churches?.length ?? 0) > 1 ? (
-                  <Select
-                    className="w-64 mt-1"
-                    aria-label="Church"
-                    value={churchId || undefined}
-                    onChange={setSelectedChurchId}
-                    options={churches?.map((c) => ({ label: c.name, value: c.id }))}
-                  />
-                ) : (
-                  <div className="text-gray-500">{churchName} · Your linked profile</div>
-                )}
-              </div>
-
-              {editing && churchId ? (
-                <>
-                  {startNew && latest?.reviewState === 'APPROVED' && (
-                    <Alert
-                      className="mb-4"
-                      type="info"
-                      showIcon
-                      title="Your current voice stays active until the new one is approved and ready."
-                    />
-                  )}
-                  <DraftForm
-                    key={draft ? `${draft.id}:${draft.version}` : `new:${churchId}`}
-                    draft={draft}
-                    churchId={churchId}
-                    replacesProfileId={draft ? undefined : replacesProfileId}
-                    onCancel={startNew && !draft ? () => setStartNew(false) : undefined}
-                  />
-                </>
-              ) : editing && !churchesLoading ? (
-                <Alert
-                  type="warning"
-                  showIcon
-                  title="You are not assigned as a pastor of any church yet"
-                  description="Ask a central administrator to assign your pastor profile to a church before submitting a voice."
-                />
-              ) : latest ? (
-                <>
-                  <ReadOnlyRevision profile={latest} />
-                  {canRevise && (
-                    <Button className="mt-4" onClick={() => setStartNew(true)}>
-                      Start new revision
-                    </Button>
-                  )}
-                </>
-              ) : null}
-            </Card>
-          </Col>
-          {submissions.length > 1 && (
-            <Col className="mt-4">
-              <Collapse
-                defaultActiveKey={['history']}
-                items={[
-                  {
-                    key: 'history',
-                    label: `Earlier revisions (${submissions.length - 1})`,
-                    children: (
-                      <div className="space-y-2">
-                        {submissions.slice(1).map((p) => (
-                          <div key={p.id} className="flex flex-wrap items-center gap-2">
-                            <span>{new Date(p.createdAt).toLocaleDateString()}</span>
-                            <ReviewStateTag state={p.reviewState} />
-                            <RegistrationStateTag state={p.registrationState} />
-                            {p.reviewReason && (
-                              <span className="text-gray-500">{p.reviewReason}</span>
-                            )}
-                          </div>
-                        ))}
-                      </div>
-                    ),
-                  },
-                ]}
+      {!loading && !latest && !churchesLoading && !churches?.length && (
+        <Alert
+          description="Ask a central administrator to assign your pastor profile to a church before submitting a voice."
+          showIcon
+          title="You are not assigned as a pastor of any church yet"
+          type="warning"
+        />
+      )}
+      {loading ? (
+        <MyVoiceContentSkeleton />
+      ) : (
+        <div className={styles.grid}>
+          <div className={styles.leftColumn}>
+            {latest ? (
+              <CurrentSubmission
+                actionLabel={draft ? 'Continue editing draft' : undefined}
+                profile={latest}
+                onRevise={
+                  draft || canRevise
+                    ? () => {
+                        setDrawerDismissed(false)
+                        setStartNew(true)
+                      }
+                    : undefined
+                }
               />
-            </Col>
-          )}
-        </Col>
-        <Col xs={24} lg={9}>
+            ) : (
+              <article className={styles.emptyCard}>
+                <h2>No voice submitted yet</h2>
+                <p>Add a clear voice sample and authorization evidence to begin.</p>
+                {!!churches?.length && (
+                  <SiteButton
+                    onClick={() => {
+                      setDrawerDismissed(false)
+                      setStartNew(true)
+                    }}
+                    size="sm"
+                  >
+                    Add new voice
+                  </SiteButton>
+                )}
+              </article>
+            )}
+            <RevisionHistory submissions={submissions} />
+          </div>
           <StatusCard profile={latest} />
-        </Col>
-      </Row>
-    </>
+        </div>
+      )}
+
+      <Drawer
+        className={styles.voiceDrawer}
+        closeIcon={<CloseOutlined />}
+        destroyOnHidden
+        footer={null}
+        onClose={() => {
+          setDrawerDismissed(true)
+          setStartNew(false)
+        }}
+        open={drawerOpen}
+        placement="right"
+        rootClassName={styles.voiceDrawerRoot}
+        title={
+          <div className={styles.drawerTitle}>
+            <strong>{draft ? 'Edit voice draft' : 'Add new voice'}</strong>
+            <span>Upload new voice samples</span>
+          </div>
+        }
+        size={576}
+      >
+        {churches && churches.length > 1 && !draft && (
+          <Select
+            aria-label="Church"
+            className={styles.churchSelect}
+            onChange={setSelectedChurchId}
+            options={churches.map((church) => ({ label: church.name, value: church.id }))}
+            value={churchId || undefined}
+          />
+        )}
+        {churchId && (
+          <DraftForm
+            churchId={churchId}
+            draft={draft}
+            key={draft ? `${draft.id}:${draft.version}` : `new:${churchId}`}
+            onCancel={() => {
+              setDrawerDismissed(true)
+              setStartNew(false)
+            }}
+            onSaved={() => {
+              setDrawerDismissed(true)
+              setStartNew(false)
+            }}
+            onSubmitted={() => {
+              setDrawerDismissed(true)
+              setStartNew(false)
+              setSubmitted(true)
+            }}
+            replacesProfileId={draft ? undefined : replacesProfileId}
+          />
+        )}
+      </Drawer>
+
+      <Modal
+        centered
+        className={styles.successModal}
+        closable={false}
+        footer={null}
+        onCancel={() => setSubmitted(false)}
+        open={submitted}
+        width={576}
+      >
+        <div className={styles.successContent}>
+          <span className={styles.successIcon}>
+            <CheckOutlined aria-hidden />
+          </span>
+          <h2>Voice submitted for review</h2>
+          <p>Your current voice stays active until the new one is approved and ready.</p>
+          <SiteButton
+            icon={
+              <span aria-hidden="true">
+                <CheckOutlined />
+              </span>
+            }
+            iconPlacement="end"
+            onClick={() => setSubmitted(false)}
+            size="md"
+          >
+            Got it
+          </SiteButton>
+        </div>
+      </Modal>
+    </section>
   )
 }

@@ -50,7 +50,7 @@ next-env.d.ts
 .hermes
 .codex
 # local-only working files (not pushed)
-/.claude/
-/docs/website/design/
-/docs/website/REPORT/
-/docs/admin/SEED-DATA/
+# /.claude/
+# /docs/website/design/
+# /docs/website/REPORT/
+# /docs/admin/SEED-DATA/

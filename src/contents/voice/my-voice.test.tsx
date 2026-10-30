@@ -1,5 +1,5 @@
 import { renderWithProviders } from '@/test/frontend/render'
-import { fireEvent, screen } from '@testing-library/react'
+import { fireEvent, screen, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const voice = vi.hoisted(() => ({
@@ -68,7 +68,21 @@ describe('ContentsMyVoice (S27)', () => {
       data: [{ id: 'ch1', name: 'Example Church' }],
       loading: false,
     })
+    voice.useSubmitVoiceSubmission.mockReturnValue({ onSubmit: vi.fn(), loading: false })
     access.useAccessPermission.mockReturnValue({ readAny: () => ({ granted: false }) })
+  })
+
+  it('shows a structure-matched skeleton instead of an empty-state flash while loading', () => {
+    voice.useMyVoiceSubmissions.mockReturnValue({
+      data: [],
+      total: 0,
+      loading: true,
+      error: null,
+    })
+    renderWithProviders(<ContentsMyVoice />)
+
+    expect(screen.getByRole('status', { name: 'Loading My Voice content' })).toBeTruthy()
+    expect(screen.queryByText('No voice submitted yet')).toBeNull()
   })
 
   it('explains when the pastor is not assigned to any church (no form)', () => {
@@ -134,6 +148,30 @@ describe('ContentsMyVoice (S27)', () => {
       'disabled',
       false,
     )
+  })
+
+  it('shows submit loading, locks the other actions, then closes the drawer and confirms success', async () => {
+    let resolveSubmit: (value: unknown) => void = () => undefined
+    const onSubmit = vi.fn(
+      () =>
+        new Promise((resolve) => {
+          resolveSubmit = resolve
+        }),
+    )
+    voice.useSubmitVoiceSubmission.mockReturnValue({ onSubmit, loading: false })
+    list([profile()])
+    renderWithProviders(<ContentsMyVoice />)
+
+    const submitButton = screen.getByRole('button', { name: 'Submit for review' })
+    fireEvent.click(submitButton)
+
+    await waitFor(() => expect(submitButton.getAttribute('aria-busy')).toBe('true'))
+    expect(screen.getByRole('button', { name: 'Cancel' })).toHaveProperty('disabled', true)
+    expect(screen.getByRole('button', { name: 'Save draft' })).toHaveProperty('disabled', true)
+
+    resolveSubmit(profile({ reviewState: 'SUBMITTED' }))
+    expect(await screen.findByText('Voice submitted for review')).toBeTruthy()
+    expect(onSubmit).toHaveBeenCalledWith({ id: 'v1', version: 2 })
   })
 
   it('is read-only once submitted', () => {
