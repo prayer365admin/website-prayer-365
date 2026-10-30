@@ -74,7 +74,7 @@ const pastors = [
   {
     id: 'p1',
     name: 'Pastor John',
-    title: 'Senior Pastor',
+    pastoralRole: 'Senior Pastor',
     imageAssetId: null,
     imageChurchId: 'c1',
   },
@@ -146,7 +146,7 @@ describe('ContentsChurchOverview', () => {
     pushMock.mockReset()
   })
 
-  it('renders hero title, Manage button, and KPI cards with real numbers', async () => {
+  it('renders hero title, Edit profile button, and KPI cards with real numbers', async () => {
     setupMocks()
     const user = userEvent.setup()
     renderWithProviders(<ContentsChurchOverview />)
@@ -154,11 +154,10 @@ describe('ContentsChurchOverview', () => {
     // Hero title
     await screen.findByRole('heading', { level: 1, name: 'Grace Church' })
 
-    // Manage button in hero
-    const manageBtn = screen.getByRole('button', { name: 'Manage' })
-    await user.click(manageBtn)
+    // Edit profile button in hero
+    const editBtn = screen.getByRole('button', { name: 'Edit profile' })
+    await user.click(editBtn)
     expect(pushMock).toHaveBeenCalledWith('/dashboard/churches/c1/profile')
-
     // KPI cards
     expect(screen.getByText('Followers')).toBeTruthy()
     expect(screen.getByText('40')).toBeTruthy()
@@ -177,10 +176,8 @@ describe('ContentsChurchOverview', () => {
     // Today's Prayer card
     await screen.findByText('Pastor John')
     expect(screen.getByText("Today's Prayer")).toBeTruthy()
-    expect(screen.getByText('Model: —')).toBeTruthy()
-    expect(screen.getByText('NUMBERS 6:24-26')).toBeTruthy()
-    expect(screen.getByText('May the Lord be with you always.')).toBeTruthy()
-
+    expect(screen.getByText('Senior Pastor')).toBeTruthy()
+    expect(screen.getByText(/May the Lord be with you always\./)).toBeTruthy()
     // Next Service card
     expect(screen.getByText('Next Service')).toBeTruthy()
     await screen.findByText('Sunday')
@@ -188,7 +185,7 @@ describe('ContentsChurchOverview', () => {
     expect(screen.getByText('Sunday Service')).toBeTruthy()
   })
 
-  it('renders Upcoming events and Announcements with dummy category chip', async () => {
+  it('renders Upcoming events and Announcements correctly', async () => {
     setupMocks()
     renderWithProviders(<ContentsChurchOverview />)
 
@@ -197,10 +194,22 @@ describe('ContentsChurchOverview', () => {
     expect(screen.getByText('Upcoming events')).toBeTruthy()
 
     // Announcements
-    await screen.findByText('Community Gathering')
     expect(screen.getByText('Announcements')).toBeTruthy()
-    expect(screen.getByText('Church notice')).toBeTruthy()
     expect(screen.getByText('Join us this Friday for fellowship.')).toBeTruthy()
+  })
+
+  it('displays empty state messages when data does not exist', async () => {
+    axiosMock.get.mockImplementation(async (url: string) => {
+      if (url.includes('/overview')) return { data: resolveGet(overview) }
+      return { data: resolveGet([]) }
+    })
+    renderWithProviders(<ContentsChurchOverview />)
+
+    await screen.findByText('No cover image uploaded')
+    expect(screen.getByText('No prayers published yet.')).toBeTruthy()
+    expect(screen.getByText('No service times scheduled.')).toBeTruthy()
+    expect(screen.getByText('No upcoming events planned.')).toBeTruthy()
+    expect(screen.getByText('No announcements published yet.')).toBeTruthy()
   })
 
   it('hides recent requests when missing from server payload', async () => {
@@ -224,38 +233,42 @@ describe('ContentsChurchOverview', () => {
     setupMocks(overviewWithRequests)
     const user = userEvent.setup()
     renderWithProviders(<ContentsChurchOverview />)
+
     await screen.findByRole('heading', { level: 1, name: 'Grace Church' })
     await screen.findByText('Pastor John')
     await screen.findByText('Sunday')
     await screen.findByText('Spring Festival')
     await screen.findByText('Community Gathering')
     await screen.findByText('Recent requests')
-    // Open donations CTA
-    const donationBtn = screen.getByRole('button', { name: 'Open donations' })
+
+    // View Donations CTA
+    const donationBtn = screen.getByRole('button', { name: 'View Donations' })
     await user.click(donationBtn)
     expect(pushMock).toHaveBeenCalledWith('/dashboard/churches/c1/donations')
 
-    // Today's prayer "Open"
-    const openPrayerBtn = screen.getByRole('button', { name: 'Open' })
+    // Today's prayer "Open prayer"
+    const openPrayerBtn = screen.getByRole('button', { name: 'Open prayer' })
     await user.click(openPrayerBtn)
     expect(pushMock).toHaveBeenCalledWith('/dashboard/churches/c1/prayers')
 
-    // "View all" buttons
-    const viewAllButtons = screen.getAllByRole('button', { name: 'View all' })
+    // "View schedule" buttons (Next service, Announcements)
+    const scheduleButtons = screen.getAllByRole('button', { name: 'View schedule' })
     // Next service
-    await user.click(viewAllButtons[0])
+    await user.click(scheduleButtons[0])
     expect(pushMock).toHaveBeenCalledWith('/dashboard/churches/c1/profile')
 
+    // "View events" buttons (Upcoming events, Recent requests)
+    const eventsButtons = screen.getAllByRole('button', { name: 'View events' })
     // Upcoming events
-    await user.click(viewAllButtons[1])
+    await user.click(eventsButtons[0])
     expect(pushMock).toHaveBeenCalledWith('/dashboard/churches/c1/events')
 
     // Announcements
-    await user.click(viewAllButtons[2])
+    await user.click(scheduleButtons[1])
     expect(pushMock).toHaveBeenCalledWith('/dashboard/churches/c1/announcements')
 
     // Recent requests
-    await user.click(viewAllButtons[3])
+    await user.click(eventsButtons[1])
     expect(pushMock).toHaveBeenCalledWith('/dashboard/churches/c1/requests')
   })
 })

@@ -1,7 +1,11 @@
 'use client'
 
-import LayoutIcon from '@/components/common/layout-icon'
 import PastorImage from '@/components/common/pastor-image'
+import { ArrowRightTailIcon } from '@/components/icon/arrow-right-tail'
+import { HandHoldingHeartIcon } from '@/components/icon/hand-holding-heart'
+import { HandsPrayingIcon } from '@/components/icon/hands-praying'
+import { PenIcon } from '@/components/icon/pen'
+import { UsersIcon } from '@/components/icon/users'
 import { formatMinorToMajor } from '@/contents/churches/donations/columns'
 import {
   requestClassificationLabel,
@@ -17,26 +21,12 @@ import { usePrayers } from '@/hooks/data/prayer'
 import { useAnnouncements } from '@/hooks/data/announcement'
 import { formatEventStart } from '@/utils/event-datetime'
 import { stripAudioTags } from '@/utils/strip-audio-tags'
-import { BookOutlined, HeartFilled, RightOutlined } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import Link from 'next/link'
 import { useParams, useRouter } from 'next/navigation'
 import { useMemo } from 'react'
 
 const WEEKDAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
-
-/* Figma dummy: fallback service times when none in backend */
-const DUMMY_SERVICES = [
-  { weekday: 6, localTime: '08:00', label: 'Morning Prayer' },
-  { weekday: 6, localTime: '18:00', label: 'Evening Organ Vespers' },
-]
-
-/* Figma dummy: scripture ref not in backend */
-const DUMMY_SCRIPTURE_REF = 'NUMBERS 6:24-26'
-
-/* Figma dummy: fallback prayer body when none in backend */
-const DUMMY_PRAYER_BODY =
-  'The Lord bless you and keep you; the Lord make his face shine on you and be gracious to you; the Lord turn his face toward you and give you peace.'
 
 export default function ContentsChurchOverview() {
   const { churchId } = useParams<{ churchId: string }>()
@@ -81,14 +71,14 @@ export default function ContentsChurchOverview() {
   const aggregates = overviewData?.aggregates
   const requests = overviewData?.requests
 
-  const heroImageUrl = heroMedia?.url || '/images/viimsi-church-indoor.jpeg'
+  const heroImageUrl = heroMedia?.url
 
   const firstPastor = pastors?.[0]
   const latestPrayer = prayers?.[0]
   const prayerRawBody = latestPrayer?.current?.body
   const parsedPrayerBody = prayerRawBody
     ? stripAudioTags(prayerRawBody.replace(/<[^>]*>/g, ''))
-    : DUMMY_PRAYER_BODY
+    : null
 
   const sortedServices = useMemo(() => {
     if (serviceTimes && serviceTimes.length > 0) {
@@ -96,32 +86,37 @@ export default function ContentsChurchOverview() {
         .sort((a, b) => a.weekday - b.weekday || a.localTime.localeCompare(b.localTime))
         .slice(0, 3)
     }
-    return DUMMY_SERVICES
+    return []
   }, [serviceTimes])
 
   return (
     <div className="flex flex-col gap-4">
       {/* 1. Hero banner */}
       <div className="relative h-[320px] w-full overflow-hidden rounded-2xl bg-neutral-900 shadow-[0px_1px_2px_rgba(0,0,0,0.05)]">
-        {/* Background image */}
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          src={heroImageUrl}
-          alt={churchName}
-          className="absolute inset-0 h-full w-full rounded-2xl object-cover"
-        />
+        {heroImageUrl ? (
+          /* eslint-disable-next-line @next/next/no-img-element */
+          <img
+            src={heroImageUrl}
+            alt={churchName}
+            className="absolute inset-0 h-full w-full rounded-2xl object-cover"
+          />
+        ) : (
+          <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-[#1E293B] to-[#0F172A] text-xs text-white/40">
+            No cover image uploaded
+          </div>
+        )}
         {/* Gradient overlay */}
-        <div className="absolute inset-x-0 bottom-0 flex items-end justify-between bg-gradient-to-b from-transparent to-black/75 px-4 pb-4 pt-10">
+        <div className="absolute inset-x-0 bottom-0 flex flex-col items-start gap-3 bg-gradient-to-b from-transparent to-black/75 px-4 pb-4 pt-10 sm:flex-row sm:items-end sm:justify-between sm:gap-4">
           <h1 className="m-0 text-2xl font-semibold leading-[100%] tracking-[-1px] text-white">
             {churchName}
           </h1>
           <button
             type="button"
             onClick={() => router.push(`/dashboard/churches/${churchId}/profile`)}
-            className="flex h-12 cursor-pointer items-center gap-2 rounded-xl bg-white px-6 text-base font-semibold text-[#0E203E] hover:bg-neutral-100"
+            className="flex h-10 shrink-0 cursor-pointer items-center gap-2 whitespace-nowrap rounded-xl bg-white px-4 text-sm font-semibold text-[#0E203E] hover:bg-neutral-100"
           >
-            <span>Manage</span>
-            <RightOutlined aria-hidden="true" className="text-[14px] text-[#0E203E]" />
+            <PenIcon aria-hidden="true" className="text-[14px] text-[#0E203E]" />
+            <span>Edit profile</span>
           </button>
         </div>
       </div>
@@ -135,7 +130,7 @@ export default function ContentsChurchOverview() {
             {(aggregates?.memberCount ?? 0).toLocaleString()}
           </span>
           <div className="absolute right-4 top-4 text-[#2F7AD2]">
-            <LayoutIcon name="users" />
+            <UsersIcon className="text-[18px]" />
           </div>
         </div>
 
@@ -146,7 +141,7 @@ export default function ContentsChurchOverview() {
             {(aggregates?.prayerCount ?? 0).toLocaleString()}
           </span>
           <div className="absolute right-4 top-4 text-[#F0B80F]">
-            <BookOutlined className="text-[20px]" />
+            <HandsPrayingIcon className="text-[18px]" />
           </div>
         </div>
 
@@ -174,7 +169,7 @@ export default function ContentsChurchOverview() {
             )}
           </div>
           <div className="absolute right-4 top-4 text-[#B31A1A]">
-            <HeartFilled className="text-[20px]" />
+            <HandHoldingHeartIcon className="text-[18px]" />
           </div>
         </div>
       </div>
@@ -190,38 +185,47 @@ export default function ContentsChurchOverview() {
               onClick={() => router.push(`/dashboard/churches/${churchId}/prayers`)}
               className="flex cursor-pointer items-center gap-1 text-xs font-semibold text-[#2F7AD2] hover:underline"
             >
-              <span>Open</span>
-              <RightOutlined aria-hidden="true" className="text-[12px]" />
+              <span>Open prayer</span>
+              <ArrowRightTailIcon aria-hidden="true" className="text-[12px]" />
             </button>
           </div>
           <div className="flex flex-col p-4">
-            <div className="flex flex-col gap-3 rounded-lg border border-[#DDE0E4] p-4">
-              {/* Author row */}
-              <div className="flex items-center gap-3">
-                <PastorImage
-                  size={64}
-                  imageAssetId={firstPastor?.imageAssetId ?? null}
-                  churchId={churchId}
-                  name={firstPastor?.name ?? 'Pastor —'}
-                />
-                <div className="flex flex-col">
-                  <span className="text-sm font-semibold text-[#0E203E]">
-                    {firstPastor?.name ?? 'Pastor —'}
-                  </span>
-                  {/* Figma dummy: voice-model field not on pastor summary */}
-                  <span className="text-xs text-[#5C6370]">Model: —</span>
+            {latestPrayer && parsedPrayerBody ? (
+              <div className="relative">
+                {/* Author row */}
+                {firstPastor ? (
+                  <div className="relative z-10 flex items-center gap-3 pl-2">
+                    <PastorImage
+                      size={64}
+                      imageAssetId={firstPastor?.imageAssetId ?? null}
+                      churchId={churchId}
+                      name={firstPastor?.name ?? 'Pastor Daniel Carter'}
+                    />
+                    <div className="flex flex-col">
+                      <span className="text-base font-semibold text-[#0E203E]">
+                        {firstPastor.name}
+                      </span>
+                      {firstPastor.pastoralRole ? (
+                        <span className="text-xs text-[#5C6370]">{firstPastor.pastoralRole}</span>
+                      ) : null}
+                    </div>
+                  </div>
+                ) : null}
+
+                {/* Quote card below - slightly clipped into by pastor avatar above */}
+                <div
+                  className={`${firstPastor ? '-mt-6 pt-8' : 'pt-4'} rounded-2xl bg-[#F8FAFF] p-4`}
+                >
+                  <p className="m-0 text-sm leading-normal text-[#131B2E]">
+                    &ldquo;{parsedPrayerBody.replace(/^[“"]|[”"]$/g, '')}&rdquo;
+                  </p>
                 </div>
               </div>
-
-              {/* Quote panel */}
-              <div className="flex flex-col gap-2 rounded-lg bg-[#F5F7FF] px-3 py-6">
-                {/* Figma dummy: scripture ref not in backend */}
-                <span className="text-[10px] font-semibold uppercase tracking-[2px] text-[#2F7AD2]">
-                  {DUMMY_SCRIPTURE_REF}
-                </span>
-                <p className="m-0 text-sm leading-normal text-[#131B2E]">{parsedPrayerBody}</p>
+            ) : (
+              <div className="py-8 text-center text-xs text-[#5C6370]">
+                No prayers published yet.
               </div>
-            </div>
+            )}
           </div>
         </div>
 
@@ -234,25 +238,33 @@ export default function ContentsChurchOverview() {
               onClick={() => router.push(`/dashboard/churches/${churchId}/profile`)}
               className="flex cursor-pointer items-center gap-1 text-xs font-semibold text-[#2F7AD2] hover:underline"
             >
-              <span>View all</span>
-              <RightOutlined aria-hidden="true" className="text-[12px]" />
+              <span>View schedule</span>
+              <ArrowRightTailIcon aria-hidden="true" className="text-[12px]" />
             </button>
           </div>
           <div className="flex flex-col p-4">
-            {sortedServices.map((service, index) => (
-              <div
-                key={`${service.weekday}-${service.localTime}-${index}`}
-                className="flex items-center justify-between border-b border-[#DDE0E4] px-2 py-4 last:border-b-0"
-              >
-                <span className="text-xs text-[#5C6370]">
-                  {WEEKDAYS[service.weekday - 1] ?? 'Service'}
-                </span>
-                <span className="text-xs text-[#5C6370]">{service.localTime.slice(0, 5)}</span>
-                <span className="text-right text-xs text-[#5C6370]">
-                  {service.label ?? 'Service'}
-                </span>
+            {!sortedServices.length ? (
+              <div className="py-8 text-center text-xs text-[#5C6370]">
+                No service times scheduled.
               </div>
-            ))}
+            ) : (
+              sortedServices.map((service, index) => (
+                <div
+                  key={`${service.weekday}-${service.localTime}-${index}`}
+                  className="flex items-center border-b border-[#DDE0E4] px-2 py-4 last:border-b-0"
+                >
+                  <span className="w-28 shrink-0 text-xs text-[#5C6370]">
+                    {WEEKDAYS[service.weekday - 1] ?? 'Service'}
+                  </span>
+                  <span className="w-20 shrink-0 text-xs text-[#5C6370]">
+                    {service.localTime.slice(0, 5)}
+                  </span>
+                  <span className="flex-1 truncate text-right text-xs text-[#5C6370]">
+                    {service.label ?? 'Service'}
+                  </span>
+                </div>
+              ))
+            )}
           </div>
         </div>
       </div>
@@ -268,13 +280,15 @@ export default function ContentsChurchOverview() {
               onClick={() => router.push(`/dashboard/churches/${churchId}/events`)}
               className="flex cursor-pointer items-center gap-1 text-xs font-semibold text-[#2F7AD2] hover:underline"
             >
-              <span>View all</span>
-              <RightOutlined aria-hidden="true" className="text-[12px]" />
+              <span>View events</span>
+              <ArrowRightTailIcon aria-hidden="true" className="text-[12px]" />
             </button>
           </div>
           <div className="flex flex-col gap-2 overflow-y-auto p-4">
             {!events?.length ? (
-              <span className="text-xs text-[#5C6370]">No upcoming events planned.</span>
+              <div className="py-8 text-center text-xs text-[#5C6370]">
+                No upcoming events planned.
+              </div>
             ) : (
               events.map((event) => (
                 <div key={event.id} className="flex flex-col gap-1 rounded-xl bg-[#FAFAFB] p-4">
@@ -297,23 +311,23 @@ export default function ContentsChurchOverview() {
               onClick={() => router.push(`/dashboard/churches/${churchId}/announcements`)}
               className="flex cursor-pointer items-center gap-1 text-xs font-semibold text-[#2F7AD2] hover:underline"
             >
-              <span>View all</span>
-              <RightOutlined aria-hidden="true" className="text-[12px]" />
+              <span>View schedule</span>
+              <ArrowRightTailIcon aria-hidden="true" className="text-[12px]" />
             </button>
           </div>
           <div className="flex flex-col gap-2 overflow-y-auto p-4">
             {!announcements?.length ? (
-              <span className="text-xs text-[#5C6370]">0 announcements</span>
+              <div className="py-8 text-center text-xs text-[#5C6370]">
+                No announcements published yet.
+              </div>
             ) : (
               announcements.map((announcement) => (
                 <div
                   key={announcement.id}
                   className="flex flex-col gap-1 rounded-xl bg-[#FAFAFB] p-4"
                 >
-                  {/* Figma dummy: announcement category not in backend */}
-                  <span className="text-xs font-semibold text-[#005CAD]">Church notice</span>
                   <span className="text-sm font-semibold text-[#191C1E]">{announcement.title}</span>
-                  <span className="line-clamp-1 text-xs text-[#5C6370]">
+                  <span className="line-clamp-2 text-xs text-[#5C6370]">
                     {stripAudioTags(announcement.body.replace(/<[^>]*>/g, ''))}
                   </span>
                 </div>
@@ -335,13 +349,13 @@ export default function ContentsChurchOverview() {
                 onClick={() => router.push(`/dashboard/churches/${churchId}/requests`)}
                 className="flex cursor-pointer items-center gap-1 text-xs font-semibold text-[#2F7AD2] hover:underline"
               >
-                <span>View all</span>
-                <RightOutlined aria-hidden="true" className="text-[12px]" />
+                <span>View events</span>
+                <ArrowRightTailIcon aria-hidden="true" className="text-[12px]" />
               </button>
             </div>
             <div className="flex flex-col gap-2 overflow-y-auto p-4">
-              {requests.total === 0 ? (
-                <span className="text-xs text-[#5C6370]">0 Request</span>
+              {requests.total === 0 || !requests.recent?.length ? (
+                <div className="py-8 text-center text-xs text-[#5C6370]">No recent requests.</div>
               ) : (
                 requests.recent?.map((r) => (
                   <Link
@@ -357,7 +371,7 @@ export default function ContentsChurchOverview() {
                         {requestClassificationLabel(r)}
                       </span>
                     </div>
-                    <RightOutlined aria-hidden="true" className="text-[12px] text-[#8F96A3]" />
+                    <ArrowRightTailIcon aria-hidden="true" className="text-[12px] text-[#8F96A3]" />
                   </Link>
                 ))
               )}
@@ -377,9 +391,10 @@ export default function ContentsChurchOverview() {
             <button
               type="button"
               onClick={() => router.push(`/dashboard/churches/${churchId}/donations`)}
-              className="h-10 w-fit cursor-pointer rounded-lg border border-[#2F7AD2] bg-white px-3 text-sm font-semibold text-[#2F7AD2] hover:bg-[#F5F7FF]"
+              className="flex h-10 w-fit cursor-pointer items-center gap-2 rounded-lg border border-[#2F7AD2] bg-white px-3 text-sm font-semibold text-[#2F7AD2] hover:bg-[#F5F7FF]"
             >
-              Open donations
+              <HandHoldingHeartIcon aria-hidden="true" className="text-base text-[#2F7AD2]" />
+              <span>View Donations</span>
             </button>
           </div>
         </div>
