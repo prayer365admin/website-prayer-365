@@ -17,9 +17,9 @@ export default function MainContainer({
 
   return (
     <>
-      <Layout className="min-h-screen !flex-row">
+      <Layout className={`${s.dashboardShell} !flex-row`}>
         <SideBar mobileOpen={mobileSidebarOpen} onMobileOpenChange={setMobileSidebarOpen} />
-        <Layout className="min-h-screen min-w-0 !flex-col">
+        <Layout className={`${s.mainColumn} min-w-0 !flex-col`}>
           <MainHeader onMenuClick={() => setMobileSidebarOpen(true)} />
           <div
             className={`${s.dashboardContent} min-h-0 flex-1 overflow-y-auto bg-neutral-100 p-6`}

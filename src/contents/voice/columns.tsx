@@ -7,6 +7,7 @@ import { DeleteFilled, EditFilled } from '@ant-design/icons'
 import { Button, TableProps, Tooltip } from 'antd'
 import { useRouter } from 'next/navigation'
 import { formatDate } from './central-review-detail'
+import styles from './central-review.module.scss'
 import { registrationLabel, reviewLabel } from './status'
 
 const reviewTone: Record<string, string> = {
@@ -130,12 +131,12 @@ export const VoiceProfileColumns = ({
       width: 100,
       ...ADDITIONAL_COLUMN_CONFIG,
       render: (_, profile) => (
-        <div className="flex justify-center gap-2">
+        <div className={styles.actionButtons}>
           <Tooltip title="Review profile">
             <Button
-              className="!size-8 !rounded !border-[#DDE0E4] !bg-white !p-2 !text-[#B0B6BF]"
+              className={styles.neutralActionButton}
               aria-label={`Review ${profile.pastorName}`}
-              icon={<EditFilled style={{ fontSize: 10, lineHeight: '20px' }} />}
+              icon={<EditFilled />}
               onClick={() => router.push(`/dashboard/central/voice-profiles/${profile.id}`)}
             />
           </Tooltip>
@@ -150,10 +151,10 @@ export const VoiceProfileColumns = ({
               <Button
                 danger
                 type="primary"
-                className="!size-8 !rounded !border-[#E54C4C] !bg-[#E54C4C] !p-2 !text-white disabled:!border-[#DDE0E4] disabled:!bg-[#F9FAFB] disabled:!text-[#8F96A3]"
+                className={styles.dangerActionButton}
                 aria-label={`Disable ${profile.pastorName}`}
                 disabled={profile.reviewState !== 'APPROVED'}
-                icon={<DeleteFilled style={{ fontSize: 10, lineHeight: '20px' }} />}
+                icon={<DeleteFilled />}
                 onClick={() => onDisable?.(profile)}
               />
             </Tooltip>

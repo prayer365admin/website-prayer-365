@@ -12,6 +12,7 @@ vi.mock('@/providers/prayer', () => ({
 vi.mock('@/providers/pastor', () => ({ GET_CHURCH_PASTOR: vi.fn() }))
 vi.mock('@/providers/church', () => ({
   GET_AVAILABLE_LANGUAGE_CODES: vi.fn(),
+  GET_CHURCH_NAMES: vi.fn(),
   GET_CHURCH_READY_IMAGE: vi.fn(),
 }))
 vi.mock('@/utils/idempotency', () => ({ withIdempotency: vi.fn() }))
@@ -26,11 +27,16 @@ import {
   SCHEDULE_PRAYER,
 } from '@/providers/prayer'
 import { GET_CHURCH_PASTOR } from '@/providers/pastor'
-import { GET_AVAILABLE_LANGUAGE_CODES, GET_CHURCH_READY_IMAGE } from '@/providers/church'
+import {
+  GET_AVAILABLE_LANGUAGE_CODES,
+  GET_CHURCH_NAMES,
+  GET_CHURCH_READY_IMAGE,
+} from '@/providers/church'
 import { withIdempotency } from '@/utils/idempotency'
 import {
   approveText,
   createPrayer,
+  getCentralPrayer,
   getPrayer,
   listPrayers,
   patchPrayer,
@@ -85,6 +91,19 @@ describe('getPrayer', () => {
     await expect(getPrayer({ churchIds: scope, prayerId: PRAYER_ID })).rejects.toMatchObject({
       code: 404,
     })
+  })
+})
+
+describe('getCentralPrayer', () => {
+  it('adds the scoped church name to the prayer detail', async () => {
+    vi.mocked(GET_PRAYER).mockResolvedValue(prayerOut as never)
+    vi.mocked(GET_CHURCH_NAMES).mockResolvedValue([{ id: 'c1', name: 'Church One' }] as never)
+
+    await expect(getCentralPrayer({ churchIds: scope, prayerId: PRAYER_ID })).resolves.toEqual({
+      ...prayerOut,
+      churchName: 'Church One',
+    })
+    expect(GET_CHURCH_NAMES).toHaveBeenCalledWith({ ids: ['c1'] })
   })
 })
 

@@ -1,6 +1,13 @@
 .sidebar {
+  position: sticky !important;
+  top: 0;
   width: 280px;
-  min-height: 100vh;
+  height: 100vh;
+  height: 100dvh;
+  min-height: 0;
+  flex: 0 0 auto !important;
+  align-self: flex-start;
+  overflow: hidden;
   border-right: 1px solid #eef0f4;
   background: #fff !important;
   box-shadow: 1px 0 10px rgb(15 23 42 / 3%);
@@ -17,6 +24,7 @@
 .sidebarInner {
   display: flex;
   height: 100vh;
+  height: 100dvh;
   flex-direction: column;
   overflow: hidden;
 }

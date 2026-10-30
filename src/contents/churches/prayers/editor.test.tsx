@@ -138,10 +138,7 @@ describe('ContentsChurchesPrayersEditor', () => {
     expect(screen.getAllByRole('toolbar', { name: 'Text formatting' })).toHaveLength(2)
     expect(screen.getByRole('button', { name: 'Save text' })).toBeTruthy()
 
-    const reviewButton = screen.getByRole('button', {
-      name: 'Review text for audio',
-    }) as HTMLButtonElement
-    expect(reviewButton.disabled).toBe(true)
+    expect(screen.queryByRole('button', { name: 'Review text for audio' })).toBeNull()
 
     // Validation blocks empty save
     await user.click(screen.getByRole('button', { name: 'Save text' }))
@@ -206,7 +203,8 @@ describe('ContentsChurchesPrayersEditor', () => {
 
     await screen.findByDisplayValue('Morning prayer')
 
-    await user.click(screen.getByRole('button', { name: 'Review text for audio' }))
+    await user.click(screen.getByRole('tab', { name: 'Audio & Publication' }))
+    await user.click(screen.getByRole('button', { name: 'View reviewed text' }))
 
     // Assert modal content
     const dialog = screen.getByRole('dialog')
@@ -222,6 +220,28 @@ describe('ContentsChurchesPrayersEditor', () => {
         expect.objectContaining({ version: 1, prayerVersionId: 'pv1' }),
       )
     })
+  })
+
+  it('Review drawer shows the approver name instead of the user ID', async () => {
+    detailFixture = {
+      ...detail,
+      textApproved: true,
+      current: {
+        ...detail.current,
+        approvedBy: 'user-123',
+        approvedByName: 'Mikk Leedjärv',
+      },
+    }
+    const user = userEvent.setup()
+    renderWithProviders(<ContentsChurchesPrayersEditor churchId="c1" prayerId="p1" />)
+
+    await screen.findByDisplayValue('Morning prayer')
+    await user.click(screen.getByRole('tab', { name: 'Audio & Publication' }))
+    await user.click(screen.getByRole('button', { name: 'View reviewed text' }))
+
+    const dialog = screen.getByRole('dialog')
+    expect(await within(dialog).findByText('Text approved by Mikk Leedjärv')).toBeTruthy()
+    expect(within(dialog).queryByText(/user-123/)).toBeNull()
   })
 
   it('Create mode: Audio tab disabled with save-first reason', async () => {

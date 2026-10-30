@@ -139,6 +139,22 @@ export const useCentralPrayers = (options: CentralPrayerListOptions = {}) => {
   return { data: data?.result ?? [], total: data?.total ?? 0, loading: isLoading }
 }
 
+export const useCentralPrayer = (prayerId: string) => {
+  const { data: session } = useSession()
+  const userId = session?.user.user_id ?? null
+
+  const { data, isLoading, error } = useQuery({
+    queryKey: ['prayer', 'central', userId, prayerId],
+    queryFn: async () => {
+      const response = await axios.get(`/api/v1/admin/central/prayers/${prayerId}`)
+      return response.data.result as CentralPrayerOutput
+    },
+    enabled: !!prayerId,
+  })
+
+  return { data, loading: isLoading, error }
+}
+
 export const usePrayer = (churchId: string, prayerId: string) => {
   const { data: session } = useSession()
   const userId = session?.user.user_id ?? null

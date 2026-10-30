@@ -1,10 +1,13 @@
 'use client'
 
-import CardTitle from '@/components/common/card-title'
+import AudioWavePlayer from '@/components/common/audio-wave-player'
+import SiteButton from '@/components/common/button'
 import RichTextEditor from '@/components/common/rich-text-editor'
 import RichTextContent from '@/components/common/rich-text-content'
 import UploadBox from '@/components/common/upload-box'
 import SelectPastor from '@/components/common/select/pastor'
+import { AlignLeftIcon } from '@/components/icon/align-left'
+import { PlayIcon } from '@/components/icon/play'
 import { useChurchProfile } from '@/hooks/data/church'
 import { useChurchPastors } from '@/hooks/data/pastor'
 import {
@@ -24,28 +27,35 @@ import { useRecloneVoiceProfile } from '@/hooks/data/voice'
 import { PrayerInput, PrayerOutput } from '@/models/prayer'
 import {
   Alert,
-  Button,
   Card,
   Col,
   DatePicker,
+  Drawer,
   Form,
   Input,
-  Modal,
   Row,
   Select,
-  Skeleton,
   Spin,
   Tabs,
   TimePicker,
   Upload,
 } from 'antd'
+import {
+  ArrowLeftOutlined,
+  CalendarOutlined,
+  CheckCircleOutlined,
+  CheckOutlined,
+  ClockCircleOutlined,
+  UploadOutlined,
+} from '@ant-design/icons'
 import dayjs, { Dayjs } from 'dayjs'
 import utc from 'dayjs/plugin/utc'
 import timezone from 'dayjs/plugin/timezone'
 import { utcToLocal } from '@/utils/utc-to-local'
 import { useRouter } from 'next/navigation'
-import { useEffect, useState } from 'react'
+import { ReactNode, useEffect, useState } from 'react'
 import { plainTextToRichText } from '@/utils/rich-text-plain'
+import styles from './editor.module.scss'
 
 dayjs.extend(utc)
 dayjs.extend(timezone)
@@ -53,9 +63,15 @@ dayjs.extend(timezone)
 export default function ContentsChurchesPrayersEditor({
   churchId,
   prayerId,
+  churchContext,
+  createdPrayerPath,
+  formDisabled = false,
 }: {
   churchId: string
   prayerId?: string
+  churchContext?: ReactNode
+  createdPrayerPath?: (prayerId: string) => string
+  formDisabled?: boolean
 }) {
   const router = useRouter()
   const isEdit = !!prayerId
@@ -195,13 +211,16 @@ export default function ContentsChurchesPrayersEditor({
   const saveLoading = createLoading || patchLoading
 
   const handleSubmit = async (payload: PrayerInput) => {
+    if (!churchId) return
     const input = { ...payload, featuredAssetId: featuredAsset.assetId }
     if (isEdit && saved) {
       const result = await onPatch({ ...input, version: saved.version })
       setSaved(result)
     } else {
       const result = await onCreate(input)
-      router.replace(`/dashboard/churches/${churchId}/prayers/${result.id}`)
+      router.replace(
+        createdPrayerPath?.(result.id) ?? `/dashboard/churches/${churchId}/prayers/${result.id}`,
+      )
     }
   }
 
@@ -217,14 +236,55 @@ export default function ContentsChurchesPrayersEditor({
 
   if (isEdit && !saved) {
     return (
-      <Card title={<CardTitle title="Prayer Editor" />}>
-        <Skeleton active />
-      </Card>
+      <section className={styles.page}>
+        <header className={styles.editorHeader}>
+          <button
+            aria-label="Back to prayers"
+            className={styles.backButton}
+            onClick={() => router.back()}
+            type="button"
+          >
+            <ArrowLeftOutlined />
+          </button>
+          <div>
+            <div className={styles.titleLabel}>
+              Prayer title <span>*</span>
+            </div>
+            <div className={styles.titleSkeleton} />
+          </div>
+        </header>
+        <div
+          aria-busy="true"
+          aria-label="Loading prayer editor"
+          className={styles.editorSkeleton}
+          role="status"
+        >
+          <div className={styles.tabsSkeleton}>
+            <div className={`${styles.skeletonShape} ${styles.activeTabSkeleton}`} />
+            <div className={`${styles.skeletonShape} ${styles.tabSkeleton}`} />
+          </div>
+          <div className={styles.formSkeleton}>
+            <div className={`${styles.skeletonField} ${styles.inputFieldSkeleton}`} />
+            <div className={`${styles.skeletonField} ${styles.imageFieldSkeleton}`} />
+            <div className={`${styles.skeletonField} ${styles.editorFieldSkeleton}`} />
+            <div className={styles.skeletonFieldGrid}>
+              <div className={`${styles.skeletonField} ${styles.inputFieldSkeleton}`} />
+              <div className={`${styles.skeletonField} ${styles.inputFieldSkeleton}`} />
+            </div>
+            <div className={`${styles.skeletonField} ${styles.bodyFieldSkeleton}`} />
+            <div className={styles.skeletonActions}>
+              <div className={`${styles.skeletonShape} ${styles.buttonSkeleton}`} />
+              <div className={`${styles.skeletonShape} ${styles.buttonSkeleton}`} />
+            </div>
+          </div>
+        </div>
+      </section>
     )
   }
 
   const formJSX = (
     <Form
+      className={styles.textForm}
       form={form}
       layout="vertical"
       onFinish={handleSubmit}
@@ -240,18 +300,20 @@ export default function ContentsChurchesPrayersEditor({
           : undefined
       }
     >
+      {churchContext}
       <Form.Item
         name="title"
         label="Title"
         rules={[{ required: true, message: 'Title is required.' }]}
       >
-        <Input />
+        <Input disabled={formDisabled} size="large" />
       </Form.Item>
       <Form.Item label="Featured image">
         <UploadBox
           formName="featuredAssetId"
           churchId={churchId}
           purpose="IMAGE"
+          disabled={formDisabled}
           upload={featuredAsset}
           setUpload={(value) => {
             const next = value as { url: string | null; assetId?: string | null }
@@ -268,13 +330,21 @@ export default function ContentsChurchesPrayersEditor({
       <Form.Item name="introduction" label="Introduction">
         <RichTextEditor
           ariaLabel="Introduction"
+          disabled={formDisabled}
           minHeight={120}
           placeholder="Write a short introduction to the prayer"
         />
       </Form.Item>
       <Row gutter={16}>
         <Col span={12}>
-          <SelectPastor name="pastorId" label="Pastor" churchId={churchId} />
+          <SelectPastor
+            name="pastorId"
+            label="Pastor"
+            churchId={churchId}
+            className="prayer-form-select"
+            disabled={formDisabled}
+            size="large"
+          />
         </Col>
         <Col span={12}>
           <Form.Item
@@ -283,7 +353,10 @@ export default function ContentsChurchesPrayersEditor({
             rules={[{ required: true, message: 'Content language is required.' }]}
           >
             <Select
+              className="prayer-form-select"
+              disabled={formDisabled}
               options={(profile?.languageCodes ?? []).map((code) => ({ value: code, label: code }))}
+              size="large"
             />
           </Form.Item>
         </Col>
@@ -295,120 +368,185 @@ export default function ContentsChurchesPrayersEditor({
       >
         <RichTextEditor
           ariaLabel="Full prayer text"
+          disabled={formDisabled}
           minHeight={280}
           placeholder="Write the full prayer text"
         />
       </Form.Item>
-      <div className="flex justify-between items-center">
+      <div className={styles.textActions}>
         <Upload
           accept=".txt"
+          disabled={formDisabled}
           showUploadList={false}
-          beforeUpload={() => false}
-          onChange={async (info) => {
-            if (info.file.originFileObj) {
-              const text = await info.file.originFileObj.text()
-              form.setFieldsValue({ body: plainTextToRichText(text) })
-            }
+          beforeUpload={async (file) => {
+            const text = await file.text()
+            form.setFieldsValue({ body: plainTextToRichText(text.replace(/\r\n?/g, '\n')) })
+            await form.validateFields(['body']).catch(() => undefined)
+            return Upload.LIST_IGNORE
           }}
         >
-          <Button>Upload text</Button>
+          <SiteButton
+            disabled={formDisabled}
+            icon={<UploadOutlined aria-hidden className={styles.editorIcon} />}
+            iconPlacement="end"
+            size="md"
+            variant="outlined"
+          >
+            Upload text
+          </SiteButton>
         </Upload>
-        <div className="flex gap-2">
-          <Button type="primary" htmlType="submit" loading={saveLoading}>
+        <div className={styles.textActionButtons}>
+          <SiteButton
+            disabled={formDisabled}
+            icon={<CheckOutlined aria-hidden className={styles.editorIcon} />}
+            iconPlacement="end"
+            loading={saveLoading}
+            size="md"
+            type="submit"
+          >
             Save text
-          </Button>
-          <Button disabled={!saved?.current} onClick={() => setReviewOpen(true)}>
-            Review text for audio
-          </Button>
+          </SiteButton>
         </div>
       </div>
     </Form>
   )
 
   const reviewModalJSX = (
-    <Modal
+    <Drawer
+      closable={{ placement: 'end' }}
+      rootClassName={styles.reviewDrawer}
       title="Review text for audio"
       open={reviewOpen}
-      onCancel={() => setReviewOpen(false)}
-      footer={null}
+      onClose={() => setReviewOpen(false)}
+      size={640}
+      footer={
+        <div className={styles.drawerFooter}>
+          <SiteButton size="md" variant="outlined" onClick={() => setReviewOpen(false)}>
+            Cancel
+          </SiteButton>
+          {saved?.current && !saved.textApproved && (
+            <SiteButton
+              icon={<CheckOutlined aria-hidden className={styles.editorIcon} />}
+              iconPlacement="end"
+              loading={approveLoading}
+              size="md"
+              onClick={handleApprove}
+            >
+              Approve text for audio
+            </SiteButton>
+          )}
+        </div>
+      }
     >
       {saved?.current && (
-        <div className="space-y-4">
-          <div>
-            <div className="font-semibold text-gray-500">Title</div>
-            <div>{saved.current.title}</div>
+        <div className={styles.reviewContent}>
+          <div className={styles.reviewField}>
+            <div className={styles.reviewFieldTitle}>Title</div>
+            <div className={styles.reviewFieldValue}>{saved.current.title}</div>
           </div>
-          <div>
-            <div className="font-semibold text-gray-500">Introduction</div>
-            {saved.current.introduction ? (
-              <RichTextContent html={saved.current.introduction} />
-            ) : (
-              <div>—</div>
-            )}
+          <div className={styles.reviewField}>
+            <div className={styles.reviewFieldTitle}>Introduction</div>
+            <div className={styles.reviewFieldValue}>
+              {saved.current.introduction ? (
+                <RichTextContent html={saved.current.introduction} />
+              ) : (
+                '—'
+              )}
+            </div>
           </div>
-          <div>
-            <div className="font-semibold text-gray-500">Full prayer text</div>
-            <RichTextContent html={saved.current.body} />
+          <div className={styles.reviewField}>
+            <div className={styles.reviewFieldTitle}>Full prayer text</div>
+            <div className={styles.reviewFieldValue}>
+              <RichTextContent html={saved.current.body} />
+            </div>
           </div>
           <Row gutter={16}>
-            <Col span={12}>
-              <div className="font-semibold text-gray-500">Pastor</div>
-              <div>
+            <Col className={styles.reviewField} span={12}>
+              <div className={styles.reviewFieldTitle}>Pastor</div>
+              <div className={styles.reviewFieldValue}>
                 {pastors?.find((p) => p.id === saved.current?.pastorId)?.name ||
                   saved.current.pastorId}
               </div>
             </Col>
-            <Col span={12}>
-              <div className="font-semibold text-gray-500">Content language</div>
-              <div>{saved.current.languageCode}</div>
+            <Col className={styles.reviewField} span={12}>
+              <div className={styles.reviewFieldTitle}>Content language</div>
+              <div className={styles.reviewFieldValue}>{saved.current.languageCode}</div>
             </Col>
           </Row>
-          <div>
-            <div className="font-semibold text-gray-500">Version</div>
-            <div>{saved.current.versionNumber}</div>
+          <div className={styles.reviewField}>
+            <div className={styles.reviewFieldTitle}>Version</div>
+            <div className={styles.reviewFieldValue}>{saved.current.versionNumber}</div>
           </div>
 
-          <div className="flex justify-end mt-6">
-            {saved.textApproved ? (
-              <span className="text-gray-500">
-                Text approved{saved.current.approvedBy ? ` by ${saved.current.approvedBy}` : ''}
+          {saved.textApproved && (
+            <div className={styles.reviewApprovalBanner} role="status">
+              <CheckCircleOutlined aria-hidden />
+              <span>
+                Text approved
+                {saved.current.approvedByName ? ` by ${saved.current.approvedByName}` : ''}
               </span>
-            ) : (
-              <Button type="primary" loading={approveLoading} onClick={handleApprove}>
-                Approve text for audio
-              </Button>
-            )}
-          </div>
+            </div>
+          )}
         </div>
       )}
-    </Modal>
+    </Drawer>
   )
 
   // One inner card per step (generate → review → publish) so each flow reads on its own.
   const audioJSX = (
-    <div className="space-y-4">
-      <Card type="inner" title="Audio generation">
-        <Row gutter={16}>
-          <Col span={12}>
-            <div>Reviewed text: {saved?.textApproved ? 'Ready' : 'Not approved'}</div>
-            <Button onClick={() => setReviewOpen(true)}>View reviewed text</Button>
-          </Col>
-          <Col span={12}>
-            <div>Pastor voice: {voiceReady ? 'Verified' : 'Not ready'}</div>
-            <Button
-              type="primary"
-              loading={enqueueLoading}
-              disabled={!canGenerate}
-              onClick={handleGenerate}
-            >
-              Generate audio
-            </Button>
-            {!canGenerate && <div className="text-gray-500">{generateDisabledReason}</div>}
-          </Col>
-        </Row>
+    <div className={styles.audioPanel}>
+      <Card className={styles.audioGenerationCard} type="inner" title="Audio generation">
+        <div className={styles.generationGrid}>
+          <section className={styles.generationStep}>
+            <div className={styles.generationStepHeader}>
+              <span>Review text</span>
+              <span
+                className={`${styles.statePill} ${saved?.textApproved ? styles.statePositive : styles.stateAlert}`}
+              >
+                <span aria-hidden="true" />
+                {saved?.textApproved ? 'Approved' : 'Not approved'}
+              </span>
+            </div>
+            <div className={styles.generationStepBody}>
+              <SiteButton
+                icon={<AlignLeftIcon aria-hidden className={styles.editorIcon} />}
+                iconPlacement="end"
+                onClick={() => setReviewOpen(true)}
+                size="md"
+                variant="outlined"
+              >
+                View reviewed text
+              </SiteButton>
+            </div>
+          </section>
+          <section className={styles.generationStep}>
+            <div className={styles.generationStepHeader}>
+              <span>Pastor voice</span>
+              <span
+                className={`${styles.statePill} ${voiceReady ? styles.statePositive : styles.stateAlert}`}
+              >
+                <span aria-hidden="true" />
+                {voiceReady ? 'Verified' : 'Not ready'}
+              </span>
+            </div>
+            <div className={styles.generationStepBody}>
+              <SiteButton
+                disabled={!canGenerate}
+                icon={<PlayIcon aria-hidden className={styles.editorIcon} />}
+                iconPlacement="end"
+                loading={enqueueLoading}
+                onClick={handleGenerate}
+                size="md"
+              >
+                Generate audio
+              </SiteButton>
+              {!canGenerate && <div className={styles.stepHelp}>{generateDisabledReason}</div>}
+            </div>
+          </section>
+        </div>
       </Card>
 
-      <Card type="inner" title="Audio review">
+      <Card className={styles.audioReviewCard} type="inner" title="Audio Review">
         {!audioId ? (
           <div>No audio generated yet.</div>
         ) : audio?.status === 'QUEUED' || audio?.status === 'GENERATING' ? (
@@ -424,16 +562,18 @@ export default function ContentsChurchesPrayersEditor({
               recloneStarted ? (
                 'The voice is being re-created. Generate audio again once the pastor voice is ready.'
               ) : canReclone ? (
-                <Button
+                <SiteButton
                   className="mt-2"
                   loading={recloneLoading}
                   onClick={async () => {
                     await onReclone({ churchId, id: audio.voiceProfileId })
                     setRecloneStarted(true)
                   }}
+                  size="md"
+                  variant="outlined"
                 >
                   Re-create voice
-                </Button>
+                </SiteButton>
               ) : (
                 'Ask an admin to re-create the voice.'
               )
@@ -442,33 +582,56 @@ export default function ContentsChurchesPrayersEditor({
         ) : audio?.status === 'FAILED' ? (
           <div>
             Audio generation failed{audio.errorCode ? ` (${audio.errorCode})` : ''}.
-            <Button onClick={handleGenerate}>Generate again</Button>
+            <SiteButton
+              icon={<PlayIcon aria-hidden className={styles.editorIcon} />}
+              iconPlacement="end"
+              onClick={handleGenerate}
+              size="md"
+              variant="outlined"
+            >
+              Generate again
+            </SiteButton>
           </div>
         ) : (
-          <div>{!access?.url ? <Spin /> : <audio controls src={access.url} />}</div>
+          <div className={styles.generatedAudio}>
+            {!access?.url ? (
+              <Spin />
+            ) : (
+              <AudioWavePlayer
+                label="Generated prayer audio"
+                seed={audioId ?? 'generated-prayer-audio'}
+                src={access.url}
+              />
+            )}
+          </div>
         )}
 
         <div className="mt-4">State: {stateLabel}</div>
         {audio?.approvedAt ? (
           <div className="text-gray-500">Audio approved.</div>
         ) : (
-          <Button
-            type="primary"
-            loading={approveAudioLoading}
+          <SiteButton
             disabled={!canApproveAudio}
+            icon={<PlayIcon aria-hidden className={styles.editorIcon} />}
+            iconPlacement="end"
+            loading={approveAudioLoading}
             onClick={handleApproveAudio}
+            size="md"
           >
             Approve audio
-          </Button>
+          </SiteButton>
         )}
       </Card>
 
-      <Card type="inner" title="Publication">
+      <Card className={styles.publicationCard} type="inner" title="Publication">
         <Row gutter={16}>
           <Col span={8}>
             <div>Publication date</div>
             <DatePicker
+              prefix={<CalendarOutlined aria-hidden className={styles.editorIcon} />}
               placeholder="Publication date"
+              size="large"
+              suffixIcon={null}
               value={pubDate}
               onChange={setPubDate}
               style={{ width: '100%' }}
@@ -477,8 +640,11 @@ export default function ContentsChurchesPrayersEditor({
           <Col span={8}>
             <div>Time</div>
             <TimePicker
+              prefix={<ClockCircleOutlined aria-hidden className={styles.editorIcon} />}
               placeholder="Select time"
               format="HH:mm"
+              size="large"
+              suffixIcon={null}
               value={pubTime}
               onChange={setPubTime}
               style={{ width: '100%' }}
@@ -486,7 +652,7 @@ export default function ContentsChurchesPrayersEditor({
           </Col>
           <Col span={8}>
             <div>Time zone</div>
-            <Input value={profile?.timezone ?? ''} disabled />
+            <Input value={profile?.timezone ?? ''} disabled size="large" />
           </Col>
         </Row>
         {saved?.scheduled ? (
@@ -510,24 +676,28 @@ export default function ContentsChurchesPrayersEditor({
         ) : null}
 
         <div className="flex justify-end gap-2 mt-4">
-          <Button
-            type="primary"
-            loading={scheduleLoading}
+          <SiteButton
             disabled={
               !scheduledIso || !saved?.current || !saved?.textApproved || currentAlreadyPublished
             }
+            icon={<CalendarOutlined aria-hidden className={styles.editorIcon} />}
+            iconPlacement="end"
+            loading={scheduleLoading}
             onClick={handleSchedule}
+            size="md"
           >
             Schedule publication
-          </Button>
-          <Button
-            type="primary"
-            loading={publishLoading}
+          </SiteButton>
+          <SiteButton
             disabled={!saved?.current || !saved?.textApproved}
+            icon={<CheckOutlined aria-hidden className={styles.editorIcon} />}
+            iconPlacement="end"
+            loading={publishLoading}
             onClick={handlePublish}
+            size="md"
           >
             Publish now
-          </Button>
+          </SiteButton>
         </div>
         {currentAlreadyPublished && (
           <div className="text-gray-500">
@@ -552,9 +722,25 @@ export default function ContentsChurchesPrayersEditor({
   ]
 
   return (
-    <Card title={<CardTitle title="Prayer Editor" />}>
-      <Tabs items={tabItems} />
+    <section className={styles.page}>
+      <header className={styles.editorHeader}>
+        <button
+          aria-label="Back to prayers"
+          className={styles.backButton}
+          onClick={() => router.back()}
+          type="button"
+        >
+          <ArrowLeftOutlined />
+        </button>
+        <div>
+          <div className={styles.titleLabel}>
+            Prayer title <span>*</span>
+          </div>
+          <h1>{saved?.current?.title ?? 'New Prayer'}</h1>
+        </div>
+      </header>
+      <Tabs className={styles.editorTabs} items={tabItems} />
       {reviewModalJSX}
-    </Card>
+    </section>
   )
 }
