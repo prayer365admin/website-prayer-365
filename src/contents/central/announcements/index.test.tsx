@@ -1,4 +1,4 @@
-import { pushMock, renderWithProviders } from '@/test/frontend/render'
+import { renderWithProviders } from '@/test/frontend/render'
 import { screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
@@ -12,6 +12,8 @@ const m = vi.hoisted(() => ({
   onDelete: vi.fn(),
 }))
 const useCentralAnnouncements = vi.hoisted(() => vi.fn())
+const editorProps = vi.hoisted(() => vi.fn())
+
 vi.mock('@/hooks/data/announcement', () => ({
   useCentralAnnouncements,
   useAnnouncementActions: () => ({
@@ -28,13 +30,24 @@ vi.mock('@/hooks/data/access-permission', () => ({
     updateOwn: () => ({ granted: false }),
     deleteAny: () => ({ granted: m.canDelete }),
     deleteOwn: () => ({ granted: false }),
+    createAny: () => ({ granted: true }),
+    createOwn: () => ({ granted: true }),
+  }),
+  useAccessSubjectPermission: () => ({
+    canUpdate: m.canUpdate,
+    canDelete: m.canDelete,
   }),
 }))
-vi.mock('@/components/common/dashboard/main-header', () => ({
-  default: ({ title }: { title: string }) => <h1>{title}</h1>,
-}))
 vi.mock('@/components/common/search-input', () => ({
-  default: () => <input aria-label="Search" />,
+  default: ({ placeholder }: { placeholder: string }) => (
+    <input aria-label={placeholder || 'Search'} />
+  ),
+}))
+vi.mock('./editor-drawer', () => ({
+  default: (props: { announcementId?: string; mode?: string; onClose: () => void }) => {
+    editorProps(props)
+    return <div role="dialog" aria-label={`Editor ${props.mode}`} />
+  },
 }))
 
 import ContentsCentralAnnouncements from './index'
@@ -57,6 +70,8 @@ describe('ContentsCentralAnnouncements', () => {
     m.canUpdate = true
     m.canPublish = true
     m.canDelete = true
+    m.onPublish.mockResolvedValue(undefined)
+    m.onUnpublish.mockResolvedValue(undefined)
     m.onDelete.mockResolvedValue(undefined)
   })
 
@@ -79,6 +94,8 @@ describe('ContentsCentralAnnouncements', () => {
     renderWithProviders(<ContentsCentralAnnouncements />)
 
     expect(screen.getByRole('heading', { name: 'Announcements' })).toBeTruthy()
+    expect(screen.getByText('Churches announcements')).toBeTruthy()
+    expect(screen.getByRole('link', { name: 'Home' }).getAttribute('href')).toBe('/dashboard')
     expect(screen.getByRole('columnheader', { name: 'Church' })).toBeTruthy()
     expect(screen.getByRole('link', { name: 'Grace' }).getAttribute('href')).toBe(
       '/dashboard/churches/c1/announcements',
@@ -88,6 +105,7 @@ describe('ContentsCentralAnnouncements', () => {
     )
     expect(screen.getByText('Published')).toBeTruthy()
     expect(screen.getByText('Draft')).toBeTruthy()
+    expect(screen.getByText('Showing 1 - 2 of 2 announcements')).toBeTruthy()
     expect(useCentralAnnouncements).toHaveBeenCalledWith(
       expect.objectContaining({ page: 1, limit: 10, orderBy: 'created_at' }),
     )
@@ -105,18 +123,48 @@ describe('ContentsCentralAnnouncements', () => {
     expect(screen.getByText('Announcements could not be loaded')).toBeTruthy()
   })
 
-  it('offers a published-at range filter', () => {
+  it('offers a published-at range filter and a search box', () => {
     useCentralAnnouncements.mockReturnValue({ data: [], total: 0, loading: false, error: null })
     renderWithProviders(<ContentsCentralAnnouncements />)
 
     expect(screen.getByPlaceholderText('Published from')).toBeTruthy()
     expect(screen.getByPlaceholderText('Published until')).toBeTruthy()
+    expect(screen.getByLabelText(/search announcement/i)).toBeTruthy()
     expect(useCentralAnnouncements).toHaveBeenCalledWith(
       expect.objectContaining({ publishedFrom: undefined, publishedTo: undefined }),
     )
   })
 
-  it('edits and publishes rows against their own church', async () => {
+  it('opens the drawer in create mode from the header button', async () => {
+    useCentralAnnouncements.mockReturnValue({ data: [], total: 0, loading: false, error: null })
+    renderWithProviders(<ContentsCentralAnnouncements />)
+    const user = userEvent.setup()
+
+    await user.click(screen.getByRole('button', { name: /New Announcements/ }))
+
+    expect(screen.getByRole('dialog', { name: 'Editor create' })).toBeTruthy()
+    expect(editorProps).toHaveBeenCalledWith(
+      expect.objectContaining({ mode: 'create', announcementId: undefined }),
+    )
+  })
+
+  it('opens the drawer in edit mode from the row actions', async () => {
+    useCentralAnnouncements.mockReturnValue({
+      data: [row()],
+      total: 1,
+      loading: false,
+      error: null,
+    })
+    renderWithProviders(<ContentsCentralAnnouncements />)
+    const user = userEvent.setup()
+
+    await user.click(screen.getByLabelText('edit'))
+    expect(editorProps).toHaveBeenCalledWith(
+      expect.objectContaining({ mode: 'edit', announcementId: 'a1' }),
+    )
+  })
+
+  it('publishes and unpublishes announcements with confirmation', async () => {
     useCentralAnnouncements.mockReturnValue({
       data: [
         row({
@@ -133,15 +181,12 @@ describe('ContentsCentralAnnouncements', () => {
     renderWithProviders(<ContentsCentralAnnouncements />)
     const user = userEvent.setup()
 
-    await user.click(screen.getByLabelText('edit'))
-    expect(pushMock).toHaveBeenCalledWith('/dashboard/central/announcements/a2')
-
-    await user.click(screen.getByRole('button', { name: 'Publish Parish lunch' }))
+    await user.click(screen.getByRole('button', { name: /^publish /i }))
     await user.click(await screen.findByRole('button', { name: 'Publish now' }))
     expect(m.onPublish).toHaveBeenCalledWith({ announcementId: 'a2', churchId: 'c2', version: 2 })
   })
 
-  it('hides row actions from read-only users', () => {
+  it('hides edit and publish from read-only users', () => {
     m.canUpdate = false
     m.canPublish = false
     useCentralAnnouncements.mockReturnValue({
@@ -153,21 +198,8 @@ describe('ContentsCentralAnnouncements', () => {
     renderWithProviders(<ContentsCentralAnnouncements />)
 
     expect(screen.queryByLabelText('edit')).toBeNull()
-    expect(screen.queryByRole('button', { name: /Unpublish|Publish/ })).toBeNull()
-  })
-
-  it('offers edit but no publish when only the publication permission is missing', () => {
-    m.canPublish = false
-    useCentralAnnouncements.mockReturnValue({
-      data: [row()],
-      total: 1,
-      loading: false,
-      error: null,
-    })
-    renderWithProviders(<ContentsCentralAnnouncements />)
-
-    expect(screen.getAllByLabelText('edit').length).toBeGreaterThan(0)
-    expect(screen.queryByRole('button', { name: /Unpublish|Publish/ })).toBeNull()
+    expect(screen.queryByRole('button', { name: /^publish /i })).toBeNull()
+    expect(screen.queryByRole('button', { name: /^unpublish /i })).toBeNull()
   })
 
   it('soft-deletes a row against its own church after confirmation', async () => {

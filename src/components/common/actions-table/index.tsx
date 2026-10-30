@@ -1,13 +1,14 @@
 import { useAccessPermission } from '@/hooks/data/access-permission'
 import { useConfirmModal } from '@/hooks/ui/confirm-modal'
-import { DeleteFilled, EditFilled } from '@ant-design/icons'
-import { Tooltip } from 'antd'
+import { DeleteFilled, EditFilled, EyeOutlined } from '@ant-design/icons'
+import { Button, Tooltip } from 'antd'
 
 export default function ActionsTable({
   entity = 'Entity',
   details = 'Details',
   actions = 'Actions',
   permissionSubject,
+  onView,
   onEdit,
   onDelete,
   extraActions,
@@ -18,6 +19,7 @@ export default function ActionsTable({
   details: string
   actions: string
   permissionSubject?: string
+  onView?: () => void
   onEdit?: () => void
   onDelete?: () => void
   extraActions?: React.ReactNode
@@ -45,32 +47,46 @@ export default function ActionsTable({
     : true
 
   return (
-    <>
-      <div className="flex flex-wrap gap-4 justify-center">
-        {extraActions}
-        {editPermission && onEdit && (
-          <div className="cursor-pointer hover:opacity-50 transition-all duration-300">
-            <Tooltip title="Edit">
-              <EditFilled
-                onClick={() => {
-                  onEdit?.()
-                }}
-              />
-            </Tooltip>
-          </div>
-        )}
-        {deletePermission && onDelete && (
-          <div className="cursor-pointer hover:opacity-50 transition-all duration-300">
-            <Tooltip title="Delete">
-              <DeleteFilled
-                onClick={() => {
-                  deleteModal()
-                }}
-              />
-            </Tooltip>
-          </div>
-        )}
-      </div>
-    </>
+    <div className="flex flex-wrap gap-2 justify-center items-center">
+      {extraActions}
+      {onView && (
+        <Tooltip title="View">
+          <Button
+            className="!size-8 !rounded-lg !border-[#DDE0E4] !bg-white !p-0 !text-[#8F96A3] hover:!text-[#0E203E] hover:!border-[#B0B6BF] flex items-center justify-center"
+            aria-label="View"
+            icon={<EyeOutlined style={{ fontSize: 13 }} />}
+            onClick={() => {
+              onView?.()
+            }}
+          />
+        </Tooltip>
+      )}
+      {editPermission && onEdit && (
+        <Tooltip title="Edit">
+          <Button
+            className="!size-8 !rounded-lg !border-[#DDE0E4] !bg-white !p-0 !text-[#8F96A3] hover:!text-[#0E203E] hover:!border-[#B0B6BF] flex items-center justify-center"
+            aria-label="Edit"
+            icon={<EditFilled style={{ fontSize: 13 }} />}
+            onClick={() => {
+              onEdit?.()
+            }}
+          />
+        </Tooltip>
+      )}
+      {deletePermission && onDelete && (
+        <Tooltip title="Delete">
+          <Button
+            danger
+            type="primary"
+            className="!size-8 !rounded-lg !border-[#E54C4C] !bg-[#E54C4C] !p-0 !text-white hover:!bg-[#d43f3f] hover:!border-[#d43f3f] flex items-center justify-center"
+            aria-label="Delete"
+            icon={<DeleteFilled style={{ fontSize: 13 }} />}
+            onClick={() => {
+              deleteModal()
+            }}
+          />
+        </Tooltip>
+      )}
+    </div>
   )
 }

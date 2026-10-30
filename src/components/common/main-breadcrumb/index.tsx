@@ -7,6 +7,11 @@ import { usePathname } from 'next/navigation'
 import LayoutIcon from '@/components/common/layout-icon'
 import s from './index.module.scss'
 
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+
+export const formatBreadcrumbItem = (item: string) =>
+  UUID_REGEX.test(item) ? '...' : toCapitalized(item)
+
 export default function MainBreadcrumb() {
   const pathname = usePathname()
   const permission = useAccessPermission()
@@ -24,7 +29,7 @@ export default function MainBreadcrumb() {
 
   return (
     <Breadcrumb
-      className={s.breadcrumb}
+      className={`${s.breadcrumb} [&_.ant-breadcrumb-link]:!whitespace-nowrap [&_.ant-breadcrumb-link_a]:!whitespace-nowrap`}
       items={[
         {
           title: (
@@ -36,11 +41,14 @@ export default function MainBreadcrumb() {
         },
         ...pathnameList.map((item, index) => {
           const currentPath = `/dashboard/${pathnameList.slice(0, index + 1).join('/')}`
+          const label = formatBreadcrumbItem(item)
           return {
             title: isLinkable(item, index) ? (
-              <Link href={currentPath}>{toCapitalized(item)}</Link>
+              <Link href={currentPath} title={UUID_REGEX.test(item) ? item : undefined}>
+                {label}
+              </Link>
             ) : (
-              toCapitalized(item)
+              <span title={UUID_REGEX.test(item) ? item : undefined}>{label}</span>
             ),
           }
         }),
