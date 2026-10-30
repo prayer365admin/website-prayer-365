@@ -584,6 +584,18 @@ export const SITE_MESSAGES = {
     donateResultNextStepsBody:
       'Stripe emails the receipt for this payment. Estonian tax-deductible statements are issued each January.',
     donateResultTryAgain: 'Try again',
+    donateResultWatchVideo: 'Watch thank you greeting',
+    thankYouVideoRegion: 'Thank you video',
+    thankYouVideoSkip: 'Skip',
+    thankYouVideoSkipAria: 'Skip thank you video',
+    thankYouVideoStep1Title: 'Good to have you here.',
+    thankYouVideoStep4Title: 'Thank you for your donation.',
+    thankYouVideoStep4Blessing: 'May God bless you. 🙏',
+    thankYouVideoStep4Subtitle: 'Your kindness carries forward.',
+    thankYouVideoStep5Pillars: 'PRAY · BELONG · GIVE · GROW',
+    thankYouVideoStep6Line1: 'Every day in prayer.',
+    thankYouVideoStep6Line2: 'Every day together.',
+    thankYouVideoStep6Footer: 'ONE PERSON · PARISHES · A BRIGHTER TOMORROW',
     // --- WB4b return page (universal-link / no-app fallback) ---
     donateReturnSuccessTitle: 'Thank you — your gift is being confirmed',
     donateReturnSuccessBody:
@@ -1246,6 +1258,18 @@ export const SITE_MESSAGES = {
     donateResultNextStepsBody:
       'Stripe saadab selle makse kviitungi e-postiga. Eesti maksuvabastuskviitungid väljastatakse igal jaanuaril.',
     donateResultTryAgain: 'Proovi uuesti',
+    donateResultWatchVideo: 'Vaata tänutervitust',
+    thankYouVideoRegion: 'Tänutervitus',
+    thankYouVideoSkip: 'Jäta vahele',
+    thankYouVideoSkipAria: 'Jäta video vahele',
+    thankYouVideoStep1Title: 'Hea, et oled siin.',
+    thankYouVideoStep4Title: 'Aitäh Sinu annetuse eest.',
+    thankYouVideoStep4Blessing: 'Jumal õnnistagu Sind. 🙏',
+    thankYouVideoStep4Subtitle: 'Sinu headus jõuab edasi.',
+    thankYouVideoStep5Pillars: 'PALVETA · KUULU · ANNETA · KASVA',
+    thankYouVideoStep6Line1: 'Iga päev palves.',
+    thankYouVideoStep6Line2: 'Iga päev koos.',
+    thankYouVideoStep6Footer: 'ÜKS INIMEES · KOGUDUSED · HELGEM HOMME',
     // --- WB4b tagastusleht (universaallink / rakendus puudub) ---
     donateReturnSuccessTitle: 'Aitäh — sinu annetust kinnitatakse',
     donateReturnSuccessBody:
@@ -1881,6 +1905,18 @@ export const SITE_MESSAGES = {
     donateResultNextStepsBody:
       'Stripe mailar kvittot för betalningen. Estniska skatteavdragsurdrag utfärdas varje januari.',
     donateResultTryAgain: 'Försök igen',
+    donateResultWatchVideo: 'Titta på tackhälsningen',
+    thankYouVideoRegion: 'Tackvideo',
+    thankYouVideoSkip: 'Hoppa över',
+    thankYouVideoSkipAria: 'Hoppa över tackvideon',
+    thankYouVideoStep1Title: 'Fint att du är här.',
+    thankYouVideoStep4Title: 'Tack för din gåva.',
+    thankYouVideoStep4Blessing: 'Må Gud välsigna dig. 🙏',
+    thankYouVideoStep4Subtitle: 'Din godhet når vidare.',
+    thankYouVideoStep5Pillars: 'BE · TILLHÖR · GE · VÄX',
+    thankYouVideoStep6Line1: 'Varje dag i bön.',
+    thankYouVideoStep6Line2: 'Varje dag tillsammans.',
+    thankYouVideoStep6Footer: 'EN MÄNNISKA · FÖRSAMLINGAR · EN LJUSARE MORGONDAG',
     // --- WB4b retursida (universallänk / appen saknas) ---
     donateReturnSuccessTitle: 'Tack — din gåva bekräftas',
     donateReturnSuccessBody:
@@ -2516,6 +2552,18 @@ export const SITE_MESSAGES = {
     donateResultNextStepsBody:
       'Stripe lähettää kuitin tästä maksusta sähköpostitse. Viron verovähennystodistukset myönnetään joka tammikuu.',
     donateResultTryAgain: 'Yritä uudelleen',
+    donateResultWatchVideo: 'Katso kiitosvideo',
+    thankYouVideoRegion: 'Kiitosvideo',
+    thankYouVideoSkip: 'Ohita',
+    thankYouVideoSkipAria: 'Ohita kiitosvideo',
+    thankYouVideoStep1Title: 'Hyvä, että olet täällä.',
+    thankYouVideoStep4Title: 'Kiitos lahjoituksestasi.',
+    thankYouVideoStep4Blessing: 'Jumala siunatkoon sinua. 🙏',
+    thankYouVideoStep4Subtitle: 'Hyvyytesi kantaa eteenpäin.',
+    thankYouVideoStep5Pillars: 'RUKOILE · KUULU · ANNA · KASVA',
+    thankYouVideoStep6Line1: 'Joka päivä rukouksessa.',
+    thankYouVideoStep6Line2: 'Joka päivä yhdessä.',
+    thankYouVideoStep6Footer: 'YKSI IHMINEN · SEURAKUNNAT · VALOISAMPI HUOMINEN',
     // --- WB4b paluusivu (universaalilinkki / sovellus puuttuu) ---
     donateReturnSuccessTitle: 'Kiitos — lahjaasi vahvistetaan',
     donateReturnSuccessBody:
