@@ -13,24 +13,28 @@ export const CentralAnnouncementColumns = ({
   canPublish,
   publishingId,
   unpublishingId,
+  onView,
   onEdit,
   onPublish,
   onUnpublish,
   onDelete,
 }: {
-  canPublish: boolean
+  canPublish?: boolean
   publishingId?: string
   unpublishingId?: string
+  onView?: (announcement: AnnouncementListItem) => void
   onEdit: (announcement: AnnouncementListItem) => void
-  onPublish: (announcement: AnnouncementListItem) => Promise<unknown>
-  onUnpublish: (announcement: AnnouncementListItem) => Promise<unknown>
+  onPublish?: (announcement: AnnouncementListItem) => Promise<unknown>
+  onUnpublish?: (announcement: AnnouncementListItem) => Promise<unknown>
   onDelete: (announcement: AnnouncementListItem) => Promise<unknown>
 }): TableProps<AnnouncementListItem>['columns'] => [
   {
     key: 'title',
     title: 'Title',
     sorter: true,
-    render: (_, announcement) => announcement.title,
+    render: (_, announcement) => (
+      <span className="font-bold text-neutral-900">{announcement.title}</span>
+    ),
   },
   {
     key: 'church',
@@ -69,7 +73,7 @@ export const CentralAnnouncementColumns = ({
   },
   {
     key: 'created_at',
-    title: 'Created',
+    title: 'Created at',
     sorter: true,
     defaultSortOrder: 'descend',
     render: (_, announcement) => (
@@ -87,10 +91,11 @@ export const CentralAnnouncementColumns = ({
         details={announcement.title}
         actions="deleting"
         permissionSubject="prayer_announcement"
+        onView={onView ? () => onView(announcement) : undefined}
         onEdit={() => onEdit(announcement)}
         onDelete={() => void onDelete(announcement).catch(() => undefined)}
         extraActions={
-          canPublish ? (
+          canPublish && onPublish && onUnpublish ? (
             <AnnouncementPublishAction
               announcement={announcement}
               publishingId={publishingId}

@@ -1,0 +1,174 @@
+@use '../../../styles/central-dashboard-list' as central;
+
+.page {
+  display: flex;
+  width: 100%;
+  flex-direction: column;
+  gap: 16px;
+  font-family: var(--font-text);
+}
+
+.header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.header h1 {
+  margin: 0;
+  color: var(--color-primary-900, #0e203e);
+  font-family: var(--font-heading);
+  font-size: 24px;
+  font-weight: 600;
+  line-height: 100%;
+  letter-spacing: -1px;
+}
+
+.header p {
+  margin: 8px 0 0;
+  color: var(--color-neutral-600, #5c6370);
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 150%;
+}
+
+.newPrayerButton {
+  width: 123px;
+  height: 40px !important;
+  gap: 8px;
+  padding: 10px 12px 10px 8px !important;
+  border: 1px solid #005fff !important;
+  border-radius: 8px !important;
+  background: var(--color-primary-500, #2f7ad2) !important;
+  color: #fff !important;
+  font-family: var(--font-text);
+  font-size: 14px !important;
+  font-style: normal;
+  font-weight: 600;
+  line-height: 150%;
+  letter-spacing: 0;
+}
+
+.newPrayerButton:hover {
+  border-color: var(--color-primary-700, #1758a6) !important;
+  background: var(--color-primary-700, #1758a6) !important;
+}
+
+.contentCard {
+  width: 100%;
+  overflow: hidden;
+  border-radius: 16px;
+  background: #fff;
+}
+
+.filterBar {
+  @include central.filter-bar;
+}
+
+.searchControl,
+.churchControl,
+.statusControl {
+  @include central.filter-control;
+}
+
+.searchControl {
+  width: 280px;
+  max-width: 280px;
+  @include central.search-control;
+}
+
+.churchControl {
+  width: 240px;
+  @include central.select-control;
+}
+
+.statusControl {
+  width: 123px;
+  @include central.select-control;
+}
+
+.tableRegion {
+  @include central.table-region;
+}
+
+.prayerTitle {
+  color: var(--color-primary-900, #0e203e);
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 150%;
+}
+
+.statusPill {
+  display: inline-flex;
+  width: fit-content;
+  height: 28px;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 10px;
+  border: 1px solid;
+  border-radius: 9999px;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 150%;
+}
+
+.statusDot {
+  width: 6px;
+  height: 6px;
+  border-radius: 9999px;
+  background: currentColor;
+}
+
+.statusPublished {
+  border-color: var(--color-positive-200, #d3faef);
+  background: var(--color-positive-100, #edfdf9);
+  color: var(--color-positive-700, #09a97c);
+}
+
+.statusScheduled {
+  border-color: var(--color-primary-200, #dce9fb);
+  background: var(--color-primary-100, #edf4ff);
+  color: var(--color-primary-700, #1758a6);
+}
+
+.statusDraft {
+  border-color: var(--color-neutral-200, #dde0e4);
+  background: var(--color-neutral-100, #f9fafb);
+  color: var(--color-neutral-400, #8f96a3);
+}
+
+.actionButtons {
+  @include central.action-buttons;
+  justify-content: flex-end;
+}
+
+.neutralActionButton {
+  @include central.neutral-action-button;
+}
+
+.deleteActionButton {
+  @include central.danger-action-button;
+}
+
+.neutralActionButton:disabled,
+.deleteActionButton:disabled {
+  opacity: 0.5;
+}
+
+@media (max-width: 767px) {
+  .header {
+    flex-direction: column;
+  }
+
+  .searchControl,
+  .churchControl,
+  .statusControl {
+    width: 100%;
+    max-width: none;
+  }
+
+  .tableRegion {
+    @include central.mobile-pagination;
+  }
+}

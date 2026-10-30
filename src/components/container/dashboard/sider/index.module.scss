@@ -1,10 +1,15 @@
 .sidebar {
   position: sticky !important;
   top: 0;
-  height: 100vh;
-  max-height: 100vh;
-  z-index: 100;
   width: 280px;
+  height: 100vh;
+  height: 100dvh;
+  max-height: 100vh;
+  min-height: 0;
+  flex: 0 0 auto !important;
+  align-self: flex-start;
+  overflow: hidden;
+  z-index: 100;
   border-right: 1px solid #eef0f4;
   background: #fff !important;
   box-shadow: 1px 0 10px rgb(15 23 42 / 3%);
@@ -22,6 +27,7 @@
   display: flex;
   height: 100%;
   max-height: 100vh;
+  max-height: 100dvh;
   flex-direction: column;
   overflow: hidden;
 }

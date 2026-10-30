@@ -1,3 +1,4 @@
+import '@/utils/patch-performance-measure'
 import type { Metadata } from 'next'
 import { Instrument_Serif, Manrope } from 'next/font/google'
 

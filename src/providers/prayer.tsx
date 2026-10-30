@@ -78,6 +78,7 @@ type VersionRow = {
   language_code: string
   text_hash: string
   approved_by: string | null
+  approved_by_user?: { name: string } | null
   approved_at: Date | null
   selected_audio_id: string | null
   created_at: Date
@@ -168,6 +169,7 @@ export const GET_VERSION = async ({
       language_code: true,
       text_hash: true,
       approved_by: true,
+      approved_by_user: { select: { name: true } },
       approved_at: true,
       selected_audio_id: true,
       created_at: true,
@@ -216,6 +218,7 @@ export const GET_PRAYER = async ({
         language_code: true,
         text_hash: true,
         approved_by: true,
+        approved_by_user: { select: { name: true } },
         approved_at: true,
         selected_audio_id: true,
         created_at: true,
@@ -495,6 +498,7 @@ export const APPROVE_TEXT = async ({
           language_code: true,
           text_hash: true,
           approved_by: true,
+          approved_by_user: { select: { name: true } },
           approved_at: true,
           selected_audio_id: true,
           created_at: true,
@@ -585,6 +589,7 @@ const versionFields = {
   language_code: true,
   text_hash: true,
   approved_by: true,
+  approved_by_user: { select: { name: true } },
   approved_at: true,
   selected_audio_id: true,
   created_at: true,

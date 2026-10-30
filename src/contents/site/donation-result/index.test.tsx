@@ -1,6 +1,7 @@
-import { render, screen, waitFor } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { SiteLocale } from '@/config/site-locale'
 import { SiteI18nProvider } from '@/i18n/site-i18n'
 import { DonationStatusView } from '@/models/donation'
 import { axiosMock } from '@/test/frontend/render'
@@ -24,11 +25,11 @@ const confirmed: DonationStatusView = {
   receiptSeen: true,
 }
 
-const renderResult = (initialStatus: DonationStatusView) => {
+const renderResult = (initialStatus: DonationStatusView, locale: SiteLocale = 'en') => {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
   return render(
     <QueryClientProvider client={client}>
-      <SiteI18nProvider initialLocale="en">
+      <SiteI18nProvider initialLocale={locale}>
         <ContentsSiteDonationResult attempt={attempt} initialStatus={initialStatus} />
       </SiteI18nProvider>
     </QueryClientProvider>,
@@ -84,5 +85,33 @@ describe('ContentsSiteDonationResult (W12)', () => {
     expect(screen.getByRole('link', { name: 'Try again' }).getAttribute('href')).toBe(
       '/donate?church=c1',
     )
+  })
+
+  it('renders the thanks video overlay in Estonian when locale is et, and can be skipped', () => {
+    renderResult(confirmed, 'et')
+
+    const region = screen.getByRole('region', { name: 'Tänutervitus' })
+    expect(region).toBeTruthy()
+    expect(screen.getByText('Hea, et oled siin.')).toBeTruthy()
+    const skipBtn = screen.getByRole('button', { name: 'Jäta video vahele' })
+    expect(skipBtn).toBeTruthy()
+
+    fireEvent.click(skipBtn)
+    expect(screen.getByRole('button', { name: 'Vaata tänutervitust' })).toBeTruthy()
+  })
+
+  it('translates video overlay to the active locale (English)', () => {
+    renderResult(confirmed, 'en')
+
+    const region = screen.getByRole('region', { name: 'Thank you video' })
+    expect(region).toBeTruthy()
+    expect(screen.getByText('Good to have you here.')).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Skip thank you video' })).toBeTruthy()
+  })
+
+  it('does not render the thanks video overlay for failed donations', () => {
+    renderResult({ ...confirmed, state: 'failed', paidAt: null } as unknown as DonationStatusView)
+
+    expect(screen.queryByRole('region', { name: 'Tänutervitus' })).toBeNull()
   })
 })

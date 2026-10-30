@@ -8,6 +8,9 @@ export default defineConfig({
     alias: {
       '@': path.resolve(__dirname, 'src'),
     },
+    // Context providers must resolve to one module instance even when an
+    // alternate package-manager tree is present in a developer workspace.
+    dedupe: ['react', 'react-dom', '@tanstack/react-query'],
   },
   test: {
     environment: 'jsdom',

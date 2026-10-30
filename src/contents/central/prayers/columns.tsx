@@ -1,9 +1,23 @@
 import { PrayerOutput } from '@/models/prayer'
-import { ACTION_COLUMN_WIDTH, ADDITIONAL_COLUMN_CONFIG, ID_COLUMN_WIDTH } from '@/utils/constant'
-import { Button, TableProps } from 'antd'
+import { ADDITIONAL_COLUMN_CONFIG } from '@/utils/constant'
+import { DeleteFilled, EditFilled, HistoryOutlined } from '@ant-design/icons'
+import { Button, TableProps, Tooltip } from 'antd'
+import styles from './index.module.scss'
 
-/** Central prayer row: the church name matters here, the per-church list omits it. */
 export type CentralPrayerRow = PrayerOutput & { churchName: string }
+
+const publishedDate = (value: string) =>
+  new Intl.DateTimeFormat('en-GB', {
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+  }).format(new Date(value))
+
+const prayerState = (record: CentralPrayerRow) => {
+  if (record.published) return 'Published'
+  if (record.scheduled) return 'Scheduled'
+  return 'Draft'
+}
 
 export const CentralPrayerColumns = ({
   onOpen,
@@ -14,46 +28,83 @@ export const CentralPrayerColumns = ({
   page: number
   pageSize: number
 }) => {
-  const column: TableProps<CentralPrayerRow>['columns'] = [
+  const columns: TableProps<CentralPrayerRow>['columns'] = [
     {
-      key: 'no',
+      key: 'number',
       title: 'No.',
-      width: ID_COLUMN_WIDTH,
-      render: (_text, _record, index) =>
-        (index + 1 + (page - 1) * pageSize).toString().padStart(2, '0'),
-    },
-    {
-      key: 'church',
-      title: 'Church',
-      render: (_text, record) => record.churchName,
+      width: 1,
+      render: (_value, _record, index) => (page - 1) * pageSize + index + 1,
     },
     {
       key: 'title',
       title: 'Title',
-      render: (_text, record) => record.current?.title ?? '-',
+      render: (_value, record) => (
+        <span className={styles.prayerTitle}>{record.current?.title ?? 'Untitled prayer'}</span>
+      ),
     },
     {
-      key: 'publication',
-      title: 'Publication information',
-      render: (_text, record) => {
-        if (record.scheduled)
-          return `Scheduled • ${new Date(record.scheduled.scheduledAt).toLocaleString()}`
-        if (record.published)
-          return `Published • ${new Date(record.published.publishedAt).toLocaleDateString()}`
-        return 'Draft'
+      key: 'church',
+      title: 'Church',
+      render: (_value, record) => record.churchName,
+    },
+    {
+      key: 'status',
+      title: 'Status',
+      render: (_value, record) => {
+        const state = prayerState(record)
+        return (
+          <span className={`${styles.statusPill} ${styles[`status${state}`]}`}>
+            <span aria-hidden="true" className={styles.statusDot} />
+            {state}
+          </span>
+        )
       },
     },
     {
+      key: 'published_at',
+      title: 'Published at',
+      sorter: true,
+      render: (_value, record) =>
+        record.published ? publishedDate(record.published.publishedAt) : '—',
+    },
+    {
       key: 'actions',
-      title: 'Action',
-      width: ACTION_COLUMN_WIDTH,
+      title: 'Actions',
+      width: 100,
       ...ADDITIONAL_COLUMN_CONFIG,
-      render: (_text, record) => (
-        <Button type="link" size="small" onClick={() => onOpen(record.churchId, record.id)}>
-          Open
-        </Button>
+      render: (_value, record) => (
+        <div className={styles.actionButtons}>
+          <Tooltip title="Prayer history is not available yet">
+            <span>
+              <Button
+                aria-label={`View history for ${record.current?.title ?? 'prayer'}`}
+                className={styles.neutralActionButton}
+                disabled
+                icon={<HistoryOutlined />}
+              />
+            </span>
+          </Tooltip>
+          <Tooltip title="Edit prayer">
+            <Button
+              aria-label={`Edit ${record.current?.title ?? 'prayer'}`}
+              className={styles.neutralActionButton}
+              icon={<EditFilled />}
+              onClick={() => onOpen(record.churchId, record.id)}
+            />
+          </Tooltip>
+          <Tooltip title="Prayer deletion is not available yet">
+            <span>
+              <Button
+                aria-label={`Delete ${record.current?.title ?? 'prayer'}`}
+                className={styles.deleteActionButton}
+                disabled
+                icon={<DeleteFilled />}
+              />
+            </span>
+          </Tooltip>
+        </div>
       ),
     },
   ]
-  return column
+  return columns
 }

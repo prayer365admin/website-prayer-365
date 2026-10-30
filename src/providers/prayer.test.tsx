@@ -446,6 +446,44 @@ describe('CREATE_VERSION_SNAPSHOT', () => {
 })
 
 describe('APPROVE_TEXT', () => {
+  it('returns the approving user display name', async () => {
+    const approvedAt = new Date('2026-10-29T00:00:00.000Z')
+    db.prayer.updateMany.mockResolvedValueOnce({ count: 1 })
+    db.prayerVersion.update.mockResolvedValueOnce({
+      id: 'v1',
+      version_number: 1,
+      pastor_id: 'pastor-1',
+      title: 'Morning prayer',
+      introduction: null,
+      body: 'Amen.',
+      language_code: 'en',
+      text_hash: 'hash',
+      approved_by: 'u1',
+      approved_by_user: { name: 'Mikk Leedjärv' },
+      approved_at: approvedAt,
+      selected_audio_id: null,
+      created_at: approvedAt,
+    })
+
+    const result = await APPROVE_TEXT({
+      churchIds: new Set(['c1']),
+      prayerId: 'pr1',
+      expectedVersion: 3,
+      prayerVersionId: 'v1',
+      actorId: 'u1',
+      requestId: 'req1',
+    })
+
+    expect(result.approvedByName).toBe('Mikk Leedjärv')
+    expect(db.prayerVersion.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        select: expect.objectContaining({
+          approved_by_user: { select: { name: true } },
+        }),
+      }),
+    )
+  })
+
   it('throws stale if the prayer version increment race fails', async () => {
     db.prayer.updateMany.mockResolvedValueOnce({ count: 0 })
 

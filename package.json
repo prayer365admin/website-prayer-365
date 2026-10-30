@@ -22,6 +22,7 @@
     "seed:viimsi": "bunx tsx prisma/seed-viimsi.ts",
     "request:submit": "bun src/script/submit-request.ts",
     "checkin:create": "bun src/script/check-in.ts",
+    "compress:video": "bun src/script/compress-video.ts",
     "worker:audio-generate": "bun workers/audio-generate.ts",
     "worker:prayer-publish": "bun workers/prayer-publish.ts",
     "worker:payment-sync": "bun workers/payment-sync.ts",

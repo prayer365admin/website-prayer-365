@@ -46,4 +46,13 @@ describe('MainBreadcrumb church links', () => {
     expect(screen.getByText('C1').closest('a')).toBeNull()
     expect(screen.getByText('Churches').closest('a')).toBeTruthy()
   })
+
+  it('renders UUID path segment as ellipses', async () => {
+    await setup(true, '/dashboard/churches/01a1851a-7d70-7753-809c-4f746e996e46/announcements')
+    const ellipsisLink = screen.getByText('...').closest('a')
+    expect(ellipsisLink?.getAttribute('href')).toBe(
+      '/dashboard/churches/01a1851a-7d70-7753-809c-4f746e996e46',
+    )
+    expect(screen.queryByText(/01a1851a/)).toBeNull()
+  })
 })

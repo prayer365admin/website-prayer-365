@@ -2,15 +2,21 @@ import ActionsTable from '@/components/common/actions-table'
 import { AnnouncementOutput } from '@/models/announcement'
 import { SendOutlined } from '@ant-design/icons'
 import { UndoOutlined } from '@ant-design/icons'
-import { Button, Popconfirm, TableProps, Tag, Tooltip, Typography } from 'antd'
+import { Button, Popconfirm, TableProps, Tooltip, Typography } from 'antd'
 import { formatChurchInstant } from '@/utils/event-datetime'
 import { ANNOUNCEMENT_STATUS, announcementStatusLabels } from '@/utils/constant'
 
 export const AnnouncementStatusTag = ({ publishedAt }: { publishedAt: string | null }) =>
   publishedAt ? (
-    <Tag color="green">{announcementStatusLabels[ANNOUNCEMENT_STATUS.PUBLISHED]}</Tag>
+    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#edfdf9] border border-[#d3faef] text-[#09a97c] text-xs font-semibold leading-none w-fit self-start shrink-0">
+      <span className="w-1.5 h-1.5 rounded-full bg-[#09a97c] shrink-0" />
+      {announcementStatusLabels[ANNOUNCEMENT_STATUS.PUBLISHED]}
+    </span>
   ) : (
-    <Tag>{announcementStatusLabels[ANNOUNCEMENT_STATUS.DRAFT]}</Tag>
+    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#f0f2f5] border border-[#dde0e4] text-[#5c6370] text-xs font-semibold leading-none w-fit self-start shrink-0">
+      <span className="w-1.5 h-1.5 rounded-full bg-[#9aa1ad] shrink-0" />
+      {announcementStatusLabels[ANNOUNCEMENT_STATUS.DRAFT]}
+    </span>
   )
 
 /** Publish/unpublish icon button with confirmation; shared by church and central tables. */
@@ -37,13 +43,11 @@ export const AnnouncementPublishAction = ({
         onConfirm={() => onUnpublish(announcement)}
       >
         <Button
-          type="link"
-          size="small"
-          icon={<UndoOutlined />}
+          className="!size-8 !rounded-lg !border-[#DDE0E4] !bg-white !p-0 !text-[#8F96A3] hover:!text-[#0E203E] hover:!border-[#B0B6BF] flex items-center justify-center"
+          icon={<UndoOutlined style={{ fontSize: 13 }} />}
           loading={unpublishingId === announcement.id}
           disabled={Boolean(publishingId || unpublishingId)}
           aria-label={`Unpublish ${announcement.title}`}
-          className="!p-0"
         />
       </Popconfirm>
     </Tooltip>
@@ -57,13 +61,11 @@ export const AnnouncementPublishAction = ({
         onConfirm={() => onPublish(announcement)}
       >
         <Button
-          type="link"
-          size="small"
-          icon={<SendOutlined />}
+          className="!size-8 !rounded-lg !border-[#DDE0E4] !bg-white !p-0 !text-[#8F96A3] hover:!text-[#0E203E] hover:!border-[#B0B6BF] flex items-center justify-center"
+          icon={<SendOutlined style={{ fontSize: 13 }} />}
           loading={publishingId === announcement.id}
           disabled={Boolean(publishingId || unpublishingId)}
           aria-label={`Publish ${announcement.title}`}
-          className="!p-0"
         />
       </Popconfirm>
     </Tooltip>
