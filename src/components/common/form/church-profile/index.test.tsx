@@ -52,6 +52,7 @@ const profile = {
   coverAssetId: null,
   status: 'APPROVED',
   version: 3,
+  organization: ['Estonia Diocese', 'Tallin Deanery'],
 }
 
 const serviceTimes = [
@@ -83,8 +84,8 @@ describe('FormChurchProfileTabs', () => {
     )
 
     // Check basic details render
-    expect(screen.getByLabelText('Church name')).toBeTruthy()
-    expect(screen.getByDisplayValue('Grace')).toBeTruthy()
+    expect(screen.getByText('Church Name *')).toBeTruthy()
+    expect(screen.getByText('Grace')).toBeTruthy()
 
     // Location & Contact renders
     await userEvent.click(screen.getByText('Location & Contact'))
@@ -196,7 +197,7 @@ describe('FormChurchProfileTabs', () => {
     expect(await screen.findByText('Pastor A')).toBeTruthy()
     expect(screen.queryByRole('button', { name: 'Edit' })).toBeNull()
   })
-  it('renders thumbnail and hero image placeholders on Details tab', () => {
+  it('renders Placement, Timezone, Cover Image, and Hero Image placeholders on Details tab', () => {
     renderWithProviders(
       <FormChurchProfileTabs
         initialValues={profile as unknown as ChurchProfileOutput}
@@ -206,9 +207,26 @@ describe('FormChurchProfileTabs', () => {
         onSubmitSchedule={vi.fn()}
       />,
     )
-    expect(screen.getByText('Thumbnail image')).toBeTruthy()
-    expect(screen.getByText('Hero image')).toBeTruthy()
-    expect(screen.getAllByText('Upload')).toHaveLength(2)
+    expect(screen.getByText('Placement')).toBeTruthy()
+    expect(screen.getByText('Estonia Diocese / Tallin Deanery')).toBeTruthy()
+    expect(screen.getByText(/Placement is set when the Church is created/)).toBeTruthy()
+    expect(screen.getByText('Timezone')).toBeTruthy()
+    expect(screen.getByText('Cover Image')).toBeTruthy()
+    expect(screen.getByText('Hero Image')).toBeTruthy()
+    expect(screen.getAllByText('Upload').length).toBeGreaterThanOrEqual(2)
+  })
+
+  it('renders fallback copy for placement when organization hierarchy is empty', () => {
+    renderWithProviders(
+      <FormChurchProfileTabs
+        initialValues={{ ...profile, organization: [] } as unknown as ChurchProfileOutput}
+        serviceTimes={serviceTimes}
+        churchId="church-1"
+        onSubmit={vi.fn()}
+        onSubmitSchedule={vi.fn()}
+      />,
+    )
+    expect(screen.getByText('Not placed in the hierarchy')).toBeTruthy()
   })
 
   it('renders map fallback in Location tab', async () => {

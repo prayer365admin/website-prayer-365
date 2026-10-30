@@ -2,6 +2,7 @@
 
 import {
   Alert,
+  AutoComplete,
   Button,
   Col,
   Empty,
@@ -18,19 +19,25 @@ import {
 } from 'antd'
 import {
   ArrowDownOutlined,
+  ArrowLeftOutlined,
   ArrowUpOutlined,
+  CheckOutlined,
   DeleteOutlined,
   LoadingOutlined,
   PictureOutlined,
   PlusOutlined,
+  UploadOutlined,
 } from '@ant-design/icons'
+import { useRouter } from 'next/navigation'
+import { DENOMINATION_OPTIONS, TIMEZONE_OPTIONS, WORSHIP_STYLE_OPTIONS } from '@/utils/constant'
 import { ServiceTimeEntry, ServiceTimeScheduleInput } from '@/models/service-time'
 import { ChurchProfileInput, ChurchProfileOutput } from '@/models/church'
 import FormChurchServiceTimes from '../church-service-times'
 import { GoogleMapPicker } from '@/components/common/google-map'
 import dayjs from 'dayjs'
 import customParseFormat from 'dayjs/plugin/customParseFormat'
-import { useState } from 'react'
+import axios from 'axios'
+import { useEffect, useState } from 'react'
 import UploadBox from '@/components/common/upload-box'
 import PastorImage from '@/components/common/pastor-image'
 import { useChurchPastorAssignments } from '@/hooks/data/central'
@@ -84,6 +91,7 @@ export default function FormChurchProfileTabs({
   onSubmit,
   onSubmitSchedule,
 }: FormChurchProfileTabsProps) {
+  const router = useRouter()
   const [form] = Form.useForm<ChurchProfileInput>()
   const {
     data: pastors = [],
@@ -97,18 +105,103 @@ export default function FormChurchProfileTabs({
     pastorPermission.updateAny('prayer_pastor').granted ||
     pastorPermission.updateOwn('prayer_pastor').granted
 
+  const isDirectImageUrl = (val: string | null): boolean =>
+    Boolean(
+      val &&
+      (val.startsWith('http://') ||
+        val.startsWith('https://') ||
+        val.startsWith('blob:') ||
+        val.startsWith('data:')),
+    )
+
   const [coverAsset, setCoverAsset] = useState<{ assetId: string | null; url: string | null }>({
     assetId: initialValues.coverAssetId ?? null,
     url: initialValues.coverAssetId
       ? `/api/v1/uploads/${initialValues.coverAssetId}/access?churchId=${encodeURIComponent(churchId)}`
       : null,
   })
+  const [coverPresignedUrl, setCoverPresignedUrl] = useState<string | null>(null)
+  const [failedCoverUrl, setFailedCoverUrl] = useState<string | null>(null)
+
+  useEffect(() => {
+    let active = true
+
+    if (!coverAsset.assetId || isDirectImageUrl(coverAsset.url)) {
+      return
+    }
+
+    axios
+      .get(`/api/v1/uploads/${encodeURIComponent(coverAsset.assetId)}/access`, {
+        params: { churchId },
+      })
+      .then((res) => {
+        if (active) {
+          const resolvedUrl = (res.data?.result?.url as string) ?? null
+          setCoverPresignedUrl(resolvedUrl)
+        }
+      })
+      .catch(() => {
+        if (active) setCoverPresignedUrl(null)
+      })
+
+    return () => {
+      active = false
+    }
+  }, [churchId, coverAsset.assetId, coverAsset.url])
+
+  const directCoverUrl = isDirectImageUrl(coverAsset.url) ? coverAsset.url : null
+  const displayCoverUrl =
+    directCoverUrl || (isDirectImageUrl(coverPresignedUrl) ? coverPresignedUrl : null)
+
+  const hasCoverImage = Boolean(
+    (coverAsset.assetId || directCoverUrl) && displayCoverUrl && displayCoverUrl !== failedCoverUrl,
+  )
+  const [coverUploading, setCoverUploading] = useState(false)
+  const { onUpload: uploadCoverImage } = useMediaUpload({ churchId, purpose: 'IMAGE' })
   const [heroAsset, setHeroAsset] = useState<{ assetId: string | null; url: string | null }>({
     assetId: initialValues.heroAssetId ?? null,
     url: initialValues.heroAssetId
       ? `/api/v1/uploads/${initialValues.heroAssetId}/access?churchId=${encodeURIComponent(churchId)}`
       : null,
   })
+  const [heroPresignedUrl, setHeroPresignedUrl] = useState<string | null>(null)
+  const [failedHeroUrl, setFailedHeroUrl] = useState<string | null>(null)
+  const [heroUploading, setHeroUploading] = useState(false)
+  const { onUpload: uploadHeroImage } = useMediaUpload({ churchId, purpose: 'IMAGE' })
+
+  useEffect(() => {
+    let active = true
+
+    if (!heroAsset.assetId || isDirectImageUrl(heroAsset.url)) {
+      return
+    }
+
+    axios
+      .get(`/api/v1/uploads/${encodeURIComponent(heroAsset.assetId)}/access`, {
+        params: { churchId },
+      })
+      .then((res) => {
+        if (active) {
+          const resolvedUrl = (res.data?.result?.url as string) ?? null
+          setHeroPresignedUrl(resolvedUrl)
+        }
+      })
+      .catch(() => {
+        if (active) setHeroPresignedUrl(null)
+      })
+
+    return () => {
+      active = false
+    }
+  }, [churchId, heroAsset.assetId, heroAsset.url])
+
+  const directHeroUrl = isDirectImageUrl(heroAsset.url) ? heroAsset.url : null
+  const displayHeroUrl =
+    directHeroUrl || (isDirectImageUrl(heroPresignedUrl) ? heroPresignedUrl : null)
+
+  const hasHeroImage = Boolean(
+    (heroAsset.assetId || directHeroUrl) && displayHeroUrl && displayHeroUrl !== failedHeroUrl,
+  )
 
   const [editingPastor, setEditingPastor] = useState<ChurchPastorSummary | null>(null)
   const [editingPastorImage, setEditingPastorImage] = useState<{
@@ -161,6 +254,7 @@ export default function FormChurchProfileTabs({
       status: _status,
       approved_by: _ab,
       approved_at: _aa,
+      organization: _org,
       ...baseProfile
     } = initialValues as Record<string, unknown>
 
@@ -219,96 +313,364 @@ export default function FormChurchProfileTabs({
       label: 'Details',
       forceRender: true,
       children: (
-        <>
-          <Row gutter={24}>
-            <Col span={12}>
+        <div className="border border-[#DDE0E4] rounded-lg p-4 sm:p-6 flex flex-col lg:flex-row gap-4 lg:gap-6">
+          <div className="flex-1 min-w-0 w-full lg:max-w-[720px] flex flex-col gap-4">
+            {/* Placement */}
+            <div className="flex flex-col gap-1">
+              <span className="text-sm font-semibold text-[#393E46]">Placement</span>
+              <div className="h-12 rounded-lg border border-[#DDE0E4] px-3.5 flex items-center bg-white text-sm text-[#393E46]">
+                {initialValues.organization && initialValues.organization.length > 0
+                  ? initialValues.organization.join(' / ')
+                  : 'Not placed in the hierarchy'}
+              </div>
+              <span className="text-xs text-[#8F96A3]">
+                Placement is set when the Church is created. Move it from Central to Hierarchy
+              </span>
+            </div>
+
+            {/* Timezone */}
+            <Form.Item
+              name="timezone"
+              label={<span className="text-sm font-semibold text-[#393E46]">Timezone</span>}
+              rules={[{ required: true, message: 'Please select timezone' }]}
+              className="!mb-0"
+            >
+              <Select
+                showSearch
+                options={TIMEZONE_OPTIONS}
+                placeholder="Select timezone"
+                className="h-12 w-full [&_.ant-select-selector]:!h-12 [&_.ant-select-selector]:!rounded-lg [&_.ant-select-selector]:!border-[#DDE0E4] [&_.ant-select-selection-item]:!leading-[46px]"
+                filterOption={(input, option) =>
+                  Boolean(
+                    option?.value &&
+                    String(option.value).toLowerCase().includes(input.toLowerCase()),
+                  )
+                }
+              />
+            </Form.Item>
+
+            {/* Denomination and Worship style */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <Form.Item
-                name={'name'}
-                label="Church name"
-                rules={[{ required: true, message: 'Please input church name' }]}
+                name="denomination"
+                label={<span className="text-sm font-semibold text-[#393E46]">Denomination</span>}
+                className="!mb-0"
               >
-                <Input placeholder="Example Church" />
-              </Form.Item>
-            </Col>
-            <Col span={12}>
-              <Form.Item name={'denomination'} label="Denomination">
-                <Input placeholder="Where applicable" />
-              </Form.Item>
-            </Col>
-          </Row>
-          <Row gutter={24}>
-            <Col span={12}>
-              <Form.Item name={'churchStyle'} label="Church style / highlight">
-                <Input placeholder="e.g. Contemporary Ecumenical, Youth & Student Parish" />
-              </Form.Item>
-            </Col>
-          </Row>
-          <Row gutter={24}>
-            <Col span={24}>
-              <Form.Item name={'description'} label="Description">
-                <Input.TextArea
-                  placeholder="A short introduction to the church community."
-                  rows={4}
+                <AutoComplete
+                  options={DENOMINATION_OPTIONS}
+                  placeholder="e.g. Lutheran, Baptist"
+                  filterOption={(inputValue, option) =>
+                    Boolean(
+                      option?.value &&
+                      String(option.value).toLowerCase().includes(inputValue.toLowerCase()),
+                    )
+                  }
+                  className="w-full [&_.ant-select-selector]:!h-12 [&_.ant-select-selector]:!rounded-lg [&_.ant-select-selector]:!border-[#DDE0E4] [&_.ant-select-selection-search-input]:!h-12"
                 />
               </Form.Item>
-            </Col>
-          </Row>
-          <Row gutter={24}>
-            <Col span={12}>
-              <Form.Item label="Thumbnail image">
-                <UploadBox
-                  formName="coverAssetId"
-                  churchId={churchId}
-                  purpose="IMAGE"
-                  upload={coverAsset}
-                  setUpload={(val) => {
-                    const typedVal = val as { url: string | null; assetId?: string | null }
-                    setCoverAsset({
-                      assetId: typedVal.assetId ?? null,
-                      url: typedVal.url,
-                    })
-                    form.setFieldValue('coverAssetId', typedVal.assetId ?? null)
-                  }}
-                />
-              </Form.Item>
-            </Col>
-            <Col span={12}>
-              <Form.Item label="Hero image">
-                <UploadBox
-                  formName="heroAssetId"
-                  churchId={churchId}
-                  purpose="IMAGE"
-                  upload={heroAsset}
-                  setUpload={(val) => {
-                    const typedVal = val as { url: string | null; assetId?: string | null }
-                    setHeroAsset({
-                      assetId: typedVal.assetId ?? null,
-                      url: typedVal.url,
-                    })
-                    form.setFieldValue('heroAssetId', typedVal.assetId ?? null)
-                  }}
-                />
-              </Form.Item>
-            </Col>
-          </Row>
-          <Row gutter={24}>
-            <Col span={12}>
               <Form.Item
-                name={'languageCodes'}
-                label="Languages"
-                rules={[{ required: true, message: 'Select at least one language' }]}
+                name="churchStyle"
+                label={<span className="text-sm font-semibold text-[#393E46]">Worship style</span>}
+                className="!mb-0"
               >
-                <Select mode="multiple" placeholder="English, Estonian, Finnish">
-                  {LANGUAGE_CODES.map((code) => (
-                    <Select.Option key={code} value={code}>
-                      {code.toUpperCase()}
-                    </Select.Option>
-                  ))}
-                </Select>
+                <AutoComplete
+                  options={WORSHIP_STYLE_OPTIONS}
+                  placeholder="e.g. Traditional, Contemporary"
+                  filterOption={(inputValue, option) =>
+                    Boolean(
+                      option?.value &&
+                      String(option.value).toLowerCase().includes(inputValue.toLowerCase()),
+                    )
+                  }
+                  className="w-full [&_.ant-select-selector]:!h-12 [&_.ant-select-selector]:!rounded-lg [&_.ant-select-selector]:!border-[#DDE0E4] [&_.ant-select-selection-search-input]:!h-12"
+                />
               </Form.Item>
-            </Col>
-          </Row>
-        </>
+            </div>
+
+            {/* Profile basics */}
+            <Form.Item
+              name="description"
+              label={<span className="text-sm font-semibold text-[#393E46]">Profile basics</span>}
+              className="!mb-0"
+            >
+              <Input.TextArea
+                placeholder="A short introduction to the church community."
+                rows={4}
+                maxLength={2000}
+                showCount
+                className="!min-h-[120px] !rounded-lg !border-[#DDE0E4] p-3 text-sm text-[#393E46]"
+              />
+            </Form.Item>
+
+            {/* Languages */}
+            <Form.Item
+              name="languageCodes"
+              label={<span className="text-sm font-semibold text-[#393E46]">Languages</span>}
+              rules={[{ required: true, message: 'Select at least one language' }]}
+              className="!mb-0"
+            >
+              <Select
+                mode="multiple"
+                placeholder="Select languages"
+                className="w-full [&_.ant-select-selector]:!min-h-[48px] [&_.ant-select-selector]:!rounded-lg [&_.ant-select-selector]:!border-[#DDE0E4]"
+                tagRender={({ label, closable, onClose }) => (
+                  <span className="inline-flex items-center gap-1.5 px-3 py-1 mr-1.5 my-1 rounded-lg bg-[#E6EDFB] text-sm font-medium text-[#393E46]">
+                    {label}
+                    {closable && (
+                      <span
+                        onClick={onClose}
+                        className="cursor-pointer text-xs text-[#5C6370] hover:text-[#0E203E]"
+                      >
+                        ×
+                      </span>
+                    )}
+                  </span>
+                )}
+                options={LANGUAGE_CODES.map((code) => ({
+                  label: code.toUpperCase(),
+                  value: code,
+                }))}
+              />
+            </Form.Item>
+          </div>
+
+          {/* Right column: Cover Image */}
+          <div className="w-full lg:w-[382px] flex-none flex flex-col gap-6">
+            {/* Cover Image */}
+            <div className="flex flex-col gap-2">
+              <span className="text-sm font-semibold text-[#393E46]">Cover Image</span>
+              {hasCoverImage ? (
+                <div className="relative group w-full h-[176px] rounded-lg overflow-hidden border border-slate-200/80 bg-slate-100">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={displayCoverUrl || ''}
+                    alt="Cover"
+                    className="w-full h-full object-cover rounded-lg"
+                    onError={() => setFailedCoverUrl(displayCoverUrl)}
+                  />
+                  <div className="absolute bottom-2.5 left-2.5 right-2.5 flex items-center justify-between z-10 pointer-events-none">
+                    <Upload
+                      name="file"
+                      showUploadList={false}
+                      multiple={false}
+                      accept="image/*"
+                      customRequest={async ({ file, onSuccess, onError }) => {
+                        setCoverUploading(true)
+                        try {
+                          const res = await uploadCoverImage(file as File)
+                          if (res?.assetId && res.url) {
+                            setFailedCoverUrl(null)
+                            setCoverAsset({ assetId: res.assetId, url: res.url })
+                            setCoverPresignedUrl(res.url)
+                            form.setFieldValue('coverAssetId', res.assetId)
+                            onSuccess?.('ok')
+                          }
+                        } catch (err) {
+                          onError?.(err as Error)
+                        } finally {
+                          setCoverUploading(false)
+                        }
+                      }}
+                      className="pointer-events-auto"
+                    >
+                      <button
+                        type="button"
+                        disabled={coverUploading}
+                        className="bg-white rounded-lg shadow-sm border border-neutral-200/90 px-3 py-1.5 flex items-center gap-2 text-sm font-medium text-[#2F7AD2] hover:bg-neutral-50 transition-colors cursor-pointer"
+                        aria-label="Change image"
+                      >
+                        <span>Change image</span>
+                        {coverUploading ? (
+                          <LoadingOutlined
+                            style={{ color: '#2F7AD2' }}
+                            className="text-sm !text-[#2F7AD2]"
+                          />
+                        ) : (
+                          <UploadOutlined
+                            style={{ color: '#2F7AD2' }}
+                            className="text-sm !text-[#2F7AD2]"
+                          />
+                        )}
+                      </button>
+                    </Upload>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setFailedCoverUrl(null)
+                        setCoverPresignedUrl(null)
+                        setCoverAsset({ assetId: null, url: null })
+                        form.setFieldValue('coverAssetId', null)
+                      }}
+                      className="bg-white rounded-lg shadow-sm border border-neutral-200/90 w-9 h-9 flex items-center justify-center text-[#E02424] hover:bg-neutral-50 transition-colors cursor-pointer pointer-events-auto"
+                      aria-label="Delete cover image"
+                    >
+                      <DeleteOutlined className="text-base text-[#E02424]" />
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <Upload
+                  name="file"
+                  showUploadList={false}
+                  multiple={false}
+                  accept="image/*"
+                  customRequest={async ({ file, onSuccess, onError }) => {
+                    setCoverUploading(true)
+                    try {
+                      const res = await uploadCoverImage(file as File)
+                      if (res?.assetId && res.url) {
+                        setFailedCoverUrl(null)
+                        setCoverAsset({ assetId: res.assetId, url: res.url })
+                        form.setFieldValue('coverAssetId', res.assetId)
+                        onSuccess?.('ok')
+                      }
+                    } catch (err) {
+                      onError?.(err as Error)
+                    } finally {
+                      setCoverUploading(false)
+                    }
+                  }}
+                  className="w-full block [&_.ant-upload]:!w-full [&_.ant-upload]:!block [&_.ant-upload-select]:!w-full [&_.ant-upload-select]:!block [&_.ant-upload-btn]:!w-full [&_.ant-upload-btn]:!block"
+                >
+                  <div className="w-full bg-[#F5F7FF] rounded-lg p-2">
+                    <div className="h-[176px] w-full rounded-md border border-dashed border-[#C8D7F3] flex flex-col items-center justify-center gap-2 hover:border-[#2F7AD2] transition-colors cursor-pointer">
+                      {coverUploading ? (
+                        <LoadingOutlined
+                          style={{ color: '#2F7AD2' }}
+                          className="text-2xl !text-[#2F7AD2]"
+                        />
+                      ) : (
+                        <UploadOutlined
+                          style={{ color: '#2F7AD2' }}
+                          className="text-2xl !text-[#2F7AD2]"
+                        />
+                      )}
+                      <span className="text-sm font-semibold text-[#2F7AD2]">Upload</span>
+                    </div>
+                  </div>
+                </Upload>
+              )}
+            </div>
+
+            {/* Hero Image */}
+            <div className="flex flex-col gap-2">
+              <span className="text-sm font-semibold text-[#393E46]">Hero Image</span>
+              {hasHeroImage ? (
+                <div className="relative group w-full h-[176px] rounded-lg overflow-hidden border border-slate-200/80 bg-slate-100">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={displayHeroUrl || ''}
+                    alt="Hero"
+                    className="w-full h-full object-cover rounded-lg"
+                    onError={() => setFailedHeroUrl(displayHeroUrl)}
+                  />
+                  <div className="absolute bottom-2.5 left-2.5 right-2.5 flex items-center justify-between z-10 pointer-events-none">
+                    <Upload
+                      name="heroFile"
+                      showUploadList={false}
+                      multiple={false}
+                      accept="image/*"
+                      customRequest={async ({ file, onSuccess, onError }) => {
+                        setHeroUploading(true)
+                        try {
+                          const res = await uploadHeroImage(file as File)
+                          if (res?.assetId && res.url) {
+                            setFailedHeroUrl(null)
+                            setHeroAsset({ assetId: res.assetId, url: res.url })
+                            setHeroPresignedUrl(res.url)
+                            form.setFieldValue('heroAssetId', res.assetId)
+                            onSuccess?.('ok')
+                          }
+                        } catch (err) {
+                          onError?.(err as Error)
+                        } finally {
+                          setHeroUploading(false)
+                        }
+                      }}
+                      className="pointer-events-auto"
+                    >
+                      <button
+                        type="button"
+                        disabled={heroUploading}
+                        className="bg-white rounded-lg shadow-sm border border-neutral-200/90 px-3 py-1.5 flex items-center gap-2 text-sm font-medium text-[#2F7AD2] hover:bg-neutral-50 transition-colors cursor-pointer"
+                        aria-label="Change hero image"
+                      >
+                        <span>Change image</span>
+                        {heroUploading ? (
+                          <LoadingOutlined
+                            style={{ color: '#2F7AD2' }}
+                            className="text-sm !text-[#2F7AD2]"
+                          />
+                        ) : (
+                          <UploadOutlined
+                            style={{ color: '#2F7AD2' }}
+                            className="text-sm !text-[#2F7AD2]"
+                          />
+                        )}
+                      </button>
+                    </Upload>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setFailedHeroUrl(null)
+                        setHeroPresignedUrl(null)
+                        setHeroAsset({ assetId: null, url: null })
+                        form.setFieldValue('heroAssetId', null)
+                      }}
+                      className="bg-white rounded-lg shadow-sm border border-neutral-200/90 w-9 h-9 flex items-center justify-center text-[#E02424] hover:bg-neutral-50 transition-colors cursor-pointer pointer-events-auto"
+                      aria-label="Delete hero image"
+                    >
+                      <DeleteOutlined className="text-base text-[#E02424]" />
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <Upload
+                  name="heroFile"
+                  showUploadList={false}
+                  multiple={false}
+                  accept="image/*"
+                  customRequest={async ({ file, onSuccess, onError }) => {
+                    setHeroUploading(true)
+                    try {
+                      const res = await uploadHeroImage(file as File)
+                      if (res?.assetId && res.url) {
+                        setFailedHeroUrl(null)
+                        setHeroAsset({ assetId: res.assetId, url: res.url })
+                        form.setFieldValue('heroAssetId', res.assetId)
+                        onSuccess?.('ok')
+                      }
+                    } catch (err) {
+                      onError?.(err as Error)
+                    } finally {
+                      setHeroUploading(false)
+                    }
+                  }}
+                  className="w-full block [&_.ant-upload]:!w-full [&_.ant-upload]:!block [&_.ant-upload-select]:!w-full [&_.ant-upload-select]:!block [&_.ant-upload-btn]:!w-full [&_.ant-upload-btn]:!block"
+                >
+                  <div className="w-full bg-[#F5F7FF] rounded-lg p-2">
+                    <div className="h-[176px] w-full rounded-md border border-dashed border-[#C8D7F3] flex flex-col items-center justify-center gap-2 hover:border-[#2F7AD2] transition-colors cursor-pointer">
+                      {heroUploading ? (
+                        <LoadingOutlined
+                          style={{ color: '#2F7AD2' }}
+                          className="text-2xl !text-[#2F7AD2]"
+                        />
+                      ) : (
+                        <UploadOutlined
+                          style={{ color: '#2F7AD2' }}
+                          className="text-2xl !text-[#2F7AD2]"
+                        />
+                      )}
+                      <span className="text-sm font-semibold text-[#2F7AD2]">Upload</span>
+                    </div>
+                  </div>
+                </Upload>
+              )}
+            </div>
+          </div>
+        </div>
       ),
     },
     {
@@ -316,7 +678,7 @@ export default function FormChurchProfileTabs({
       label: 'Location & Contact',
       forceRender: true,
       children: (
-        <>
+        <div className="border border-[#DDE0E4] rounded-lg p-4 sm:p-6">
           <Row gutter={24}>
             <Col span={12}>
               <Form.Item
@@ -387,7 +749,7 @@ export default function FormChurchProfileTabs({
               )}
             </Form.List>
           </Form.Item>
-        </>
+        </div>
       ),
     },
     {
@@ -395,7 +757,7 @@ export default function FormChurchProfileTabs({
       label: 'Pastors',
       forceRender: true,
       children: (
-        <>
+        <div className="border border-[#DDE0E4] rounded-lg p-4 sm:p-6">
           {pastorsLoading ? (
             <Skeleton active paragraph={{ rows: 3 }} />
           ) : pastorsError ? (
@@ -463,7 +825,7 @@ export default function FormChurchProfileTabs({
             Shared Pastor name, introduction, canonical image, and linked staff identity are managed
             by Central Pastors. This church can edit only its role and optional image override.
           </div>
-        </>
+        </div>
       ),
     },
     {
@@ -471,10 +833,10 @@ export default function FormChurchProfileTabs({
       label: 'Service Times',
       forceRender: true,
       children: (
-        <>
+        <div className="border border-[#DDE0E4] rounded-lg p-4 sm:p-6">
           <Typography.Title level={4}>Service schedule</Typography.Title>
           <FormChurchServiceTimes isSaving={loading} />
-        </>
+        </div>
       ),
     },
     {
@@ -482,7 +844,7 @@ export default function FormChurchProfileTabs({
       label: 'Gallery',
       forceRender: true,
       children: (
-        <div className="space-y-6">
+        <div className="border border-[#DDE0E4] rounded-lg p-4 sm:p-6 space-y-6">
           <div>
             <Typography.Title level={4}>Sanctuary Gallery</Typography.Title>
             <Typography.Text type="secondary">
@@ -626,30 +988,63 @@ export default function FormChurchProfileTabs({
 
   return (
     <>
-      <Form
-        layout="vertical"
-        initialValues={{
-          ...initialValues,
-          address,
-          contacts,
-          socialLinks,
-          schedule: toRows(serviceTimes),
-        }}
-        form={form}
-      >
-        <Tabs
-          items={
-            visibleTabs
-              ? tabItems.filter((t) => visibleTabs.includes(t.key as ChurchProfileTabKey))
-              : tabItems
-          }
-        />
-        <div className="text-right mt-4">
-          <Button type="primary" onClick={handleSubmit} loading={loading}>
-            Save
-          </Button>
+      <div className="max-w-[1184px] mx-auto bg-white rounded-2xl shadow-[0_1px_2px_rgba(0,0,0,0.05)] border border-slate-100 p-4 sm:p-6 flex flex-col">
+        <div className="flex items-center gap-4 mb-4 sm:mb-6">
+          <button
+            type="button"
+            onClick={() => router.push(`/dashboard/churches/${churchId}`)}
+            className="w-10 h-10 rounded-lg bg-[#E6EDFB] flex items-center justify-center text-[#2555A7] hover:bg-[#d8e4f8] transition-colors border-0 cursor-pointer flex-shrink-0"
+            aria-label="Back"
+          >
+            <ArrowLeftOutlined className="text-sm font-semibold" />
+          </button>
+          <div className="flex flex-col">
+            <span className="text-sm font-semibold text-[#393E46]">Church Name *</span>
+            <h2 className="text-2xl font-semibold tracking-[-1px] text-[#0E203E] m-0">
+              {initialValues.name}
+            </h2>
+          </div>
         </div>
-      </Form>
+
+        <Form
+          layout="vertical"
+          initialValues={{
+            ...initialValues,
+            address,
+            contacts,
+            socialLinks,
+            schedule: toRows(serviceTimes),
+          }}
+          form={form}
+        >
+          <Form.Item name="name" hidden>
+            <Input />
+          </Form.Item>
+
+          <Tabs
+            className="church-profile-tabs [&_.ant-tabs-nav]:!mb-4 [&_.ant-tabs-nav]:before:!border-b-0 [&_.ant-tabs-nav-list]:!bg-[#E6EDFB] [&_.ant-tabs-nav-list]:!rounded-xl [&_.ant-tabs-nav-list]:!p-1 [&_.ant-tabs-nav-list]:!gap-1 [&_.ant-tabs-tab]:!m-0 [&_.ant-tabs-tab]:!px-4 [&_.ant-tabs-tab]:!py-1.5 [&_.ant-tabs-tab]:!rounded-lg [&_.ant-tabs-tab]:!border-0 [&_.ant-tabs-tab]:!transition-all [&_.ant-tabs-tab-btn]:!text-xs [&_.ant-tabs-tab-btn]:!font-semibold [&_.ant-tabs-tab-btn]:!text-[#2555A7] [&_.ant-tabs-tab-active]:!bg-white [&_.ant-tabs-tab-active_.ant-tabs-tab-btn]:!text-[#0E203E] [&_.ant-tabs-ink-bar]:!hidden"
+            items={
+              visibleTabs
+                ? tabItems.filter((t) => visibleTabs.includes(t.key as ChurchProfileTabKey))
+                : tabItems
+            }
+          />
+
+          <div className="border-t border-[#F1F5F9] pt-4 mt-6 flex justify-end">
+            <Button
+              type="primary"
+              htmlType="button"
+              aria-label="Save"
+              onClick={handleSubmit}
+              loading={loading}
+              className="!h-10 !rounded-lg !px-4 !bg-[#2F7AD2] !border-[#2F7AD2] text-sm font-semibold flex items-center gap-2"
+            >
+              Save
+              <CheckOutlined className="text-sm" aria-hidden="true" />
+            </Button>
+          </div>
+        </Form>
+      </div>
 
       <Modal
         title="Edit pastor assignment"

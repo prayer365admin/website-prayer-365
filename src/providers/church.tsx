@@ -11,6 +11,7 @@ import {
 import { fromClassification, fromKind, requestVisibilityWhere } from '@/providers/request'
 import { CUSTOMER_ACCOUNT_FILTER } from '@/utils/customer-role'
 import { S3_PUBLIC_URL } from '@/providers/s3'
+import { churchOrgPath, GET_ORG_NODE_MAP } from '@/providers/central-church'
 
 /*
  * Church data adapter (Tasks 12/13). UPPER_SNAKE_CASE, single-responsibility.
@@ -57,7 +58,7 @@ export const GET_CHURCHES = async ({
       orderBy: orderBy as Prisma.ChurchOrderByWithRelationInput[],
     }),
   ])
-  const result = rows.map((r) => mapProfile(r, []))
+  const result = rows.map((r) => mapProfile(r, [], []))
   return { result, total }
 }
 
@@ -71,25 +72,31 @@ export const GET_CHURCH_PROFILE = async ({
 }): Promise<ChurchProfileOutput | null> => {
   const ids = toIds(churchIds)
   if (ids.length === 0) return null
-  const row = await db.church.findFirst({
-    where: { AND: [{ id: churchId }, { id: { in: ids } }] },
-    include: {
-      churchLanguages: { where: { language: { enabled: true } }, select: { language_code: true } },
-      galleryItems: {
-        orderBy: [{ order_index: 'asc' }],
-        include: {
-          media_asset: { select: { id: true, object_key: true } },
+  const [row, nodes] = await Promise.all([
+    db.church.findFirst({
+      where: { AND: [{ id: churchId }, { id: { in: ids } }] },
+      include: {
+        churchLanguages: {
+          where: { language: { enabled: true } },
+          select: { language_code: true },
+        },
+        galleryItems: {
+          orderBy: [{ order_index: 'asc' }],
+          include: {
+            media_asset: { select: { id: true, object_key: true } },
+          },
         },
       },
-    },
-  })
+    }),
+    GET_ORG_NODE_MAP(),
+  ])
   if (!row) return null
   return mapProfile(
     row,
     row.churchLanguages.map((l) => l.language_code.trim()),
+    row.org_node_id ? churchOrgPath(nodes, row.org_node_id).organization : [],
   )
 }
-
 const mapProfile = (
   row: {
     id: string
@@ -117,6 +124,7 @@ const mapProfile = (
     }>
   },
   languageCodes: string[],
+  organization: string[] = [],
 ): ChurchProfileOutput => {
   const lat = row.latitude as number | null
   const lng = row.longitude as number | null
@@ -145,6 +153,7 @@ const mapProfile = (
     })),
     languageCodes,
     version: row.version,
+    organization,
   }
 }
 
@@ -178,7 +187,7 @@ export const GET_AVAILABLE_LANGUAGE_CODES = async ({
   return new Set(rows.map((r) => r.code.trim()))
 }
 
-/** READY image asset belonging to this church (cover asset ownership check). */
+/** READY image asset belonging to or assigned to this church (cover / hero / gallery ownership check). */
 export const GET_CHURCH_READY_IMAGE = async ({
   churchIds,
   assetId,
@@ -189,7 +198,17 @@ export const GET_CHURCH_READY_IMAGE = async ({
   const ids = toIds(churchIds)
   if (ids.length === 0) return null
   return db.mediaAsset.findFirst({
-    where: { id: assetId, church_id: { in: ids }, status: 'READY', purpose: 'IMAGE' },
+    where: {
+      id: assetId,
+      status: 'READY',
+      purpose: 'IMAGE',
+      OR: [
+        { church_id: { in: ids } },
+        { galleryItems: { some: { church_id: { in: ids } } } },
+        { coverOf: { some: { id: { in: ids } } } },
+        { heroOf: { some: { id: { in: ids } } } },
+      ],
+    },
     select: { id: true },
   })
 }

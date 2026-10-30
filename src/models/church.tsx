@@ -97,6 +97,7 @@ export const ChurchProfileOutputSchema = z.object({
   galleryItems: z.array(ChurchGalleryItemOutputSchema).default([]),
   status: z.string(),
   version: z.number(),
+  organization: z.array(z.string()),
 })
 
 export type ChurchProfileOutput = {
@@ -117,6 +118,7 @@ export type ChurchProfileOutput = {
   galleryItems?: ChurchGalleryItemOutput[]
   status: string
   version: number
+  organization: string[]
 }
 
 export const ChurchSummarySchema = z.object({

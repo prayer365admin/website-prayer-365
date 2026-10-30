@@ -1,6 +1,10 @@
 .sidebar {
+  position: sticky !important;
+  top: 0;
+  height: 100vh;
+  max-height: 100vh;
+  z-index: 100;
   width: 280px;
-  min-height: 100vh;
   border-right: 1px solid #eef0f4;
   background: #fff !important;
   box-shadow: 1px 0 10px rgb(15 23 42 / 3%);
@@ -16,13 +20,15 @@
 
 .sidebarInner {
   display: flex;
-  height: 100vh;
+  height: 100%;
+  max-height: 100vh;
   flex-direction: column;
   overflow: hidden;
 }
 
 .brandRow {
   display: flex;
+  flex: none;
   min-height: 64px;
   align-items: center;
   justify-content: space-between;
@@ -104,10 +110,9 @@
 
 .menuScroll {
   width: 280px;
-  height: 825px;
   max-width: 100%;
-  max-height: calc(100vh - 122px);
-  flex: 0 1 825px;
+  flex: 1 1 auto;
+  min-height: 0;
   box-sizing: border-box;
   overflow-x: hidden;
   overflow-y: auto;
@@ -256,10 +261,12 @@
 
 .syncStatus {
   display: flex;
+  flex: none;
   min-height: 36px;
+  height: 36px;
   align-items: center;
   gap: 8px;
-  margin: auto 12px 14px;
+  margin: 12px 12px 14px;
   padding: 0 10px;
   border: 1px solid #dce5f4;
   border-radius: 11px;

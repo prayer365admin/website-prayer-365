@@ -27,6 +27,7 @@ const profile = {
   coverAssetId: null,
   status: 'APPROVED',
   version: 3,
+  organization: ['Estonia Diocese', 'Tallin Deanery'],
 }
 
 const serviceTimes = [
@@ -111,13 +112,13 @@ describe('Church Profile Screen', () => {
       renderWithProviders(<ContentsChurchProfile />)
 
       // While service times is loading, form should not be rendered
-      expect(screen.queryByText('Church name')).toBeNull()
+      expect(screen.queryByText('Church Name *')).toBeNull()
 
       // Resolve the promise to simulate network finish
       resolveServiceTimes!(undefined)
 
       // Form should now appear since both data sources are loaded
-      expect(await screen.findByText('Church name')).toBeTruthy()
+      expect(await screen.findByText('Church Name *')).toBeTruthy()
     })
   })
 
@@ -134,12 +135,13 @@ describe('Church Profile Screen', () => {
 
       await screen.findByText('Details')
 
-      expect(screen.getByLabelText('Church name')).toBeTruthy()
-      expect(screen.getByPlaceholderText('Example Church')).toBeTruthy()
+      expect(screen.getByText('Church Name *')).toBeTruthy()
+      expect(screen.getByText('Grace')).toBeTruthy()
+      expect(screen.getByText('Placement')).toBeTruthy()
+      expect(screen.getByText('Estonia Diocese / Tallin Deanery')).toBeTruthy()
+      expect(screen.getByText('Timezone')).toBeTruthy()
       expect(screen.getByLabelText('Denomination')).toBeTruthy()
       expect(screen.getByLabelText('Languages')).toBeTruthy()
-
-      expect(screen.getByDisplayValue('Grace')).toBeTruthy()
     })
 
     it('uploads cover image and saves with assetId', async () => {

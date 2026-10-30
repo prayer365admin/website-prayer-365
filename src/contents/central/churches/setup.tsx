@@ -6,7 +6,7 @@ import { useAccessPermission } from '@/hooks/data/access-permission'
 import { useCentralChurch, useCreateCentralChurch, useHierarchy } from '@/hooks/data/central'
 import { ChurchCreate, ChurchUpdate } from '@/models/central-church'
 import { HierarchyNode } from '@/models/hierarchy'
-import { TIMEZONE_OPTIONS } from '@/utils/constant'
+import { DENOMINATION_OPTIONS, TIMEZONE_OPTIONS, WORSHIP_STYLE_OPTIONS } from '@/utils/constant'
 import { CheckOutlined, CloseOutlined } from '@ant-design/icons'
 import {
   Alert,
@@ -35,27 +35,6 @@ import ChurchStatusTag from './status'
 
 const browserTimezone =
   typeof Intl !== 'undefined' ? Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC' : 'UTC'
-
-const DENOMINATION_OPTIONS = [
-  'Lutheran',
-  'Lutheran (EELK)',
-  'Baptist',
-  'Methodist',
-  'Catholic',
-  'Orthodox',
-  'Pentecostal',
-  'Anglican',
-  'Presbyterian',
-].map((value) => ({ value, label: value }))
-
-const WORSHIP_STYLE_OPTIONS = [
-  'Traditional',
-  'Contemporary',
-  'Contemporary Ecumenical',
-  'Liturgical',
-  'Blended',
-  'Charismatic',
-].map((value) => ({ value, label: value }))
 
 const normalizeTag = (val: unknown): string | undefined => {
   if (Array.isArray(val)) {

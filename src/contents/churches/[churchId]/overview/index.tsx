@@ -34,7 +34,8 @@ export default function ContentsChurchOverview() {
 
   const { data: overviewData } = useChurchOverview(churchId)
   const { data: profile } = useChurchProfile(churchId)
-  const { data: heroMedia } = useMediaAccess(churchId, profile?.heroAssetId)
+  const coverAssetId = profile?.coverAssetId ?? profile?.heroAssetId
+  const { data: coverMedia } = useMediaAccess(churchId, coverAssetId)
   const currentMonth = useMemo(() => dayjs().format('YYYY-MM'), [])
   const { data: donationSummary, loading: donationLoading } = useDonationSummary({
     churchId,
@@ -71,7 +72,7 @@ export default function ContentsChurchOverview() {
   const aggregates = overviewData?.aggregates
   const requests = overviewData?.requests
 
-  const heroImageUrl = heroMedia?.url
+  const coverImageUrl = coverMedia?.url
 
   const firstPastor = pastors?.[0]
   const latestPrayer = prayers?.[0]
@@ -93,10 +94,10 @@ export default function ContentsChurchOverview() {
     <div className="flex flex-col gap-4">
       {/* 1. Hero banner */}
       <div className="relative h-[320px] w-full overflow-hidden rounded-2xl bg-neutral-900 shadow-[0px_1px_2px_rgba(0,0,0,0.05)]">
-        {heroImageUrl ? (
+        {coverImageUrl ? (
           /* eslint-disable-next-line @next/next/no-img-element */
           <img
-            src={heroImageUrl}
+            src={coverImageUrl}
             alt={churchName}
             className="absolute inset-0 h-full w-full rounded-2xl object-cover"
           />
