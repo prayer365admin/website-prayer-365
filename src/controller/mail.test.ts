@@ -95,3 +95,33 @@ describe('createMailTransport', () => {
     expect(createTransport).not.toHaveBeenCalled()
   })
 })
+
+describe('provider precedence', () => {
+  it('ignores MAIL_PROVIDER inside MAIL_CREDENTIALS, so a stale secret cannot win', async () => {
+    vi.resetModules()
+    vi.stubEnv('MAIL_PROVIDER', 'ses')
+    vi.stubEnv('SES_REGION', 'eu-north-1')
+    // An older secret version that still carries the old provider key.
+    vi.stubEnv(
+      'MAIL_CREDENTIALS',
+      JSON.stringify({ MAIL_PROVIDER: 'mailtrap', MAILTRAP_USER: 'stale-user' }),
+    )
+    createTransport.mockClear()
+    sesClient.mockClear()
+
+    const { default: sendMail } = await import('@/controller/mail')
+    await sendMail({
+      from: 'noreply@example.com',
+      to: 'user@example.com',
+      subject: 'Provider precedence',
+      template_name: 'verify-email',
+      payload: { link: 'https://example.com' },
+    })
+
+    expect(sesClient).toHaveBeenCalledWith({ region: 'eu-north-1' })
+    expect(createTransport).toHaveBeenCalledWith({
+      SES: { sesClient: expect.anything(), SendEmailCommand: sendEmailCommand },
+    })
+    vi.unstubAllEnvs()
+  })
+})

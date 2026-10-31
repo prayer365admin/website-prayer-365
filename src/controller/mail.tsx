@@ -10,13 +10,18 @@ import { sendMailRequest } from '@/models/send-mail'
 const mailEnv = (() => {
   if (!process.env.MAIL_CREDENTIALS) return process.env
   try {
-    return { ...process.env, ...JSON.parse(process.env.MAIL_CREDENTIALS) }
+    // The secret carries credentials only. Provider selection is deployment
+    // configuration (Lambda env / Vercel env), so a stale MAIL_PROVIDER in an old
+    // secret version must not silently win over it.
+    const parsed = JSON.parse(process.env.MAIL_CREDENTIALS) as Record<string, string>
+    delete parsed.MAIL_PROVIDER
+    return { ...process.env, ...parsed }
   } catch {
     return process.env
   }
 })()
 
-const mailProvider = mailEnv.MAIL_PROVIDER || 'mailtrap'
+const mailProvider = process.env.MAIL_PROVIDER || 'mailtrap'
 
 /**
  * Builds the transport for one provider. `MAIL_PROVIDER` selects it, so moving

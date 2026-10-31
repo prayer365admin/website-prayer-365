@@ -81,7 +81,8 @@ export class DataStack extends Stack {
     })
     new Secret(this, 'MailCredentials', {
       secretName: `/prayer365/${config.name}/mail-credentials`,
-      description: 'JSON: {"MAIL_PROVIDER","MAIL_FROM","MAILGUN_USER","MAILGUN_PASSWORD"}',
+      description:
+        'JSON credentials only, e.g. {"MAILGUN_USER","MAILGUN_PASSWORD"} — the provider comes from the worker env (MAIL_PROVIDER); SES needs no keys (the Lambda role and the Vercel IAM user hold the permission)',
     })
 
     if (config.database.mode === 'create' && config.network.mode !== 'vpc') {

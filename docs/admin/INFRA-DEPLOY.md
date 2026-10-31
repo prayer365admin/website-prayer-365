@@ -80,6 +80,17 @@ the data stack creates for client environments (`prayer365-<env>-app`, key pair 
 `/prayer365/<env>/app-credentials`, S3 scoped to the media bucket and SES scoped to the identity). catatia
 keeps using the shared account's existing user.
 
+The **worker component sends mail too** (`mail.send` jobs, e.g. verify-email and forgot-password):
+
+| Item                          | Where it comes from                                                                                                          |
+| ----------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| `MAIL_PROVIDER`, `SES_REGION` | `email.provider` and `region` in the environment config, injected into both Lambdas                                          |
+| Permission to send            | `ses:SendEmail` / `ses:SendRawEmail` on the verified identity, granted to the **consumer role** when `email.provider: 'ses'` |
+| Credentials                   | none for SES (the role is the credential); SMTP providers read `mail-credentials`                                            |
+
+The `mail-credentials` secret holds **credentials only**. A `MAIL_PROVIDER` key inside it is ignored, so
+a stale secret version cannot override the deployed provider.
+
 ### Database location is configuration, not code
 
 The workers do not care where PostgreSQL lives. Both runtimes read the `DATABASE_URL` secret and use
@@ -193,9 +204,11 @@ aws secretsmanager put-secret-value --secret-id /prayer365/catatia/stripe-secret
 aws secretsmanager put-secret-value --secret-id /prayer365/catatia/stripe-webhook-secret \
   --secret-string 'whsec_...'
 
-# JSON object: the web app reads it, no worker reads it yet.
+# Credentials only — the provider comes from the worker env (MAIL_PROVIDER) and is
+# ignored inside this secret. SES needs no keys at all, so an empty object is correct.
 aws secretsmanager put-secret-value --secret-id /prayer365/catatia/mail-credentials \
-  --secret-string '{"MAIL_PROVIDER":"mailgun","MAIL_FROM":"no-reply@example.org","MAILGUN_USER":"...","MAILGUN_PASSWORD":"..."}'
+  --secret-string '{}'
+# Mailgun/Mailtrap instead: --secret-string '{"MAILGUN_USER":"...","MAILGUN_PASSWORD":"..."}'
 ```
 
 The Data stack creates the containers. It never stores a value.
@@ -421,13 +434,13 @@ row was written.
 
 ### 7.2 Still outstanding for catatia
 
-| #   | Item                                                                                                                                                                                                                                                                                | Command / action                                                                                                                                                                                                    |
-| --- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 1   | Stripe and mail secret values                                                                                                                                                                                                                                                       | `aws secretsmanager put-secret-value --secret-id /prayer365/catatia/stripe-secret-key --secret-string '...'` (same for `stripe-webhook-secret`, `mail-credentials`). Until then a `payment.sync` job cannot succeed |
-| 2   | Alarm e-mail                                                                                                                                                                                                                                                                        | set `alarmEmail` in the environment config and redeploy `workers`, then confirm the SNS subscription. Today the alarms exist but nobody is notified                                                                 |
-| 3   | Pause the schedule if the environment is idle                                                                                                                                                                                                                                       | `workers.dispatchSchedule: 'off'` + `bun run deploy:workers` (the rule currently fires every minute and dispatches nothing)                                                                                         |
-| 4   | Reset the two rows left `FAILED` by the earlier local worker check                                                                                                                                                                                                                  | SQL in the plan §0.1                                                                                                                                                                                                |
-| 5   | Seeded demo data: the demo voice profile had a placeholder `provider_voice_id` (`demo_voice_id`), so ElevenLabs refused every audio job. It now points at a real premade voice (`EXAVITQu4vr4xnSDxMaL`, "Sarah"); swap it for the pastor's cloned voice when that flow is exercised | `UPDATE voice_profiles SET provider_voice_id = '<real voice id>' WHERE id = '01a0f73b-96bb-75ef-9857-fac212d18ad8'`                                                                                                 |
+| #   | Item                                                                                                                                                                                                                                                                                | Command / action                                                                                                                                                                                                                                                                                                    |
+| --- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1   | Stripe and mail secret values                                                                                                                                                                                                                                                       | `aws secretsmanager put-secret-value --secret-id /prayer365/catatia/stripe-secret-key --secret-string '...'` (same for `stripe-webhook-secret`). `mail-credentials` is only needed for the SMTP providers — SES sends with the Lambda role, so `{}` is enough there. Until then a `payment.sync` job cannot succeed |
+| 2   | Alarm e-mail                                                                                                                                                                                                                                                                        | set `alarmEmail` in the environment config and redeploy `workers`, then confirm the SNS subscription. Today the alarms exist but nobody is notified                                                                                                                                                                 |
+| 3   | Pause the schedule if the environment is idle                                                                                                                                                                                                                                       | `workers.dispatchSchedule: 'off'` + `bun run deploy:workers` (the rule currently fires every minute and dispatches nothing)                                                                                                                                                                                         |
+| 4   | Reset the two rows left `FAILED` by the earlier local worker check                                                                                                                                                                                                                  | SQL in the plan §0.1                                                                                                                                                                                                                                                                                                |
+| 5   | Seeded demo data: the demo voice profile had a placeholder `provider_voice_id` (`demo_voice_id`), so ElevenLabs refused every audio job. It now points at a real premade voice (`EXAVITQu4vr4xnSDxMaL`, "Sarah"); swap it for the pastor's cloned voice when that flow is exercised | `UPDATE voice_profiles SET provider_voice_id = '<real voice id>' WHERE id = '01a0f73b-96bb-75ef-9857-fac212d18ad8'`                                                                                                                                                                                                 |
 
 ### 7.3 Cost of what is now running
 

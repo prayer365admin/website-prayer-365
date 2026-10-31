@@ -4,6 +4,7 @@ import { SnsAction } from 'aws-cdk-lib/aws-cloudwatch-actions'
 import { SecurityGroup, SubnetType, type Vpc } from 'aws-cdk-lib/aws-ec2'
 import { Rule, Schedule } from 'aws-cdk-lib/aws-events'
 import { LambdaFunction } from 'aws-cdk-lib/aws-events-targets'
+import { Effect, PolicyStatement } from 'aws-cdk-lib/aws-iam'
 import { Architecture, Runtime, type IFunction } from 'aws-cdk-lib/aws-lambda'
 import { NodejsFunction } from 'aws-cdk-lib/aws-lambda-nodejs'
 import { SqsEventSource } from 'aws-cdk-lib/aws-lambda-event-sources'
@@ -59,6 +60,20 @@ export class WorkerStack extends Stack {
     super(scope, id, props)
     const { config, vpc } = props
     const repoRoot = resolve(__dirname, '../..')
+
+    /*
+     * The mailer reads its HTML from ./public/templates/mail at runtime, relative to
+     * the process CWD — in Lambda that is the asset root (/var/task). esbuild bundles
+     * JS only, so the template folder is copied into the asset next to index.js.
+     */
+    const mailTemplateHooks = {
+      // ICommandHooks requires all three; the copy only needs the post-bundle step.
+      beforeBundling: () => [],
+      beforeInstall: () => [],
+      afterBundling: (inputDir: string, outputDir: string) => [
+        `mkdir -p ${outputDir}/public/templates && cp -r ${inputDir}/public/templates/mail ${outputDir}/public/templates/`,
+      ],
+    }
 
     /*
      * Network placement. Public databases (DigitalOcean, Neon, Supabase, an
@@ -121,7 +136,11 @@ export class WorkerStack extends Stack {
       NODE_OPTIONS: '--enable-source-maps',
       // ElevenLabs work is refused unless this is exactly 'true'.
       ELEVENLABS_ENABLED: 'true',
-      MAIL_PROVIDER: 'mailgun',
+      // Provider is deployment configuration: the mail-credentials secret is
+      // ignored for this key on purpose (see src/controller/mail.tsx).
+      MAIL_PROVIDER: config.email.provider,
+      // The SES identity is per-region: send from the region it was verified in.
+      SES_REGION: config.region,
       MAIL_CREDENTIALS: secretEnv('MAIL_CREDENTIALS'),
       // Per-email pacing for SES sandbox 1 msg/s; values larger than the
       // consumer timeout inflate consumerTimeoutSeconds requirements.
@@ -184,6 +203,8 @@ export class WorkerStack extends Stack {
       projectRoot: repoRoot,
       depsLockFilePath: resolve(repoRoot, 'bun.lock'),
       logGroup: logGroup('consumer'),
+      // Mail templates must sit next to index.js in the asset (see mailTemplateHooks).
+      bundling: { commandHooks: mailTemplateHooks },
       ...placement,
       environment: {
         ...commonEnvironment,
@@ -201,6 +222,23 @@ export class WorkerStack extends Stack {
     jobsDlq.grantSendMessages(this.consumer)
     mediaBucket.grantReadWrite(this.consumer)
     for (const secret of Object.values(secrets)) secret.grantRead(this.consumer)
+
+    /*
+     * SES sends as the calling role, scoped to the environment's verified identity so
+     * a compromised function cannot send as another domain. The SMTP providers need
+     * no permission here: their credentials come from the mail-credentials secret.
+     */
+    if (config.email.provider === 'ses') {
+      this.consumer.addToRolePolicy(
+        new PolicyStatement({
+          effect: Effect.ALLOW,
+          actions: ['ses:SendEmail', 'ses:SendRawEmail'],
+          resources: [
+            `arn:aws:ses:${config.region}:${config.account}:identity/${config.email.domain}`,
+          ],
+        }),
+      )
+    }
 
     if (config.workers.enabled && config.workers.dispatchSchedule !== 'off') {
       new Rule(this, 'DispatchSchedule', {

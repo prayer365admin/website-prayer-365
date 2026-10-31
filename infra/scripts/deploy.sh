@@ -206,6 +206,7 @@ DB_MODE="$(printf '%s' "$CFG" | sed -E 's/.*"database":\{"mode":"([a-z]+)".*/\1/
 NET_MODE="$(printf '%s' "$CFG" | sed -E 's/.*"network":\{"mode":"([a-z]+)".*/\1/')"
 WORKERS_ENABLED="$(printf '%s' "$CFG" | sed -E 's/.*"workers":\{"enabled":(true|false).*/\1/')"
 SES_DOMAIN="$(cfg_str "$CFG" domain)"
+MAIL_PROVIDER_EXPECTED="$(cfg_str "$CFG" provider)"
 
 printf '  %-14s %s\n' "environment" "$ENV_NAME"
 printf '  %-14s %s\n' "region" "$REGION"
@@ -213,6 +214,7 @@ printf '  %-14s %s\n' "storage" "$STORAGE_MODE"
 printf '  %-14s %s\n' "database" "$DB_MODE"
 printf '  %-14s %s\n' "network" "$NET_MODE"
 printf '  %-14s %s\n' "email (SES)" "$SES_DOMAIN"
+printf '  %-14s %s\n' "mail provider" "$MAIL_PROVIDER_EXPECTED"
 printf '  %-14s %s\n' "workers" "enabled=$WORKERS_ENABLED"
 printf '  %-14s %s\n' "on destroy" "removalPolicy=$REMOVAL"
 
@@ -307,6 +309,15 @@ checklist() {
   ses_verified="$(aws sesv2 get-email-identity --email-identity "$SES_DOMAIN" $CLI_ARGS \
     --query 'VerifiedForSendingStatus' --output text 2>/dev/null)"
   [ "$ses_verified" = "True" ]; mark_exit "$?" "SES domain identity ${SES_DOMAIN} verified"
+
+  # Provider the live consumer will actually use: a mismatch means the deployed
+  # function is older than the config (or was hand-edited in the console). The env
+  # var is authoritative — a MAIL_PROVIDER key in the secret is ignored.
+  consumer_provider="$(aws lambda get-function-configuration \
+    --function-name "prayer365-${ENV_NAME}-consumer" $CLI_ARGS \
+    --query 'Environment.Variables.MAIL_PROVIDER' --output text 2>/dev/null)"
+  [ "$consumer_provider" = "$MAIL_PROVIDER_EXPECTED" ]
+  mark_exit "$?" "consumer MAIL_PROVIDER=${consumer_provider:-missing} (config: ${MAIL_PROVIDER_EXPECTED})"
 
   SECRET_TOTAL=0; SECRET_WITH_VALUE=0
   for suffix in database-url elevenlabs-api-key stripe-secret-key stripe-webhook-secret mail-credentials; do
