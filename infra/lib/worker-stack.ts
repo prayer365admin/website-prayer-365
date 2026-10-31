@@ -36,6 +36,9 @@ const SECRET_ENV: Record<string, string> = {
   // payment.sync talks to Stripe; the webhook endpoint itself stays on Vercel.
   STRIPE_WEBHOOK_SECRET: 'stripe-webhook-secret',
   MAIL_CREDENTIALS: 'mail-credentials',
+  // F12 — device token crypto (same value on Vercel) + FCM service account JSON.
+  DEVICE_TOKEN_KEY: 'device-token-key',
+  FIREBASE_SERVICE_ACCOUNT: 'firebase-service-account',
 }
 
 /**

@@ -5,6 +5,7 @@ import { processPrayerPublishJob } from '@/controller/prayer-publish-job'
 import { processPaymentSyncJob } from '@/controller/payment-sync-job'
 import { processVoiceRegisterJob } from '@/controller/voice-register-job'
 import { processMailSendJob } from '@/controller/mail-send-job'
+import { processNotificationSendJob } from '@/controller/notification-send-job'
 import { logger } from '@/utils/logger'
 
 /*
@@ -32,6 +33,7 @@ export const HANDLERS: Record<string, (jobId: string, requestId: string) => Prom
   'payment.sync': processPaymentSyncJob,
   'voice.register': processVoiceRegisterJob,
   'mail.send': processMailSendJob,
+  'notification.send': processNotificationSendJob,
 }
 
 export const handler = async (event: SQSEvent): Promise<SQSBatchResponse> => {

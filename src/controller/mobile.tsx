@@ -1,15 +1,19 @@
 import { cache } from 'react'
 import { GeneralError } from '@/utils/general-error'
 import { withIdempotency } from '@/utils/idempotency'
+import { auditPayload } from '@/utils/audit'
+import { dbTransaction } from '@/utils/db-transaction'
 import {
   MobileAnalyticsAck,
   MobileAnalyticsInput,
   MobileCheckInAck,
   MobileChurchListQuery,
   MobileChurchSummary,
+  MobileDeviceRegistration,
   MobileMe,
   MobileMePatch,
   MobileMyChurch,
+  MobileNotificationPreferences,
   MobilePublicAnnouncement,
   MobilePublicChurch,
   MobilePublicEvent,
@@ -22,8 +26,11 @@ import {
   CREATE_CHECKIN,
   COUNT_RECENT_USER_REQUESTS,
   CREATE_USER_REQUEST,
+  DISABLE_DEVICE_TOKEN,
+  GET_CHECK_IN_ACK,
   GET_HOME,
   GET_ME_PROFILE,
+  GET_NOTIFICATION_PREFERENCES,
   GET_PUBLIC_CHURCH,
   GET_PUBLISHED_PRAYER,
   GET_USER_REQUEST_ACK,
@@ -34,6 +41,8 @@ import {
   LIST_PUBLISHED_PRAYERS,
   SET_FOLLOW,
   UPDATE_ME_PROFILE,
+  UPSERT_DEVICE_TOKEN,
+  UPSERT_NOTIFICATION_PREFERENCES,
 } from '@/providers/mobile'
 
 /*
@@ -325,19 +334,22 @@ export const checkIn = async ({
   idempotencyKey?: string
   requestId: string
 }): Promise<MobileCheckInAck> => {
-  let ack: MobileCheckInAck | null = null
-  await withIdempotency({
+  const outcome = await withIdempotency({
     actorKey: `user:${userId}`,
     operation: 'checkin.create',
     key: idempotencyKey ?? '',
     requestBody: { churchId },
     run: async () => {
       const created = await CREATE_CHECKIN({ churchId, userId, requestId })
-      ack = created
       return created.id
     },
   })
-  return ack ?? { id: '', churchId, occurredAt: new Date().toISOString(), localDate: '' }
+  // AA-1 — a replay must return the stored row, never a synthetic empty ack.
+  const ack = outcome.resource_id
+    ? await GET_CHECK_IN_ACK({ id: outcome.resource_id, userId })
+    : null
+  if (!ack) throw notFound('Check-in not found.')
+  return ack
 }
 
 export const recordAnalyticsEvents = async ({
@@ -371,3 +383,92 @@ export const recordAnalyticsEvents = async ({
   })
   return { accepted }
 }
+
+// ---------------------------------------------------------------------------
+// F12 — notification preferences + device registration (MB-04 / MB-05)
+// ---------------------------------------------------------------------------
+
+export const getNotificationPreferences = async ({ userId }: { userId: string }) =>
+  GET_NOTIFICATION_PREFERENCES({ userId })
+
+export const saveNotificationPreferences = async ({
+  userId,
+  input,
+  requestId,
+}: {
+  userId: string
+  input: MobileNotificationPreferences
+  requestId: string
+}) =>
+  dbTransaction(async (tx) => {
+    await UPSERT_NOTIFICATION_PREFERENCES({ userId, prefs: input }, tx)
+    await tx.auditLog.create({
+      data: auditPayload({
+        actorId: userId,
+        action: 'notification_preferences.update',
+        resourceType: 'notification_preferences',
+        resourceId: userId,
+        outcome: 'success',
+        requestId,
+      }),
+    })
+    return GET_NOTIFICATION_PREFERENCES({ userId })
+  })
+
+export const registerDevice = async ({
+  userId,
+  installationId,
+  input,
+  requestId,
+}: {
+  userId: string
+  installationId: string
+  input: MobileDeviceRegistration
+  requestId: string
+}) =>
+  dbTransaction(async (tx) => {
+    const row = await UPSERT_DEVICE_TOKEN(
+      { userId, installationId, platform: input.platform, token: input.token },
+      tx,
+    )
+    await tx.auditLog.create({
+      data: auditPayload({
+        actorId: userId,
+        action: 'device.register',
+        resourceType: 'device_token',
+        resourceId: row.id,
+        outcome: 'success',
+        requestId,
+      }),
+    })
+    return {
+      installationId: row.installation_id,
+      platform: row.platform,
+      provider: 'fcm',
+      updatedAt: row.created_at.toISOString(),
+    }
+  })
+
+export const revokeDevice = async ({
+  userId,
+  installationId,
+  requestId,
+}: {
+  userId: string
+  installationId: string
+  requestId: string
+}) =>
+  dbTransaction(async (tx) => {
+    const result = await DISABLE_DEVICE_TOKEN({ userId, installationId })
+    await tx.auditLog.create({
+      data: auditPayload({
+        actorId: userId,
+        action: 'device.revoke',
+        resourceType: 'device_token',
+        resourceId: installationId,
+        outcome: result.count > 0 ? 'success' : 'no_change',
+        requestId,
+      }),
+    })
+    return { revoked: result.count }
+  })

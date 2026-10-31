@@ -465,3 +465,40 @@ export const MobileAnalyticsAckSchema = z.object({
 })
 
 export type MobileAnalyticsAck = z.infer<typeof MobileAnalyticsAckSchema>
+
+// ---------------------------------------------------------------------------
+// F12 — notification preferences + device registration (MB-04 / MB-05)
+// ---------------------------------------------------------------------------
+
+/** M26 preference keys — user-facing notification types (server allowlist). */
+export const MOBILE_NOTIFICATION_TYPES = [
+  'daily_prayer',
+  'sunday_service',
+  'church_events',
+  'announcements',
+  'platform_information',
+  'donation_reminder',
+] as const
+export type MobileNotificationType = (typeof MOBILE_NOTIFICATION_TYPES)[number]
+
+/** Wire shape is camelCase; DB rows use the snake_case type keys above. */
+export const MobileNotificationPreferencesSchema = z
+  .object({
+    dailyPrayer: z.boolean(),
+    sundayService: z.boolean(),
+    churchEvents: z.boolean(),
+    announcements: z.boolean(),
+    platformInformation: z.boolean(),
+    donationReminder: z.boolean(),
+  })
+  .strict()
+export type MobileNotificationPreferences = z.infer<typeof MobileNotificationPreferencesSchema>
+
+export const MobileDeviceRegistrationSchema = z
+  .object({
+    platform: z.enum(['ios', 'android']),
+    provider: z.literal('fcm'),
+    token: z.string().min(20).max(4096),
+  })
+  .strict()
+export type MobileDeviceRegistration = z.infer<typeof MobileDeviceRegistrationSchema>

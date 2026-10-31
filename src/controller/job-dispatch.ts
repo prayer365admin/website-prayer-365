@@ -14,9 +14,8 @@ import { scanDueScheduledPrayers } from '@/controller/prayer-publish-job'
 import { logger } from '@/utils/logger'
 
 /**
- * Job kinds the consumer can actually process. `notification.send` has a
- * producer (providers/notification.tsx) but no processXJob yet, so it is left
- * out on purpose: those rows stay PENDING instead of landing in the DLQ.
+ * Job kinds the consumer can actually process. Every producer must have a
+ * matching processXJob here, or the row stays PENDING forever.
  */
 export const SUPPORTED_KINDS = [
   'audio.generate',
@@ -24,6 +23,7 @@ export const SUPPORTED_KINDS = [
   'payment.sync',
   'voice.register',
   'mail.send',
+  'notification.send',
 ] as const
 
 export type JobKind = (typeof SUPPORTED_KINDS)[number]

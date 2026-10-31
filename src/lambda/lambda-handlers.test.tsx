@@ -16,6 +16,7 @@ const mocks = vi.hoisted(() => {
     payment: fns(['processPaymentSyncJob']),
     voice: fns(['processVoiceRegisterJob']),
     mail: fns(['processMailSendJob']),
+    notification: fns(['processNotificationSendJob']),
     dispatch: fns(['runDispatcher']),
     logger: fns(['info', 'error']),
   }
@@ -26,11 +27,13 @@ vi.mock('@/controller/prayer-publish-job', () => mocks.publish)
 vi.mock('@/controller/payment-sync-job', () => mocks.payment)
 vi.mock('@/controller/voice-register-job', () => mocks.voice)
 vi.mock('@/controller/mail-send-job', () => mocks.mail)
+vi.mock('@/controller/notification-send-job', () => mocks.notification)
 vi.mock('@/controller/job-dispatch', () => ({
   runDispatcher: mocks.dispatch.runDispatcher,
   SUPPORTED_KINDS: [
     'audio.generate',
     'mail.send',
+    'notification.send',
     'payment.sync',
     'prayer.publish',
     'voice.register',
@@ -108,12 +111,12 @@ describe('consumer handler', () => {
 
   it('fails an unknown kind instead of dropping it silently', async () => {
     const result = await consumerHandler(
-      sqsEvent(record('m1', { kind: 'notification.send', jobId: 'job-9' })),
+      sqsEvent(record('m1', { kind: 'notifications.unknown', jobId: 'job-9' })),
     )
 
     expect(result.batchItemFailures).toEqual([{ itemIdentifier: 'm1' }])
     expect(mocks.logger.error).toHaveBeenCalledWith('job_message_invalid', {
-      job_kind: 'notification.send',
+      job_kind: 'notifications.unknown',
       message_id: 'm1',
     })
   })
@@ -148,6 +151,7 @@ describe('dispatcher handler', () => {
     expect(Object.keys(HANDLERS).sort()).toEqual([
       'audio.generate',
       'mail.send',
+      'notification.send',
       'payment.sync',
       'prayer.publish',
       'voice.register',

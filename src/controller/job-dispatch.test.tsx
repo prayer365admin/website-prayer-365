@@ -74,14 +74,14 @@ describe('runDispatcher', () => {
     expect(summary.scanned).toBe(3)
   })
 
-  it('never dispatches notification.send (no processor exists yet)', async () => {
+  it('dispatches notification.send now that the worker exists', async () => {
     await runDispatcher()
 
     const claimedKinds = mocks.outbox.CLAIM_PENDING_JOBS.mock.calls.map(
       (call) => (call[0] as { kind: string }).kind,
     )
     expect(claimedKinds).toEqual([...SUPPORTED_KINDS])
-    expect(claimedKinds).not.toContain('notification.send')
+    expect(claimedKinds).toContain('notification.send')
   })
 
   it('honours JOB_CLAIM_LIMIT and JOB_LEASE_SECONDS overrides', async () => {

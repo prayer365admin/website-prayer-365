@@ -14,6 +14,8 @@ import {
   MobileEventListQuery,
   MobileHome,
   MobileMyChurch,
+  MobileNotificationPreferences,
+  MobileNotificationType,
   MobilePrayerListQuery,
   MobileDonationOptionsSchema,
   MobilePublicAnnouncement,
@@ -21,7 +23,9 @@ import {
   MobilePublicEvent,
   MobilePublishedPrayer,
   MobileRequestInput,
+  MOBILE_NOTIFICATION_TYPES,
 } from '@/models/mobile'
+import { encryptDeviceToken, hashDeviceToken } from '@/utils/device-token'
 import { richTextToPlainText } from '@/utils/rich-text-plain'
 
 /*
@@ -1384,4 +1388,247 @@ export const CREATE_ANALYTICS_EVENTS = async ({
     }),
   })
   return { accepted: res.count }
+}
+
+// ---------------------------------------------------------------------------
+// F12 — notification preferences + devices (MB-04 / MB-05)
+// ---------------------------------------------------------------------------
+
+/** Missing rows mean ENABLED (client decision 2026-10-30: all six start on). */
+export const GET_NOTIFICATION_PREFERENCES = async ({ userId }: { userId: string }) => {
+  const rows = await db.notificationPreference.findMany({
+    where: { user_id: userId, type: { in: [...MOBILE_NOTIFICATION_TYPES] } },
+  })
+  const byType = new Map(rows.map((r) => [r.type, r.enabled]))
+  return {
+    dailyPrayer: byType.get('daily_prayer') ?? true,
+    sundayService: byType.get('sunday_service') ?? true,
+    churchEvents: byType.get('church_events') ?? true,
+    announcements: byType.get('announcements') ?? true,
+    platformInformation: byType.get('platform_information') ?? true,
+    donationReminder: byType.get('donation_reminder') ?? true,
+  }
+}
+
+export const UPSERT_NOTIFICATION_PREFERENCES = async (
+  { userId, prefs }: { userId: string; prefs: MobileNotificationPreferences },
+  tx: Prisma.TransactionClient = db,
+) => {
+  const values: Array<[MobileNotificationType, boolean]> = [
+    ['daily_prayer', prefs.dailyPrayer],
+    ['sunday_service', prefs.sundayService],
+    ['church_events', prefs.churchEvents],
+    ['announcements', prefs.announcements],
+    ['platform_information', prefs.platformInformation],
+    ['donation_reminder', prefs.donationReminder],
+  ]
+  for (const [type, enabled] of values) {
+    await tx.notificationPreference.upsert({
+      where: { user_id_type: { user_id: userId, type } },
+      create: { user_id: userId, type, enabled },
+      update: { enabled },
+    })
+  }
+}
+
+export const UPSERT_DEVICE_TOKEN = async (
+  {
+    userId,
+    installationId,
+    platform,
+    token,
+  }: { userId: string; installationId: string; platform: 'ios' | 'android'; token: string },
+  tx: Prisma.TransactionClient = db,
+) => {
+  const token_hash = hashDeviceToken(token)
+  // Account switch: the same installation must not stay bound to another user.
+  await tx.deviceToken.updateMany({
+    where: { installation_id: installationId, user_id: { not: userId }, disabled_at: null },
+    data: { disabled_at: new Date() },
+  })
+  // Rotation: the user's older token for this installation is retired.
+  await tx.deviceToken.updateMany({
+    where: {
+      installation_id: installationId,
+      user_id: userId,
+      token_hash: { not: token_hash },
+      disabled_at: null,
+    },
+    data: { disabled_at: new Date() },
+  })
+  return tx.deviceToken.upsert({
+    where: { token_hash },
+    create: {
+      user_id: userId,
+      installation_id: installationId,
+      platform,
+      token_ciphertext: encryptDeviceToken(token),
+      token_hash,
+    },
+    update: {
+      user_id: userId,
+      installation_id: installationId,
+      platform,
+      token_ciphertext: encryptDeviceToken(token),
+      disabled_at: null,
+    },
+  })
+}
+
+export const DISABLE_DEVICE_TOKEN = async ({
+  userId,
+  installationId,
+}: {
+  userId: string
+  installationId: string
+}) =>
+  db.deviceToken.updateMany({
+    where: { user_id: userId, installation_id: installationId, disabled_at: null },
+    data: { disabled_at: new Date() },
+  })
+
+export const MARK_DEVICE_DISABLED = async ({ deviceTokenId }: { deviceTokenId: string }) =>
+  db.deviceToken.update({ where: { id: deviceTokenId }, data: { disabled_at: new Date() } })
+
+/** The agreed audience: active users whose main or followed church is this church. */
+export const GET_NOTIFICATION_RECIPIENTS = async ({ churchId }: { churchId: string }) =>
+  db.userChurch.findMany({
+    where: {
+      church_id: churchId,
+      OR: [{ is_main: true }, { is_followed: true }],
+      user: { status: 'active' },
+    },
+    select: { user_id: true },
+  })
+
+export const GET_ACTIVE_DEVICES_FOR_USERS = async ({ userIds }: { userIds: string[] }) =>
+  db.deviceToken.findMany({
+    where: { user_id: { in: userIds }, disabled_at: null },
+    select: { id: true, user_id: true, token_ciphertext: true },
+  })
+
+/** One query for the whole audience; missing rows mean enabled. */
+export const GET_PREFERENCE_MAP_FOR_USERS = async ({ userIds }: { userIds: string[] }) => {
+  const rows = await db.notificationPreference.findMany({
+    where: { user_id: { in: userIds }, type: { in: [...MOBILE_NOTIFICATION_TYPES] } },
+  })
+  const map = new Map<string, Map<string, boolean>>()
+  for (const row of rows) {
+    if (!map.has(row.user_id)) map.set(row.user_id, new Map())
+    map.get(row.user_id)!.set(row.type, row.enabled)
+  }
+  return map
+}
+
+/** Devices that already received this event are not sent again on a job retry. */
+export const FILTER_UNDELIVERED_DEVICES = async ({
+  eventKey,
+  deviceTokenIds,
+}: {
+  eventKey: string
+  deviceTokenIds: string[]
+}) => {
+  const rows = await db.notificationDelivery.findMany({
+    where: { event_key: eventKey, device_token_id: { in: deviceTokenIds }, status: 'sent' },
+    select: { device_token_id: true },
+  })
+  const sent = new Set(rows.map((r) => r.device_token_id))
+  return new Set(deviceTokenIds.filter((id) => !sent.has(id)))
+}
+
+export const UPSERT_NOTIFICATION_DELIVERY = async ({
+  ruleId,
+  userId,
+  deviceTokenId,
+  eventKey,
+}: {
+  ruleId: string
+  userId: string
+  deviceTokenId: string
+  eventKey: string
+}) =>
+  db.notificationDelivery.upsert({
+    where: {
+      event_key_user_id_device_token_id: {
+        event_key: eventKey,
+        user_id: userId,
+        device_token_id: deviceTokenId,
+      },
+    },
+    create: {
+      rule_id: ruleId,
+      user_id: userId,
+      device_token_id: deviceTokenId,
+      event_key: eventKey,
+      status: 'queued',
+    },
+    update: {},
+  })
+
+export const MARK_NOTIFICATION_DELIVERY = async ({
+  id,
+  status,
+}: {
+  id: string
+  status: 'sent' | 'failed' | 'skipped'
+}) => db.notificationDelivery.update({ where: { id }, data: { status } })
+
+export const GET_NOTIFICATION_CONTENT = async ({
+  type,
+  resourceId,
+  churchId,
+}: {
+  type: string
+  resourceId: string | null
+  churchId: string
+}) => {
+  const church = await db.church.findUnique({ where: { id: churchId }, select: { name: true } })
+  if (!church) return null
+  if (type === 'prayer_published' && resourceId) {
+    const prayer = await db.prayer.findFirst({
+      where: { id: resourceId, church_id: churchId, published_at: { not: null } },
+      select: { published_version_id: true },
+    })
+    const version = prayer?.published_version_id
+      ? await db.prayerVersion.findUnique({
+          where: { id: prayer.published_version_id },
+          select: { title: true },
+        })
+      : null
+    if (!version) return null
+    return { title: `New prayer from ${church.name}`, body: version.title }
+  }
+  if (type === 'announcement_published' && resourceId) {
+    const announcement = await db.announcement.findFirst({
+      where: { id: resourceId, church_id: churchId, published_at: { not: null }, deleted_at: null },
+      select: { title: true },
+    })
+    if (!announcement) return null
+    return { title: `New announcement from ${church.name}`, body: announcement.title }
+  }
+  if (type === 'event_reminder' && resourceId) {
+    const event = await db.event.findFirst({
+      where: { id: resourceId, church_id: churchId },
+      select: { title: true },
+    })
+    if (!event) return null
+    return { title: `Upcoming at ${church.name}`, body: event.title }
+  }
+  if (type === 'donation_reminder') {
+    return { title: `Support ${church.name}`, body: 'Your giving keeps this ministry going.' }
+  }
+  return null
+}
+
+/** AA-1 — replay must return the stored ack, never a synthetic empty one. */
+export const GET_CHECK_IN_ACK = async ({ id, userId }: { id: string; userId: string }) => {
+  const row = await db.checkIn.findFirst({ where: { id, user_id: userId } })
+  return row
+    ? {
+        id: row.id,
+        churchId: row.church_id,
+        occurredAt: row.occurred_at.toISOString(),
+        localDate: row.local_date.toISOString().slice(0, 10),
+      }
+    : null
 }
