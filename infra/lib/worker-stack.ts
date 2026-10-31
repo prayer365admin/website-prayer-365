@@ -235,6 +235,14 @@ export class WorkerStack extends Stack {
           actions: ['ses:SendEmail', 'ses:SendRawEmail'],
           resources: [
             `arn:aws:ses:${config.region}:${config.account}:identity/${config.email.domain}`,
+            /*
+             * SESv2 applies the account's default configuration set implicitly, so the
+             * send is authorised against BOTH resources. Without this second ARN the
+             * API returns AccessDenied "not authorized to perform ses:SendRawEmail on
+             * resource configuration-set/..." and nodemailer reports only `ESES`.
+             * The name differs per account, hence the wildcard.
+             */
+            `arn:aws:ses:${config.region}:${config.account}:configuration-set/*`,
           ],
         }),
       )

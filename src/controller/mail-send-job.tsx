@@ -3,6 +3,7 @@ import sendMail from '@/controller/mail'
 import type { MailSendRequest } from '@/models/send-mail'
 import { CLAIM_PENDING_JOBS, GET_JOB, MARK_JOB_STATE } from '@/providers/outbox-job'
 import { GeneralError } from '@/utils/general-error'
+import { logger } from '@/utils/logger'
 
 const MAX_ATTEMPTS = 3
 const backoff = (attempts: number) => new Date(Date.now() + 30_000 * 2 ** attempts)
@@ -70,6 +71,18 @@ export const processMailSendJob = async (
         : err instanceof Error && 'code' in err
           ? String(err.code)
           : 'INTERNAL_JOB_ERROR'
+
+    // A nodemailer SES failure is tagged `code: 'ESES'` ("AWS SES transport error"),
+    // which hides the reason: the name/message carry it (MessageRejected,
+    // AccessDenied, invalid FromEmailAddress...). Without this line a stuck job shows
+    // only "err=ESES" in the database and nothing useful in CloudWatch.
+    // `error_message`, not `message`: the logger redacts a field named `message`.
+    logger.error('mail_send_job_error', {
+      job_id: job.id,
+      error_code: errorCode,
+      error_name: err instanceof Error ? err.name : typeof err,
+      error_message: (err instanceof Error ? err.message : String(err)).slice(0, 300),
+    })
 
     if (isPermanent || job.attempts >= MAX_ATTEMPTS) {
       await MARK_JOB_STATE({ jobId: job.id, state: 'FAILED', errorCode })

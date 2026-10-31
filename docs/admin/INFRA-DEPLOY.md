@@ -82,11 +82,11 @@ keeps using the shared account's existing user.
 
 The **worker component sends mail too** (`mail.send` jobs, e.g. verify-email and forgot-password):
 
-| Item                          | Where it comes from                                                                                                          |
-| ----------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
-| `MAIL_PROVIDER`, `SES_REGION` | `email.provider` and `region` in the environment config, injected into both Lambdas                                          |
-| Permission to send            | `ses:SendEmail` / `ses:SendRawEmail` on the verified identity, granted to the **consumer role** when `email.provider: 'ses'` |
-| Credentials                   | none for SES (the role is the credential); SMTP providers read `mail-credentials`                                            |
+| Item                          | Where it comes from                                                                                                                                                                                                                                                                                                                                      |
+| ----------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `MAIL_PROVIDER`, `SES_REGION` | `email.provider` and `region` in the environment config, injected into both Lambdas                                                                                                                                                                                                                                                                      |
+| Permission to send            | `ses:SendEmail` / `ses:SendRawEmail` on the verified identity **and** on `configuration-set/*`, granted to the **consumer role** when `email.provider: 'ses'`. The account's default configuration set is applied implicitly, so an identity-only grant fails with `AccessDenied ... configuration-set/...` — and nodemailer reports that only as `ESES` |
+| Credentials                   | none for SES (the role is the credential); SMTP providers read `mail-credentials`                                                                                                                                                                                                                                                                        |
 
 The `mail-credentials` secret holds **credentials only**. A `MAIL_PROVIDER` key inside it is ignored, so
 a stale secret version cannot override the deployed provider.

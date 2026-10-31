@@ -96,7 +96,11 @@ describe('WorkerStack', () => {
           Match.objectLike({
             Action: ['ses:SendEmail', 'ses:SendRawEmail'],
             Effect: 'Allow',
-            Resource: `arn:aws:ses:${catatia.region}:${catatia.account}:identity/${catatia.email.domain}`,
+            Resource: [
+              `arn:aws:ses:${catatia.region}:${catatia.account}:identity/${catatia.email.domain}`,
+              // the account default configuration set is authorised implicitly
+              `arn:aws:ses:${catatia.region}:${catatia.account}:configuration-set/*`,
+            ],
           }),
         ]),
       },
