@@ -412,7 +412,9 @@ export const saveNotificationPreferences = async ({
         requestId,
       }),
     })
-    return GET_NOTIFICATION_PREFERENCES({ userId })
+    // The request carries all six keys, so it is the saved state — reading through
+    // the global client here would run outside this transaction and could be stale.
+    return input
   })
 
 export const registerDevice = async ({

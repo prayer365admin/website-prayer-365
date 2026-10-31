@@ -43,7 +43,6 @@ export interface PushResult {
 const INVALID_TOKEN_CODES = new Set([
   'messaging/registration-token-not-registered',
   'messaging/invalid-registration-token',
-  'messaging/invalid-argument',
 ])
 
 /** One batch (max 500). Per-token outcomes; never throws for a single bad token. */
