@@ -84,6 +84,16 @@ export class DataStack extends Stack {
       description:
         'JSON credentials only, e.g. {"MAILGUN_USER","MAILGUN_PASSWORD"} — the provider comes from the worker env (MAIL_PROVIDER); SES needs no keys (the Lambda role and the Vercel IAM user hold the permission)',
     })
+    // F12 notification workers: the device-token crypto key (shared with the web app)
+    // and the FCM service account. Containers only — the deploy script seeds the values.
+    new Secret(this, 'DeviceTokenKey', {
+      secretName: `/prayer365/${config.name}/device-token-key`,
+      description: 'base64 32-byte AES-256-GCM key shared with the web app (DEVICE_TOKEN_KEY)',
+    })
+    new Secret(this, 'FirebaseServiceAccount', {
+      secretName: `/prayer365/${config.name}/firebase-service-account`,
+      description: 'Firebase service-account JSON used by the notification worker (FCM)',
+    })
 
     if (config.database.mode === 'create' && config.network.mode !== 'vpc') {
       throw new Error(

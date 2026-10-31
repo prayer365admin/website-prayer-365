@@ -22,11 +22,13 @@ REPO_ROOT="$(cd "$INFRA_DIR/.." && pwd)"
 export AWS_PAGER=""
 CLI_ARGS="--no-cli-pager"
 ENV_NAME=""
+ENV_FILE=""
 CHECK_ONLY="0"
 
 while [ $# -gt 0 ]; do
   case "$1" in
     --env) ENV_NAME="${2:-}"; shift 2 ;;
+    --env-file) ENV_FILE="${2:-}"; shift 2 ;;
     --check) CHECK_ONLY="1"; shift ;;
     -h|--help) sed -n '2,14p' "${BASH_SOURCE[0]}"; exit 0 ;;
     *) echo "unknown option: $1" >&2; exit 2 ;;
@@ -196,6 +198,16 @@ fi
 
 CFG="$(read_config "$ENV_NAME")"
 [ -z "$CFG" ] && die "could not read the config for '$ENV_NAME'"
+
+# Which local file feeds the secrets for this environment. Same split as the app:
+# .env is the developer/catatia file, .env.prod is the client production file.
+if [ -z "$ENV_FILE" ]; then
+  case "$ENV_NAME" in
+    prayer-365) ENV_FILE=".env.prod" ;;
+    *)          ENV_FILE=".env" ;;
+  esac
+fi
+[ -f "$REPO_ROOT/$ENV_FILE" ] || warn "no $ENV_FILE at $REPO_ROOT — the secret seeding step will not work"
 REGION="$(cfg_str "$CFG" region)"
 EXPECTED_ACCOUNT="$(cfg_str "$CFG" account)"
 REMOVAL="$(cfg_str "$CFG" removalPolicy)"
@@ -215,6 +227,7 @@ printf '  %-14s %s\n' "database" "$DB_MODE"
 printf '  %-14s %s\n' "network" "$NET_MODE"
 printf '  %-14s %s\n' "email (SES)" "$SES_DOMAIN"
 printf '  %-14s %s\n' "mail provider" "$MAIL_PROVIDER_EXPECTED"
+printf '  %-14s %s\n' "secrets file" "$ENV_FILE"
 printf '  %-14s %s\n' "workers" "enabled=$WORKERS_ENABLED"
 printf '  %-14s %s\n' "on destroy" "removalPolicy=$REMOVAL"
 
@@ -319,8 +332,21 @@ checklist() {
   [ "$consumer_provider" = "$MAIL_PROVIDER_EXPECTED" ]
   mark_exit "$?" "consumer MAIL_PROVIDER=${consumer_provider:-missing} (config: ${MAIL_PROVIDER_EXPECTED})"
 
+  # Local .env vs Secrets Manager — read only. A non-zero count means the seed step
+  # (menu 3) is needed before the workers deploy, otherwise the Lambdas keep the
+  # value they were deployed with.
+  local secrets_mismatch
+  secrets_mismatch="$( cd "$REPO_ROOT" && bunx tsx "$INFRA_DIR/scripts/seed-secrets.ts" \
+    --env "$ENV_NAME" --file "$REPO_ROOT/$ENV_FILE" --check-only 2>/dev/null \
+    | sed -nE 's/.*secrets not matching .*: ([0-9]+)\/([0-9]+).*/\1/p' )"
+  if [ "${secrets_mismatch:-x}" = "0" ]; then
+    mark 1 "secrets match ${ENV_FILE}"
+  else
+    mark 0 "secrets differ from ${ENV_FILE} (${secrets_mismatch:-unknown} to write)"
+  fi
+
   SECRET_TOTAL=0; SECRET_WITH_VALUE=0
-  for suffix in database-url elevenlabs-api-key stripe-secret-key stripe-webhook-secret mail-credentials; do
+  for suffix in database-url elevenlabs-api-key stripe-secret-key stripe-webhook-secret mail-credentials device-token-key firebase-service-account; do
     SECRET_TOTAL=$((SECRET_TOTAL + 1))
     versions="$(secret_state "/prayer365/${ENV_NAME}/${suffix}")"
     kind="$(secret_kind "/prayer365/${ENV_NAME}/${suffix}")"
@@ -395,6 +421,14 @@ warn_secrets() {
   done
 }
 
+# Seed every secret from the local env file, showing the diff and asking first.
+# Runs inside the repo root so the script's relative rules import resolves.
+seed_secrets() {
+  local script_args=(--env "$ENV_NAME" --file "$REPO_ROOT/$ENV_FILE")
+  [ -n "${SEED_PROFILE:-}" ] && script_args+=(--profile "$SEED_PROFILE")
+  ( cd "$REPO_ROOT" && bunx tsx "$INFRA_DIR/scripts/seed-secrets.ts" "${script_args[@]}" )
+}
+
 while :; do
   DATA_LABEL="data component (job queue + secret containers)"
   [ "$DB_MODE" = "create" ] && DATA_LABEL="data component (job queue + secrets + VPC + NAT + RDS)"
@@ -402,13 +436,14 @@ while :; do
   cat <<MENU
   ${B}1${N}) storage component
   ${B}2${N}) ${DATA_LABEL}
-  ${B}3${N}) workers component (dispatcher + consumer Lambdas)
-  ${B}4${N}) full deployment (storage -> data -> workers)
-  ${B}5${N}) show diff only (no changes)
-  ${B}6${N}) exit
+  ${B}3${N}) seed / verify the secrets from ${ENV_FILE}
+  ${B}4${N}) workers component (dispatcher + consumer Lambdas)
+  ${B}5${N}) full deployment (storage -> data -> secrets -> workers)
+  ${B}6${N}) show diff only (no changes)
+  ${B}7${N}) exit
 MENU
 
-  ask "  Select [1-6]: " action || exit 0
+  ask "  Select [1-7]: " action || exit 0
 
   case "$action" in
     1)
@@ -425,27 +460,35 @@ MENU
       warn_secrets
       ;;
     3)
-      warn_secrets
-      [ "$WORKERS_ENABLED" != "true" ] && info "workers.enabled=false: the Lambdas deploy throttled off until you flip it"
-      confirm "cdk deploy ${STACK_WORKERS}" && run_cdk deploy "$STACK_WORKERS"
+      seed_secrets
       ;;
     4)
       warn_secrets
-      info "order matters: secrets must be seeded before the workers deploy (Lambda env vars are resolved at deploy time)"
-      if confirm "full deployment (${STACK_STORAGE} -> ${STACK_DATA} -> ${STACK_WORKERS})"; then
+      ask "  Seed / verify the secrets from ${ENV_FILE} first? [Y/n] " seed_choice || exit 0
+      if [ "${seed_choice:-y}" != "n" ]; then
+        seed_secrets || { bad "seeding failed — deploy cancelled (the Lambdas would keep the old values)"; continue; }
+      fi
+      [ "$WORKERS_ENABLED" != "true" ] && info "workers.enabled=false: the Lambdas deploy throttled off until you flip it"
+      confirm "cdk deploy ${STACK_WORKERS}" && run_cdk deploy "$STACK_WORKERS"
+      ;;
+    5)
+      warn_secrets
+      info "order matters: data (secret containers) -> secrets -> workers (the Lambda env is resolved at deploy time)"
+      if confirm "full deployment (${STACK_STORAGE} -> ${STACK_DATA} -> secrets -> ${STACK_WORKERS})"; then
         run_cdk deploy "$STACK_STORAGE" || continue
         run_cdk deploy "$STACK_DATA" || continue
+        seed_secrets || { bad "seeding failed — workers not deployed"; continue; }
         run_cdk deploy "$STACK_WORKERS"
       fi
       ;;
-    5)
+    6)
       run_cdk diff "$STACK_STORAGE" "$STACK_DATA" "$STACK_WORKERS"
       ;;
-    6|"")
+    7|"")
       printf '\n  done — nothing else was changed.\n'
       exit 0
       ;;
-    *) warn "enter a number between 1 and 6" ;;
+    *) warn "enter a number between 1 and 7" ;;
   esac
 
   printf '\n'

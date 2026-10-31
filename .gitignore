@@ -54,3 +54,6 @@ next-env.d.ts
 /docs/website/design/
 /docs/website/REPORT/
 /docs/admin/SEED-DATA/
+# secret backups and pulled env values stay on this machine
+/.hermes/backups/
+.env*

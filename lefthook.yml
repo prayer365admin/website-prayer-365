@@ -9,8 +9,13 @@ pre-commit:
       glob: '*.{js,jsx,ts,tsx}'
       run: bun eslint {staged_files}
     unit-tests:
-      glob: '*.{test,spec}.{js,jsx,ts,tsx}'
+      # Root vitest only includes src/** — passing an infra test file here ends in
+      # "No test files found, exiting with code 1" and blocks the commit.
+      glob: 'src/**/*.{test,spec}.{js,jsx,ts,tsx}'
       run: bun vitest run {staged_files}
+    infra-tests:
+      glob: 'infra/**/*.{test,spec}.ts'
+      run: cd infra && bunx vitest run
 
 pre-push:
   parallel: true

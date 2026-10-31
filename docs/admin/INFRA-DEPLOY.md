@@ -181,34 +181,71 @@ policy protects the database and bucket, and `cdk destroy` will fail rather than
 
 ---
 
-## 4. Manual actions — the checklist
+## 4. Values the code cannot invent
 
-Everything in this section is a human step. Nothing here is automated, and nothing here may be
-committed to the repository.
+Most of this section is a human step (credentials, DNS, provider accounts). Secret seeding is the
+exception: `seed-secrets.ts` does it from a local file, with a diff and a confirmation. Nothing here may
+be committed to the repository.
 
-### 4.1 Seed the five secrets (once per environment)
+### 4.1 Seed the seven secrets (once per environment, and after any value change)
 
-Values come from the password manager. Use single quotes so the shell does not interpret special
-characters.
+The Data stack only creates the containers; CDK fills them with a random placeholder. The values are
+written by `infra/scripts/seed-secrets.ts`, which reads them from a local env file, prints a masked diff,
+asks for confirmation and verifies the read-back:
+
+```bash
+# catatia: values from .env, credentials from the admin keys inside it
+bunx tsx infra/scripts/seed-secrets.ts --env catatia --dry-run     # preview, no writes
+bunx tsx infra/scripts/seed-secrets.ts --env catatia              # write after "y"
+
+# prayer-365: values from .env.prod, credentials from the AWS profile catatia_dev
+bunx tsx infra/scripts/seed-secrets.ts --env prayer-365 --dry-run
+bunx tsx infra/scripts/seed-secrets.ts --env prayer-365
+
+# only some secrets (e.g. while the notification values do not exist yet)
+bunx tsx infra/scripts/seed-secrets.ts --env catatia --only stripe-secret-key,mail-credentials
+
+# a new device-token key, to paste into the web app and .env
+bunx tsx infra/scripts/seed-secrets.ts --print-device-key
+```
+
+`bash infra/scripts/deploy.sh` wraps this as menu option **3**, and runs it automatically before the
+workers deploy (option 4/5), because the Lambda env vars are CloudFormation references resolved at deploy
+time — seeding after a deploy leaves the old value in the running function.
+
+Which local file feeds which environment:
+
+| File           | App it configures                                  | AWS account / secrets prefix                                                        |
+| -------------- | -------------------------------------------------- | ----------------------------------------------------------------------------------- |
+| `.env`         | local development (mixed, whatever the task needs) | catatia `430118850592` (`/prayer365/catatia/*`)                                     |
+| `.env.staging` | staging app, `https://prayer-365.catatia.com`      | catatia `430118850592` (`/prayer365/catatia/*`) — same stack and database as `.env` |
+| `.env.prod`    | client production                                  | `007091975568` (`/prayer365/prayer-365/*`)                                          |
+
+Because `.env` and `.env.staging` target the same secrets, seeding with the wrong file is a silent
+mistake (staging carries a different `ELEVENLABS_API_KEY`, for example). The script therefore rejects a
+`--file` that is not the environment default unless `--allow-file` is passed.
+
+| Secret                     | Built from                                                                     | Notes                                               |
+| -------------------------- | ------------------------------------------------------------------------------ | --------------------------------------------------- |
+| `database-url`             | `DATABASE_URL`                                                                 | must be a `postgres://` / `postgresql://` URL       |
+| `elevenlabs-api-key`       | `ELEVENLABS_API_KEY`                                                           | must pass the ElevenLabs API or audio jobs fail     |
+| `stripe-secret-key`        | `STRIPE_SECRET_KEY`                                                            | `sk_` / `rk_`                                       |
+| `stripe-webhook-secret`    | `STRIPE_WEBHOOK_SECRET`                                                        | `whsec_`                                            |
+| `mail-credentials`         | `MAIL_PROVIDER` + that provider's keys                                         | `ses` → `{}`; mailgun/mailtrap → user+password JSON |
+| `device-token-key`         | `DEVICE_TOKEN_KEY`                                                             | base64 32 bytes, **same value as the web app**      |
+| `firebase-service-account` | `FIREBASE_SERVICE_ACCOUNT` (JSON or base64) or `FIREBASE_SERVICE_ACCOUNT_FILE` | service-account JSON for FCM                        |
+
+Values are masked unless `--show-values`; `unchanged` secrets are never written; if any secret cannot be
+built from the chosen file the run stops before writing anything and names the missing keys.
+
+`--check-only` prints how many secrets differ, which `deploy.sh --check` uses for its checklist line.
+
+Fallback, when the script cannot be used:
 
 ```bash
 aws secretsmanager put-secret-value --secret-id /prayer365/catatia/database-url \
-  --secret-string 'postgresql://USER:PASSWORD@HOST:25060/DATABASE?sslmode=require'
-
-aws secretsmanager put-secret-value --secret-id /prayer365/catatia/elevenlabs-api-key \
-  --secret-string 'sk_...'
-
-aws secretsmanager put-secret-value --secret-id /prayer365/catatia/stripe-secret-key \
-  --secret-string 'sk_live_...'
-
-aws secretsmanager put-secret-value --secret-id /prayer365/catatia/stripe-webhook-secret \
-  --secret-string 'whsec_...'
-
-# Credentials only — the provider comes from the worker env (MAIL_PROVIDER) and is
-# ignored inside this secret. SES needs no keys at all, so an empty object is correct.
-aws secretsmanager put-secret-value --secret-id /prayer365/catatia/mail-credentials \
-  --secret-string '{}'
-# Mailgun/Mailtrap instead: --secret-string '{"MAILGUN_USER":"...","MAILGUN_PASSWORD":"..."}'
+  --secret-string 'postgresql://USER:***@HOST:25060/DATABASE?sslmode=require'
+# mail-credentials for SES: '{}' ; for Mailgun: '{"MAILGUN_USER":"...","MAILGUN_PASSWORD":"..."}'
 ```
 
 The Data stack creates the containers. It never stores a value.
