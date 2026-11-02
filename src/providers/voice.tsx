@@ -363,7 +363,16 @@ export const LIST_CENTRAL_PROFILES = async ({
 }: {
   query: VoiceProfileListQuery
 }): Promise<{ result: VoiceProfileListItem[]; total: number }> => {
+  // The central queue represents pastors, not submission history. Resolve the
+  // newest profile for every pastor first so filters and pagination can never
+  // surface an older profile or count the same pastor more than once.
+  const latestProfiles = await db.voiceProfile.findMany({
+    distinct: ['pastor_id'],
+    orderBy: [{ pastor_id: 'asc' }, { created_at: 'desc' }, { id: 'desc' }],
+    select: { id: true },
+  })
   const where: Prisma.VoiceProfileWhereInput = {
+    id: { in: latestProfiles.map(({ id }) => id) },
     ...(query.review_state
       ? { review_state: query.review_state as Prisma.VoiceProfileWhereInput['review_state'] }
       : {}),
