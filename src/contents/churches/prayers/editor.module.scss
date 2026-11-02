@@ -182,45 +182,16 @@
   border-radius: 12px;
 }
 
-.editorTabs {
-  padding: 0 16px 16px;
-}
-
-.editorTabs > :global(.ant-tabs-nav) {
-  min-height: 40px;
-  margin: 0 0 16px !important;
-  padding: 4px;
-  border-radius: 12px;
-  background: var(--color-primary-150, #e6edfb);
-}
-
-.editorTabs > :global(.ant-tabs-nav::before),
-.editorTabs :global(.ant-tabs-ink-bar) {
-  display: none;
-}
-
-.editorTabs :global(.ant-tabs-tab) {
-  margin: 0 !important;
-  padding: 8px 16px !important;
-  border-radius: 8px;
-  color: var(--color-primary-700, #1758a6);
-  font-size: 12px;
-}
-
-.editorTabs :global(.ant-tabs-tab-active) {
-  background: #fff;
-}
-
-.editorTabs :global(.ant-tabs-tab-active .ant-tabs-tab-btn) {
-  color: var(--color-primary-900, #0e203e) !important;
-}
-
-.textForm,
+.textPanel,
 .audioPanel {
   padding: 16px;
   border: 1px solid var(--color-neutral-200, #dde0e4);
   border-radius: 8px;
   background: #fff;
+}
+
+.textForm {
+  width: 100%;
 }
 
 .textForm :global(.ant-form-item-label > label) {
@@ -554,7 +525,6 @@
 }
 
 @media (max-width: 767px) {
-  .editorTabs,
   .editorSkeleton {
     padding-inline: 12px;
   }
