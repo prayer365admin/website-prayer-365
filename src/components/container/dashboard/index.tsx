@@ -22,12 +22,12 @@ export default function MainContainer({
         <Layout className={`${s.mainColumn} min-w-0 !flex-col`}>
           <MainHeader onMenuClick={() => setMobileSidebarOpen(true)} />
           <div
-            className={`${s.dashboardContent} min-h-0 flex-1 overflow-y-auto bg-neutral-100 p-6`}
+            className={`${s.dashboardContent} min-h-0 flex-1 overflow-y-auto bg-neutral-100 p-6 flex flex-col`}
           >
             <div className={s.mobileBreadcrumb}>
               <MainBreadcrumb />
             </div>
-            <div>{children}</div>
+            <div className="flex flex-1 flex-col">{children}</div>
           </div>
           <MainFooter />
         </Layout>

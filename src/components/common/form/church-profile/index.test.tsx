@@ -97,7 +97,7 @@ describe('FormChurchProfileTabs', () => {
       expect(axiosMock.get).toHaveBeenCalledWith('/api/v1/admin/churches/c1/pastors')
     })
     expect(await screen.findByText('Pastor A')).toBeTruthy()
-    expect(screen.getByText('Pastor')).toBeTruthy()
+    expect(screen.getAllByText('Pastor')[0]).toBeTruthy()
     expect(screen.getByText('Bio')).toBeTruthy()
     expect(screen.getAllByText('Edit')[0]).toBeTruthy()
 
@@ -434,7 +434,7 @@ describe('FormChurchProfileTabs', () => {
         image_asset_id: null,
       }),
     )
-    await waitFor(() => expect(screen.getByRole('dialog').className).toContain('ant-zoom-leave'))
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
   })
 
   it('sends null when removing a church-specific pastor image', async () => {
@@ -469,6 +469,40 @@ describe('FormChurchProfileTabs', () => {
         expect.objectContaining({ image_asset_id: null }),
       ),
     )
+  })
+  it('renders pastors table header, verified badge, and closes edit drawer on Cancel', async () => {
+    axiosMock.get.mockResolvedValue({ data: { result: pastors } })
+    renderWithProviders(
+      <FormChurchProfileTabs
+        initialValues={profile as unknown as ChurchProfileOutput}
+        serviceTimes={serviceTimes}
+        churchId="c1"
+        onSubmit={vi.fn()}
+        onSubmitSchedule={vi.fn()}
+      />,
+    )
+
+    await userEvent.click(screen.getByText('Pastors'))
+    expect(await screen.findByText('Pastor A')).toBeTruthy()
+
+    // Table header columns
+    expect(screen.getByText('Role')).toBeTruthy()
+    expect(screen.getByText('Introduction')).toBeTruthy()
+    expect(screen.getByText('Actions')).toBeTruthy()
+
+    // Verified dummy badge
+    const badge = document.querySelector('svg path[d*="8.46875"]')
+    expect(badge).toBeTruthy()
+
+    // Open drawer
+    await userEvent.click(screen.getByRole('button', { name: 'Edit' }))
+    const dialog = await screen.findByRole('dialog')
+    expect(within(dialog).getByText('Edit pastor assignment')).toBeTruthy()
+
+    // Cancel closes drawer
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Cancel' }))
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+    expect(axiosMock.patch).not.toHaveBeenCalled()
   })
 
   it.each([
@@ -540,7 +574,8 @@ describe('FormChurchProfileTabs', () => {
 
     // Click Gallery tab
     await userEvent.click(screen.getByText('Gallery'))
-    expect(screen.getByText('Sanctuary Gallery')).toBeTruthy()
+    expect(screen.queryByText('Sanctuary Gallery')).toBeNull()
+    expect(screen.getByText('Click or drag images here to add to gallery')).toBeTruthy()
     expect(screen.getByDisplayValue('Altar & stained glass')).toBeTruthy()
     expect(screen.getByDisplayValue('Nave from west door')).toBeTruthy()
 
@@ -550,10 +585,7 @@ describe('FormChurchProfileTabs', () => {
     await userEvent.type(captionInput, 'Restored altar')
 
     // Remove second item
-    const removeButtons = screen.getAllByRole('button', { name: /Remove/i })
-    // removeButtons include the "Remove Image" from Cover, so gallery remove buttons are present
-    const galleryRemove = removeButtons[removeButtons.length - 1]
-    await userEvent.click(galleryRemove)
+    await userEvent.click(screen.getByRole('button', { name: 'Remove gallery photo 2' }))
 
     // Submit form
     await userEvent.click(screen.getByRole('button', { name: 'Save' }))
@@ -571,5 +603,26 @@ describe('FormChurchProfileTabs', () => {
         orderIndex: 0,
       },
     ])
+  })
+
+  it('renders Gallery tab with no items (only dropzone) when church has empty gallery', async () => {
+    const profileNoGallery = {
+      ...profile,
+      galleryItems: [],
+    }
+
+    renderWithProviders(
+      <FormChurchProfileTabs
+        initialValues={profileNoGallery as unknown as ChurchProfileOutput}
+        serviceTimes={serviceTimes}
+        churchId="c1"
+        onSubmit={vi.fn()}
+        onSubmitSchedule={vi.fn()}
+      />,
+    )
+
+    await userEvent.click(screen.getByText('Gallery'))
+    expect(screen.getByText('Click or drag images here to add to gallery')).toBeTruthy()
+    expect(screen.queryByRole('button', { name: /Remove gallery photo/i })).toBeNull()
   })
 })

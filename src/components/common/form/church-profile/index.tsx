@@ -4,24 +4,20 @@ import {
   Alert,
   AutoComplete,
   Button,
-  Col,
+  Drawer,
   Empty,
   Form,
   Image,
   Input,
-  Modal,
-  Row,
   Select,
   Skeleton,
   Tabs,
-  Typography,
   Upload,
 } from 'antd'
 import {
-  ArrowDownOutlined,
   ArrowLeftOutlined,
-  ArrowUpOutlined,
   CheckOutlined,
+  CloseOutlined,
   DeleteOutlined,
   LoadingOutlined,
   PictureOutlined,
@@ -29,7 +25,12 @@ import {
   UploadOutlined,
 } from '@ant-design/icons'
 import { useRouter } from 'next/navigation'
-import { DENOMINATION_OPTIONS, TIMEZONE_OPTIONS, WORSHIP_STYLE_OPTIONS } from '@/utils/constant'
+import {
+  DENOMINATION_OPTIONS,
+  LANGUAGE_OPTIONS,
+  TIMEZONE_OPTIONS,
+  WORSHIP_STYLE_OPTIONS,
+} from '@/utils/constant'
 import { ServiceTimeEntry, ServiceTimeScheduleInput } from '@/models/service-time'
 import { ChurchProfileInput, ChurchProfileOutput } from '@/models/church'
 import FormChurchServiceTimes from '../church-service-times'
@@ -44,6 +45,10 @@ import { useChurchPastorAssignments } from '@/hooks/data/central'
 import { useMediaUpload } from '@/hooks/data/media-upload'
 import { ChurchPastorSummary } from '@/models/pastor'
 import { useAccessPermission } from '@/hooks/data/access-permission'
+import { VerifyIcon } from '@/components/icon/verify'
+import { TrashIcon } from '@/components/icon/trash'
+import { UploadIcon } from '@/components/icon/upload'
+import { EllipsisVIcon } from '@/components/icon/ellipsis-v'
 dayjs.extend(customParseFormat)
 
 export type ChurchProfileTabKey = 'details' | 'location' | 'pastors' | 'service-times' | 'gallery'
@@ -58,7 +63,11 @@ interface FormChurchProfileTabsProps {
   onSubmitSchedule: (payload: ServiceTimeScheduleInput) => Promise<unknown>
 }
 
-const LANGUAGE_CODES = ['en', 'et', 'fi']
+// Figma shows a verified badge per pastor row, but the backend (prisma/schema.prisma
+// Pastor/ChurchPastor) has no isVerified field yet. Dummy display-only value; real
+// data must replace this once the field exists. Never used as a data fallback.
+const DUMMY_PASTOR_VERIFIED = true
+
 const SOCIAL_PLATFORM_OPTIONS = [
   { value: 'Facebook', label: 'Facebook' },
   { value: 'Instagram', label: 'Instagram' },
@@ -111,6 +120,10 @@ export default function FormChurchProfileTabs({
 }: FormChurchProfileTabsProps) {
   const router = useRouter()
   const [form] = Form.useForm<ChurchProfileInput>()
+  const initialTabKey = (
+    visibleTabs && visibleTabs.length > 0 ? visibleTabs[0] : 'details'
+  ) as ChurchProfileTabKey
+  const [activeTab, setActiveTab] = useState<ChurchProfileTabKey>(initialTabKey)
   const {
     data: pastors = [],
     fetching: pastorsLoading,
@@ -249,7 +262,19 @@ export default function FormChurchProfileTabs({
     initialValues.coordinates ?? null,
   )
   const [galleryUploading, setGalleryUploading] = useState(false)
+  const [dragIndex, setDragIndex] = useState<number | null>(null)
   const { onUpload: uploadGalleryImage } = useMediaUpload({ churchId, purpose: 'IMAGE' })
+
+  const handleGalleryReorder = (idx: number) => {
+    if (dragIndex === null || dragIndex === idx) return
+    setGalleryItems((prev) => {
+      const copy = [...prev]
+      const [moved] = copy.splice(dragIndex, 1)
+      copy.splice(idx, 0, moved)
+      return copy
+    })
+    setDragIndex(null)
+  }
 
   const address = (initialValues.address ?? {}) as {
     line1?: string
@@ -334,7 +359,7 @@ export default function FormChurchProfileTabs({
       label: 'Details',
       forceRender: true,
       children: (
-        <div className="border border-[#DDE0E4] rounded-lg p-4 sm:p-6 flex flex-col lg:flex-row gap-4 lg:gap-6">
+        <div className="border border-[#DDE0E4] rounded-lg p-4 sm:p-6 flex flex-col lg:flex-row gap-4 lg:gap-6 flex-1">
           <div className="flex-1 min-w-0 w-full lg:max-w-[720px] flex flex-col gap-4">
             {/* Placement */}
             <div className="flex flex-col gap-1">
@@ -447,9 +472,9 @@ export default function FormChurchProfileTabs({
                     )}
                   </span>
                 )}
-                options={LANGUAGE_CODES.map((code) => ({
-                  label: code.toUpperCase(),
-                  value: code,
+                options={LANGUAGE_OPTIONS.map((code) => ({
+                  label: code.value.toUpperCase(),
+                  value: code.value,
                 }))}
               />
             </Form.Item>
@@ -699,7 +724,7 @@ export default function FormChurchProfileTabs({
       label: 'Location & Contact',
       forceRender: true,
       children: (
-        <div className="border border-[#DDE0E4] rounded-lg p-4">
+        <div className="border border-[#DDE0E4] rounded-lg p-4 flex-1 flex flex-col">
           <div className="flex flex-col lg:flex-row gap-4 lg:gap-6">
             <div className="flex-1 min-w-0 w-full lg:max-w-[560px] flex flex-col gap-4">
               <Form.Item
@@ -819,51 +844,72 @@ export default function FormChurchProfileTabs({
       label: 'Pastors',
       forceRender: true,
       children: (
-        <div className="border border-[#DDE0E4] rounded-lg p-4 sm:p-6">
+        <div className="border border-[#DDE0E4] rounded-lg p-0 overflow-x-auto flex flex-col flex-1 min-h-[520px] bg-white">
           {pastorsLoading ? (
-            <Skeleton active paragraph={{ rows: 3 }} />
+            <div className="p-4">
+              <Skeleton active paragraph={{ rows: 3 }} />
+            </div>
           ) : pastorsError ? (
-            <Alert
-              type="error"
-              showIcon
-              message="Assigned pastors could not be loaded"
-              description="Refresh the page or try again shortly."
-            />
+            <div className="p-4">
+              <Alert
+                type="error"
+                showIcon
+                message="Assigned pastors could not be loaded"
+                description="Refresh the page or try again shortly."
+              />
+            </div>
           ) : pastors.length === 0 ? (
-            <Empty description="No pastors are assigned to this church." />
+            <div className="p-4 py-10">
+              <Empty description="No pastors are assigned to this church." />
+            </div>
           ) : (
             <>
-              <div className="bg-gray-100 p-2 font-semibold mb-2">
-                <Row gutter={16}>
-                  <Col span={3}>Photo</Col>
-                  <Col span={6}>Pastor name</Col>
-                  <Col span={6}>Church role</Col>
-                  <Col span={7}>Introduction</Col>
-                  {canEditPastorAssignment && <Col span={2}>Action</Col>}
-                </Row>
+              <div className="flex h-[34px] items-center bg-[#FAFAFB] text-xs font-semibold text-[#5C6370] min-w-[640px] sm:min-w-0">
+                <div className="w-[320px] max-w-[320px] shrink-0 pl-12 pr-2">Pastor</div>
+                <div className="w-[120px] shrink-0 px-2">Role</div>
+                <div className="flex-1 min-w-0 px-2">Introduction</div>
+                {canEditPastorAssignment && (
+                  <div className="w-[120px] shrink-0 pl-4 pr-2 text-right">Actions</div>
+                )}
               </div>
-              <div className="flex flex-col gap-2">
+              <div className="flex flex-col">
                 {pastors.map((p) => (
-                  <Row
-                    gutter={16}
+                  <div
                     key={p.id}
-                    className="items-center border-b border-gray-100 pb-2"
+                    className="flex min-h-[64px] items-center border-b border-[#DDE0E4] last:border-b-0 min-w-[640px] sm:min-w-0"
                   >
-                    <Col span={3}>
+                    <div className="w-[320px] max-w-[320px] shrink-0 px-2 py-4 flex items-center gap-2 min-w-0">
                       <PastorImage
                         imageAssetId={p.resolvedImageAssetId}
                         churchId={churchId}
                         name={p.name}
+                        size={32}
                       />
-                    </Col>
-                    <Col span={6}>{p.name}</Col>
-                    <Col span={6}>{p.pastoralRole}</Col>
-                    <Col span={7}>{p.introduction ?? '—'}</Col>
+                      <div className="min-w-0 flex items-center gap-1">
+                        <span className="truncate text-sm font-semibold text-[#0E203E]">
+                          {p.name}
+                        </span>
+                        {DUMMY_PASTOR_VERIFIED && (
+                          <VerifyIcon
+                            className="shrink-0 text-sm text-[#2F7AD2]"
+                            aria-hidden="true"
+                          />
+                        )}
+                      </div>
+                    </div>
+                    <div className="w-[120px] shrink-0 px-2 py-4">
+                      <span className="text-xs text-[#5C6370]">{p.pastoralRole}</span>
+                    </div>
+                    <div className="flex-1 min-w-0 px-2 py-4">
+                      <span className="truncate text-xs text-[#5C6370] block">
+                        {p.introduction ?? '—'}
+                      </span>
+                    </div>
                     {canEditPastorAssignment && (
-                      <Col span={2}>
+                      <div className="w-[120px] shrink-0 px-2 py-4 flex justify-end">
                         <Button
                           type="link"
-                          className="p-0"
+                          className="p-0 text-xs font-semibold text-[#2F7AD2]"
                           onClick={() => {
                             setEditingPastor(p)
                             setEditingPastorImage({
@@ -876,17 +922,13 @@ export default function FormChurchProfileTabs({
                         >
                           Edit
                         </Button>
-                      </Col>
+                      </div>
                     )}
-                  </Row>
+                  </div>
                 ))}
               </div>
             </>
           )}
-          <div className="mt-4 p-4 bg-gray-50 text-gray-500 rounded text-sm">
-            Shared Pastor name, introduction, canonical image, and linked staff identity are managed
-            by Central Pastors. This church can edit only its role and optional image override.
-          </div>
         </div>
       ),
     },
@@ -895,8 +937,7 @@ export default function FormChurchProfileTabs({
       label: 'Service Times',
       forceRender: true,
       children: (
-        <div className="border border-[#DDE0E4] rounded-lg p-4 sm:p-6">
-          <Typography.Title level={4}>Service schedule</Typography.Title>
+        <div className="border border-[#DDE0E4] rounded-lg p-0 overflow-hidden w-full max-w-full flex-1 flex flex-col min-h-[520px] bg-white">
           <FormChurchServiceTimes isSaving={loading} />
         </div>
       ),
@@ -906,108 +947,86 @@ export default function FormChurchProfileTabs({
       label: 'Gallery',
       forceRender: true,
       children: (
-        <div className="border border-[#DDE0E4] rounded-lg p-4 sm:p-6 space-y-6">
-          <div>
-            <Typography.Title level={4}>Sanctuary Gallery</Typography.Title>
-            <Typography.Text type="secondary">
-              Photographs of the sanctuary, sacred architecture, stained glass, and altar. These
-              images are displayed on the public church profile.
-            </Typography.Text>
-          </div>
-
-          {galleryItems.length === 0 ? (
-            <Empty description="No gallery photos added yet. Upload photos below to display in the sanctuary gallery." />
-          ) : (
+        <div className="border border-[#DDE0E4] rounded-lg p-4 flex flex-col gap-6 flex-1 min-h-[520px] bg-white">
+          {galleryItems.length > 0 && (
             <div className="flex flex-col gap-4">
               {galleryItems.map((item, idx) => (
                 <div
                   key={item.id || `${item.mediaAssetId}-${idx}`}
-                  className="flex flex-col sm:flex-row items-start sm:items-center gap-4 p-4 border border-gray-200 rounded-xl bg-white shadow-sm"
+                  id={`gallery-row-${idx}`}
+                  draggable
+                  onDragStart={() => setDragIndex(idx)}
+                  onDragOver={(e) => e.preventDefault()}
+                  onDrop={() => handleGalleryReorder(idx)}
+                  className="flex items-stretch border border-[#DDE0E4] rounded-lg overflow-hidden bg-white sm:h-[104px]"
                 >
-                  <div className="relative w-32 h-24 shrink-0 rounded-lg overflow-hidden bg-gray-100 flex items-center justify-center border border-gray-200">
-                    {item.url ? (
-                      <Image
-                        src={item.url}
-                        alt={item.caption || `Gallery photo ${idx + 1}`}
-                        style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                        className="rounded-lg"
-                      />
-                    ) : (
-                      <PictureOutlined className="text-2xl text-gray-400" />
-                    )}
-                  </div>
-
-                  <div className="flex-1 w-full space-y-1">
-                    <label className="text-xs font-semibold text-gray-600">Caption</label>
-                    <Input
-                      placeholder="e.g. Altar & stained glass"
-                      value={item.caption ?? ''}
-                      onChange={(e) => {
-                        const val = e.target.value
-                        setGalleryItems((prev) =>
-                          prev.map((it, i) => (i === idx ? { ...it, caption: val } : it)),
-                        )
-                      }}
+                  {/* drag handle column — Frame 185, 24px, centered ellipsis, border-right */}
+                  <div className="w-6 shrink-0 flex items-center justify-center border-r border-[#DDE0E4] text-[#B0B6BF] cursor-grab">
+                    <EllipsisVIcon
+                      style={{ fontSize: 14, color: '#B0B6BF' }}
+                      className="!text-[#B0B6BF]"
                     />
                   </div>
-
-                  <div className="flex items-center gap-2 self-end sm:self-center shrink-0">
-                    <Button
-                      size="small"
-                      icon={<ArrowUpOutlined />}
-                      disabled={idx === 0}
-                      onClick={() => {
-                        setGalleryItems((prev) => {
-                          const copy = [...prev]
-                          const temp = copy[idx - 1]
-                          copy[idx - 1] = copy[idx]
-                          copy[idx] = temp
-                          return copy
-                        })
-                      }}
-                      title="Move Up"
-                    />
-                    <Button
-                      size="small"
-                      icon={<ArrowDownOutlined />}
-                      disabled={idx === galleryItems.length - 1}
-                      onClick={() => {
-                        setGalleryItems((prev) => {
-                          const copy = [...prev]
-                          const temp = copy[idx + 1]
-                          copy[idx + 1] = copy[idx]
-                          copy[idx] = temp
-                          return copy
-                        })
-                      }}
-                      title="Move Down"
-                    />
-                    <Button
-                      size="small"
-                      danger
-                      icon={<DeleteOutlined />}
-                      onClick={() => {
-                        setGalleryItems((prev) => prev.filter((_, i) => i !== idx))
-                      }}
-                    >
-                      Remove
-                    </Button>
+                  {/* content — Frame 182: p-2, gap-4 */}
+                  <div className="flex-1 flex flex-col sm:flex-row sm:items-stretch gap-3 sm:gap-4 p-3 sm:p-2 min-w-0">
+                    {/* thumbnail — Frame 183, 129x86 */}
+                    <div className="w-full sm:w-[129px] h-[150px] sm:h-[86px] shrink-0 rounded-lg bg-white overflow-hidden flex items-center justify-center [&_.ant-image]:!w-full [&_.ant-image]:!h-full [&_.ant-image-img]:!object-cover">
+                      {item.url ? (
+                        <Image
+                          src={item.url}
+                          alt={item.caption || `Gallery photo ${idx + 1}`}
+                          style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                        />
+                      ) : (
+                        <span className="text-[#B0B6BF]">
+                          <PictureOutlined />
+                        </span>
+                      )}
+                    </div>
+                    {/* Frame 181: caption input + delete button, bottom-aligned with gap-2 */}
+                    <div className="w-full sm:flex-1 min-w-0 flex items-end gap-2">
+                      <div className="flex-1 min-w-0 flex flex-col gap-1">
+                        <span className="text-xs font-semibold text-[#393E46]">Caption</span>
+                        <Input
+                          aria-label={`Gallery item ${idx + 1} caption`}
+                          placeholder="e.g. Altar & stained glass"
+                          value={item.caption ?? ''}
+                          onChange={(e) =>
+                            setGalleryItems((prev) =>
+                              prev.map((it, i) =>
+                                i === idx ? { ...it, caption: e.target.value } : it,
+                              ),
+                            )
+                          }
+                          className="!h-8 !rounded !border-[#737C8C] !text-xs !text-[#393E46]"
+                        />
+                      </div>
+                      <Button
+                        htmlType="button"
+                        aria-label={`Remove gallery photo ${idx + 1}`}
+                        onClick={() => setGalleryItems((prev) => prev.filter((_, i) => i !== idx))}
+                        className="!w-8 !h-8 !p-0 shrink-0 !rounded !border-0 !bg-[#E54C4C] !text-white flex items-center justify-center hover:!bg-[#d64545]"
+                      >
+                        <TrashIcon
+                          style={{ fontSize: 12, color: '#FFFFFF' }}
+                          className="!text-white"
+                        />
+                      </Button>
+                    </div>
                   </div>
                 </div>
               ))}
             </div>
           )}
 
-          <div className="pt-2">
-            <Typography.Text strong className="block mb-2">
-              Add Photo to Gallery
-            </Typography.Text>
+          <div className="w-full">
             <Upload.Dragger
               name="galleryFile"
               showUploadList={false}
-              multiple={false}
+              multiple
               accept="image/*"
               disabled={galleryUploading}
+              className="[&_.ant-upload-drag]:!min-h-[120px] [&_.ant-upload-drag]:!rounded-xl [&_.ant-upload-drag]:!border-2 [&_.ant-upload-drag]:!border-dashed [&_.ant-upload-drag]:!border-[#B8D3F4] hover:[&_.ant-upload-drag]:!border-[#2F7AD2] [&_.ant-upload-drag]:!bg-[#F8FAFD] hover:[&_.ant-upload-drag]:!bg-[#F0F5FD] [&_.ant-upload-drag]:!transition-colors [&_.ant-upload-drag]:!p-4 [&_.ant-upload]:!p-0 cursor-pointer"
               customRequest={async ({ file, onSuccess, onError }) => {
                 setGalleryUploading(true)
                 try {
@@ -1030,17 +1049,27 @@ export default function FormChurchProfileTabs({
                   setGalleryUploading(false)
                 }
               }}
-              className="p-4"
             >
-              <p className="ant-upload-drag-icon">
-                {galleryUploading ? <LoadingOutlined /> : <PlusOutlined />}
-              </p>
-              <p className="ant-upload-text">
-                {galleryUploading
-                  ? 'Uploading image...'
-                  : 'Click or drag an image here to add to gallery'}
-              </p>
-              <p className="ant-upload-hint">Supports JPG, PNG, WEBP</p>
+              <div className="flex flex-col items-center justify-center gap-2 py-4">
+                <div className="w-10 h-10 rounded-full bg-[#E6EDFB] flex items-center justify-center text-[#2F7AD2]">
+                  {galleryUploading ? (
+                    <LoadingOutlined style={{ fontSize: 18, color: '#2F7AD2' }} />
+                  ) : (
+                    <UploadIcon
+                      style={{ fontSize: 18, color: '#2F7AD2' }}
+                      className="!text-[#2F7AD2]"
+                    />
+                  )}
+                </div>
+                <div className="flex flex-col items-center gap-0.5">
+                  <span className="text-sm font-semibold text-[#2F7AD2]">
+                    {galleryUploading
+                      ? 'Uploading image…'
+                      : 'Click or drag images here to add to gallery'}
+                  </span>
+                  <span className="text-xs text-[#8F96A3]">Supports JPG, PNG, WEBP</span>
+                </div>
+              </div>
             </Upload.Dragger>
           </div>
         </div>
@@ -1050,8 +1079,8 @@ export default function FormChurchProfileTabs({
 
   return (
     <>
-      <div className="max-w-[1184px] mx-auto bg-white rounded-2xl shadow-[0_1px_2px_rgba(0,0,0,0.05)] border border-slate-100 p-4 sm:p-6 flex flex-col">
-        <div className="flex items-center gap-4 mb-4 sm:mb-6">
+      <div className="max-w-[1184px] mx-auto bg-white rounded-2xl shadow-[0_1px_2px_rgba(0,0,0,0.05)] border border-slate-100 p-4 sm:p-6 flex flex-col flex-1 w-full max-w-full min-h-[700px]">
+        <div className="flex items-center gap-4 mb-4 sm:mb-6 shrink-0">
           <button
             type="button"
             onClick={() => router.push(`/dashboard/churches/${churchId}`)}
@@ -1078,13 +1107,16 @@ export default function FormChurchProfileTabs({
             schedule: toRows(serviceTimes),
           }}
           form={form}
+          className="flex flex-col flex-1"
         >
           <Form.Item name="name" hidden>
             <Input />
           </Form.Item>
 
           <Tabs
-            className="church-profile-tabs [&_.ant-tabs-nav]:!mb-4 [&_.ant-tabs-nav]:before:!border-b-0 [&_.ant-tabs-nav-list]:!bg-[#E6EDFB] [&_.ant-tabs-nav-list]:!rounded-xl [&_.ant-tabs-nav-list]:!p-1 [&_.ant-tabs-nav-list]:!gap-1 [&_.ant-tabs-tab]:!m-0 [&_.ant-tabs-tab]:!px-4 [&_.ant-tabs-tab]:!py-1.5 [&_.ant-tabs-tab]:!rounded-lg [&_.ant-tabs-tab]:!border-0 [&_.ant-tabs-tab]:!transition-all [&_.ant-tabs-tab-btn]:!text-xs [&_.ant-tabs-tab-btn]:!font-semibold [&_.ant-tabs-tab-btn]:!text-[#2555A7] [&_.ant-tabs-tab-active]:!bg-white [&_.ant-tabs-tab-active_.ant-tabs-tab-btn]:!text-[#0E203E] [&_.ant-tabs-ink-bar]:!hidden"
+            activeKey={activeTab}
+            onChange={(key) => setActiveTab(key as ChurchProfileTabKey)}
+            className="church-profile-tabs flex-1 flex flex-col [&_.ant-tabs-nav]:!mb-4 [&_.ant-tabs-nav]:before:!border-b-0 [&_.ant-tabs-nav-list]:!bg-[#E6EDFB] [&_.ant-tabs-nav-list]:!rounded-xl [&_.ant-tabs-nav-list]:!p-1 [&_.ant-tabs-nav-list]:!gap-1 [&_.ant-tabs-tab]:!m-0 [&_.ant-tabs-tab]:!px-4 [&_.ant-tabs-tab]:!py-1.5 [&_.ant-tabs-tab]:!rounded-lg [&_.ant-tabs-tab]:!border-0 [&_.ant-tabs-tab]:!transition-all [&_.ant-tabs-tab-btn]:!text-xs [&_.ant-tabs-tab-btn]:!font-semibold [&_.ant-tabs-tab-btn]:!text-[#2555A7] [&_.ant-tabs-tab-active]:!bg-white [&_.ant-tabs-tab-active_.ant-tabs-tab-btn]:!text-[#0E203E] [&_.ant-tabs-ink-bar]:!hidden [&_.ant-tabs-content-holder]:flex-1 [&_.ant-tabs-content-holder]:flex [&_.ant-tabs-content-holder]:flex-col [&_.ant-tabs-content]:flex-1 [&_.ant-tabs-content]:flex [&_.ant-tabs-content]:flex-col [&_.ant-tabs-tabpane]:flex-1 [&_.ant-tabs-tabpane]:flex [&_.ant-tabs-tabpane]:flex-col"
             items={
               visibleTabs
                 ? tabItems.filter((t) => visibleTabs.includes(t.key as ChurchProfileTabKey))
@@ -1092,7 +1124,7 @@ export default function FormChurchProfileTabs({
             }
           />
 
-          <div className="border-t border-[#F1F5F9] pt-4 mt-6 flex justify-end">
+          <div className="pt-4 mt-auto flex justify-end shrink-0">
             <Button
               type="primary"
               htmlType="button"
@@ -1108,94 +1140,155 @@ export default function FormChurchProfileTabs({
         </Form>
       </div>
 
-      <Modal
-        title="Edit pastor assignment"
+      <Drawer
+        title={undefined}
         open={!!editingPastor}
+        onClose={() => setEditingPastor(null)}
+        size={576}
+        placement="right"
+        closeIcon={false}
         destroyOnHidden
-        footer={null}
-        onCancel={() => setEditingPastor(null)}
+        rootClassName="[&_.ant-drawer-content-wrapper]:!w-[calc(100vw-2rem)] sm:[&_.ant-drawer-content-wrapper]:!w-[576px] [&_.ant-drawer-content-wrapper]:!max-w-[calc(100vw-2rem)] sm:[&_.ant-drawer-content-wrapper]:!max-w-[576px] [&_.ant-drawer-content-wrapper]:!right-4 sm:[&_.ant-drawer-content-wrapper]:!right-6 [&_.ant-drawer-content-wrapper]:!top-4 sm:[&_.ant-drawer-content-wrapper]:!top-6 [&_.ant-drawer-content-wrapper]:!bottom-4 sm:[&_.ant-drawer-content-wrapper]:!bottom-6 [&_.ant-drawer-content-wrapper]:!h-[calc(100vh-2rem)] sm:[&_.ant-drawer-content-wrapper]:!h-[calc(100vh-3rem)] [&_.ant-drawer-content-wrapper]:!max-h-[880px] [&_.ant-drawer-content-wrapper]:!my-auto [&_.ant-drawer-content-wrapper]:!p-0 [&_.ant-drawer-content-wrapper]:!shadow-none [&_.ant-drawer-content]:!rounded-2xl [&_.ant-drawer-content]:!overflow-hidden [&_.ant-drawer-content]:!shadow-2xl [&_.ant-drawer-content]:!h-full [&_.ant-drawer-content]:!bg-white [&_.ant-drawer-body]:!p-0 [&_.ant-drawer-body]:!flex [&_.ant-drawer-body]:!flex-col [&_.ant-drawer-body]:!h-full [&_.ant-drawer-body]:!overflow-hidden [&_.ant-drawer-mask]:!bg-[#0e203e]/35"
+        styles={{
+          wrapper: {
+            boxSizing: 'border-box',
+            maxWidth: 'calc(100vw - 2rem)',
+            width: 'min(576px, calc(100vw - 2rem))',
+          },
+          section: {
+            borderRadius: 16,
+            overflow: 'hidden',
+            boxShadow: '0 25px 50px -12px rgba(14, 32, 62, 0.15)',
+            maxHeight: 880,
+            margin: 'auto 0',
+          },
+          body: {
+            padding: 0,
+            display: 'flex',
+            flexDirection: 'column',
+            height: '100%',
+            overflow: 'hidden',
+          },
+        }}
       >
-        {editingPastor && (
-          <Form
-            layout="vertical"
-            initialValues={{
-              name: editingPastor.name,
-              introduction: editingPastor.introduction,
-              pastoralRole: editingPastor.pastoralRole,
-            }}
-            onFinish={async (values) => {
-              try {
-                let imageAssetId = editingPastorImage.assetId ?? null
-                if (editingPastorImage.file) {
-                  const uploaded = await uploadPastorImage(editingPastorImage.file)
-                  imageAssetId = uploaded?.assetId ?? null
-                }
-                await updatePastorAssignment({
-                  pastorId: editingPastor.id,
-                  payload: {
-                    version: initialValues.version,
-                    pastoral_role: values.pastoralRole,
-                    image_asset_id: imageAssetId,
-                  },
-                })
-                setEditingPastor(null)
-              } catch (_e) {
-                // The data hook keeps the modal open and displays the API error.
-              }
-            }}
-          >
-            <Form.Item name="name" label="Pastor name">
-              <Input disabled />
-            </Form.Item>
-            <Form.Item name="introduction" label="Introduction">
-              <Input.TextArea disabled autoSize={{ minRows: 3, maxRows: 6 }} />
-            </Form.Item>
-            <Form.Item label="Linked staff account">
-              <Input
-                disabled
-                value={
-                  editingPastor.user
-                    ? `${editingPastor.user.name} (${editingPastor.user.email})`
-                    : 'Not linked'
-                }
-              />
-            </Form.Item>
-            <Form.Item label="Canonical pastor image">
-              <PastorImage
-                imageAssetId={editingPastor.profileImageAssetId}
-                churchId={churchId}
-                name={editingPastor.name}
-                size={96}
-              />
-            </Form.Item>
-            <Form.Item
-              name="pastoralRole"
-              label="Church role"
-              rules={[{ required: true, message: 'Please input role' }]}
+        <div className="flex h-full flex-col bg-white">
+          <div className="flex min-h-[64px] shrink-0 items-center justify-between border-b border-[#DDE0E4] px-4 py-4">
+            <h2 className="m-0 text-base font-semibold leading-[24px] text-[#0E203E]">
+              Edit pastor assignment
+            </h2>
+            <button
+              type="button"
+              aria-label="Close drawer"
+              onClick={() => setEditingPastor(null)}
+              className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg border border-[#DDE0E4] bg-white text-[#5C6370] hover:border-[#2F7AD2] hover:text-[#2F7AD2]"
             >
-              <Input placeholder="Pastor" />
-            </Form.Item>
-            <Form.Item label="Church image override">
-              <UploadBox
-                formName="imageAssetId"
-                churchId={churchId}
-                purpose="IMAGE"
-                deferUpload
-                upload={editingPastorImage}
-                setUpload={(val) => {
-                  const typedVal = typeof val === 'function' ? val(editingPastorImage) : val
-                  setEditingPastorImage(typedVal)
+              <CloseOutlined style={{ fontSize: 14 }} />
+            </button>
+          </div>
+          <div className="flex-1 overflow-y-auto p-4">
+            {editingPastor && (
+              <Form
+                id="edit-pastor-assignment-form"
+                layout="vertical"
+                initialValues={{
+                  name: editingPastor.name,
+                  introduction: editingPastor.introduction,
+                  pastoralRole: editingPastor.pastoralRole,
                 }}
-              />
-            </Form.Item>
-            <div className="text-right mt-4">
-              <Button type="primary" htmlType="submit" loading={isSavingPastor}>
-                Save
-              </Button>
+                onFinish={async (values) => {
+                  try {
+                    let imageAssetId = editingPastorImage.assetId ?? null
+                    if (editingPastorImage.file) {
+                      const uploaded = await uploadPastorImage(editingPastorImage.file)
+                      imageAssetId = uploaded?.assetId ?? null
+                    }
+                    await updatePastorAssignment({
+                      pastorId: editingPastor.id,
+                      payload: {
+                        version: initialValues.version,
+                        pastoral_role: values.pastoralRole,
+                        image_asset_id: imageAssetId,
+                      },
+                    })
+                    setEditingPastor(null)
+                  } catch (_e) {
+                    // The data hook keeps the modal open and displays the API error.
+                  }
+                }}
+              >
+                <Form.Item name="name" label="Pastor name">
+                  <Input disabled />
+                </Form.Item>
+                <Form.Item name="introduction" label="Introduction">
+                  <Input.TextArea disabled autoSize={{ minRows: 3, maxRows: 6 }} />
+                </Form.Item>
+                <Form.Item label="Linked staff account">
+                  <Input
+                    disabled
+                    value={
+                      editingPastor.user
+                        ? `${editingPastor.user.name} (${editingPastor.user.email})`
+                        : 'Not linked'
+                    }
+                  />
+                </Form.Item>
+                <Form.Item label="Canonical pastor image">
+                  <PastorImage
+                    imageAssetId={editingPastor.profileImageAssetId}
+                    churchId={churchId}
+                    name={editingPastor.name}
+                    size={96}
+                  />
+                </Form.Item>
+                <Form.Item
+                  name="pastoralRole"
+                  label="Church role"
+                  rules={[{ required: true, message: 'Please input role' }]}
+                >
+                  <Input placeholder="Pastor" />
+                </Form.Item>
+                <Form.Item label="Church image override">
+                  <UploadBox
+                    formName="imageAssetId"
+                    churchId={churchId}
+                    purpose="IMAGE"
+                    deferUpload
+                    upload={editingPastorImage}
+                    setUpload={(val) => {
+                      const typedVal = typeof val === 'function' ? val(editingPastorImage) : val
+                      setEditingPastorImage(typedVal)
+                    }}
+                  />
+                </Form.Item>
+              </Form>
+            )}
+          </div>
+          {editingPastor && (
+            <div className="border-t border-[#F1F5F9] bg-white px-4 py-4 shrink-0">
+              <div className="flex items-center justify-end gap-2">
+                <Button
+                  className="!h-10 !rounded-lg !bg-[#E6EDFB] !px-4 !text-sm !font-semibold !text-[#2555A7]"
+                  onClick={() => setEditingPastor(null)}
+                  disabled={isSavingPastor}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  type="primary"
+                  aria-label="Save"
+                  icon={<CheckOutlined aria-hidden="true" />}
+                  htmlType="submit"
+                  form="edit-pastor-assignment-form"
+                  loading={isSavingPastor}
+                  className="!h-10 !rounded-lg !bg-[#2F7AD2] !px-4 !text-sm !font-semibold"
+                >
+                  Save
+                </Button>
+              </div>
             </div>
-          </Form>
-        )}
-      </Modal>
+          )}
+        </div>
+      </Drawer>
     </>
   )
 }

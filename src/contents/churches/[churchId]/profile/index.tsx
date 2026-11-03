@@ -27,7 +27,7 @@ export default function ContentsChurchProfile() {
 
   if (!data || !serviceTimes) {
     return (
-      <div className="max-w-[1184px] mx-auto bg-white rounded-2xl p-6 shadow-sm">
+      <div className="max-w-[1184px] mx-auto bg-white rounded-2xl p-6 shadow-sm w-full flex-1 min-h-[700px]">
         <Skeleton avatar={false} paragraph={{ rows: 8 }} active />
       </div>
     )
