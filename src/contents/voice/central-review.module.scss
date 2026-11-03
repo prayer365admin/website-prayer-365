@@ -3,12 +3,14 @@
 .page {
   display: flex;
   width: 100%;
+  flex: 1;
   flex-direction: column;
   gap: 16px;
   font-family: var(--font-text);
 }
 
 .header {
+  flex-shrink: 0;
   h1 {
     margin: 0;
     color: var(--color-primary-900, #0e203e);
@@ -31,6 +33,9 @@
 
 .contentCard {
   width: 100%;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
   overflow: hidden;
   border-radius: 16px;
   background: #fff;

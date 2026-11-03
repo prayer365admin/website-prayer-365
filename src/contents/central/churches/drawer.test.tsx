@@ -133,4 +133,23 @@ describe('ContentsCentralChurchDrawer', () => {
     expect(screen.getByLabelText(/timezone/i)).toBeTruthy()
     expect(screen.getByRole('button', { name: 'Save setup' })).toBeTruthy()
   })
+
+  it('renders Unarchive button when church status is ARCHIVED', () => {
+    useCentralChurch.mockReturnValue({
+      data: church({
+        status: 'ARCHIVED',
+      }),
+      loading: false,
+      saving: false,
+      error: null,
+      onUpdate: vi.fn(),
+      onLifecycle: vi.fn(),
+    })
+
+    renderWithProviders(<ContentsCentralChurchDrawer churchId="c1" onClose={vi.fn()} />)
+
+    expect(screen.getByRole('button', { name: 'Unarchive' })).toBeTruthy()
+    expect(screen.queryByRole('button', { name: 'Archive' })).toBeNull()
+    expect(screen.getByText(/This church is currently archived/)).toBeTruthy()
+  })
 })

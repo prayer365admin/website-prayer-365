@@ -1,8 +1,8 @@
 import { fireEvent, screen, waitFor } from '@testing-library/react'
-import { beforeEach, describe, expect, it } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { axiosMock, renderWithProviders, resolveGet } from '@/test/frontend/render'
+import * as csvUtil from '@/utils/csv'
 import ContentsUserManagementUser from './index'
-
 const user = {
   id: 'u1',
   name: 'Alice',
@@ -26,7 +26,7 @@ describe('ContentsUserManagementUser', () => {
     expect(screen.getByText('Staff & Role Governance')).toBeTruthy()
     const roleChip = screen.getByText('Admin')
     expect(roleChip).toBeTruthy()
-    expect(screen.getByText('Login with')).toBeTruthy()
+    expect(screen.getAllByText('Login with').length).toBeGreaterThanOrEqual(1)
     expect(screen.queryByText('Security')).toBeNull()
     expect(screen.getByRole('button', { name: /add staff member/i })).toBeTruthy()
   })
@@ -88,5 +88,29 @@ describe('ContentsUserManagementUser', () => {
     const editButton = await screen.findByRole('button', { name: /edit/i })
     fireEvent.click(editButton)
     expect(await screen.findByText('Edit Scoped Role')).toBeTruthy()
+  })
+
+  it('exports staff records to CSV when clicking export button', async () => {
+    const exportSpy = vi.spyOn(csvUtil, 'exportToCsv').mockImplementation(() => {})
+    axiosMock.get.mockImplementation((url: unknown) => {
+      if (String(url).includes('/api/v1/users'))
+        return Promise.resolve({ data: resolveGet([user], 1) })
+      return Promise.resolve({ data: resolveGet([], 0) })
+    })
+    renderWithProviders(<ContentsUserManagementUser />)
+    await screen.findByText('Alice')
+
+    const exportBtn = screen.getByRole('button', { name: /export/i })
+    fireEvent.click(exportBtn)
+
+    await waitFor(() => {
+      expect(exportSpy).toHaveBeenCalledWith(
+        expect.stringMatching(/^staff-\d{4}-\d{2}-\d{2}\.csv$/),
+        expect.any(Array),
+        expect.arrayContaining([expect.objectContaining({ name: 'Alice' })]),
+      )
+    })
+
+    exportSpy.mockRestore()
   })
 })

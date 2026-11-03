@@ -722,7 +722,7 @@ export const useCreateCentralChurch = () => {
   return { onCreate: create.mutateAsync, loading: create.isPending }
 }
 
-export type ChurchLifecycleAction = 'approve' | 'suspend' | 'archive' | 'unsuspend'
+export type ChurchLifecycleAction = 'approve' | 'suspend' | 'archive' | 'unsuspend' | 'unarchive'
 
 /** Purge is id-addressed rather than hook-addressed: the list page deletes a row it has not opened. */
 export const usePurgeCentralChurch = () => {

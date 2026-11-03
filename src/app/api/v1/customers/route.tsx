@@ -27,12 +27,14 @@ export async function GET(req: NextRequest) {
     const { limit, order_by, order_direction, page, search } = parseListQuery(searchParams, {
       allowOrderBy: ['created_at', 'name', 'email'],
     })
+    const status = searchParams.get('status') ?? undefined
     const result = await GET_CUSTOMERS({
       limit,
       page,
       order_by,
       order_direction,
       search,
+      status,
     })
 
     return list(result.result, result.total, page, limit, 'Successfully get all customers')

@@ -1,8 +1,8 @@
 import ActionsTable from '@/components/common/actions-table'
+import { useConfirmModal } from '@/hooks/ui/confirm-modal'
 import { AnnouncementOutput } from '@/models/announcement'
-import { SendOutlined } from '@ant-design/icons'
-import { UndoOutlined } from '@ant-design/icons'
-import { Button, Popconfirm, TableProps, Tooltip, Typography } from 'antd'
+import { SendOutlined, UndoOutlined } from '@ant-design/icons'
+import { Button, TableProps, Tooltip, Typography } from 'antd'
 import { formatChurchInstant } from '@/utils/event-datetime'
 import { ANNOUNCEMENT_STATUS, announcementStatusLabels } from '@/utils/constant'
 
@@ -32,44 +32,51 @@ export const AnnouncementPublishAction = ({
   unpublishingId?: string
   onPublish: (announcement: AnnouncementOutput) => Promise<unknown>
   onUnpublish: (announcement: AnnouncementOutput) => Promise<unknown>
-}) =>
-  announcement.publishedAt ? (
+}) => {
+  const confirmUnpublish = useConfirmModal({
+    entity: 'ANNOUNCEMENT',
+    actions: 'UNPUBLISHING',
+    details: announcement.title,
+    description: 'This removes the announcement from the mobile app and returns it to Draft.',
+    okText: 'Unpublish',
+    cancelText: 'Cancel',
+    onOk: () => onUnpublish(announcement),
+  })
+
+  const confirmPublish = useConfirmModal({
+    entity: 'ANNOUNCEMENT',
+    actions: 'PUBLISHING',
+    details: announcement.title,
+    description: 'This makes the announcement immediately visible in the mobile app.',
+    okText: 'Publish now',
+    cancelText: 'Cancel',
+    onOk: () => onPublish(announcement),
+  })
+
+  return announcement.publishedAt ? (
     <Tooltip title="Unpublish">
-      <Popconfirm
-        title="Unpublish announcement?"
-        description="This removes the announcement from the mobile app and returns it to Draft."
-        okText="Unpublish"
-        cancelText="Keep published"
-        onConfirm={() => onUnpublish(announcement)}
-      >
-        <Button
-          className="!size-8 !rounded-lg !border-[#DDE0E4] !bg-white !p-0 !text-[#8F96A3] hover:!text-[#0E203E] hover:!border-[#B0B6BF] flex items-center justify-center"
-          icon={<UndoOutlined style={{ fontSize: 13 }} />}
-          loading={unpublishingId === announcement.id}
-          disabled={Boolean(publishingId || unpublishingId)}
-          aria-label={`Unpublish ${announcement.title}`}
-        />
-      </Popconfirm>
+      <Button
+        className="!size-8 !rounded-lg !border-[#DDE0E4] !bg-white !p-0 !text-[#8F96A3] hover:!text-[#0E203E] hover:!border-[#B0B6BF] flex items-center justify-center"
+        icon={<UndoOutlined style={{ fontSize: 13 }} />}
+        loading={unpublishingId === announcement.id}
+        disabled={Boolean(publishingId || unpublishingId)}
+        aria-label={`Unpublish ${announcement.title}`}
+        onClick={() => confirmUnpublish()}
+      />
     </Tooltip>
   ) : (
     <Tooltip title="Publish">
-      <Popconfirm
-        title="Publish announcement?"
-        description="This makes the announcement immediately visible in the mobile app."
-        okText="Publish now"
-        cancelText="Keep draft"
-        onConfirm={() => onPublish(announcement)}
-      >
-        <Button
-          className="!size-8 !rounded-lg !border-[#DDE0E4] !bg-white !p-0 !text-[#8F96A3] hover:!text-[#0E203E] hover:!border-[#B0B6BF] flex items-center justify-center"
-          icon={<SendOutlined style={{ fontSize: 13 }} />}
-          loading={publishingId === announcement.id}
-          disabled={Boolean(publishingId || unpublishingId)}
-          aria-label={`Publish ${announcement.title}`}
-        />
-      </Popconfirm>
+      <Button
+        className="!size-8 !rounded-lg !border-[#DDE0E4] !bg-white !p-0 !text-[#8F96A3] hover:!text-[#0E203E] hover:!border-[#B0B6BF] flex items-center justify-center"
+        icon={<SendOutlined style={{ fontSize: 13 }} />}
+        loading={publishingId === announcement.id}
+        disabled={Boolean(publishingId || unpublishingId)}
+        aria-label={`Publish ${announcement.title}`}
+        onClick={() => confirmPublish()}
+      />
     </Tooltip>
   )
+}
 
 export const AnnouncementColumns = ({
   canPublish,

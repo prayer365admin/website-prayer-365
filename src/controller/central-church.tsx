@@ -378,6 +378,42 @@ export const archiveChurch = async ({
   return updated
 }
 
+export const unarchiveChurch = async ({
+  churchId,
+  version,
+  actorId,
+  requestId,
+}: {
+  churchId: string
+  version: number
+  actorId: string
+  requestId: string
+}) => {
+  const church = await GET_CHURCH_BY_ID({ churchId })
+  if (!church) throw notFound()
+  if (version !== church.version) throw stale()
+  fromStatuses(churchId, church.status, ['ARCHIVED'], 'APPROVED')
+
+  const updated = await dbTransaction(async (tx) => {
+    const row = await UPDATE_CHURCH_STATUS(
+      { churchId, status: 'APPROVED', approvedBy: actorId, approvedAt: new Date() },
+      tx,
+    )
+    await tx.auditLog.create({
+      data: auditPayload({
+        actorId,
+        action: 'church.unarchive',
+        resourceType: 'church',
+        resourceId: churchId,
+        outcome: 'success',
+        requestId,
+      }),
+    })
+    return row
+  })
+  return updated
+}
+
 /**
  * Hard delete (purge) — the only destructive path for a church (plan 020 D-A).
  *

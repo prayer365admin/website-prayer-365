@@ -100,12 +100,22 @@ export const GET_CUSTOMERS = async ({
   order_by,
   order_direction,
   search,
-}: GeneralQueryParams) => {
+  status,
+}: GeneralQueryParams & { status?: string }) => {
   const offset = page && limit && (page - 1) * limit
 
   const filter: Prisma.UserWhereInput = {
     AND: [
       { OR: [{ role_id: null }, { role: { is: { name: CUSTOMER_ROLE } } }] },
+      ...(status === 'verified'
+        ? [{ email_verified_at: { not: null } }]
+        : status === 'unverified'
+          ? [{ email_verified_at: null }]
+          : status === 'active'
+            ? [{ status: 'active', deleted_at: null }]
+            : status === 'inactive'
+              ? [{ NOT: { status: 'active', deleted_at: null } }]
+              : []),
       ...(search
         ? [
             {
@@ -128,11 +138,23 @@ export const GET_CUSTOMERS = async ({
       orderBy: {
         ...(order_by && order_direction ? { [order_by]: order_direction } : { created_at: 'desc' }),
       },
+      include: {
+        profile_asset: true,
+      },
       omit: SAFE,
     }),
   ])
 
-  return { result, total }
+  const mapped = result.map((row) => ({
+    ...row,
+    avatarUrl:
+      row.profile_asset?.purpose === 'USER_AVATAR' && row.profile_asset.status === 'READY'
+        ? S3_PUBLIC_URL({ key: row.profile_asset.object_key })
+        : null,
+    profile_asset: undefined,
+  }))
+
+  return { result: mapped, total }
 }
 
 export const GET_USER_BY_ID = async ({ user_id }: { user_id: string }) => {
