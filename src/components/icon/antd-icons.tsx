@@ -8,3 +8,6 @@ export { default as CaretRightFilled } from '@ant-design/icons/es/icons/CaretRig
 export { default as CheckOutlined } from '@ant-design/icons/es/icons/CheckOutlined'
 export { default as CloseOutlined } from '@ant-design/icons/es/icons/CloseOutlined'
 export { default as UserOutlined } from '@ant-design/icons/es/icons/UserOutlined'
+export { default as StarFilled } from '@ant-design/icons/es/icons/StarFilled'
+export { default as BellOutlined } from '@ant-design/icons/es/icons/BellOutlined'
+export { default as HeartOutlined } from '@ant-design/icons/es/icons/HeartOutlined'

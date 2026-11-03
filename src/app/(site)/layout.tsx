@@ -16,7 +16,7 @@ import { redirect } from 'next/navigation'
 export default async function Layout({ children }: { children: React.ReactNode }) {
   const web = await requiredWebAuth().catch(() => null)
   if (!web) {
-    redirect('/login')
+    redirect('/welcome')
   }
   // Unfinished setup is offered once per browser by SetupGuard (WB-15).
   const customer = isCustomerRole(web.session.user.role)

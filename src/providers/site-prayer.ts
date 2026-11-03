@@ -161,6 +161,8 @@ export const GET_LATEST_PLAYABLE_SITE_PRAYER = async (): Promise<SiteLoginPrayer
     pastorName: prayer.pastorName,
     languageCode: prayer.languageCode,
     audioUrl: prayer.audio.url,
+    introduction: prayer.introduction,
+    churchCoverUrl: prayer.churchCoverUrl,
   }
 }
 

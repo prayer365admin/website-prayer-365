@@ -45,6 +45,10 @@ export type SiteLoginPrayer = {
   pastorName: string
   languageCode: string
   audioUrl: string
+  /** Sanitized plain-text introduction used as the excerpt on marketing surfaces. */
+  introduction: string | null
+  /** Cover image of the church that published this prayer. */
+  churchCoverUrl: string | null
 }
 
 export type SitePrayerArchiveOption = { value: string; label: string; slug?: string }

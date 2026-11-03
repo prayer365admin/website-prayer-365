@@ -235,6 +235,8 @@ describe('GET_LATEST_PLAYABLE_SITE_PRAYER', () => {
       pastorName: 'Daniel',
       languageCode: 'en',
       audioUrl: 'https://cdn.test/audio.mp3',
+      introduction: 'A quiet meditation',
+      churchCoverUrl: 'https://cdn.test/hope-cover.jpg',
     })
     expect(db.prayer.findMany).toHaveBeenCalledWith({
       where: {

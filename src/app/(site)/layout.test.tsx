@@ -29,17 +29,17 @@ describe('(site) layout guard', () => {
     m.cookies.mockResolvedValue({ get: () => undefined })
   })
 
-  it('redirects unauthenticated visitors to /login', async () => {
+  it('redirects unauthenticated visitors to /welcome', async () => {
     m.requiredWebAuth.mockRejectedValue(new Error('UNAUTHORIZED'))
 
-    await expect(render()).rejects.toThrow('REDIRECT /login')
+    await expect(render()).rejects.toThrow('REDIRECT /welcome')
   })
 
-  it('ends a session whose user is disabled or changed password (live re-check) → /login', async () => {
+  it('ends a session whose user is disabled or changed password (live re-check) → /welcome', async () => {
     // requiredWebAuth rejects when status != active or auth_version changed.
     m.requiredWebAuth.mockRejectedValue(new Error('UNAUTHORIZED'))
 
-    await expect(render()).rejects.toThrow('REDIRECT /login')
+    await expect(render()).rejects.toThrow('REDIRECT /welcome')
   })
 
   it('does not force setup on the server: SetupGuard offers it once per browser', async () => {

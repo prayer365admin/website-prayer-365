@@ -29,3 +29,16 @@ export const getCachedLoginExtras = unstable_cache(
   ['site-login-extras'],
   { revalidate: 60, tags: [SITE_PUBLIC_TAG] },
 )
+
+/** Welcome page: newest playable prayer + fellowship member count. */
+export const getCachedWelcomePublicData = unstable_cache(
+  async () => {
+    const [prayer, memberCount] = await Promise.all([
+      getLatestPlayableSitePrayer().catch(() => null),
+      getFellowshipMemberCount().catch(() => null),
+    ])
+    return { prayer, memberCount }
+  },
+  ['site-welcome-public-data'],
+  { revalidate: 60, tags: [SITE_PUBLIC_TAG] },
+)

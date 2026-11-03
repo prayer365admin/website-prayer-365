@@ -9,7 +9,7 @@ import { redirect } from 'next/navigation'
 
 export default async function Page() {
   const web = await requiredWebAuth().catch(() => null)
-  if (!web) redirect('/login')
+  if (!web) redirect('/welcome')
 
   const userId = web.session.user.user_id
   const [home, giving, habits, readyPrayers] = await Promise.all([
