@@ -26,6 +26,12 @@ describe('lifecycle', () => {
       'Archiving removes this church from the public app. Its historical data, records, and reports remain preserved in the dashboard.',
     )
     expect(LIFECYCLE.archive.danger).toBe(true)
+
+    expect(LIFECYCLE.unarchive.label).toBe('Unarchive')
+    expect(LIFECYCLE.unarchive.effect).toBe(
+      'The church becomes active and visible again in the public app and dashboard.',
+    )
+    expect(LIFECYCLE.unarchive.danger).toBeUndefined()
   })
 
   it('calls modal.confirm with action details and invokes run with action and version on ok', async () => {

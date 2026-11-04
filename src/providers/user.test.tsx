@@ -122,6 +122,15 @@ describe('staff vs customer lists (R-01/R-02)', () => {
     })
     expect(where.AND[1].OR.length).toBeGreaterThan(0)
   })
+  it('filters customers by verified/unverified status', async () => {
+    await GET_CUSTOMERS({ limit: 10, page: 1, status: 'verified' })
+    const verifiedWhere = db.user.findMany.mock.calls[0][0].where
+    expect(verifiedWhere.AND[1]).toEqual({ email_verified_at: { not: null } })
+
+    await GET_CUSTOMERS({ limit: 10, page: 1, status: 'unverified' })
+    const unverifiedWhere = db.user.findMany.mock.calls[1][0].where
+    expect(unverifiedWhere.AND[1]).toEqual({ email_verified_at: null })
+  })
 
   it('counts only active, non-deleted customer accounts for the public fellowship total', async () => {
     db.user.count.mockResolvedValue(37)

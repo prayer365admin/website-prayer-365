@@ -83,17 +83,28 @@ export default function DrawerLifecycle({
             )}
           </div>
           <div className="flex items-center gap-2 ml-auto">
-            {canLifecycle && church.status !== 'ARCHIVED' && (
-              <Button
-                aria-label="Archive"
-                className="bg-white text-primary-500 border border-primary-500 text-sm font-semibold rounded-lg h-10 px-4 inline-flex items-center gap-1.5 hover:!text-primary-700 hover:!border-primary-700"
-                icon={<FolderOpenOutlined />}
-                disabled={saving || submitting}
-                onClick={() => runLifecycle('archive')}
-              >
-                Archive
-              </Button>
-            )}
+            {canLifecycle &&
+              (church.status === 'ARCHIVED' ? (
+                <Button
+                  aria-label="Unarchive"
+                  className="bg-white text-primary-500 border border-primary-500 text-sm font-semibold rounded-lg h-10 px-4 inline-flex items-center gap-1.5 hover:!text-primary-700 hover:!border-primary-700"
+                  icon={<FolderOpenOutlined />}
+                  disabled={saving || submitting}
+                  onClick={() => runLifecycle('unarchive')}
+                >
+                  Unarchive
+                </Button>
+              ) : (
+                <Button
+                  aria-label="Archive"
+                  className="bg-white text-primary-500 border border-primary-500 text-sm font-semibold rounded-lg h-10 px-4 inline-flex items-center gap-1.5 hover:!text-primary-700 hover:!border-primary-700"
+                  icon={<FolderOpenOutlined />}
+                  disabled={saving || submitting}
+                  onClick={() => runLifecycle('archive')}
+                >
+                  Archive
+                </Button>
+              ))}
             {showSave && (
               <Button
                 aria-label="Save setup"
@@ -117,6 +128,15 @@ export default function DrawerLifecycle({
                 ? `Approved on ${new Date(church.approvedAt).toLocaleString()}.`
                 : ''}{' '}
               Archiving removes the church from public access while preserving all records.
+            </span>
+          </div>
+        )}
+        {church.status === 'ARCHIVED' && (
+          <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-[#f9f9fa] text-[#2555a7] text-xs font-normal leading-relaxed">
+            <ExclamationCircleFilled className="text-sm text-[#2555a7] shrink-0" />
+            <span>
+              This church is currently archived and hidden from public access. Unarchiving restores
+              it to active status.
             </span>
           </div>
         )}

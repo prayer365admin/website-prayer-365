@@ -52,6 +52,7 @@ const profile = {
   coverAssetId: null,
   status: 'APPROVED',
   version: 3,
+  organization: ['Estonia Diocese', 'Tallin Deanery'],
 }
 
 const serviceTimes = [
@@ -83,8 +84,8 @@ describe('FormChurchProfileTabs', () => {
     )
 
     // Check basic details render
-    expect(screen.getByLabelText('Church name')).toBeTruthy()
-    expect(screen.getByDisplayValue('Grace')).toBeTruthy()
+    expect(screen.getByText('Church Name *')).toBeTruthy()
+    expect(screen.getByText('Grace')).toBeTruthy()
 
     // Location & Contact renders
     await userEvent.click(screen.getByText('Location & Contact'))
@@ -96,7 +97,7 @@ describe('FormChurchProfileTabs', () => {
       expect(axiosMock.get).toHaveBeenCalledWith('/api/v1/admin/churches/c1/pastors')
     })
     expect(await screen.findByText('Pastor A')).toBeTruthy()
-    expect(screen.getByText('Pastor')).toBeTruthy()
+    expect(screen.getAllByText('Pastor')[0]).toBeTruthy()
     expect(screen.getByText('Bio')).toBeTruthy()
     expect(screen.getAllByText('Edit')[0]).toBeTruthy()
 
@@ -196,7 +197,7 @@ describe('FormChurchProfileTabs', () => {
     expect(await screen.findByText('Pastor A')).toBeTruthy()
     expect(screen.queryByRole('button', { name: 'Edit' })).toBeNull()
   })
-  it('renders thumbnail and hero image placeholders on Details tab', () => {
+  it('renders Placement, Timezone, Cover Image, and Hero Image placeholders on Details tab', () => {
     renderWithProviders(
       <FormChurchProfileTabs
         initialValues={profile as unknown as ChurchProfileOutput}
@@ -206,9 +207,26 @@ describe('FormChurchProfileTabs', () => {
         onSubmitSchedule={vi.fn()}
       />,
     )
-    expect(screen.getByText('Thumbnail image')).toBeTruthy()
-    expect(screen.getByText('Hero image')).toBeTruthy()
-    expect(screen.getAllByText('Upload')).toHaveLength(2)
+    expect(screen.getByText('Placement')).toBeTruthy()
+    expect(screen.getByText('Estonia Diocese / Tallin Deanery')).toBeTruthy()
+    expect(screen.getByText(/Placement is set when the Church is created/)).toBeTruthy()
+    expect(screen.getByText('Timezone')).toBeTruthy()
+    expect(screen.getByText('Cover Image')).toBeTruthy()
+    expect(screen.getByText('Hero Image')).toBeTruthy()
+    expect(screen.getAllByText('Upload').length).toBeGreaterThanOrEqual(2)
+  })
+
+  it('renders fallback copy for placement when organization hierarchy is empty', () => {
+    renderWithProviders(
+      <FormChurchProfileTabs
+        initialValues={{ ...profile, organization: [] } as unknown as ChurchProfileOutput}
+        serviceTimes={serviceTimes}
+        churchId="church-1"
+        onSubmit={vi.fn()}
+        onSubmitSchedule={vi.fn()}
+      />,
+    )
+    expect(screen.getByText('Not placed in the hierarchy')).toBeTruthy()
   })
 
   it('renders map fallback in Location tab', async () => {
@@ -249,10 +267,7 @@ describe('FormChurchProfileTabs', () => {
     )
     await userEvent.click(screen.getByRole('tab', { name: 'Location & Contact' }))
 
-    expect(screen.getByTestId('coords-preview').textContent).toContain('58.000000, 26.000000')
-
     await user.click(screen.getByText('Find address'))
-    expect(screen.getByTestId('coords-preview').textContent).toContain('59.400000, 24.700000')
 
     await user.click(screen.getByText('Save'))
     await waitFor(() => {
@@ -261,13 +276,37 @@ describe('FormChurchProfileTabs', () => {
     expect(submitSpy.mock.calls[0][0].coordinates).toEqual({ latitude: 59.4, longitude: 24.7 })
 
     await user.click(screen.getByText('Clear marker'))
-    expect(screen.queryByTestId('coords-preview')).toBeNull()
 
     await user.click(screen.getByText('Save'))
     await waitFor(() => {
       expect(submitSpy).toHaveBeenCalledTimes(2)
     })
     expect(submitSpy.mock.calls[1][0].coordinates).toBeNull()
+  })
+
+  it('allows adding and removing social links in Location & Contact tab', async () => {
+    const user = userEvent.setup()
+    const submitSpy = vi.fn().mockResolvedValue({ ...profile, version: 4 })
+
+    renderWithProviders(
+      <FormChurchProfileTabs
+        initialValues={profile as unknown as ChurchProfileOutput}
+        serviceTimes={serviceTimes}
+        churchId="church-1"
+        onSubmit={submitSpy}
+        onSubmitSchedule={vi.fn()}
+      />,
+    )
+    await userEvent.click(screen.getByRole('tab', { name: 'Location & Contact' }))
+
+    // Add social link
+    await user.click(screen.getByText('Add social link'))
+    expect(screen.getByPlaceholderText('https://facebook.com/...')).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Remove social link' })).toBeTruthy()
+
+    // Remove social link
+    await user.click(screen.getByRole('button', { name: 'Remove social link' }))
+    expect(screen.queryByPlaceholderText('https://facebook.com/...')).toBeNull()
   })
 
   it('save with unchanged schedule does not call onSubmitSchedule', async () => {
@@ -395,7 +434,7 @@ describe('FormChurchProfileTabs', () => {
         image_asset_id: null,
       }),
     )
-    await waitFor(() => expect(screen.getByRole('dialog').className).toContain('ant-zoom-leave'))
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
   })
 
   it('sends null when removing a church-specific pastor image', async () => {
@@ -430,6 +469,40 @@ describe('FormChurchProfileTabs', () => {
         expect.objectContaining({ image_asset_id: null }),
       ),
     )
+  })
+  it('renders pastors table header, verified badge, and closes edit drawer on Cancel', async () => {
+    axiosMock.get.mockResolvedValue({ data: { result: pastors } })
+    renderWithProviders(
+      <FormChurchProfileTabs
+        initialValues={profile as unknown as ChurchProfileOutput}
+        serviceTimes={serviceTimes}
+        churchId="c1"
+        onSubmit={vi.fn()}
+        onSubmitSchedule={vi.fn()}
+      />,
+    )
+
+    await userEvent.click(screen.getByText('Pastors'))
+    expect(await screen.findByText('Pastor A')).toBeTruthy()
+
+    // Table header columns
+    expect(screen.getByText('Role')).toBeTruthy()
+    expect(screen.getByText('Introduction')).toBeTruthy()
+    expect(screen.getByText('Actions')).toBeTruthy()
+
+    // Verified dummy badge
+    const badge = document.querySelector('svg path[d*="8.46875"]')
+    expect(badge).toBeTruthy()
+
+    // Open drawer
+    await userEvent.click(screen.getByRole('button', { name: 'Edit' }))
+    const dialog = await screen.findByRole('dialog')
+    expect(within(dialog).getByText('Edit pastor assignment')).toBeTruthy()
+
+    // Cancel closes drawer
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Cancel' }))
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+    expect(axiosMock.patch).not.toHaveBeenCalled()
   })
 
   it.each([
@@ -501,7 +574,8 @@ describe('FormChurchProfileTabs', () => {
 
     // Click Gallery tab
     await userEvent.click(screen.getByText('Gallery'))
-    expect(screen.getByText('Sanctuary Gallery')).toBeTruthy()
+    expect(screen.queryByText('Sanctuary Gallery')).toBeNull()
+    expect(screen.getByText('Click or drag images here to add to gallery')).toBeTruthy()
     expect(screen.getByDisplayValue('Altar & stained glass')).toBeTruthy()
     expect(screen.getByDisplayValue('Nave from west door')).toBeTruthy()
 
@@ -511,10 +585,7 @@ describe('FormChurchProfileTabs', () => {
     await userEvent.type(captionInput, 'Restored altar')
 
     // Remove second item
-    const removeButtons = screen.getAllByRole('button', { name: /Remove/i })
-    // removeButtons include the "Remove Image" from Cover, so gallery remove buttons are present
-    const galleryRemove = removeButtons[removeButtons.length - 1]
-    await userEvent.click(galleryRemove)
+    await userEvent.click(screen.getByRole('button', { name: 'Remove gallery photo 2' }))
 
     // Submit form
     await userEvent.click(screen.getByRole('button', { name: 'Save' }))
@@ -532,5 +603,26 @@ describe('FormChurchProfileTabs', () => {
         orderIndex: 0,
       },
     ])
+  })
+
+  it('renders Gallery tab with no items (only dropzone) when church has empty gallery', async () => {
+    const profileNoGallery = {
+      ...profile,
+      galleryItems: [],
+    }
+
+    renderWithProviders(
+      <FormChurchProfileTabs
+        initialValues={profileNoGallery as unknown as ChurchProfileOutput}
+        serviceTimes={serviceTimes}
+        churchId="c1"
+        onSubmit={vi.fn()}
+        onSubmitSchedule={vi.fn()}
+      />,
+    )
+
+    await userEvent.click(screen.getByText('Gallery'))
+    expect(screen.getByText('Click or drag images here to add to gallery')).toBeTruthy()
+    expect(screen.queryByRole('button', { name: /Remove gallery photo/i })).toBeNull()
   })
 })

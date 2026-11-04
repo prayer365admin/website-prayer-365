@@ -169,21 +169,35 @@ export const RADIUS_OPTIONS = [
 
 export const DENOMINATION_OPTIONS = [
   { value: 'Lutheran', label: 'Lutheran' },
+  { value: 'Lutheran (EELK)', label: 'Lutheran (EELK)' },
   { value: 'Baptist', label: 'Baptist' },
   { value: 'Methodist', label: 'Methodist' },
-  { value: 'Orthodox', label: 'Orthodox' },
   { value: 'Catholic', label: 'Catholic' },
-] as const
+  { value: 'Orthodox', label: 'Orthodox' },
+  { value: 'Pentecostal', label: 'Pentecostal' },
+  { value: 'Anglican', label: 'Anglican' },
+  { value: 'Presbyterian', label: 'Presbyterian' },
+]
+
+export const WORSHIP_STYLE_OPTIONS = [
+  { value: 'Traditional', label: 'Traditional' },
+  { value: 'Contemporary', label: 'Contemporary' },
+  { value: 'Contemporary Ecumenical', label: 'Contemporary Ecumenical' },
+  { value: 'Liturgical', label: 'Liturgical' },
+  { value: 'Blended', label: 'Blended' },
+  { value: 'Charismatic', label: 'Charismatic' },
+]
 
 /**
  * IANA zone names for church setup. `Intl.supportedValuesOf` is native in every
  * runtime this app targets (Node 20+, modern browsers), so no list is vendored.
  */
-export const TIMEZONE_OPTIONS = (
-  (Intl as unknown as { supportedValuesOf?: (key: 'timeZone') => string[] }).supportedValuesOf?.(
-    'timeZone',
-  ) ?? []
-).map((zone) => ({ label: zone, value: zone }))
+// SAFETY: supportedValuesOf is standard in modern runtimes (ECMA-402), typed loosely for compatibility
+const intlWithSupported = Intl as unknown as { supportedValuesOf?: (key: 'timeZone') => string[] }
+
+export const TIMEZONE_OPTIONS = (intlWithSupported.supportedValuesOf?.('timeZone') ?? []).map(
+  (zone) => ({ label: zone, value: zone }),
+)
 
 export const LANGUAGE_OPTIONS = [
   { value: 'et', label: 'Eesti (ET)' },
@@ -198,4 +212,5 @@ export const languageOptions = LANGUAGE_OPTIONS
 
 export type RadiusOption = (typeof RADIUS_OPTIONS)[number]
 export type DenominationOption = (typeof DENOMINATION_OPTIONS)[number]
+export type WorshipStyleOption = (typeof WORSHIP_STYLE_OPTIONS)[number]
 export type LanguageOption = (typeof LANGUAGE_OPTIONS)[number]

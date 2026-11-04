@@ -26,6 +26,11 @@
     height: 40px !important;
   }
 
+  :global(.ant-picker),
+  :global(.ant-picker-input),
+  :global(.ant-picker-input > input) {
+    cursor: pointer !important;
+  }
   :global(.ant-input),
   :global(.ant-input::placeholder),
   :global(.ant-select-selection-item),
@@ -111,12 +116,25 @@
 }
 
 @mixin table-region {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+
+  :global(.ant-table-wrapper),
+  :global(.ant-spin),
+  :global(.ant-spin-nested-loading),
+  :global(.ant-spin-container) {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+  }
+
   :global(.ant-table) {
+    flex: 1;
     color: var(--color-neutral-600, #5c6370);
     font-family: var(--font-text);
     font-size: 14px;
   }
-
   :global(.ant-table-thead > tr > th) {
     height: 34px;
     padding: 8px !important;
@@ -152,22 +170,26 @@
   }
 
   :global(.ant-table-pagination.ant-pagination) {
-    width: 100%;
+    margin: 0 !important;
+    margin-top: auto !important;
     min-height: 57px;
+    flex-wrap: nowrap !important;
     align-items: center;
     justify-content: flex-end;
     gap: 8px;
-    margin: 0 !important;
     padding: 12px 16px;
     background: #fff;
   }
 
   :global(.ant-pagination-total-text) {
+    display: inline-flex !important;
+    align-items: center !important;
+    height: 32px !important;
+    line-height: 1 !important;
     margin-inline: 0 auto !important;
     color: var(--color-neutral-400, #8f96a3);
     font-size: 12px;
     font-weight: 400;
-    line-height: 150%;
     text-align: left;
   }
 
@@ -211,17 +233,21 @@
   }
 
   :global(.ant-pagination-item) {
-    position: relative;
-    padding: 7px 14px 9px !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    padding: 0 !important;
   }
 
   :global(.ant-pagination-prev .ant-pagination-item-link),
   :global(.ant-pagination-next .ant-pagination-item-link) {
-    position: relative;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
     width: 32px !important;
     min-width: 32px !important;
     height: 32px !important;
-    padding: 7px 14px 9px !important;
+    padding: 0 !important;
   }
 
   :global(.ant-pagination-jump-prev),
@@ -244,42 +270,37 @@
     font-size: 12px;
     font-style: normal;
     font-weight: 600;
-    line-height: 150%;
+    line-height: 1 !important;
     letter-spacing: 0;
     transition: color 200ms ease;
   }
 
   :global(.ant-pagination-item a) {
-    position: absolute !important;
-    top: 50%;
-    left: 50%;
-    display: block !important;
-    width: auto !important;
-    height: auto !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    width: 100% !important;
+    height: 100% !important;
     padding: 0 !important;
-    line-height: 150% !important;
+    margin: 0 !important;
+    line-height: 1 !important;
     text-align: center;
-    transform: translate(-50%, -50%);
     white-space: nowrap;
   }
 
   :global(.ant-pagination-prev .ant-pagination-item-link .anticon),
   :global(.ant-pagination-next .ant-pagination-item-link .anticon) {
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    display: inline-flex;
+    display: flex;
     align-items: center;
     justify-content: center;
     line-height: 1;
-    transform: translate(-50%, -50%);
   }
 
   :global(.ant-pagination-item.ant-pagination-item-active),
   :global(.ant-pagination-item.ant-pagination-item-active:focus),
   :global(.ant-pagination-item.ant-pagination-item-active:focus-visible) {
-    border-color: var(--color-primary-500, #2f7ad2) !important;
-    background-color: var(--color-primary-500, #2f7ad2) !important;
+    border-color: #fafafb !important;
+    background-color: #fafafb !important;
   }
 
   :global(.ant-pagination-item.ant-pagination-item-active > a),
@@ -287,13 +308,13 @@
   :global(.ant-pagination-item.ant-pagination-item-active:focus-visible > a),
   :global(.ant-pagination-item.ant-pagination-item-active:hover > a),
   :global(.ant-pagination-item.ant-pagination-item-active:active > a) {
-    color: #fff !important;
+    color: #b0b6bf !important;
   }
 
   :global(.ant-pagination-item.ant-pagination-item-active:hover),
   :global(.ant-pagination-item.ant-pagination-item-active:active) {
-    border-color: var(--color-primary-300, #77b4f2) !important;
-    background-color: var(--color-primary-300, #77b4f2) !important;
+    border-color: #fafafb !important;
+    background-color: #fafafb !important;
   }
 
   :global(

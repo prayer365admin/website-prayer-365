@@ -139,7 +139,7 @@ describe('google-map shared components', () => {
   })
 
   describe('GoogleMapPicker', () => {
-    it('renders Find address input and Clear marker button', () => {
+    it('renders Find address input and Clear button', () => {
       render(
         <GoogleMapPicker
           label="Church location"
@@ -150,10 +150,10 @@ describe('google-map shared components', () => {
       )
 
       expect(screen.getByPlaceholderText('Find address')).toBeTruthy()
-      expect(screen.getByRole('button', { name: 'Clear marker' })).toBeTruthy()
+      expect(screen.getByRole('button', { name: 'Clear' })).toBeTruthy()
     })
 
-    it('calls onChange(null) when clicking Clear marker', async () => {
+    it('calls onChange(null) when clicking Clear', async () => {
       const user = userEvent.setup()
       const onChange = vi.fn()
       render(
@@ -165,7 +165,7 @@ describe('google-map shared components', () => {
         />,
       )
 
-      await user.click(screen.getByRole('button', { name: 'Clear marker' }))
+      await user.click(screen.getByRole('button', { name: 'Clear' }))
       expect(onChange).toHaveBeenCalledWith(null)
     })
 
@@ -216,7 +216,7 @@ describe('google-map shared components', () => {
 
       const searchInput = screen.getByPlaceholderText('Find address')
       await user.type(searchInput, 'Tartu')
-      const searchButton = screen.getByRole('button', { name: 'Find address' })
+      const searchButton = screen.getByRole('button', { name: 'Search' })
       await user.click(searchButton)
 
       if (GOOGLE_MAPS_API_KEY) {
@@ -251,11 +251,33 @@ describe('google-map shared components', () => {
 
       const searchInput = screen.getByPlaceholderText('Find address')
       await user.type(searchInput, 'NonExistentPlaceXYZ987')
-      const searchButton = screen.getByRole('button', { name: 'Find address' })
+      const searchButton = screen.getByRole('button', { name: 'Search' })
       await user.click(searchButton)
 
       expect(await screen.findByText('Address not found')).toBeTruthy()
       expect(onChange).not.toHaveBeenCalled()
+    })
+
+    it('renders coordinates overlay only when coordinates are provided', () => {
+      const { rerender } = render(
+        <GoogleMapPicker
+          label="Church location"
+          latitude={58.3849}
+          longitude={24.4994}
+          onChange={vi.fn()}
+        />,
+      )
+      expect(screen.getByText('58.384900, 24.499400')).toBeTruthy()
+
+      rerender(
+        <GoogleMapPicker
+          label="Church location"
+          latitude={null}
+          longitude={null}
+          onChange={vi.fn()}
+        />,
+      )
+      expect(screen.queryByText('58.384900, 24.499400')).toBeNull()
     })
   })
 })

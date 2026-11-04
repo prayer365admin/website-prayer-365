@@ -60,7 +60,19 @@ export const siteFilterTheme: ThemeConfig = {
 
 /** User management staff table theme */
 export const userMgmtTableTheme: ThemeConfig = {
+  token: {
+    controlHeight: 40,
+    borderRadius: 8,
+  },
   components: {
+    Select: {
+      controlHeight: 40,
+      borderRadius: 8,
+    },
+    Input: {
+      controlHeight: 40,
+      borderRadius: 8,
+    },
     Table: {
       headerBg: '#FFFFFF',
       rowHoverBg: '#F5F7FF',
