@@ -186,6 +186,7 @@ export default function SiteTopBar({
   // Signed in: a STAFF session goes to the dashboard (it has no customer profile
   // data), a customer goes to their profile, where sign-out lives.
   const staffSession = Boolean(session?.user) && !isCustomerRole(session?.user?.role)
+  const signedIn = Boolean(session?.user || me)
   const accountControl =
     session?.user || me ? (
       <Link
@@ -270,7 +271,7 @@ export default function SiteTopBar({
         )}
 
         <div className={s.actions}>
-          {variant === 'general' && churchControl}
+          {variant === 'general' && signedIn && churchControl}
           <div className={s.desktopLocale}>{localeControl}</div>
           {variant === 'general' && accountControl}
           {variant === 'general' && (

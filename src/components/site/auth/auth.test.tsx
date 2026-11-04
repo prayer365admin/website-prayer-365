@@ -76,6 +76,8 @@ describe('auth asides', () => {
           pastorName: 'Daniel',
           languageCode: 'en',
           audioUrl: 'https://cdn.test/audio.mp3',
+          introduction: 'A quiet meditation',
+          churchCoverUrl: null,
         }}
         t={siteT('en')}
       />,

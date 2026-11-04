@@ -735,6 +735,9 @@ export const SITE_MESSAGES = {
     // shared profile actions
     profileSaveChanges: 'Save Changes',
     profileCancel: 'Cancel',
+    // welcome page
+    welcomeNoOpenPrayer: 'No open prayer available yet.',
+    welcomeStatsUnavailable: 'Not available',
   },
   // DRAFT — Estonian strings not yet reviewed by a native speaker (REPORT R-13).
   // Do not treat as final launch text.
@@ -1378,6 +1381,9 @@ export const SITE_MESSAGES = {
     // shared profile actions
     profileSaveChanges: 'Salvesta muudatused',
     profileCancel: 'Loobu',
+    // welcome page
+    welcomeNoOpenPrayer: 'Avatud palve pole veel saadaval.',
+    welcomeStatsUnavailable: 'Pole saadaval',
   },
   // DRAFT — Swedish strings not yet reviewed by a native speaker (REPORT R-13).
   // Do not treat as final launch text.
@@ -2024,6 +2030,9 @@ export const SITE_MESSAGES = {
     // shared profile actions
     profileSaveChanges: 'Spara ändringar',
     profileCancel: 'Avbryt',
+    // welcome page
+    welcomeNoOpenPrayer: 'Ingen öppen bön tillgänglig ännu.',
+    welcomeStatsUnavailable: 'Inte tillgänglig',
   },
   // DRAFT — Finnish strings not yet reviewed by a native speaker (REPORT R-13).
   // Do not treat as final launch text.
@@ -2673,6 +2682,9 @@ export const SITE_MESSAGES = {
     // shared profile actions
     profileSaveChanges: 'Tallenna muutokset',
     profileCancel: 'Peruuta',
+    // welcome page
+    welcomeNoOpenPrayer: 'Avointa rukousta ei ole vielä saatavilla.',
+    welcomeStatsUnavailable: 'Ei saatavilla',
   },
 } satisfies Record<SiteLocale, Record<string, string>>
 
