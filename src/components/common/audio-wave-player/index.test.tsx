@@ -1,9 +1,16 @@
 import { renderWithProviders } from '@/test/frontend/render'
 import { fireEvent, screen } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
-import AudioWavePlayer from '.'
+import AudioWavePlayer, { AudioWavePlayerSkeleton } from '.'
 
 describe('AudioWavePlayer', () => {
+  it('uses a player-sized waveform skeleton while protected audio is loading', () => {
+    const { container } = renderWithProviders(<AudioWavePlayerSkeleton label="Sample 1" />)
+
+    expect(screen.getByRole('status', { name: 'Loading Sample 1 audio' })).toBeTruthy()
+    expect(container.querySelectorAll('[aria-hidden="true"] span').length).toBeGreaterThan(10)
+  })
+
   it('provides reusable waveform playback, speed, seeking, and download controls', () => {
     const onDuration = vi.fn()
     const { container } = renderWithProviders(

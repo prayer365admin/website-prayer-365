@@ -1,6 +1,5 @@
-import AudioWavePlayer from '@/components/common/audio-wave-player'
+import AudioWavePlayer, { AudioWavePlayerSkeleton } from '@/components/common/audio-wave-player'
 import { useMediaAccess } from '@/hooks/data/media-access'
-import { Skeleton } from 'antd'
 
 /** "1:42" from seconds. */
 export const formatDuration = (seconds: number) => {
@@ -24,7 +23,7 @@ export default function SamplePlayer({
   onDuration?: (assetId: string, seconds: number) => void
 }) {
   const { data, loading } = useMediaAccess(churchId, assetId)
-  if (loading) return <Skeleton.Input active size="small" />
+  if (loading) return <AudioWavePlayerSkeleton label={label} />
   if (!data?.url) return <span className="text-gray-500">Preview unavailable</span>
   return (
     <AudioWavePlayer
