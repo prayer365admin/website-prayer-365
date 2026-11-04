@@ -6,6 +6,7 @@ vi.mock('@/providers/mobile', () => ({
   COUNT_RECENT_USER_REQUESTS: vi.fn(),
   CREATE_USER_REQUEST: vi.fn(),
   GET_HOME: vi.fn(),
+  GET_CHECK_IN_ACK: vi.fn(),
   GET_ME_PROFILE: vi.fn(),
   GET_PUBLIC_CHURCH: vi.fn(),
   GET_PUBLISHED_PRAYER: vi.fn(),
@@ -25,6 +26,7 @@ import {
   CREATE_CHECKIN,
   COUNT_RECENT_USER_REQUESTS,
   CREATE_USER_REQUEST,
+  GET_CHECK_IN_ACK,
   GET_ME_PROFILE,
   GET_PUBLIC_CHURCH,
   GET_PUBLISHED_PRAYER,
@@ -352,6 +354,12 @@ describe('Task 43 / check-in — idempotent ack', () => {
       occurredAt: '2026-01-01T00:00:00Z',
       localDate: '2026-01-01',
     } as never)
+    vi.mocked(GET_CHECK_IN_ACK).mockResolvedValue({
+      id: 'ck-1',
+      churchId: 'c1',
+      occurredAt: '2026-01-01T00:00:00.000Z',
+      localDate: '2026-01-01',
+    })
     const res = await checkIn({
       userId: 'u1',
       churchId: 'c1',

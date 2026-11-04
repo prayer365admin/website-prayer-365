@@ -14,7 +14,7 @@ import { SUPPORTED_KINDS } from '@/controller/job-dispatch'
 const providersDir = path.resolve(__dirname, '../providers')
 
 /** Job kinds with no consumer yet. Keep this list short and intentional. */
-const KNOWN_UNPROCESSED: string[] = ['notification.send']
+const KNOWN_UNPROCESSED: string[] = []
 
 const providerKinds = () => {
   const kinds = new Set<string>()

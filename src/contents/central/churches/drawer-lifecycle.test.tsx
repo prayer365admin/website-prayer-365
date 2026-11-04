@@ -88,15 +88,16 @@ describe('DrawerLifecycle', () => {
     expect(screen.queryByText(/Approved on/)).toBeNull()
   })
 
-  it('renders footer for ARCHIVED church: no lifecycle buttons visible', () => {
+  it('renders footer for ARCHIVED church: Unarchive visible, Archive and Suspend absent', () => {
     const onLifecycle = vi.fn()
     renderWithProviders(
       <DrawerLifecycle church={makeChurch({ status: 'ARCHIVED' })} onLifecycle={onLifecycle} />,
     )
 
+    expect(screen.getByRole('button', { name: 'Unarchive' })).toBeTruthy()
+    expect(screen.queryByRole('button', { name: 'Archive' })).toBeNull()
     expect(screen.queryByRole('button', { name: 'Suspend' })).toBeNull()
     expect(screen.queryByRole('button', { name: 'Approve' })).toBeNull()
-    expect(screen.queryByRole('button', { name: /archive/i })).toBeNull()
     expect(screen.queryByRole('button', { name: 'Delete church' })).toBeNull()
   })
 

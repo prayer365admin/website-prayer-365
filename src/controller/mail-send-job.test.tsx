@@ -240,6 +240,30 @@ describe('processMailSendJob', () => {
       )
     })
 
+    it('records the provider error code and requeues on a transient SES rejection', async () => {
+      jobs.set('j-ses', {
+        id: 'j-ses',
+        kind: 'mail.send',
+        state: 'RUNNING',
+        attempts: 1,
+        payload: validPayload,
+      })
+
+      mocks.sendMail.mockRejectedValueOnce(
+        Object.assign(new Error('Message rejected'), { code: 'MessageRejected' }),
+      )
+
+      const outcome = await processMailSendJob('j-ses', 'req-1')
+      expect(outcome).toBe('requeued')
+      expect(mocks.outbox.MARK_JOB_STATE).toHaveBeenCalledWith(
+        expect.objectContaining({
+          jobId: 'j-ses',
+          state: 'PENDING',
+          errorCode: 'MessageRejected',
+        }),
+      )
+    })
+
     it('fails when generic error occurs and attempts >= 3', async () => {
       jobs.set('j-maxed', {
         id: 'j-maxed',

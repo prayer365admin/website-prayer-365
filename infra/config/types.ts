@@ -81,6 +81,12 @@ export type EmailConfig = {
    * tokens, so read those with `aws sesv2 get-email-identity`.
    */
   mode: 'create' | 'existing'
+  /**
+   * Transport the workers use, mirrored into the Lambda `MAIL_PROVIDER` env var.
+   * A `MAIL_PROVIDER` key inside the mail-credentials secret is ignored on purpose:
+   * provider selection is deployment configuration, not a credential.
+   */
+  provider: 'ses' | 'mailgun' | 'mailtrap'
 }
 
 export type EnvConfig = {

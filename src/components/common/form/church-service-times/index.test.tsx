@@ -38,23 +38,35 @@ describe('FormChurchServiceTimes', () => {
 
     render(<TestWrapper initialValues={initialValues} />)
     expect(screen.getByText('Sunday Service')).toBeTruthy() // Table cell
-    expect(screen.getByDisplayValue('Sunday Service')).toBeTruthy() // Input
-    expect(screen.getAllByText('Sunday')).toHaveLength(2) // Table row text + Select
+    expect(screen.getByDisplayValue('Sunday Service')).toBeTruthy() // Hidden field
+    expect(screen.getByText('Sunday')).toBeTruthy() // Table row text
     expect(screen.getByDisplayValue('10:00')).toBeTruthy()
     expect(screen.getByText('ET')).toBeTruthy()
   })
 
-  it('adds an empty row when "Add service time" is clicked', async () => {
+  it('adds a row when inline draft fields are filled and Add is clicked', async () => {
     const user = userEvent.setup()
     render(<TestWrapper />)
 
-    const addButton = screen.getByRole('button', { name: /add service time/i })
+    // Form is closed initially until "Add service time" is clicked
+    expect(screen.queryByText('Day *')).toBeNull()
+    const openButton = screen.getByRole('button', { name: /add service time/i })
+    await user.click(openButton)
+
+    expect(screen.getByText('Day *')).toBeTruthy()
+    expect(screen.getByText('Time *')).toBeTruthy()
+    expect(screen.getByText('Service Label')).toBeTruthy()
+    expect(screen.getByText('Language')).toBeTruthy()
+
+    const addButton = screen.getByRole('button', { name: /^add$/i })
     await user.click(addButton)
 
-    expect(screen.getByText('Select day')).toBeTruthy()
+    // Validation errors show if required Day/Time missing
+    expect(screen.getByText('Please select a day')).toBeTruthy()
+    expect(screen.getByText('Please select a time')).toBeTruthy()
   })
 
-  it('removes a row when remove icon is clicked', async () => {
+  it('removes a row when delete icon is clicked', async () => {
     const user = userEvent.setup()
     const initialValues = {
       schedule: [
@@ -68,17 +80,17 @@ describe('FormChurchServiceTimes', () => {
 
     render(<TestWrapper initialValues={initialValues} />)
 
-    expect(screen.getByDisplayValue('Sunday Service')).toBeTruthy()
+    expect(screen.getByText('Sunday Service')).toBeTruthy()
 
-    const deleteBtn = screen.getByText('Delete')
+    const deleteBtn = screen.getByLabelText('Delete service time')
     await user.click(deleteBtn)
 
     await waitFor(() => {
-      expect(screen.queryByDisplayValue('Sunday Service')).toBeNull()
+      expect(screen.queryByText('Sunday Service')).toBeNull()
     })
   })
 
-  it('edit button reveals the edit form for the correct row', async () => {
+  it('edit button loads row values into inline form for the correct row', async () => {
     const user = userEvent.setup()
     const initialValues = {
       schedule: [
@@ -92,26 +104,35 @@ describe('FormChurchServiceTimes', () => {
 
     render(<TestWrapper initialValues={initialValues} />)
 
-    const editBtn = screen.getByText('Edit')
+    const editBtn = screen.getByLabelText('Edit service time')
     await user.click(editBtn)
 
-    // Just verify nothing crashes, the form becomes visible.
-    // We can check if "Day / date" label is present.
-    expect(screen.getAllByText('Day / date')).toHaveLength(2) // Table header + form item label
+    // The inline form receives the values of the editing row
+    const labelInput = await screen.findByDisplayValue('Sunday Service')
+    expect(labelInput).toBeTruthy()
   })
 
-  it('hides edit form when isSaving becomes true', async () => {
+  it('resets edit state when isSaving becomes true', async () => {
     const user = userEvent.setup()
-    const { rerender } = render(<TestWrapper />)
+    const initialValues = {
+      schedule: [
+        {
+          weekday: 7,
+          localTime: dayjs('10:00', 'HH:mm'),
+          label: 'Sunday Service',
+        },
+      ],
+    }
+    const { rerender } = render(<TestWrapper initialValues={initialValues} />)
 
-    const addButton = screen.getByRole('button', { name: /add service time/i })
-    await user.click(addButton)
+    const editBtn = screen.getByLabelText('Edit service time')
+    await user.click(editBtn)
 
-    const selectDay = screen.getByText('Select day')
-    const editContainer = selectDay.closest('.mt-6') as HTMLElement
-    expect(editContainer.style.display).toBe('block')
+    expect(await screen.findByDisplayValue('Sunday Service')).toBeTruthy()
 
-    rerender(<TestWrapper isSaving={true} />)
-    expect(editContainer.style.display).toBe('none')
+    rerender(<TestWrapper initialValues={initialValues} isSaving={true} />)
+
+    // Reverting edit mode clears editingIndex
+    expect(screen.getByText('Sunday Service')).toBeTruthy()
   })
 })

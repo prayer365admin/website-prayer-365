@@ -61,6 +61,12 @@ describe('ContentsChurches', () => {
 
     expect(screen.getByText('Tallinn')).toBeTruthy()
     expect(screen.getByText('Helsinki')).toBeTruthy()
+    expect(screen.getByText('Approved')).toBeTruthy()
+    expect(screen.getByText('Pending')).toBeTruthy()
+    expect(screen.getByPlaceholderText('Search church')).toBeTruthy()
+    expect(screen.getByText('All Location')).toBeTruthy()
+    expect(screen.getByText('All status')).toBeTruthy()
+    expect(screen.getByText('Showing 1 - 2 of 2 churches')).toBeTruthy()
 
     const accessCells = screen.getAllByText('Church administrator')
     expect(accessCells.length).toBeGreaterThanOrEqual(2)
@@ -117,6 +123,7 @@ describe('ContentsChurches', () => {
 
     await screen.findByText(/no assigned churches/i)
 
+    expect(screen.getByText('Showing 0 - 0 of 0 churches')).toBeTruthy()
     expect(replaceMock).not.toHaveBeenCalled()
     expect(pushMock).not.toHaveBeenCalled()
   })

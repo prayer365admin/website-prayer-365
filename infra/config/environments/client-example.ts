@@ -29,7 +29,7 @@ export const clientExample: EnvConfig = {
   // instance with a fixed egress IP (useful if other services allow-list it too).
   network: { mode: 'vpc', natInstanceType: 't4g.nano', staticEgressIp: true },
   // A client gets its own verified sending domain; replace the placeholder.
-  email: { mode: 'create', domain: 'example.org' },
+  email: { mode: 'create', domain: 'example.org', provider: 'ses' },
   workers: {
     enabled: true,
     dispatchSchedule: 'rate(1 minute)',

@@ -24,7 +24,7 @@ import { Dayjs } from 'dayjs'
 import { useState } from 'react'
 import { AnnouncementColumns } from './columns'
 import AnnouncementEditor from './editor'
-import { churchFilterBoundToIso, EVENT_EDITOR_DATETIME_FORMAT } from '@/utils/event-datetime'
+import { churchFilterBoundToIso } from '@/utils/event-datetime'
 
 export default function ContentsChurchAnnouncements({ churchId }: { churchId: string }) {
   const [search, setSearch] = useState<string>()
@@ -67,11 +67,11 @@ export default function ContentsChurchAnnouncements({ churchId }: { churchId: st
     status,
     publishedFrom:
       publishedRange?.[0] && timezone
-        ? churchFilterBoundToIso(publishedRange[0], timezone)
+        ? churchFilterBoundToIso(publishedRange[0].startOf('day'), timezone)
         : undefined,
     publishedTo:
       publishedRange?.[1] && timezone
-        ? churchFilterBoundToIso(publishedRange[1], timezone)
+        ? churchFilterBoundToIso(publishedRange[1].endOf('day'), timezone)
         : undefined,
     orderBy,
     orderDirection,
@@ -140,10 +140,9 @@ export default function ContentsChurchAnnouncements({ churchId }: { churchId: st
             }))}
           />
           <DatePicker.RangePicker
-            className="w-full sm:w-auto"
+            className="w-full sm:w-auto !cursor-pointer [&_input]:!cursor-pointer"
             value={publishedRange}
-            showTime={{ format: 'HH:mm' }}
-            format={EVENT_EDITOR_DATETIME_FORMAT}
+            format="YYYY-MM-DD"
             placeholder={['Published from', 'Published until']}
             disabled={!timezone || status === ANNOUNCEMENT_STATUS.DRAFT}
             allowEmpty={[true, true]}

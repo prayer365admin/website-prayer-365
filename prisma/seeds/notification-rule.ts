@@ -1,15 +1,14 @@
 import { db } from '../../src/utils/db-connection'
 
-// SPEC F11 notification types + FEATURE.md: only these are required; donation
-// reminder must be explicitly enabled by the user (matters at delivery time,
-// rule row just defines the type here).
+// SPEC F11 notification types. These are the TRIGGER names the sender looks up
+// (models/notification.tsx ALLOWED_RULE_TYPES). All enabled: user preferences
+// decide per-recipient delivery, and every type now defaults ON (client decision
+// 2026-10-30). The old preference-name rows were invisible to the admin filter.
 const rules = [
-  { type: 'daily_prayer', enabled: true },
-  { type: 'sunday_service', enabled: true },
-  { type: 'church_events', enabled: true },
-  { type: 'church_announcements', enabled: true },
-  { type: 'platform_info', enabled: true },
-  { type: 'donation_reminder', enabled: false },
+  { type: 'prayer_published', enabled: true },
+  { type: 'announcement_published', enabled: true },
+  { type: 'event_reminder', enabled: true },
+  { type: 'donation_reminder', enabled: true },
 ]
 
 export const seedNotificationRules = async () => {

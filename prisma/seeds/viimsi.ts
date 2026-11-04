@@ -458,7 +458,7 @@ export const seedViimsiCustomers = async () => {
     await db.notificationPreference.upsert({
       where: { user_id_type: { user_id: user.id, type: 'donation_reminder' } },
       update: {},
-      create: { user_id: user.id, type: 'donation_reminder', enabled: false },
+      create: { user_id: user.id, type: 'donation_reminder', enabled: true },
     })
   }
 

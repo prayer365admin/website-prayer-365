@@ -42,4 +42,12 @@ describe('useConfirmModal', () => {
     await user.click(await screen.findByRole('button', { name: /cancel/i }))
     expect(onCancel).toHaveBeenCalled()
   })
+
+  it('applies destructive danger styling to ok button when action is destructive', async () => {
+    const user = userEvent.setup()
+    renderWithProviders(<Harness />)
+    await user.click(screen.getByRole('button', { name: 'do' }))
+    const okBtn = await screen.findByRole('button', { name: /ok/i })
+    expect(okBtn.className).toContain('!bg-[#E54C4C]')
+  })
 })

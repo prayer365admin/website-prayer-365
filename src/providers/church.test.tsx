@@ -42,6 +42,7 @@ const { db, tx } = vi.hoisted(() => {
       announcement: { count: vi.fn() },
       userChurch: { count: vi.fn() },
       request: { count: vi.fn(), findMany: vi.fn() },
+      orgNode: { findMany: vi.fn().mockResolvedValue([]) },
       auditLog: { create: vi.fn() },
     },
   }
@@ -52,6 +53,7 @@ vi.mock('@/utils/db-connection', () => ({ db }))
 describe('Church Provider', () => {
   beforeEach(() => {
     vi.resetAllMocks()
+    db.orgNode.findMany.mockResolvedValue([])
   })
 
   describe('GET_CHURCH_PROFILE', () => {
@@ -87,6 +89,61 @@ describe('Church Provider', () => {
           }),
         }),
       )
+    })
+
+    it('resolves organization hierarchy path from org node map', async () => {
+      db.church.findFirst.mockResolvedValue({
+        id: 'c1',
+        name: 'St. John',
+        org_node_id: 'n-church',
+        status: 'APPROVED',
+        timezone: 'Europe/Tallinn',
+        description: null,
+        denomination: 'Lutheran',
+        address: null,
+        latitude: null,
+        longitude: null,
+        contacts: null,
+        website: null,
+        social_links: null,
+        cover_asset_id: null,
+        version: 1,
+        churchLanguages: [],
+      })
+      db.orgNode.findMany.mockResolvedValue([
+        { id: 'n-global', parent_id: null, kind: 'GLOBAL', name: 'Global', country_code: null },
+        {
+          id: 'n-country',
+          parent_id: 'n-global',
+          kind: 'COUNTRY',
+          name: 'Estonia',
+          country_code: 'EE',
+        },
+        {
+          id: 'n-diocese',
+          parent_id: 'n-country',
+          kind: 'DIOCESE',
+          name: 'Estonia Diocese',
+          country_code: 'EE',
+        },
+        {
+          id: 'n-deanery',
+          parent_id: 'n-diocese',
+          kind: 'DEANERY',
+          name: 'Tallin Deanery',
+          country_code: 'EE',
+        },
+        {
+          id: 'n-church',
+          parent_id: 'n-deanery',
+          kind: 'CHURCH',
+          name: 'St. John',
+          country_code: 'EE',
+        },
+      ])
+
+      const res = await GET_CHURCH_PROFILE({ churchId: 'c1', churchIds: new Set(['c1']) })
+      expect(res?.organization).toEqual(['Estonia Diocese', 'Tallin Deanery'])
     })
   })
 

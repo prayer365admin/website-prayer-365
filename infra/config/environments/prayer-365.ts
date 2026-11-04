@@ -30,7 +30,12 @@ export const prayer365: EnvConfig = {
   // Transactional email: prayer365.eu has to be verified in this account's SES.
   // The DKIM + MAIL FROM records the domain owner must publish are printed by the
   // data stack and listed in docs/admin/SES-DNS.md.
-  email: { mode: 'create', domain: 'prayer365.eu', mailFromDomain: 'mail.prayer365.eu' },
+  email: {
+    mode: 'create',
+    domain: 'prayer365.eu',
+    mailFromDomain: 'mail.prayer365.eu',
+    provider: 'ses',
+  },
   workers: {
     enabled: true,
     dispatchSchedule: 'rate(1 minute)',

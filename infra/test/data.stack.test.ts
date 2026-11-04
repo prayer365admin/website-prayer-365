@@ -21,11 +21,21 @@ describe('DataStack', () => {
     const template = build(catatia)
 
     template.resourceCountIs('AWS::RDS::DBInstance', 0)
-    template.resourceCountIs('AWS::SecretsManager::Secret', 5)
+    template.resourceCountIs('AWS::SecretsManager::Secret', 7)
     template.hasResourceProperties('AWS::SQS::Queue', {
       QueueName: `prayer365-${catatia.name}-jobs`,
       VisibilityTimeout: catatia.workers.leaseSeconds,
     })
+  })
+
+  it('creates the two notification secret containers the worker stack references', () => {
+    const template = build(catatia)
+
+    for (const suffix of ['device-token-key', 'firebase-service-account']) {
+      template.hasResourceProperties('AWS::SecretsManager::Secret', {
+        Name: `/prayer365/${catatia.name}/${suffix}`,
+      })
+    }
   })
 
   it('the jobs queue redrives to the DLQ after 5 receives', () => {

@@ -3,9 +3,8 @@
 import { useChurchProfile, useChurchServiceTimes } from '@/hooks/data/church'
 import { ChurchProfileInput, ChurchProfileOutput } from '@/models/church'
 import { ServiceTimeScheduleInput } from '@/models/service-time'
-import { Card, Skeleton, Typography } from 'antd'
+import { Skeleton } from 'antd'
 import { useParams } from 'next/navigation'
-import { Fragment } from 'react'
 import FormChurchProfileTabs from '@/components/common/form/church-profile'
 
 export default function ContentsChurchProfile() {
@@ -26,23 +25,22 @@ export default function ContentsChurchProfile() {
     }
   }
 
+  if (!data || !serviceTimes) {
+    return (
+      <div className="max-w-[1184px] mx-auto bg-white rounded-2xl p-6 shadow-sm w-full flex-1 min-h-[700px]">
+        <Skeleton avatar={false} paragraph={{ rows: 8 }} active />
+      </div>
+    )
+  }
+
   return (
-    <Fragment>
-      <Typography.Title level={2}>Church profile</Typography.Title>
-      <Card>
-        {data && serviceTimes ? (
-          <FormChurchProfileTabs
-            initialValues={data}
-            serviceTimes={serviceTimes ?? []}
-            churchId={churchId}
-            loading={loading}
-            onSubmit={handleSubmit}
-            onSubmitSchedule={handleReplace}
-          />
-        ) : (
-          <Skeleton />
-        )}
-      </Card>
-    </Fragment>
+    <FormChurchProfileTabs
+      initialValues={data}
+      serviceTimes={serviceTimes ?? []}
+      churchId={churchId}
+      loading={loading}
+      onSubmit={handleSubmit}
+      onSubmitSchedule={handleReplace}
+    />
   )
 }

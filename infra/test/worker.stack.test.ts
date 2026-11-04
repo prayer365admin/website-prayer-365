@@ -87,6 +87,38 @@ describe('WorkerStack', () => {
     expect(json).not.toContain('AWS_SECRET_ACCESS_KEY')
   })
 
+  it('grants the consumer permission to send through the verified SES identity', () => {
+    const template = build(enabled(catatia))
+
+    template.hasResourceProperties('AWS::IAM::Policy', {
+      PolicyDocument: {
+        Statement: Match.arrayWith([
+          Match.objectLike({
+            Action: ['ses:SendEmail', 'ses:SendRawEmail'],
+            Effect: 'Allow',
+            Resource: [
+              `arn:aws:ses:${catatia.region}:${catatia.account}:identity/${catatia.email.domain}`,
+              // the account default configuration set is authorised implicitly
+              `arn:aws:ses:${catatia.region}:${catatia.account}:configuration-set/*`,
+            ],
+          }),
+        ]),
+      },
+    })
+  })
+
+  it('sends mail through the provider named in the environment config', () => {
+    const template = build(enabled(catatia))
+    const consumer = functions(template).find(
+      (fn) => fn.Properties.FunctionName === `prayer365-${catatia.name}-consumer`,
+    )
+
+    expect(consumer?.Properties.Environment.Variables).toMatchObject({
+      MAIL_PROVIDER: catatia.email.provider,
+      SES_REGION: catatia.region,
+    })
+  })
+
   it('alarms on a non-empty DLQ and on function errors', () => {
     const template = build(enabled(catatia))
     template.resourceCountIs('AWS::CloudWatch::Alarm', 3)
