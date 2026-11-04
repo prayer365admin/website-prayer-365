@@ -6,6 +6,7 @@ import {
   LanguageSummary,
   LanguageUpdate,
 } from '@/models/registry'
+import { RENAME_COUNTRY_ORG_NODE } from '@/providers/hierarchy'
 import {
   COUNT_COUNTRY_REFERENCES,
   COUNT_LANGUAGE_REFERENCES,
@@ -147,6 +148,8 @@ export const updateCountry = async ({
       tx,
     )
     if (!row) throw stale('country')
+    // The hierarchy shows this name but cannot edit it (COUNTRY_RENAME_VIA_REGISTRY).
+    await RENAME_COUNTRY_ORG_NODE({ countryCode: code, name: row.name }, tx)
     await tx.auditLog.create({
       data: auditPayload({
         actorId,
