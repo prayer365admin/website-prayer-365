@@ -133,6 +133,9 @@ describe('ContentsChurchesPrayersEditor', () => {
     })
 
     expect(screen.getByLabelText('Title')).toBeTruthy()
+    expect(screen.getByLabelText('Title').closest('form')?.parentElement?.className).toContain(
+      'textPanel',
+    )
     expect((await screen.findByRole('textbox', { name: 'Introduction' })).tagName).toBe('TEXTAREA')
     expect(screen.getByRole('textbox', { name: 'Full prayer text' }).tagName).toBe('TEXTAREA')
     expect(screen.getAllByRole('toolbar', { name: 'Text formatting' })).toHaveLength(2)

@@ -3,7 +3,7 @@
 import AddButton from '@/components/common/add-button'
 import { usePrayers } from '@/hooks/data/prayer'
 import { useUrlPagination } from '@/hooks/ui/url-pagination'
-import { Tabs, Table } from 'antd'
+import { Table, Tabs } from 'antd'
 import { useRouter } from 'next/navigation'
 import { Fragment, useState } from 'react'
 import { PrayerColumns } from './columns'
