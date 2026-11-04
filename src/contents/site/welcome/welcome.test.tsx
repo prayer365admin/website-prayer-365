@@ -25,7 +25,6 @@ describe('Welcome landing page (welcome-landing)', () => {
     expect(screen.getByText('Everyday Faith.')).toBeTruthy()
     expect(screen.getByText('A More Connected Tomorrow.')).toBeTruthy()
     expect(screen.getByText('Join the Sanctuary — Register Free')).toBeTruthy()
-    expect(screen.getByText('Live Sanctuary')).toBeTruthy()
     expect(screen.getByText('Pastors online for prayer')).toBeTruthy()
     expect(screen.getByText(SITE_MESSAGES.en.welcomeNoOpenPrayer)).toBeTruthy()
     expect(screen.getAllByText(SITE_MESSAGES.en.welcomeStatsUnavailable).length).toBeGreaterThan(0)

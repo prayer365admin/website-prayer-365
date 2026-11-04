@@ -1,6 +1,6 @@
 import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import React from 'react'
 
 vi.mock('@vis.gl/react-google-maps', () => ({
@@ -59,6 +59,7 @@ vi.mock('@vis.gl/react-google-maps', () => ({
   Pin: () => <span data-testid="pin" />,
   useMap: () => ({
     panTo: vi.fn(),
+    setZoom: vi.fn(),
   }),
 }))
 
@@ -71,8 +72,59 @@ import {
   GOOGLE_MAPS_MAP_ID,
 } from './index'
 
+// CustomMapMarker portals its button into a google.maps.OverlayView pane, and
+// jsdom has no maps runtime. The stub attaches the pane to document.body so the
+// marker is queryable, mirroring what Google Maps does in the browser.
+class FakeOverlayView {
+  private map: unknown = null
+  private attached: Element[] = []
+  onAdd?: () => void
+  draw?: () => void
+
+  setMap(map: unknown) {
+    const previous = this.map
+    this.map = map
+    if (map && !previous) {
+      const before = new Set(document.body.children)
+      this.onAdd?.()
+      this.draw?.()
+      this.attached = Array.from(document.body.children).filter((child) => !before.has(child))
+    } else if (!map && previous) {
+      for (const node of this.attached) node.remove()
+      this.attached = []
+    }
+  }
+
+  getPanes() {
+    return { overlayMouseTarget: document.body }
+  }
+
+  getProjection() {
+    return { fromLatLngToDivPixel: () => ({ x: 0, y: 0 }) }
+  }
+}
+
+class FakeLatLng {
+  constructor(
+    public lat: number,
+    public lng: number,
+  ) {}
+}
+
 describe('google-map shared components', () => {
   const originalFetch = global.fetch
+  const originalGoogle = globalThis.google
+
+  beforeAll(() => {
+    // Only the two members CustomMapMarker touches are needed in jsdom.
+    globalThis.google = {
+      maps: { OverlayView: FakeOverlayView, LatLng: FakeLatLng },
+    } as unknown as typeof google
+  })
+
+  afterAll(() => {
+    globalThis.google = originalGoogle
+  })
 
   beforeEach(() => {
     vi.clearAllMocks()
@@ -115,26 +167,49 @@ describe('google-map shared components', () => {
       expect(box).toBeTruthy()
     })
 
-    it('renders Map and Markers for valid points when API key exists or placeholder when empty key', () => {
+    it('renders Map and Markers for valid points when API key exists', async () => {
+      // The API key is read at module scope, so re-import after stubbing it.
+      vi.resetModules()
+      vi.stubEnv('NEXT_PUBLIC_GOOGLE_MAPS_API', 'test-key')
+      const { GoogleMapPins: PinsWithKey } = await import('./index')
+
       const points = [
         { id: 'p1', latitude: 59.437, longitude: 24.754, label: 'Grace' },
         { id: 'p2', latitude: 58.378, longitude: 26.729, label: 'Hope' },
       ]
       const onSelect = vi.fn()
-      render(<GoogleMapPins points={points} activeId="p1" onSelect={onSelect} />)
+      render(<PinsWithKey points={points} activeId="p1" onSelect={onSelect} />)
 
-      if (GOOGLE_MAPS_API_KEY) {
-        expect(screen.getByTestId('google-map')).toBeTruthy()
-        const markers = screen.getAllByTestId('marker')
-        expect(markers).toHaveLength(2)
-        expect(markers[0].textContent).toBe('Grace')
-        expect(markers[1].textContent).toBe('Hope')
+      expect(screen.getByTestId('google-map')).toBeTruthy()
+      const markers = screen.getAllByTestId('marker')
+      expect(markers).toHaveLength(2)
+      const labels = markers.map((marker) =>
+        marker.querySelector('[role="button"]')?.getAttribute('title'),
+      )
+      expect(labels).toEqual(['Grace', 'Hope'])
 
-        markers[1].click()
-        expect(onSelect).toHaveBeenCalledWith('p2')
-      } else {
-        expect(screen.getByLabelText('Map unavailable')).toBeTruthy()
-      }
+      markers[1].querySelector<HTMLElement>('[role="button"]')?.click()
+      expect(onSelect).toHaveBeenCalledWith('p2')
+
+      vi.unstubAllEnvs()
+      vi.resetModules()
+    })
+
+    it('renders the placeholder when no API key is configured', async () => {
+      vi.resetModules()
+      vi.stubEnv('NEXT_PUBLIC_GOOGLE_MAPS_API', '')
+      const { GoogleMapPins: PinsWithoutKey } = await import('./index')
+
+      render(
+        <PinsWithoutKey
+          points={[{ id: 'p1', latitude: 59.437, longitude: 24.754, label: 'Grace' }]}
+        />,
+      )
+
+      expect(screen.getByLabelText('Map unavailable')).toBeTruthy()
+
+      vi.unstubAllEnvs()
+      vi.resetModules()
     })
   })
 
