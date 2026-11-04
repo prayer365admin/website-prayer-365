@@ -6,13 +6,15 @@ import { useAccessPermission } from '@/hooks/data/access-permission'
 import { useCentralChurchList, useCountries } from '@/hooks/data/central'
 import { useUrlPagination } from '@/hooks/ui/url-pagination'
 import { ChurchListItem } from '@/models/central-church'
-import type { ChurchStatus } from '@prisma/client'
 import { Alert, Breadcrumb, Empty, Select, Table, TablePaginationConfig } from 'antd'
 import Link from 'next/link'
+import { useSearchParams } from 'next/navigation'
 import { useState } from 'react'
 import { CentralChurchColumns } from './columns'
 import ContentsCentralChurchDrawer from './drawer'
 import PurgeChurchModal from './purge-modal'
+
+const CHURCH_STATUSES = ['PENDING', 'APPROVED', 'SUSPENDED', 'ARCHIVED'] as const
 
 /**
  * S15 — Church administration list. Every status is visible here (this is the
@@ -20,8 +22,11 @@ import PurgeChurchModal from './purge-modal'
  * /dashboard/churches never does.
  */
 export default function ContentsCentralChurches() {
+  const searchParams = useSearchParams()
+  // Deep links from the overview KPI cards filter by status (`?status=PENDING`).
+  const statusParam = searchParams.get('status')
+  const status = CHURCH_STATUSES.find((status) => status === statusParam)
   const [search, setSearch] = useState<string>()
-  const [status] = useState<ChurchStatus>()
   const [selectedCountry, setSelectedCountry] = useState<string>()
   const [selectedChurchId, setSelectedChurchId] = useState<string>()
   const [isCreating, setIsCreating] = useState(false)
