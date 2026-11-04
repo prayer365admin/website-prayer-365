@@ -1,7 +1,7 @@
 import { SITE_MESSAGES } from '@/i18n/messages'
 import { SiteI18nProvider } from '@/i18n/site-i18n'
 import { renderWithProviders } from '@/test/frontend/render'
-import { fireEvent, screen } from '@testing-library/react'
+import { fireEvent, screen, within } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
 import ContentsSiteWelcome from './index'
 
@@ -25,6 +25,10 @@ describe('Welcome landing page (welcome-landing)', () => {
     expect(screen.getByText('Everyday Faith.')).toBeTruthy()
     expect(screen.getByText('A More Connected Tomorrow.')).toBeTruthy()
     expect(screen.getByText('Join the Sanctuary — Register Free')).toBeTruthy()
+    // Store envs drive the promo badges and QR only; hero badges always jump to #app-promo.
+    const hero = within(screen.getByLabelText('Welcome Hero'))
+    expect(hero.getByLabelText('Download on the App Store').getAttribute('href')).toBe('#app-promo')
+    expect(hero.getByLabelText('Get it on Google Play').getAttribute('href')).toBe('#app-promo')
     expect(screen.getByText('Pastors online for prayer')).toBeTruthy()
     expect(screen.getByText(SITE_MESSAGES.en.welcomeNoOpenPrayer)).toBeTruthy()
     expect(screen.getAllByText(SITE_MESSAGES.en.welcomeStatsUnavailable).length).toBeGreaterThan(0)

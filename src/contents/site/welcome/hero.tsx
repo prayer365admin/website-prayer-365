@@ -27,12 +27,9 @@ export default function WelcomeHero({
     typeof memberCount === 'number'
       ? `${new Intl.NumberFormat(locale).format(memberCount)} Believers`
       : t('welcomeStatsUnavailable')
-  const appStoreUrl =
-    process.env.NEXT_PUBLIC_APP_STORE_URL || process.env.NEXT_PUBLIC_IOS_APP_URL || '#app-promo'
-  const playStoreUrl =
-    process.env.NEXT_PUBLIC_PLAY_STORE_URL ||
-    process.env.NEXT_PUBLIC_ANDROID_APP_URL ||
-    '#app-promo'
+  // The hero badges always jump to the app promo section; the store links live there
+  // (and in the QR code) because the app ships to both stores.
+  const appDownloadHref = '#app-promo'
 
   return (
     <section
@@ -106,7 +103,7 @@ export default function WelcomeHero({
               <a
                 aria-label="Download on the App Store"
                 className="h-[51px] rounded-xl bg-black/85 border border-white/20 flex items-center gap-3 px-4 shadow-[0px_4px_6px_-1px_rgba(0,0,0,0.1),0px_2px_4px_-2px_rgba(0,0,0,0.1)] hover:bg-black transition-colors"
-                href={appStoreUrl}
+                href={appDownloadHref}
               >
                 <AppleIcon aria-hidden className="text-white" style={{ fontSize: 26 }} />
                 <div className="flex flex-col text-left">
@@ -122,7 +119,7 @@ export default function WelcomeHero({
               <a
                 aria-label="Get it on Google Play"
                 className="h-[51px] rounded-xl bg-black/85 border border-white/20 flex items-center gap-3 px-4 shadow-[0px_4px_6px_-1px_rgba(0,0,0,0.1),0px_2px_4px_-2px_rgba(0,0,0,0.1)] hover:bg-black transition-colors"
-                href={playStoreUrl}
+                href={appDownloadHref}
               >
                 <GoogleIcon aria-hidden style={{ fontSize: 22 }} />
                 <div className="flex flex-col text-left">
