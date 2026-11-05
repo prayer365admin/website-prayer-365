@@ -7,9 +7,11 @@ import { ChurchSetupForm } from './setup'
 export default function ContentsCentralChurchDrawer({
   churchId,
   onClose,
+  defaultParentId,
 }: {
   churchId?: string
   onClose: () => void
+  defaultParentId?: string
 }) {
   return (
     <Drawer
@@ -41,7 +43,12 @@ export default function ContentsCentralChurchDrawer({
       }}
     >
       <ConfigProvider theme={siteFormTheme}>
-        <ChurchSetupForm churchId={churchId} onClose={onClose} isDrawer />
+        <ChurchSetupForm
+          churchId={churchId}
+          onClose={onClose}
+          isDrawer
+          defaultParentId={defaultParentId}
+        />
       </ConfigProvider>
     </Drawer>
   )

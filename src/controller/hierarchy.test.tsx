@@ -12,6 +12,7 @@ vi.mock('@/providers/hierarchy', () => ({
   GET_ALL_ORG_NODES: vi.fn(),
   GET_ORG_NODE_BY_COUNTRY: vi.fn(),
   GET_ORG_NODE_BY_ID: vi.fn(),
+  REORDER_ORG_NODE: vi.fn(),
   UPDATE_ORG_NODE: vi.fn(),
 }))
 
@@ -25,9 +26,11 @@ import {
   GET_ALL_ORG_NODES,
   GET_ORG_NODE_BY_COUNTRY,
   GET_ORG_NODE_BY_ID,
+  REORDER_ORG_NODE,
   UPDATE_ORG_NODE,
 } from '@/providers/hierarchy'
 import { GET_COUNTRY_BY_CODE } from '@/providers/registry'
+import { dbTransaction } from '@/utils/db-transaction'
 
 const globalNode = {
   id: 'root',
@@ -251,6 +254,32 @@ describe('updateNode', () => {
     })
   })
 
+  it('refuses to rename a COUNTRY node (registry owns the name)', async () => {
+    vi.mocked(GET_ORG_NODE_BY_ID).mockResolvedValue(countryNode as never)
+    await expect(
+      updateNode({
+        nodeId: 'ct',
+        payload: { version: 1, name: 'Eesti' },
+        actorId: 'a',
+        requestId: 'r',
+      }),
+    ).rejects.toMatchObject({ code: 422, error_code: 'COUNTRY_RENAME_VIA_REGISTRY' })
+    expect(UPDATE_ORG_NODE).not.toHaveBeenCalled()
+  })
+
+  it('refuses to rename the GLOBAL root', async () => {
+    vi.mocked(GET_ORG_NODE_BY_ID).mockResolvedValue(globalNode as never)
+    await expect(
+      updateNode({
+        nodeId: 'root',
+        payload: { version: 1, name: 'Renamed root' },
+        actorId: 'a',
+        requestId: 'r',
+      }),
+    ).rejects.toMatchObject({ code: 422, error_code: 'GLOBAL_RENAME_FORBIDDEN' })
+    expect(UPDATE_ORG_NODE).not.toHaveBeenCalled()
+  })
+
   it('rejects re-parenting a non-GLOBAL node to null', async () => {
     vi.mocked(GET_ORG_NODE_BY_ID).mockResolvedValue(countryNode as never)
     await expect(
@@ -261,6 +290,76 @@ describe('updateNode', () => {
         requestId: 'r',
       }),
     ).rejects.toMatchObject({ code: 422, error_code: 'PARENT_REQUIRED' })
+  })
+})
+
+describe('reorder', () => {
+  beforeEach(() => vi.clearAllMocks())
+
+  it('delegates to the provider and audits hierarchy.reorder', async () => {
+    const audit = vi.fn()
+    vi.mocked(dbTransaction).mockImplementationOnce(async (fn) =>
+      fn({ auditLog: { create: audit } } as never),
+    )
+    vi.mocked(GET_ORG_NODE_BY_ID).mockResolvedValue(dioceseNode as never)
+    vi.mocked(REORDER_ORG_NODE).mockResolvedValue({ ...dioceseNode, sort_order: 1 } as never)
+
+    const out = await updateNode({
+      nodeId: 'dc',
+      payload: { version: 1, move: 'down' },
+      actorId: 'a',
+      requestId: 'r',
+    })
+
+    expect(REORDER_ORG_NODE).toHaveBeenCalledWith(
+      expect.objectContaining({ nodeId: 'dc', expectedVersion: 1, direction: 'down' }),
+    )
+    expect(audit).toHaveBeenCalledWith({
+      data: expect.objectContaining({ action: 'hierarchy.reorder' }),
+    })
+    expect(out).toMatchObject({ id: 'dc' })
+  })
+
+  it('returns 422 NO_SIBLING when the node cannot move that way', async () => {
+    vi.mocked(GET_ORG_NODE_BY_ID).mockResolvedValue(globalNode as never)
+    vi.mocked(REORDER_ORG_NODE).mockResolvedValue('no-sibling')
+
+    await expect(
+      updateNode({
+        nodeId: 'root',
+        payload: { version: 1, move: 'up' },
+        actorId: 'a',
+        requestId: 'r',
+      }),
+    ).rejects.toMatchObject({ code: 422, error_code: 'NO_SIBLING' })
+  })
+
+  it('returns 409 STALE_VERSION when the node changed', async () => {
+    vi.mocked(GET_ORG_NODE_BY_ID).mockResolvedValue(dioceseNode as never)
+    vi.mocked(REORDER_ORG_NODE).mockResolvedValue('stale')
+
+    await expect(
+      updateNode({
+        nodeId: 'dc',
+        payload: { version: 1, move: 'down' },
+        actorId: 'a',
+        requestId: 'r',
+      }),
+    ).rejects.toMatchObject({ code: 409, error_code: 'STALE_VERSION' })
+  })
+
+  it('rejects combining a reorder with a rename (422 MOVE_EXCLUSIVE)', async () => {
+    vi.mocked(GET_ORG_NODE_BY_ID).mockResolvedValue(dioceseNode as never)
+
+    await expect(
+      updateNode({
+        nodeId: 'dc',
+        payload: { version: 1, move: 'down', name: 'Renamed' },
+        actorId: 'a',
+        requestId: 'r',
+      }),
+    ).rejects.toMatchObject({ code: 422, error_code: 'MOVE_EXCLUSIVE' })
+    expect(REORDER_ORG_NODE).not.toHaveBeenCalled()
   })
 })
 

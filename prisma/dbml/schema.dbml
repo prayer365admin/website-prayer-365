@@ -149,6 +149,7 @@ Table org_nodes {
   country_code String [unique]
   country countries
   version Int [not null, default: 1]
+  sort_order Int [not null, default: 0, note: 'Sibling position within `parent_id`; ascending order is the display order.']
   church churches
   roleAssignments role_assignments [not null]
 

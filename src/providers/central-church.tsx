@@ -197,15 +197,22 @@ export const CREATE_ORG_NODE = async (
     countryCode,
   }: { kind: OrgNodeKind; name: string; parentId?: string; countryCode?: string },
   tx: Prisma.TransactionClient = db,
-) =>
-  tx.orgNode.create({
+) => {
+  // New nodes land last among their siblings (Central Churches creates one too).
+  const last = await tx.orgNode.aggregate({
+    where: { parent_id: parentId ?? null },
+    _max: { sort_order: true },
+  })
+  return tx.orgNode.create({
     data: {
       kind,
       name,
       parent_id: parentId ?? null,
       country_code: countryCode,
+      sort_order: (last._max.sort_order ?? -1) + 1,
     },
   })
+}
 
 export const CREATE_CHURCH = async (
   {
