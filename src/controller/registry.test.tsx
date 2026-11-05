@@ -144,10 +144,10 @@ describe('language registry', () => {
   })
 
   it('blocks enabling a language whose translations are not ready', async () => {
-    vi.mocked(GET_LANGUAGE_BY_CODE).mockResolvedValue({ code: 'sv' } as never)
+    vi.mocked(GET_LANGUAGE_BY_CODE).mockResolvedValue({ code: 'de' } as never)
     await expect(
       updateLanguage({
-        code: 'sv',
+        code: 'de',
         payload: { version: 1, enabled: true },
         actorId: 'a',
         requestId: 'r',
@@ -159,7 +159,7 @@ describe('language registry', () => {
   it('blocks creating a non-ready language as enabled', async () => {
     await expect(
       createLanguage({
-        payload: { code: 'sv', name: 'Swedish', enabled: true },
+        payload: { code: 'de', name: 'Deutsch', enabled: true },
         actorId: 'a',
         requestId: 'r',
       }),
@@ -186,11 +186,11 @@ describe('language registry', () => {
   })
 
   it('always allows disabling, and stale updates return 409', async () => {
-    vi.mocked(GET_LANGUAGE_BY_CODE).mockResolvedValue({ code: 'sv' } as never)
+    vi.mocked(GET_LANGUAGE_BY_CODE).mockResolvedValue({ code: 'de' } as never)
     vi.mocked(UPDATE_LANGUAGE).mockResolvedValue(null as never)
     await expect(
       updateLanguage({
-        code: 'sv',
+        code: 'de',
         payload: { version: 3, enabled: false },
         actorId: 'a',
         requestId: 'r',
@@ -200,14 +200,16 @@ describe('language registry', () => {
 
   it('lists languages with a readiness flag', async () => {
     vi.mocked(GET_LANGUAGES).mockResolvedValue({
-      total: 2,
+      total: 3,
       result: [
         { code: 'en', name: 'English', enabled: true, version: 1 },
-        { code: 'sv', name: 'Swedish', enabled: false, version: 1 },
+        // Ships in src/i18n/messages.ts, so an enabled row is genuinely ready.
+        { code: 'sv', name: 'Svenska', enabled: true, version: 1 },
+        { code: 'de', name: 'Deutsch', enabled: false, version: 1 },
       ],
     } as never)
     const out = await listLanguages({ page: 1, limit: 25, order_direction: 'asc' })
-    expect(out.result.map((l) => l.ready)).toEqual([true, false])
+    expect(out.result.map((l) => l.ready)).toEqual([true, true, false])
   })
 
   it('deletes an unreferenced language', async () => {

@@ -1,3 +1,4 @@
+import { SITE_LOCALES } from '@/config/site-locale'
 import { z } from 'zod'
 
 /*
@@ -8,9 +9,12 @@ import { z } from 'zod'
 /**
  * Languages whose app resources ship today (DESIGN S23 delivery baseline).
  * Enabling any other registry entry is refused until its resources are ready.
+ * Readiness is the website locale catalog, not a second hand-kept list: a
+ * language is ready exactly when `src/i18n/messages.ts` carries its strings.
  */
-export const READY_LANGUAGE_CODES: readonly string[] = ['en', 'et', 'fi']
-export const isLanguageReady = (code: string) => READY_LANGUAGE_CODES.includes(code.trim())
+export const READY_LANGUAGE_CODES: readonly string[] = SITE_LOCALES
+export const isLanguageReady = (code: string) =>
+  (SITE_LOCALES as readonly string[]).includes(code.trim())
 
 export const CountryCreateSchema = z.object({
   code: z.string().regex(/^[A-Z]{2}$/, 'code must be 2 uppercase letters'),
