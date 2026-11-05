@@ -27,19 +27,31 @@ export default function WelcomeHero({
     typeof memberCount === 'number'
       ? `${new Intl.NumberFormat(locale).format(memberCount)} Believers`
       : t('welcomeStatsUnavailable')
-  const appStoreUrl =
-    process.env.NEXT_PUBLIC_APP_STORE_URL || process.env.NEXT_PUBLIC_IOS_APP_URL || '#app-promo'
-  const playStoreUrl =
-    process.env.NEXT_PUBLIC_PLAY_STORE_URL ||
-    process.env.NEXT_PUBLIC_ANDROID_APP_URL ||
-    '#app-promo'
+  // The hero badges always jump to the app promo section; the store links live there
+  // (and in the QR code) because the app ships to both stores.
+  const appDownloadHref = '#app-promo'
 
   return (
     <section
       aria-label="Welcome Hero"
       className="relative flex min-h-[calc(100vh-64px)] items-center bg-[linear-gradient(110.95deg,#0E203E_0%,#1B2123_100%)] px-6 py-14 text-white overflow-hidden"
     >
-      <div className="mx-auto flex w-full max-w-[1280px] flex-col">
+      {/* Hero background: the cover of the church behind the newest prayer, faded into the hero blue */}
+      <Image
+        alt={prayer ? `${prayer.churchName} sanctuary` : 'Sanctuary interior'}
+        className="object-cover"
+        fill
+        priority
+        sizes="100vw"
+        src={prayer?.churchCoverUrl ?? '/images/church.jpeg'}
+        unoptimized
+      />
+      <div
+        aria-hidden
+        className="absolute inset-0 bg-[linear-gradient(105deg,rgba(14,32,62,0.94)_0%,rgba(14,32,62,0.72)_45%,rgba(14,32,62,0.5)_100%)]"
+      />
+
+      <div className="relative z-10 mx-auto flex w-full max-w-[1280px] flex-col">
         <div className="grid lg:grid-cols-[662fr_466fr] gap-8 items-center">
           {/* Left Column */}
           <div className="flex flex-col justify-center">
@@ -91,7 +103,7 @@ export default function WelcomeHero({
               <a
                 aria-label="Download on the App Store"
                 className="h-[51px] rounded-xl bg-black/85 border border-white/20 flex items-center gap-3 px-4 shadow-[0px_4px_6px_-1px_rgba(0,0,0,0.1),0px_2px_4px_-2px_rgba(0,0,0,0.1)] hover:bg-black transition-colors"
-                href={appStoreUrl}
+                href={appDownloadHref}
               >
                 <AppleIcon aria-hidden className="text-white" style={{ fontSize: 26 }} />
                 <div className="flex flex-col text-left">
@@ -107,7 +119,7 @@ export default function WelcomeHero({
               <a
                 aria-label="Get it on Google Play"
                 className="h-[51px] rounded-xl bg-black/85 border border-white/20 flex items-center gap-3 px-4 shadow-[0px_4px_6px_-1px_rgba(0,0,0,0.1),0px_2px_4px_-2px_rgba(0,0,0,0.1)] hover:bg-black transition-colors"
-                href={playStoreUrl}
+                href={appDownloadHref}
               >
                 <GoogleIcon aria-hidden style={{ fontSize: 22 }} />
                 <div className="flex flex-col text-left">
@@ -144,28 +156,12 @@ export default function WelcomeHero({
             </div>
           </div>
 
-          {/* Right Column / Live Sanctuary + Audio Card */}
-          <div className="relative flex w-full flex-col justify-between gap-8 overflow-hidden rounded-2xl p-4 lg:aspect-[466/519] lg:gap-0">
-            {/* Card background: the cover of the church behind the newest prayer, faded into the hero blue */}
-            <Image
-              alt={prayer ? `${prayer.churchName} sanctuary` : 'Sanctuary interior'}
-              className="object-cover"
-              fill
-              priority
-              sizes="(max-width: 1024px) 100vw, 516px"
-              src={prayer?.churchCoverUrl ?? '/images/church.jpeg'}
-              unoptimized
-            />
+          {/* Right Column / Live Prayer + Audio Card */}
+          <div className="relative flex w-full flex-col justify-end gap-8 overflow-hidden rounded-2xl bg-[rgba(9,20,38,0.45)] p-4 backdrop-blur-[2px]">
             <div
               aria-hidden
-              className="absolute inset-0 bg-[linear-gradient(to_top,rgba(14,32,62,0.95)_0%,rgba(14,32,62,0.65)_50%,rgba(14,32,62,0)_100%)]"
+              className="absolute inset-0 bg-[linear-gradient(to_top,rgba(14,32,62,0.6)_0%,rgba(14,32,62,0.25)_50%,rgba(14,32,62,0)_100%)]"
             />
-
-            {/* Live Sanctuary Pill */}
-            <div className="relative z-10 flex h-6 w-fit items-center gap-1.5 rounded-full bg-black/15 px-3 py-1 backdrop-blur-[6px]">
-              <span className="h-2 w-2 rounded-full bg-[#1AE5AC]" />
-              <span className="text-[12px] leading-[1.5] text-white">Live Sanctuary</span>
-            </div>
 
             <div className="relative z-10 flex w-full flex-col gap-2">
               {/* Frosted Stat Card */}
