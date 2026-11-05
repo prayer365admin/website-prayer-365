@@ -12,14 +12,6 @@ vi.mock('@/hooks/data/access-permission', () => ({
     updateAny: () => ({ granted: true }),
   }),
 }))
-vi.mock('@/components/common/dashboard/main-header', () => ({
-  default: ({ title, children }: { title: string; children?: React.ReactNode }) => (
-    <div>
-      <h1>{title}</h1>
-      {children}
-    </div>
-  ),
-}))
 
 import ContentsCentralRegistry from './index'
 
@@ -41,7 +33,7 @@ describe('ContentsCentralRegistry', () => {
     { code: 'en', name: 'English', enabled: true, version: 1, ready: true },
   ]
 
-  it('shows status as Active/Inactive tags instead of switches', () => {
+  it('shows status as Active/Inactive pills instead of switches', () => {
     useCountries.mockReturnValue(registry([]))
     useLanguages.mockReturnValue(registry(languages))
     renderWithProviders(<ContentsCentralRegistry kind="language" />)
@@ -110,7 +102,7 @@ describe('ContentsCentralRegistry', () => {
 
     await user.click(screen.getAllByRole('button', { name: 'Edit' })[0]) // Estonian
     await user.click(await screen.findByRole('switch', { name: 'Active' }))
-    await user.click(screen.getByRole('button', { name: 'Save' }))
+    await user.click(screen.getByRole('button', { name: 'Save Changes' }))
     await waitFor(() =>
       expect(onUpdate).toHaveBeenCalledWith({
         code: 'et',
@@ -130,8 +122,10 @@ describe('ContentsCentralRegistry', () => {
 
     expect(screen.getAllByRole('combobox')).toHaveLength(1) // no translations filter
     await user.click(screen.getByRole('button', { name: 'Edit' }))
+    const codeInput = (await screen.findByDisplayValue('EE')) as HTMLInputElement
+    expect(codeInput.disabled).toBe(true)
     await user.click(await screen.findByRole('switch', { name: 'Active' }))
-    await user.click(screen.getByRole('button', { name: 'Save' }))
+    await user.click(screen.getByRole('button', { name: 'Save Changes' }))
     await waitFor(() =>
       expect(onUpdate).toHaveBeenCalledWith({
         code: 'EE',
@@ -139,5 +133,42 @@ describe('ContentsCentralRegistry', () => {
       }),
     )
     expect(screen.queryByRole('button', { name: /delete|remove/i })).toBeNull()
+  })
+
+  it('renders a flag derived from the ISO code next to each country name', () => {
+    useCountries.mockReturnValue(
+      registry([{ code: 'EE', name: 'Estonia', enabled: true, version: 3 }]),
+    )
+    useLanguages.mockReturnValue(registry([]))
+    renderWithProviders(<ContentsCentralRegistry kind="country" />)
+
+    const flag = screen.getByRole('img', { name: 'Estonia' }) as HTMLImageElement
+    expect(flag.getAttribute('src')).toContain('/h80/ee.png')
+    expect(screen.getByText('EE')).toBeTruthy()
+    expect(screen.getByText('Estonia')).toBeTruthy()
+  })
+
+  it('paints active and inactive status pills differently', () => {
+    useCountries.mockReturnValue(
+      registry([
+        { code: 'EE', name: 'Estonia', enabled: true, version: 3 },
+        { code: 'FI', name: 'Finland', enabled: false, version: 1 },
+      ]),
+    )
+    useLanguages.mockReturnValue(registry([]))
+    renderWithProviders(<ContentsCentralRegistry kind="country" />)
+
+    const active = screen.getByText('Active').closest('span')
+    const inactive = screen.getByText('Inactive').closest('span')
+    expect(active?.className).toContain('text-[#09A97C]')
+    expect(inactive?.className).toContain('text-[#B0B6BF]')
+  })
+
+  it('does not offer country creation from the countries list', () => {
+    useCountries.mockReturnValue(registry([]))
+    useLanguages.mockReturnValue(registry([]))
+    renderWithProviders(<ContentsCentralRegistry kind="country" />)
+
+    expect(screen.queryByRole('button', { name: /add country/i })).toBeNull()
   })
 })
