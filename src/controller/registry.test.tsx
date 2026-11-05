@@ -7,6 +7,10 @@ vi.mock('@/utils/db-transaction', () => ({
   ),
 }))
 
+vi.mock('@/providers/hierarchy', () => ({
+  RENAME_COUNTRY_ORG_NODE: vi.fn(),
+}))
+
 vi.mock('@/providers/registry', () => ({
   COUNT_COUNTRY_REFERENCES: vi.fn(),
   COUNT_LANGUAGE_REFERENCES: vi.fn(),
@@ -44,6 +48,7 @@ import {
   UPDATE_COUNTRY,
   UPDATE_LANGUAGE,
 } from '@/providers/registry'
+import { RENAME_COUNTRY_ORG_NODE } from '@/providers/hierarchy'
 
 describe('country registry', () => {
   beforeEach(() => vi.clearAllMocks())
@@ -121,6 +126,21 @@ describe('country registry', () => {
     ).resolves.toMatchObject({ enabled: false })
     expect(COUNT_COUNTRY_REFERENCES).not.toHaveBeenCalled()
     expect(DELETE_COUNTRY).not.toHaveBeenCalled()
+  })
+
+  it('keeps the hierarchy node name in step with a registry rename', async () => {
+    vi.mocked(GET_COUNTRY_BY_CODE).mockResolvedValue({ code: 'EE' } as never)
+    vi.mocked(UPDATE_COUNTRY).mockResolvedValue({ code: 'EE', name: 'Eesti', version: 2 } as never)
+    await updateCountry({
+      code: 'EE',
+      payload: { version: 1, name: 'Eesti' },
+      actorId: 'a',
+      requestId: 'r',
+    })
+    expect(RENAME_COUNTRY_ORG_NODE).toHaveBeenCalledWith(
+      { countryCode: 'EE', name: 'Eesti' },
+      expect.anything(),
+    )
   })
 
   it('returns 404 when deleting a missing country', async () => {

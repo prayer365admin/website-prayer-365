@@ -20,11 +20,11 @@ export default function WelcomeStatsStrip() {
           </span>
         </div>
 
-        {/* Right Church Chips */}
-        <div className="flex flex-wrap items-center gap-2.5 sm:gap-3">
+        {/* Right Church Chips: single scrollable row, scrollbar hidden */}
+        <div className="flex w-full min-w-0 items-center gap-2.5 overflow-x-auto [scrollbar-width:none] sm:gap-3 [&::-webkit-scrollbar]:hidden lg:flex-1">
           {CHURCH_NETWORK_CHIPS.map((church) => (
             <div
-              className="rounded-3xl bg-[#E6EDFB] px-3.5 py-1.5 flex items-center gap-2 shrink-0 transition-colors hover:bg-[#d8e4f9]"
+              className="rounded-3xl bg-[#E6EDFB] px-3.5 py-1.5 flex items-center gap-2 shrink-0 whitespace-nowrap transition-colors hover:bg-[#d8e4f9]"
               key={church}
             >
               <span aria-hidden className="w-1.5 h-1.5 rounded-full bg-[#005CAD]" />

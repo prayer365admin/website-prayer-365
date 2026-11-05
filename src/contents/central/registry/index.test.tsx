@@ -170,4 +170,41 @@ describe('ContentsCentralRegistry', () => {
 
     expect(screen.queryByRole('button', { name: /add country/i })).toBeNull()
   })
+
+  it('renders a flag derived from the ISO code next to each country name', () => {
+    useCountries.mockReturnValue(
+      registry([{ code: 'EE', name: 'Estonia', enabled: true, version: 3 }]),
+    )
+    useLanguages.mockReturnValue(registry([]))
+    renderWithProviders(<ContentsCentralRegistry kind="country" />)
+
+    const flag = screen.getByRole('img', { name: 'Estonia' }) as HTMLImageElement
+    expect(flag.getAttribute('src')).toContain('/h80/ee.png')
+    expect(screen.getByText('EE')).toBeTruthy()
+    expect(screen.getByText('Estonia')).toBeTruthy()
+  })
+
+  it('paints active and inactive status pills differently', () => {
+    useCountries.mockReturnValue(
+      registry([
+        { code: 'EE', name: 'Estonia', enabled: true, version: 3 },
+        { code: 'FI', name: 'Finland', enabled: false, version: 1 },
+      ]),
+    )
+    useLanguages.mockReturnValue(registry([]))
+    renderWithProviders(<ContentsCentralRegistry kind="country" />)
+
+    const active = screen.getByText('Active').closest('span')
+    const inactive = screen.getByText('Inactive').closest('span')
+    expect(active?.className).toContain('text-[#09A97C]')
+    expect(inactive?.className).toContain('text-[#B0B6BF]')
+  })
+
+  it('does not offer country creation from the countries list', () => {
+    useCountries.mockReturnValue(registry([]))
+    useLanguages.mockReturnValue(registry([]))
+    renderWithProviders(<ContentsCentralRegistry kind="country" />)
+
+    expect(screen.queryByRole('button', { name: /add country/i })).toBeNull()
+  })
 })

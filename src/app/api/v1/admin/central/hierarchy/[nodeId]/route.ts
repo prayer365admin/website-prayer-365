@@ -18,6 +18,7 @@ registerPath({
       version: z.number().int().positive(),
       name: z.string().optional(),
       parentId: z.string().nullable().optional(),
+      move: z.enum(['up', 'down']).optional(),
     }),
   },
   responses: [{ status: 200, description: 'Updated node', schema: z.object({ id: z.string() }) }],

@@ -24,7 +24,9 @@ export default function WelcomeAppPromo() {
     process.env.NEXT_PUBLIC_ANDROID_APP_URL ||
     'https://play.google.com/store/apps/details?id=com.prayer365'
 
-  const qrCodeUrl = process.env.NEXT_PUBLIC_APP_DOWNLOAD_URL || appStoreUrl || playStoreUrl
+  // One QR cannot hold two links, so it encodes the App Store URL and falls back
+  // to Play Store when only that one is configured.
+  const qrCodeUrl = appStoreUrl || playStoreUrl
 
   return (
     <section

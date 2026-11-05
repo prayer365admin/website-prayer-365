@@ -4,6 +4,7 @@ import {
   GET_ALL_ORG_NODES,
   GET_ORG_NODE_BY_COUNTRY,
   GET_ORG_NODE_BY_ID,
+  REORDER_ORG_NODE,
   UPDATE_ORG_NODE,
 } from '@/providers/hierarchy'
 import { GET_COUNTRY_BY_CODE } from '@/providers/registry'
@@ -175,15 +176,62 @@ export const updateNode = async ({
   const node = await GET_ORG_NODE_BY_ID({ nodeId })
   if (!node) throw notFound()
 
+  // A reorder only touches sibling order; mixing it with an edit would make the
+  // version guard ambiguous (which change won?).
+  if (
+    payload.move !== undefined &&
+    (payload.name !== undefined || payload.parentId !== undefined)
+  ) {
+    throw validation('MOVE_EXCLUSIVE', 'A reorder cannot be combined with a rename or re-parent.')
+  }
+
+  const { move } = payload
+  if (move !== undefined) {
+    return dbTransaction(async (tx) => {
+      const row = await REORDER_ORG_NODE({
+        nodeId,
+        expectedVersion: payload.version,
+        direction: move,
+        tx,
+      })
+      if (row === 'not-found') throw notFound()
+      if (row === 'no-sibling') {
+        throw validation('NO_SIBLING', 'This node has no sibling in that direction.')
+      }
+      if (row === 'stale') throw stale()
+      await tx.auditLog.create({
+        data: auditPayload({
+          actorId,
+          action: 'hierarchy.reorder',
+          resourceType: 'org_node',
+          resourceId: nodeId,
+          outcome: 'success',
+          requestId,
+        }),
+      })
+      return row
+    })
+  }
+
   // The church record owns its name; renaming only the node would desync them.
   if (node.kind === 'CHURCH' && payload.name !== undefined && payload.name !== node.name) {
     throw validation('CHURCH_RENAME_VIA_PROFILE', 'Rename a church from its church profile.')
   }
 
+  // Same for the country registry, and the GLOBAL root is fixed.
+  if (payload.name !== undefined && payload.name !== node.name) {
+    if (node.kind === 'COUNTRY') {
+      throw validation('COUNTRY_RENAME_VIA_REGISTRY', 'Rename a country from the country registry.')
+    }
+    if (node.kind === 'GLOBAL') {
+      throw validation('GLOBAL_RENAME_FORBIDDEN', 'The GLOBAL root cannot be renamed.')
+    }
+  }
+
   if (payload.parentId !== undefined) {
     if (payload.parentId === nodeId) throw cycle()
     if (payload.parentId !== null) {
-      const nodes = (await GET_ALL_ORG_NODES()) as unknown as FlatNode[]
+      const nodes: FlatNode[] = await GET_ALL_ORG_NODES()
       const parent = nodes.find((n) => n.id === payload.parentId)
       if (!parent) throw notFound('PARENT_NODE_NOT_FOUND')
       // A cycle is rejected first: the new parent must not be a descendant.

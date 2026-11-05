@@ -14,7 +14,9 @@ export default defineConfig({
   },
   test: {
     environment: 'jsdom',
-    testTimeout: 15000,
+    // jsdom interaction tests slow down under full-suite worker contention;
+    // 15s tripped on files that pass in ~2s in isolation.
+    testTimeout: 30000,
     setupFiles: ['./vitest.setup.ts'],
     css: false,
     include: ['src/**/*.test.{ts,tsx}'],

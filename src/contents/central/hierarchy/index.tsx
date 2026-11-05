@@ -1,39 +1,16 @@
 'use client'
 
-import DashboardMainHeader from '@/components/common/dashboard/main-header'
-import { useAccessPermission } from '@/hooks/data/access-permission'
+import CentralChurchDrawer from '@/contents/central/churches/drawer'
 import { useCountries, useHierarchy } from '@/hooks/data/central'
-import { HIERARCHY_PARENT, HierarchyNode, NodeCreate } from '@/models/hierarchy'
+import { useAccessPermission } from '@/hooks/data/access-permission'
+import useScreenSize from '@/hooks/ui/screen-size'
+import { HIERARCHY_CHILD, HIERARCHY_PARENT, HierarchyNode, NodeCreate } from '@/models/hierarchy'
 import type { OrgNodeKind } from '@prisma/client'
-import {
-  Alert,
-  Button,
-  Card,
-  Col,
-  Descriptions,
-  Drawer,
-  Empty,
-  Form,
-  Input,
-  Modal,
-  Row,
-  Select,
-  Space,
-  Tag,
-  Tree,
-} from 'antd'
+import { Alert, Button, Drawer, Form, Input, Modal, Select, Spin } from 'antd'
 import { useMemo, useState } from 'react'
-
-const KIND_LABEL: Record<OrgNodeKind, string> = {
-  GLOBAL: 'Global',
-  COUNTRY: 'Country',
-  DIOCESE: 'Diocese',
-  DEANERY: 'Deanery',
-  CHURCH: 'Church',
-}
-
-/** Churches are created with their node from Central Churches, never here. */
-const CREATABLE_KINDS: OrgNodeKind[] = ['GLOBAL', 'COUNTRY', 'DIOCESE', 'DEANERY']
+import { KIND_LABEL } from './kind'
+import MobileHierarchy from './mobile-tree'
+import NodeCard from './node-card'
 
 type FlatNode = Omit<HierarchyNode, 'children'>
 
@@ -45,15 +22,9 @@ const flatten = (nodes: HierarchyNode[], out: FlatNode[] = []): FlatNode[] => {
   return out
 }
 
-const findNode = (nodes: HierarchyNode[], id: string): HierarchyNode | undefined => {
-  for (const node of nodes) {
-    if (node.id === id) return node
-    const hit = findNode(node.children, id)
-    if (hit) return hit
-  }
-}
-
 const subtree = (node: HierarchyNode): HierarchyNode[] => [node, ...node.children.flatMap(subtree)]
+
+const EDIT_FORM_ID = 'central-hierarchy-edit'
 
 type EditValues = { name: string; parentId: string | null }
 type PendingMove = EditValues & { node: HierarchyNode }
@@ -62,29 +33,43 @@ export default function ContentsCentralHierarchy() {
   const { data, loading, saving, error, onCreate, onUpdate } = useHierarchy()
   const { data: countries } = useCountries()
   const permission = useAccessPermission()
+  const { isMobile } = useScreenSize()
   const canCreate = permission.createAny('prayer_hierarchy').granted
   const canUpdate = permission.updateAny('prayer_hierarchy').granted
+  // A deanery's add button opens the church form, so it needs the church grant.
+  const canCreateChurch =
+    permission.createAny('prayer_church').granted || permission.createOwn('prayer_church').granted
 
-  const [selectedId, setSelectedId] = useState<string>()
-  const [createOpen, setCreateOpen] = useState(false)
-  const [editOpen, setEditOpen] = useState(false)
+  const [createParent, setCreateParent] = useState<HierarchyNode>()
+  const [createRoot, setCreateRoot] = useState(false)
+  const [createChurchUnder, setCreateChurchUnder] = useState<HierarchyNode>()
+  const [editNode, setEditNode] = useState<HierarchyNode>()
   const [pendingMove, setPendingMove] = useState<PendingMove>()
   const [createForm] = Form.useForm<NodeCreate>()
   const [editForm] = Form.useForm<EditValues>()
-  const createKind = Form.useWatch('kind', createForm)
 
   const tree = useMemo(() => data ?? [], [data])
   const flat = useMemo(() => flatten(tree), [tree])
-  const selected = selectedId ? findNode(tree, selectedId) : undefined
+
   // A church's name lives on its church record; the hierarchy only places it.
-  const isChurch = selected?.kind === 'CHURCH'
+  const isChurch = editNode?.kind === 'CHURCH'
   const editLabel = isChurch ? 'Move church' : 'Rename or move'
+
+  const createKind: OrgNodeKind | undefined = createRoot
+    ? 'GLOBAL'
+    : createParent
+      ? (HIERARCHY_CHILD[createParent.kind] ?? undefined)
+      : undefined
 
   const parentOptions = (kind: OrgNodeKind | undefined, exclude = new Set<string>()) => {
     const parentKind = kind ? HIERARCHY_PARENT[kind] : null
     return flat
       .filter((n) => parentKind && n.kind === parentKind && !exclude.has(n.id))
-      .map((n) => ({ label: `${n.name} (${KIND_LABEL[n.kind]})`, value: n.id }))
+      .map((n) => ({
+        label: `${n.name} (${KIND_LABEL[n.kind]})`,
+        value: n.id,
+        disabled: false,
+      }))
   }
 
   const usedCountries = new Set(flat.map((n) => n.countryCode).filter(Boolean))
@@ -92,19 +77,32 @@ export default function ContentsCentralHierarchy() {
     .filter((c) => c.enabled && !usedCountries.has(c.code))
     .map((c) => ({ label: `${c.name} (${c.code})`, value: c.code }))
 
-  const kindOptions = CREATABLE_KINDS.filter((k) => k !== 'GLOBAL' || flat.length === 0).map(
-    (k) => ({ label: KIND_LABEL[k], value: k }),
-  )
+  const openCreate = (parent?: HierarchyNode) => {
+    // A church only exists with its Church record, so its row opens the church form.
+    if (parent && HIERARCHY_CHILD[parent.kind] === 'CHURCH') {
+      setCreateChurchUnder(parent)
+      return
+    }
+    createForm.resetFields()
+    setCreateRoot(!parent)
+    setCreateParent(parent)
+  }
+
+  const closeCreate = () => {
+    setCreateRoot(false)
+    setCreateParent(undefined)
+  }
 
   const submitCreate = async (values: NodeCreate) => {
+    if (!createKind) return
     await onCreate({
-      kind: values.kind,
+      kind: createKind,
       name: values.name,
-      parentId: values.kind === 'GLOBAL' ? null : values.parentId,
-      ...(values.kind === 'COUNTRY' ? { countryCode: values.countryCode } : {}),
+      parentId: createKind === 'GLOBAL' ? null : (createParent?.id ?? null),
+      ...(createKind === 'COUNTRY' ? { countryCode: values.countryCode } : {}),
     })
     createForm.resetFields()
-    setCreateOpen(false)
+    closeCreate()
   }
 
   const save = async ({ node, name, parentId }: PendingMove) => {
@@ -117,62 +115,63 @@ export default function ContentsCentralHierarchy() {
       },
     })
     setPendingMove(undefined)
-    setEditOpen(false)
+    setEditNode(undefined)
   }
 
   const submitEdit = async (values: EditValues) => {
-    if (!selected) return
-    const parentId = values.parentId ?? selected.parentId
-    if (values.name === selected.name && parentId === selected.parentId) {
-      setEditOpen(false)
+    if (!editNode) return
+    const parentId = values.parentId ?? editNode.parentId
+    if (values.name === editNode.name && parentId === editNode.parentId) {
+      setEditNode(undefined)
       return
     }
     // Moving changes descendant reporting scope: always confirm first (DESIGN S21).
-    if (parentId !== selected.parentId) {
-      setPendingMove({ node: selected, name: values.name, parentId })
+    if (parentId !== editNode.parentId) {
+      setPendingMove({ node: editNode, name: values.name, parentId })
       return
     }
-    await save({ node: selected, name: values.name, parentId })
+    await save({ node: editNode, name: values.name, parentId })
   }
 
-  const openEdit = () => {
-    if (!selected) return
-    editForm.setFieldsValue({ name: selected.name, parentId: selected.parentId })
-    setEditOpen(true)
+  const openEdit = (node: HierarchyNode) => setEditNode(node)
+
+  const onMove = (node: HierarchyNode, direction: 'up' | 'down') => {
+    void onUpdate({ nodeId: node.id, payload: { version: node.version, move: direction } })
   }
 
   const nameOf = (id: string | null) => flat.find((n) => n.id === id)?.name ?? '—'
+
+  /**
+   * The current parent may not be a legal target (legacy node placed at the
+   * wrong level). Keep it visible but not selectable instead of rendering an id.
+   */
+  const editParentOptions = (node: HierarchyNode) => {
+    const options = parentOptions(node.kind, new Set(subtree(node).map((n) => n.id)))
+    if (node.parentId && !options.some((option) => option.value === node.parentId)) {
+      options.unshift({
+        label: `${nameOf(node.parentId)} (current)`,
+        value: node.parentId,
+        disabled: true,
+      })
+    }
+    return options
+  }
   const affectedChurches = pendingMove
     ? subtree(pendingMove.node).filter((n) => n.kind === 'CHURCH').length
     : 0
 
-  const toTreeData = (nodes: HierarchyNode[]): Array<Record<string, unknown>> =>
-    nodes.map((n) => ({
-      key: n.id,
-      title: (
-        <Space size={4}>
-          <span>{n.name}</span>
-          <Tag>{KIND_LABEL[n.kind]}</Tag>
-          {n.countryCode && <Tag color="blue">{n.countryCode}</Tag>}
-        </Space>
-      ),
-      children: toTreeData(n.children),
-    }))
+  const createParentName = createRoot ? 'None (root)' : (createParent?.name ?? '—')
 
   return (
-    <>
-      <DashboardMainHeader
-        title="Organization Structure"
-        description="Arrange countries, dioceses, deaneries and churches in the agreed hierarchy."
-      >
-        {canCreate && (
-          <Col>
-            <Button type="primary" size="large" onClick={() => setCreateOpen(true)}>
-              New Node
-            </Button>
-          </Col>
-        )}
-      </DashboardMainHeader>
+    <section className="flex w-full min-w-0 flex-1 min-h-0 flex-col font-[family-name:var(--font-text)]">
+      <header className="flex flex-col gap-1 pb-3 sm:pb-4">
+        <h1 className="m-0 font-[family-name:var(--font-heading)] text-2xl font-semibold leading-none tracking-[-1px] text-[#0e203e]">
+          Organization Structure
+        </h1>
+        <p className="m-0 text-sm font-normal leading-[150%] text-[#5c6370]">
+          Arrange countries, dioceses, deaneries and churches in the agreed hierarchy.
+        </p>
+      </header>
 
       {error && (
         <Alert
@@ -184,55 +183,59 @@ export default function ContentsCentralHierarchy() {
         />
       )}
 
-      <Row gutter={[16, 16]}>
-        <Col xs={24} lg={14}>
-          <Card loading={loading}>
-            {tree.length ? (
-              <Tree
-                defaultExpandAll
-                showLine
-                treeData={toTreeData(tree)}
-                selectedKeys={selectedId ? [selectedId] : []}
-                onSelect={(keys) => setSelectedId(keys[0] as string | undefined)}
+      <div className="flex min-h-0 flex-none rounded-2xl bg-white p-0 shadow-[0_1px_2px_rgba(0,0,0,0.05)] sm:flex-1 sm:p-4">
+        <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl border-0 border-[#dde0e4] bg-white sm:border">
+          {loading ? (
+            <div className="flex flex-1 items-center justify-center p-12">
+              <Spin />
+            </div>
+          ) : tree.length ? (
+            isMobile ? (
+              <MobileHierarchy
+                nodes={tree}
+                canCreate={canCreate}
+                canCreateChurch={canCreateChurch}
+                canUpdate={canUpdate}
+                saving={saving}
+                onCreateChild={openCreate}
+                onEdit={openEdit}
+                onMove={onMove}
               />
             ) : (
-              <Empty description="No hierarchy yet" />
-            )}
-          </Card>
-        </Col>
-        <Col xs={24} lg={10}>
-          <Card title="Selected node">
-            {selected ? (
-              <>
-                <Descriptions
-                  column={1}
-                  size="small"
-                  items={[
-                    { key: 'name', label: 'Name', children: selected.name },
-                    { key: 'kind', label: 'Kind', children: KIND_LABEL[selected.kind] },
-                    { key: 'parent', label: 'Parent', children: nameOf(selected.parentId) },
-                    ...(selected.countryCode
-                      ? [{ key: 'country', label: 'Country', children: selected.countryCode }]
-                      : []),
-                  ]}
+              tree.map((node, index) => (
+                <NodeCard
+                  key={node.id}
+                  node={node}
+                  index={index}
+                  siblingCount={tree.length}
+                  depth={0}
+                  canCreate={canCreate}
+                  canCreateChurch={canCreateChurch}
+                  canUpdate={canUpdate}
+                  saving={saving}
+                  onCreateChild={openCreate}
+                  onEdit={openEdit}
+                  onMove={onMove}
                 />
-                {canUpdate && (
-                  <Button className="mt-4" onClick={openEdit}>
-                    {editLabel}
-                  </Button>
-                )}
-              </>
-            ) : (
-              <Empty description="Select a node" />
-            )}
-          </Card>
-        </Col>
-      </Row>
+              ))
+            )
+          ) : (
+            <div className="flex flex-1 flex-col items-center justify-center gap-3 px-4 py-12 text-sm leading-[150%] text-[#5c6370]">
+              <span>No hierarchy yet</span>
+              {canCreate && (
+                <Button type="primary" onClick={() => openCreate()}>
+                  Create root node
+                </Button>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
 
       <Drawer
         title="New node"
-        open={createOpen}
-        onClose={() => setCreateOpen(false)}
+        open={Boolean(createKind)}
+        onClose={closeCreate}
         destroyOnHidden
         extra={
           <Button type="primary" loading={saving} onClick={() => createForm.submit()}>
@@ -241,24 +244,17 @@ export default function ContentsCentralHierarchy() {
         }
       >
         <Form form={createForm} layout="vertical" onFinish={submitCreate}>
-          <Form.Item name="kind" label="Type" rules={[{ required: true }]}>
-            <Select
-              options={kindOptions}
-              onChange={() => createForm.setFieldsValue({ parentId: undefined })}
-            />
+          <Form.Item label="Type">
+            <span className="text-sm text-[#0e203e]">
+              {createKind ? KIND_LABEL[createKind] : '—'}
+            </span>
+          </Form.Item>
+          <Form.Item label="Parent">
+            <span className="text-sm text-[#0e203e]">{createParentName}</span>
           </Form.Item>
           <Form.Item name="name" label="Name" rules={[{ required: true, whitespace: true }]}>
             <Input maxLength={200} />
           </Form.Item>
-          {createKind && createKind !== 'GLOBAL' && (
-            <Form.Item
-              name="parentId"
-              label={`Parent ${KIND_LABEL[HIERARCHY_PARENT[createKind]!].toLowerCase()}`}
-              rules={[{ required: true }]}
-            >
-              <Select showSearch optionFilterProp="label" options={parentOptions(createKind)} />
-            </Form.Item>
-          )}
           {createKind === 'COUNTRY' && (
             <Form.Item
               name="countryCode"
@@ -272,35 +268,53 @@ export default function ContentsCentralHierarchy() {
         </Form>
       </Drawer>
 
-      <Modal
+      <Drawer
         title={editLabel}
-        open={editOpen}
-        onCancel={() => setEditOpen(false)}
-        onOk={() => editForm.submit()}
-        okText="Save"
-        confirmLoading={saving && !pendingMove}
+        open={Boolean(editNode)}
+        onClose={() => setEditNode(undefined)}
         destroyOnHidden
+        size={480}
+        footer={
+          <div className="flex items-center justify-end gap-2">
+            <Button onClick={() => setEditNode(undefined)} disabled={saving}>
+              Cancel
+            </Button>
+            <Button
+              type="primary"
+              htmlType="submit"
+              form={EDIT_FORM_ID}
+              loading={saving && !pendingMove}
+            >
+              Save
+            </Button>
+          </div>
+        }
       >
-        <Form form={editForm} layout="vertical" onFinish={submitEdit}>
-          <Form.Item
-            name="name"
-            label="Name"
-            rules={[{ required: true, whitespace: true }]}
-            extra={isChurch ? 'Rename a church from its church profile.' : undefined}
+        {editNode && (
+          <Form
+            key={editNode.id}
+            id={EDIT_FORM_ID}
+            form={editForm}
+            layout="vertical"
+            initialValues={{ name: editNode.name, parentId: editNode.parentId }}
+            onFinish={submitEdit}
           >
-            <Input maxLength={200} disabled={isChurch} />
-          </Form.Item>
-          {selected && selected.kind !== 'GLOBAL' && (
-            <Form.Item name="parentId" label="Parent" rules={[{ required: true }]}>
-              <Select
-                showSearch
-                optionFilterProp="label"
-                options={parentOptions(selected.kind, new Set(subtree(selected).map((n) => n.id)))}
-              />
+            <Form.Item
+              name="name"
+              label="Name"
+              rules={[{ required: true, whitespace: true }]}
+              extra={isChurch ? 'Rename a church from its church profile.' : undefined}
+            >
+              <Input maxLength={200} disabled={isChurch} />
             </Form.Item>
-          )}
-        </Form>
-      </Modal>
+            {editNode.kind !== 'GLOBAL' && (
+              <Form.Item name="parentId" label="Parent" rules={[{ required: true }]}>
+                <Select showSearch optionFilterProp="label" options={editParentOptions(editNode)} />
+              </Form.Item>
+            )}
+          </Form>
+        )}
+      </Drawer>
 
       <Modal
         title="Confirm move"
@@ -329,6 +343,13 @@ export default function ContentsCentralHierarchy() {
           </>
         )}
       </Modal>
-    </>
+
+      {createChurchUnder && (
+        <CentralChurchDrawer
+          defaultParentId={createChurchUnder.id}
+          onClose={() => setCreateChurchUnder(undefined)}
+        />
+      )}
+    </section>
   )
 }
