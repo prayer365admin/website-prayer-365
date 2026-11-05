@@ -42,6 +42,9 @@ describe('ContentsCentralRegistry', () => {
     expect(screen.getByText('Active')).toBeTruthy()
     expect(screen.getByText('Not ready')).toBeTruthy()
     expect(screen.queryByRole('switch')).toBeNull()
+    // Language tags are stored lowercase but read as display codes.
+    expect(screen.getByText('ET')).toBeTruthy()
+    expect(screen.queryByText('et')).toBeNull()
   })
 
   it('searches by name or code', async () => {
@@ -60,21 +63,17 @@ describe('ContentsCentralRegistry', () => {
     expect(screen.queryByText('Swedish')).toBeNull()
   })
 
-  it('filters by status and translation readiness', async () => {
+  it('filters by status', async () => {
     useCountries.mockReturnValue(registry([]))
     useLanguages.mockReturnValue(registry(languages))
     const user = userEvent.setup()
     renderWithProviders(<ContentsCentralRegistry kind="language" />)
 
-    const [status, translations] = screen.getAllByRole('combobox')
+    const [status] = screen.getAllByRole('combobox')
     await user.click(status)
     await user.click(await screen.findByTitle('Inactive'))
     expect(screen.queryByText('English')).toBeNull()
     expect(screen.getByText('Estonian')).toBeTruthy()
-
-    await user.click(translations)
-    await user.click(await screen.findByTitle('Not ready'))
-    expect(screen.queryByText('Estonian')).toBeNull()
     expect(screen.getByText('Swedish')).toBeTruthy()
   })
 
@@ -132,7 +131,44 @@ describe('ContentsCentralRegistry', () => {
         payload: { version: 3, name: 'Estonia', enabled: false },
       }),
     )
-    expect(screen.queryByRole('button', { name: /delete|remove/i })).toBeNull()
+    expect(screen.queryByRole('button', { name: /delete|trash/i })).toBeNull()
+  })
+
+  it('renders a flag derived from the ISO code next to each country name', () => {
+    useCountries.mockReturnValue(
+      registry([{ code: 'EE', name: 'Estonia', enabled: true, version: 3 }]),
+    )
+    useLanguages.mockReturnValue(registry([]))
+    renderWithProviders(<ContentsCentralRegistry kind="country" />)
+
+    const flag = screen.getByRole('img', { name: 'Estonia' }) as HTMLImageElement
+    expect(flag.getAttribute('src')).toContain('/h80/ee.png')
+    expect(screen.getByText('EE')).toBeTruthy()
+    expect(screen.getByText('Estonia')).toBeTruthy()
+  })
+
+  it('paints active and inactive status pills differently', () => {
+    useCountries.mockReturnValue(
+      registry([
+        { code: 'EE', name: 'Estonia', enabled: true, version: 3 },
+        { code: 'FI', name: 'Finland', enabled: false, version: 1 },
+      ]),
+    )
+    useLanguages.mockReturnValue(registry([]))
+    renderWithProviders(<ContentsCentralRegistry kind="country" />)
+
+    const active = screen.getByText('Active').closest('span')
+    const inactive = screen.getByText('Inactive').closest('span')
+    expect(active?.className).toContain('text-[#09A97C]')
+    expect(inactive?.className).toContain('text-[#B0B6BF]')
+  })
+
+  it('does not offer country creation from the countries list', () => {
+    useCountries.mockReturnValue(registry([]))
+    useLanguages.mockReturnValue(registry([]))
+    renderWithProviders(<ContentsCentralRegistry kind="country" />)
+
+    expect(screen.queryByRole('button', { name: /add country/i })).toBeNull()
   })
 
   it('renders a flag derived from the ISO code next to each country name', () => {
