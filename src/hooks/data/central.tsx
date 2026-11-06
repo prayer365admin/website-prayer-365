@@ -407,7 +407,7 @@ export const orgKeys = {
 }
 
 /** Server `details` are already safe, readable messages (cycle, stale, escalation, …). */
-const useOrgNotifications = () => {
+export const useOrgNotifications = () => {
   const notification = useMainNotification()
   const { notification: antdNotification } = App.useApp()
 

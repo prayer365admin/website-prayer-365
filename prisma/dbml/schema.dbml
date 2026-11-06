@@ -591,7 +591,10 @@ Table notification_rules {
   id String [pk]
   type String [unique, not null]
   enabled Boolean [not null, default: true]
+  push_enabled Boolean [not null, default: true]
+  email_enabled Boolean [not null, default: false]
   offset_minutes Int
+  recurrence String
   deliveries notification_deliveries [not null]
   created_at DateTime [default: `now()`, not null]
   updated_at DateTime

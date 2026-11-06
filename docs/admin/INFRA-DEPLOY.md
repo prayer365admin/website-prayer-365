@@ -91,6 +91,14 @@ The **worker component sends mail too** (`mail.send` jobs, e.g. verify-email and
 The `mail-credentials` secret holds **credentials only**. A `MAIL_PROVIDER` key inside it is ignored, so
 a stale secret version cannot override the deployed provider.
 
+`MAIL_FROM` and `BASE_URL` are app-side variables, not stack inputs: `MAIL_FROM` is the sender stamped on
+every enqueued message, and `BASE_URL` is the site origin the templates and notification links are built
+from (`../src/controller/notification-send-job.tsx` reads it for the email CTA). Auth mail enqueues from
+Vercel, where both are set. **Notification mail enqueues inside the consumer Lambda**, whose environment
+currently injects neither — the sender then falls back to `info@example.com` and CTA links come out
+relative. Set both on the consumer (add them to the environment config and `commonEnvironment`) before
+relying on notification email in a deployed environment.
+
 ### Database location is configuration, not code
 
 The workers do not care where PostgreSQL lives. Both runtimes read the `DATABASE_URL` secret and use

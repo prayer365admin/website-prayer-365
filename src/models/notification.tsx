@@ -18,7 +18,12 @@ export type NotificationRuleType = (typeof ALLOWED_RULE_TYPES)[number]
 
 export const ALLOWED_OFFSET_MINUTES = [0, 60, 120, 180, 1440, 2880, 10080] as const
 
+/* Calendar recurrence, available only for donation reminders. */
+export const ALLOWED_RECURRENCES = ['weekly', 'monthly'] as const
+export type NotificationRecurrence = (typeof ALLOWED_RECURRENCES)[number]
+
 export const NotificationRuleTypeSchema = z.enum(ALLOWED_RULE_TYPES)
+export const NotificationRecurrenceSchema = z.enum(ALLOWED_RECURRENCES)
 
 /* Non-null offset must be on the approved allowlist. */
 const OffsetMinutesSchema = z
@@ -34,11 +39,30 @@ export const NotificationRuleUpdateSchema = z
     type: NotificationRuleTypeSchema,
     version: z.number().int().min(0),
     enabled: z.boolean().optional(),
+    push_enabled: z.boolean().optional(),
+    email_enabled: z.boolean().optional(),
     offset_minutes: z.union([OffsetMinutesSchema, z.null()]).optional(),
+    recurrence: z.union([NotificationRecurrenceSchema, z.null()]).optional(),
   })
-  .refine((d) => d.enabled !== undefined || d.offset_minutes !== undefined, {
-    message: 'provide at least one of enabled or offset_minutes to update',
-  })
+  .refine(
+    (d) =>
+      d.enabled !== undefined ||
+      d.push_enabled !== undefined ||
+      d.email_enabled !== undefined ||
+      d.offset_minutes !== undefined ||
+      d.recurrence !== undefined,
+    {
+      message:
+        'provide at least one of enabled, push_enabled, email_enabled, offset_minutes or recurrence to update',
+    },
+  )
+  .refine(
+    (d) => d.recurrence === undefined || d.recurrence === null || d.type === 'donation_reminder',
+    {
+      message: 'recurrence is only configurable for donation_reminder',
+      path: ['recurrence'],
+    },
+  )
 export type NotificationRuleUpdate = z.infer<typeof NotificationRuleUpdateSchema>
 
 export const NotificationRulesUpdateSchema = z.array(NotificationRuleUpdateSchema).min(1)

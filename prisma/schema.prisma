@@ -833,7 +833,12 @@ model NotificationRule {
   id             String  @id @default(uuid(7))
   type           String  @unique
   enabled        Boolean @default(true)
+  // Channel switches: `enabled` gates the type, these gate each leg (F11).
+  push_enabled   Boolean @default(true)
+  email_enabled  Boolean @default(false)
   offset_minutes Int?
+  // Calendar recurrence for donation reminders: 'weekly' | 'monthly' | null.
+  recurrence     String?
 
   deliveries NotificationDelivery[]
 

@@ -24,17 +24,25 @@ const stale = () =>
     details: 'Notification rule has been modified; reload and retry.',
   })
 
-const ruleDto = (r: {
+type RuleRow = {
   id: string
   type: string
   enabled: boolean
+  push_enabled: boolean
+  email_enabled: boolean
   offset_minutes: number | null
+  recurrence: string | null
   version: number
-}) => ({
+}
+
+const ruleDto = (r: RuleRow) => ({
   id: r.id,
   type: r.type,
   enabled: r.enabled,
+  push_enabled: r.push_enabled,
+  email_enabled: r.email_enabled,
   offset_minutes: r.offset_minutes,
+  recurrence: r.recurrence,
   version: r.version,
 })
 
@@ -54,21 +62,25 @@ export const updateNotificationRules = async ({
   requestId: string
 }) =>
   dbTransaction(async (tx) => {
-    const updated: Array<{
-      id: string
-      type: string
-      enabled: boolean
-      offset_minutes: number | null
-      version: number
-    }> = []
+    const updated: ReturnType<typeof ruleDto>[] = []
 
     for (const item of items) {
       const existing = await GET_NOTIFICATION_RULE_BY_TYPE({ type: item.type }, tx)
       if (existing && existing.version !== item.version) throw stale()
 
-      const changes: { enabled?: boolean; offset_minutes?: number | null } = {}
+      // Only the fields the admin actually changed reach the row.
+      const changes: {
+        enabled?: boolean
+        push_enabled?: boolean
+        email_enabled?: boolean
+        offset_minutes?: number | null
+        recurrence?: string | null
+      } = {}
       if (item.enabled !== undefined) changes.enabled = item.enabled
+      if (item.push_enabled !== undefined) changes.push_enabled = item.push_enabled
+      if (item.email_enabled !== undefined) changes.email_enabled = item.email_enabled
       if (item.offset_minutes !== undefined) changes.offset_minutes = item.offset_minutes
+      if (item.recurrence !== undefined) changes.recurrence = item.recurrence
 
       const row = await UPSERT_NOTIFICATION_RULE({ type: item.type, payload: changes }, tx)
 

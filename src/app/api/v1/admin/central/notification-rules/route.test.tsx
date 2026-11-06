@@ -82,6 +82,49 @@ describe('PUT /api/v1/admin/central/notification-rules', () => {
     expect(updateNotificationRules).not.toHaveBeenCalled()
   })
 
+  it('accepts the push/email channels and the donation schedule', async () => {
+    vi.mocked(updateNotificationRules).mockResolvedValue([
+      { type: 'donation_reminder', enabled: true, version: 4 },
+    ] as never)
+    const req = new NextRequest(URL, {
+      method: 'PUT',
+      body: JSON.stringify([
+        {
+          type: 'donation_reminder',
+          version: 3,
+          push_enabled: false,
+          email_enabled: true,
+          recurrence: 'monthly',
+        },
+      ]),
+    })
+    const res = (await PUT(req))!
+    expect(res.status).toBe(200)
+    expect(updateNotificationRules).toHaveBeenCalledWith(
+      expect.objectContaining({
+        items: [
+          {
+            type: 'donation_reminder',
+            version: 3,
+            push_enabled: false,
+            email_enabled: true,
+            recurrence: 'monthly',
+          },
+        ],
+      }),
+    )
+  })
+
+  it('returns 422 when a schedule is set on a non-donation type', async () => {
+    const req = new NextRequest(URL, {
+      method: 'PUT',
+      body: JSON.stringify([{ type: 'event_reminder', version: 1, recurrence: 'weekly' }]),
+    })
+    const res = (await PUT(req))!
+    expect(res.status).toBe(422)
+    expect(updateNotificationRules).not.toHaveBeenCalled()
+  })
+
   it('returns 422 for an offset outside the allowlist', async () => {
     const req = new NextRequest(URL, {
       method: 'PUT',
