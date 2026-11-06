@@ -1,18 +1,30 @@
+import fs from 'node:fs'
 import { cert, getApps, initializeApp, type App } from 'firebase-admin/app'
 import { getMessaging } from 'firebase-admin/messaging'
 import { GeneralError } from '@/utils/general-error'
 
 /*
  * FCM transport (F12). Worker-only: never imported by a Next route, so the web
- * bundle does not carry firebase-admin. One credential source:
- * FIREBASE_SERVICE_ACCOUNT (service-account JSON) from Secrets Manager.
+ * bundle does not carry firebase-admin.
+ *
+ * Credential: FIREBASE_SERVICE_ACCOUNT (service-account JSON) from Secrets
+ * Manager, or FIREBASE_SERVICE_ACCOUNT_FILE pointing at the downloaded .json —
+ * the local-dev form the seeding CLI also accepts.
  */
 
 let app: App | null = null
 
+/** Raw service-account JSON: inline value wins, then the file path. */
+const serviceAccountJson = (): string | undefined => {
+  const inline = process.env.FIREBASE_SERVICE_ACCOUNT
+  if (inline) return inline
+  const file = process.env.FIREBASE_SERVICE_ACCOUNT_FILE
+  return file ? fs.readFileSync(file, 'utf8') : undefined
+}
+
 const firebaseApp = (): App => {
   if (app) return app
-  const raw = process.env.FIREBASE_SERVICE_ACCOUNT
+  const raw = serviceAccountJson()
   if (!raw) {
     throw new GeneralError({
       code: 500,
@@ -21,7 +33,19 @@ const firebaseApp = (): App => {
       details: 'Firebase service account is not configured.',
     })
   }
-  app = getApps().length ? getApps()[0] : initializeApp({ credential: cert(JSON.parse(raw)) })
+  let credential: object
+  try {
+    credential = JSON.parse(raw)
+  } catch {
+    // A path pasted into FIREBASE_SERVICE_ACCOUNT, or a truncated key.
+    throw new GeneralError({
+      code: 500,
+      error: 'CONFIG_ERROR',
+      error_code: 'FIREBASE_SERVICE_ACCOUNT_INVALID',
+      details: 'Firebase service account is not valid JSON.',
+    })
+  }
+  app = getApps().length ? getApps()[0] : initializeApp({ credential: cert(credential) })
   return app
 }
 

@@ -1,6 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const sendEachForMulticast = vi.hoisted(() => vi.fn())
+const readFileSync = vi.hoisted(() => vi.fn())
+
+vi.mock('node:fs', () => ({ default: { readFileSync } }))
 
 vi.mock('firebase-admin/app', () => ({
   cert: vi.fn((x) => x),
@@ -23,6 +26,7 @@ const message = (token: string) => ({
 beforeEach(() => {
   vi.clearAllMocks()
   process.env.FIREBASE_SERVICE_ACCOUNT = JSON.stringify({ project_id: 'test' })
+  delete process.env.FIREBASE_SERVICE_ACCOUNT_FILE
 })
 
 describe('FCM transport', () => {
@@ -76,6 +80,30 @@ describe('FCM transport', () => {
   it('refuses a batch over 500 tokens', async () => {
     const tooMany = Array.from({ length: 501 }, (_, i) => message(`t${i}`))
     await expect(SEND_PUSH_BATCH(tooMany)).rejects.toThrow('Push batch exceeds 500 tokens')
+  })
+
+  it('reads the service account JSON from FIREBASE_SERVICE_ACCOUNT_FILE', async () => {
+    delete process.env.FIREBASE_SERVICE_ACCOUNT
+    process.env.FIREBASE_SERVICE_ACCOUNT_FILE = '/home/dev/.secrets/firebase.json'
+    readFileSync.mockReturnValue(JSON.stringify({ project_id: 'file-project' }))
+    sendEachForMulticast.mockResolvedValue({ responses: [{ success: true }] })
+    vi.resetModules()
+
+    const fresh = await import('./push')
+    const { cert } = await import('firebase-admin/app')
+    await fresh.SEND_PUSH_BATCH([message('t1')])
+
+    expect(readFileSync).toHaveBeenCalledWith('/home/dev/.secrets/firebase.json', 'utf8')
+    expect(cert).toHaveBeenCalledWith({ project_id: 'file-project' })
+  })
+
+  it('rejects a credential that is not JSON (a path pasted into the wrong variable)', async () => {
+    process.env.FIREBASE_SERVICE_ACCOUNT = '/home/dev/.secrets/firebase.json'
+    vi.resetModules()
+    const fresh = await import('./push')
+    await expect(fresh.SEND_PUSH_BATCH([message('t1')])).rejects.toMatchObject({
+      error_code: 'FIREBASE_SERVICE_ACCOUNT_INVALID',
+    })
   })
 
   it('fails loudly without the service account', async () => {
