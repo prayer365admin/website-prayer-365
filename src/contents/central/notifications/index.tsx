@@ -166,6 +166,7 @@ export default function ContentsCentralNotifications() {
       title: 'Enabled',
       dataIndex: 'enabled',
       key: 'enabled',
+      width: 88,
       render: (_: unknown, row) => (
         <Switch
           aria-label={`${RULE_LABELS[row.type]} enabled`}
@@ -179,6 +180,7 @@ export default function ContentsCentralNotifications() {
       title: 'Push',
       dataIndex: 'push_enabled',
       key: 'push_enabled',
+      width: 76,
       render: (_: unknown, row) => (
         <Switch
           aria-label={`${RULE_LABELS[row.type]} push`}
@@ -192,6 +194,7 @@ export default function ContentsCentralNotifications() {
       title: 'Email',
       dataIndex: 'email_enabled',
       key: 'email_enabled',
+      width: 76,
       render: (_: unknown, row) => (
         <Switch
           aria-label={`${RULE_LABELS[row.type]} email`}
@@ -202,12 +205,12 @@ export default function ContentsCentralNotifications() {
       ),
     },
     {
-      title: 'Reminder offset (minutes)',
+      title: 'Reminder offset',
       dataIndex: 'offset_minutes',
       key: 'offset_minutes',
       render: (_: unknown, row) => (
         <Select<number>
-          className="w-44"
+          className="w-32"
           aria-label={`${RULE_LABELS[row.type]} reminder offset`}
           placeholder="Not set"
           allowClear
@@ -243,6 +246,7 @@ export default function ContentsCentralNotifications() {
       dataIndex: 'version',
       key: 'version',
       align: 'right',
+      width: 120,
       render: (version: number) => <span className="text-neutral-600">{version}</span>,
     },
   ]
@@ -286,6 +290,7 @@ export default function ContentsCentralNotifications() {
           dataSource={rows}
           loading={rules.loading}
           pagination={false}
+          scroll={{ x: 'max-content' }}
           className="[&_.ant-table-thead_th]:!whitespace-nowrap"
         />
       </div>
