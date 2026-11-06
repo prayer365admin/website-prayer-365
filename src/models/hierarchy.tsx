@@ -14,6 +14,15 @@ export const HIERARCHY_PARENT: Record<OrgNodeKind, OrgNodeKind | null> = {
   CHURCH: 'DEANERY',
 }
 
+/** Inverse of HIERARCHY_PARENT: the kind of node that may be added under a kind. */
+export const HIERARCHY_CHILD: Record<OrgNodeKind, OrgNodeKind | null> = {
+  GLOBAL: 'COUNTRY',
+  COUNTRY: 'DIOCESE',
+  DIOCESE: 'DEANERY',
+  DEANERY: 'CHURCH',
+  CHURCH: null,
+}
+
 export const NodeKindSchema = z.enum(['GLOBAL', 'COUNTRY', 'DIOCESE', 'DEANERY', 'CHURCH'])
 
 export const NodeCreateSchema = z.object({
@@ -32,8 +41,9 @@ export const NodeUpdateSchema = z
     version: z.number().int().positive(),
     name: z.string().min(1).optional(),
     parentId: z.string().nullable().optional(),
+    move: z.enum(['up', 'down']).optional(),
   })
-  .refine((d) => d.name !== undefined || d.parentId !== undefined, {
+  .refine((d) => d.name !== undefined || d.parentId !== undefined || d.move !== undefined, {
     message: 'provide at least one field to update',
   })
 export type NodeUpdate = z.infer<typeof NodeUpdateSchema>

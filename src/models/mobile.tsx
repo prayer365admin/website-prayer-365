@@ -240,6 +240,8 @@ export const MobilePublishedAudioSchema = z.object({
   assetKey: z.string().nullable(),
   /** Public read URL (website SPEC §5.2). `assetKey` stays for the mobile client. */
   assetUrl: z.string().nullable().optional(),
+  /** Playback length in seconds (generated MP3 is fixed 128 kbps, so byte size gives it); null if unknown. */
+  durationSeconds: z.number().nullable().optional(),
   approvedAt: z.string(),
 })
 
@@ -259,6 +261,8 @@ export const MobilePublishedPrayerSchema = z.object({
     versionNumber: z.number(),
     pastorId: z.string(),
     pastorName: z.string(),
+    /** Church-specific pastor image if set, else the pastor's profile image; null when none. */
+    pastorImageUrl: z.string().nullable().optional(),
     title: z.string(),
     introduction: z.string().nullable(),
     body: z.string(),
@@ -281,6 +285,7 @@ export type MobilePublishedPrayer = {
     versionNumber: number
     pastorId: string
     pastorName: string
+    pastorImageUrl?: string | null
     title: string
     introduction: string | null
     body: string

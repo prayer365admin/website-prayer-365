@@ -1,6 +1,10 @@
 import { Prisma } from '@prisma/client'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { MobilePublicChurchSchema } from '@/models/mobile'
+import {
+  MobilePublicChurchSchema,
+  MobilePublishedAudioSchema,
+  MobilePublishedPrayerSchema,
+} from '@/models/mobile'
 
 const db = vi.hoisted(() => ({
   $transaction: vi.fn(),
@@ -931,6 +935,56 @@ describe('LIST_PUBLIC_CHURCHES — directory filters (WB-25)', () => {
 })
 
 describe('mapPublishedPrayer (via GET_PUBLISHED_PRAYER)', () => {
+  const publishedPrayerWith = (pastor: Record<string, unknown>) => {
+    db.prayer.findFirst.mockResolvedValueOnce({
+      id: 'p1',
+      slug: 'prayer',
+      church_id: 'c1',
+      church: { name: 'Hope Church' },
+      featured_asset_id: null,
+      featured_asset: null,
+      published_at: new Date(),
+      published_version_id: 'v1',
+    })
+    db.prayerVersion.findFirst.mockResolvedValueOnce({
+      id: 'v1',
+      version_number: 1,
+      pastor_id: 'pa1',
+      title: 'Prayer',
+      body: 'Amen',
+      language_code: 'en',
+      selected_audio: null,
+      pastor: { name: 'Pastor', ...pastor },
+    })
+  }
+
+  it('exposes the pastor image, preferring this church assignment over the profile image', async () => {
+    publishedPrayerWith({
+      image_asset: { object_key: 'pastors/pa1/profile.jpg' },
+      churchPastors: [
+        { church_id: 'other', image_asset: { object_key: 'churches/other/pa1.jpg' } },
+        { church_id: 'c1', image_asset: { object_key: 'churches/c1/pa1.jpg' } },
+      ],
+    })
+    const result = await GET_PUBLISHED_PRAYER({ prayerId: 'p1' })
+    expect(result?.version.pastorImageUrl).toBe('https://cdn.test/churches/c1/pa1.jpg')
+  })
+
+  it('falls back to the pastor profile image when this church has no override', async () => {
+    publishedPrayerWith({
+      image_asset: { object_key: 'pastors/pa1/profile.jpg' },
+      churchPastors: [{ church_id: 'c1', image_asset: null }],
+    })
+    const result = await GET_PUBLISHED_PRAYER({ prayerId: 'p1' })
+    expect(result?.version.pastorImageUrl).toBe('https://cdn.test/pastors/pa1/profile.jpg')
+  })
+
+  it('pastorImageUrl is null when the pastor has no image at all', async () => {
+    publishedPrayerWith({ image_asset: null, churchPastors: [] })
+    const result = await GET_PUBLISHED_PRAYER({ prayerId: 'p1' })
+    expect(result?.version.pastorImageUrl).toBeNull()
+  })
+
   it('returns audio: null when audio snapshot is READY but not APPROVED', async () => {
     db.prayer.findFirst.mockResolvedValueOnce({
       id: 'p1',
@@ -1020,7 +1074,7 @@ describe('mapPublishedPrayer (via GET_PUBLISHED_PRAYER)', () => {
       selected_audio: {
         id: 'a1',
         status: 'APPROVED',
-        asset: { id: 'asset1', object_key: 'media/asset1' },
+        asset: { id: 'asset1', object_key: 'media/asset1', byte_size: BigInt(16_000 * 90) },
         approved_at: new Date('2026-01-01T00:00:00Z'),
       },
       pastor: {
@@ -1036,6 +1090,7 @@ describe('mapPublishedPrayer (via GET_PUBLISHED_PRAYER)', () => {
       assetId: 'asset1',
       assetKey: 'media/asset1',
       assetUrl: 'https://cdn.test/media/asset1',
+      durationSeconds: 90,
       approvedAt: '2026-01-01T00:00:00.000Z',
     })
   })
@@ -1077,6 +1132,196 @@ describe('LIST_PUBLISHED_PRAYERS — historical pastor attribution', () => {
     expect(db.prayerVersion.findMany).toHaveBeenCalledWith(
       expect.objectContaining({ where: { id: { in: ['version-1'] } } }),
     )
+  })
+})
+
+describe('prayer pastor image + hero image (mobile Home / list)', () => {
+  const prayerRow = (over: Record<string, unknown> = {}) => ({
+    id: 'p1',
+    slug: 'prayer',
+    church_id: 'c1',
+    church: { name: 'Main', cover_asset: null },
+    featured_asset_id: 'f1',
+    featured_asset: { object_key: 'prayers/p1/hero.jpg', purpose: 'IMAGE', status: 'READY' },
+    published_at: new Date('2026-10-01T10:00:00.000Z'),
+    published_version_id: 'v1',
+    ...over,
+  })
+  const versionRow = (pastor: Record<string, unknown>) => ({
+    id: 'v1',
+    version_number: 1,
+    pastor_id: 'pa1',
+    title: 'Prayer',
+    introduction: null,
+    body: 'Amen',
+    language_code: 'et',
+    selected_audio: null,
+    pastor: { name: 'Pastor', ...pastor },
+  })
+
+  it('LIST_PUBLISHED_PRAYERS asks for the pastor image and per-church assignments', async () => {
+    db.$transaction.mockResolvedValue([1, [prayerRow()]])
+    db.prayerVersion.findMany.mockResolvedValue([
+      versionRow({ image_asset: { object_key: 'pastors/pa1.jpg' }, churchPastors: [] }),
+    ])
+
+    const result = await LIST_PUBLISHED_PRAYERS({ churchId: 'c1', query: { page: 1, limit: 25 } })
+
+    const include = db.prayerVersion.findMany.mock.calls.at(-1)?.[0].include
+    expect(include.pastor.select.image_asset).toEqual({ select: { object_key: true } })
+    expect(include.pastor.select.churchPastors.select.church_id).toBe(true)
+    expect(result.result[0].version.pastorImageUrl).toBe('https://cdn.test/pastors/pa1.jpg')
+    expect(result.result[0].featuredImageUrl).toBe('https://cdn.test/prayers/p1/hero.jpg')
+  })
+
+  it('does not use another church assignment image for this prayer', async () => {
+    db.$transaction.mockResolvedValue([1, [prayerRow()]])
+    db.prayerVersion.findMany.mockResolvedValue([
+      versionRow({
+        image_asset: null,
+        churchPastors: [
+          { church_id: 'other', image_asset: { object_key: 'churches/other/pa1.jpg' } },
+        ],
+      }),
+    ])
+
+    const result = await LIST_PUBLISHED_PRAYERS({ churchId: 'c1', query: { page: 1, limit: 25 } })
+
+    expect(result.result[0].version.pastorImageUrl).toBeNull()
+  })
+
+  it('GET_HOME latestPrayers carry the hero image and the pastor image', async () => {
+    db.userChurch.findMany.mockResolvedValueOnce([
+      { is_main: true, is_followed: false, church_id: 'c1' },
+    ])
+    db.church.findFirst.mockResolvedValueOnce({
+      id: 'c1',
+      name: 'Main',
+      timezone: 'UTC',
+      churchLanguages: [],
+      serviceTimes: [],
+      cover_asset_id: null,
+    })
+    db.$transaction.mockImplementation(async (arg: unknown) =>
+      Array.isArray(arg) ? Promise.all(arg) : arg,
+    )
+    db.prayer.count.mockResolvedValueOnce(1)
+    db.prayer.findMany.mockResolvedValueOnce([prayerRow()])
+    db.prayerVersion.findMany.mockResolvedValueOnce([
+      versionRow({
+        image_asset: { object_key: 'pastors/pa1.jpg' },
+        churchPastors: [{ church_id: 'c1', image_asset: { object_key: 'churches/c1/pa1.jpg' } }],
+      }),
+    ])
+    db.event.count.mockResolvedValueOnce(0)
+    db.event.findMany.mockResolvedValueOnce([])
+    db.announcement.count.mockResolvedValueOnce(0)
+    db.announcement.findMany.mockResolvedValueOnce([])
+
+    const res = await GET_HOME({ userId: 'u1' })
+
+    expect(res.latestPrayers[0].featuredImageUrl).toBe('https://cdn.test/prayers/p1/hero.jpg')
+    expect(res.latestPrayers[0].version.pastorImageUrl).toBe('https://cdn.test/churches/c1/pa1.jpg')
+  })
+
+  it('LIST_PUBLISHED_PRAYERS derives audio durationSeconds from the asset byte size (128 kbps MP3)', async () => {
+    db.$transaction.mockResolvedValue([1, [prayerRow()]])
+    db.prayerVersion.findMany.mockResolvedValue([
+      {
+        ...versionRow({ image_asset: null, churchPastors: [] }),
+        selected_audio: {
+          id: 'a1',
+          status: 'APPROVED',
+          approved_at: new Date('2026-10-01T10:00:00.000Z'),
+          approved_by: 'u1',
+          asset: { id: 'as1', object_key: 'audio/a1.mp3', byte_size: BigInt(16_000 * 328) }, // 5:28
+        },
+      },
+    ])
+
+    const result = await LIST_PUBLISHED_PRAYERS({ churchId: 'c1', query: { page: 1, limit: 25 } })
+
+    expect(result.result[0].audio?.durationSeconds).toBe(328)
+    const include = db.prayerVersion.findMany.mock.calls.at(-1)?.[0].include
+    expect(include.selected_audio.include.asset.select.byte_size).toBe(true)
+  })
+
+  it('durationSeconds is null when the asset byte size is missing or zero', async () => {
+    for (const byte_size of [undefined, null, 0]) {
+      db.$transaction.mockResolvedValue([1, [prayerRow()]])
+      db.prayerVersion.findMany.mockResolvedValue([
+        {
+          ...versionRow({ image_asset: null, churchPastors: [] }),
+          selected_audio: {
+            id: 'a1',
+            status: 'APPROVED',
+            approved_at: new Date(),
+            approved_by: 'u1',
+            asset: { id: 'as1', object_key: 'audio/a1.mp3', byte_size },
+          },
+        },
+      ])
+      const result = await LIST_PUBLISHED_PRAYERS({ churchId: 'c1', query: { page: 1, limit: 25 } })
+      expect(result.result[0].audio?.durationSeconds).toBeNull()
+    }
+  })
+
+  it('a prayer without approved audio has no audio block (so no duration)', async () => {
+    db.$transaction.mockResolvedValue([1, [prayerRow()]])
+    db.prayerVersion.findMany.mockResolvedValue([
+      versionRow({ image_asset: null, churchPastors: [] }),
+    ])
+    const result = await LIST_PUBLISHED_PRAYERS({ churchId: 'c1', query: { page: 1, limit: 25 } })
+    expect(result.result[0].audio).toBeNull()
+  })
+
+  it('MobilePublishedAudioSchema accepts a number, null or missing durationSeconds and rejects strings', () => {
+    const base = {
+      prayerAudioId: 'a',
+      assetId: 'x',
+      assetKey: 'k',
+      approvedAt: '2026-10-01T10:00:00.000Z',
+    }
+    expect(MobilePublishedAudioSchema.safeParse({ ...base, durationSeconds: 328 }).success).toBe(
+      true,
+    )
+    expect(MobilePublishedAudioSchema.safeParse({ ...base, durationSeconds: null }).success).toBe(
+      true,
+    )
+    expect(MobilePublishedAudioSchema.safeParse(base).success).toBe(true)
+    expect(MobilePublishedAudioSchema.safeParse({ ...base, durationSeconds: '328' }).success).toBe(
+      false,
+    )
+  })
+
+  it('MobilePublishedPrayerSchema accepts a string, null or missing pastorImageUrl and rejects other types', () => {
+    const base = {
+      id: 'p1',
+      slug: 's',
+      churchId: 'c1',
+      churchName: 'Main',
+      churchCoverUrl: null,
+      featuredAssetId: null,
+      featuredImageUrl: null,
+      publishedAt: '2026-10-01T10:00:00.000Z',
+      audio: null,
+    }
+    const version = {
+      prayerVersionId: 'v1',
+      versionNumber: 1,
+      pastorId: 'pa1',
+      pastorName: 'Pastor',
+      title: 'T',
+      introduction: null,
+      body: 'B',
+      languageCode: 'et',
+    }
+    const parse = (extra: Record<string, unknown>) =>
+      MobilePublishedPrayerSchema.safeParse({ ...base, version: { ...version, ...extra } }).success
+    expect(parse({ pastorImageUrl: 'https://cdn.test/a.jpg' })).toBe(true)
+    expect(parse({ pastorImageUrl: null })).toBe(true)
+    expect(parse({})).toBe(true) // older clients/rows without the field
+    expect(parse({ pastorImageUrl: 5 })).toBe(false)
   })
 })
 

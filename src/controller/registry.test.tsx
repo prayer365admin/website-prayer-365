@@ -7,6 +7,10 @@ vi.mock('@/utils/db-transaction', () => ({
   ),
 }))
 
+vi.mock('@/providers/hierarchy', () => ({
+  RENAME_COUNTRY_ORG_NODE: vi.fn(),
+}))
+
 vi.mock('@/providers/registry', () => ({
   COUNT_COUNTRY_REFERENCES: vi.fn(),
   COUNT_LANGUAGE_REFERENCES: vi.fn(),
@@ -44,6 +48,7 @@ import {
   UPDATE_COUNTRY,
   UPDATE_LANGUAGE,
 } from '@/providers/registry'
+import { RENAME_COUNTRY_ORG_NODE } from '@/providers/hierarchy'
 
 describe('country registry', () => {
   beforeEach(() => vi.clearAllMocks())
@@ -123,6 +128,21 @@ describe('country registry', () => {
     expect(DELETE_COUNTRY).not.toHaveBeenCalled()
   })
 
+  it('keeps the hierarchy node name in step with a registry rename', async () => {
+    vi.mocked(GET_COUNTRY_BY_CODE).mockResolvedValue({ code: 'EE' } as never)
+    vi.mocked(UPDATE_COUNTRY).mockResolvedValue({ code: 'EE', name: 'Eesti', version: 2 } as never)
+    await updateCountry({
+      code: 'EE',
+      payload: { version: 1, name: 'Eesti' },
+      actorId: 'a',
+      requestId: 'r',
+    })
+    expect(RENAME_COUNTRY_ORG_NODE).toHaveBeenCalledWith(
+      { countryCode: 'EE', name: 'Eesti' },
+      expect.anything(),
+    )
+  })
+
   it('returns 404 when deleting a missing country', async () => {
     vi.mocked(GET_COUNTRY_BY_CODE).mockResolvedValue(null as never)
     await expect(
@@ -144,10 +164,10 @@ describe('language registry', () => {
   })
 
   it('blocks enabling a language whose translations are not ready', async () => {
-    vi.mocked(GET_LANGUAGE_BY_CODE).mockResolvedValue({ code: 'sv' } as never)
+    vi.mocked(GET_LANGUAGE_BY_CODE).mockResolvedValue({ code: 'de' } as never)
     await expect(
       updateLanguage({
-        code: 'sv',
+        code: 'de',
         payload: { version: 1, enabled: true },
         actorId: 'a',
         requestId: 'r',
@@ -159,7 +179,7 @@ describe('language registry', () => {
   it('blocks creating a non-ready language as enabled', async () => {
     await expect(
       createLanguage({
-        payload: { code: 'sv', name: 'Swedish', enabled: true },
+        payload: { code: 'de', name: 'Deutsch', enabled: true },
         actorId: 'a',
         requestId: 'r',
       }),
@@ -186,11 +206,11 @@ describe('language registry', () => {
   })
 
   it('always allows disabling, and stale updates return 409', async () => {
-    vi.mocked(GET_LANGUAGE_BY_CODE).mockResolvedValue({ code: 'sv' } as never)
+    vi.mocked(GET_LANGUAGE_BY_CODE).mockResolvedValue({ code: 'de' } as never)
     vi.mocked(UPDATE_LANGUAGE).mockResolvedValue(null as never)
     await expect(
       updateLanguage({
-        code: 'sv',
+        code: 'de',
         payload: { version: 3, enabled: false },
         actorId: 'a',
         requestId: 'r',
@@ -200,14 +220,16 @@ describe('language registry', () => {
 
   it('lists languages with a readiness flag', async () => {
     vi.mocked(GET_LANGUAGES).mockResolvedValue({
-      total: 2,
+      total: 3,
       result: [
         { code: 'en', name: 'English', enabled: true, version: 1 },
-        { code: 'sv', name: 'Swedish', enabled: false, version: 1 },
+        // Ships in src/i18n/messages.ts, so an enabled row is genuinely ready.
+        { code: 'sv', name: 'Svenska', enabled: true, version: 1 },
+        { code: 'de', name: 'Deutsch', enabled: false, version: 1 },
       ],
     } as never)
     const out = await listLanguages({ page: 1, limit: 25, order_direction: 'asc' })
-    expect(out.result.map((l) => l.ready)).toEqual([true, false])
+    expect(out.result.map((l) => l.ready)).toEqual([true, true, false])
   })
 
   it('deletes an unreferenced language', async () => {

@@ -26,6 +26,7 @@ import {
   MOBILE_NOTIFICATION_TYPES,
 } from '@/models/mobile'
 import { encryptDeviceToken, hashDeviceToken } from '@/utils/device-token'
+import { generatedAudioDurationSeconds } from '@/utils/prayer-duration'
 import { richTextToPlainText } from '@/utils/rich-text-plain'
 
 /*
@@ -870,13 +871,18 @@ const mapPublishedPrayer = (p: {
     introduction: string | null
     body: string
     language_code: string
-    pastor: { name: string }
+    pastor: {
+      name: string
+      image_asset?: { object_key: string } | null
+      /** The pastor's per-church assignments; the one for this prayer's church may override the image. */
+      churchPastors?: { church_id: string; image_asset: { object_key: string } | null }[]
+    }
     selected_audio: {
       id: string
       status: string
       approved_at: Date | null
       approved_by: string | null
-      asset: { id: string; object_key: string } | null
+      asset: { id: string; object_key: string; byte_size?: bigint | number | null } | null
     } | null
   } | null
 }): MobilePublishedPrayer | null => {
@@ -903,6 +909,11 @@ const mapPublishedPrayer = (p: {
       versionNumber: p.version.version_number,
       pastorId: p.version.pastor_id,
       pastorName: p.version.pastor.name,
+      pastorImageUrl: staffImageUrlFor(
+        p.version.pastor.churchPastors?.find((c) => c.church_id === p.church_id)?.image_asset
+          ?.object_key,
+        p.version.pastor.image_asset?.object_key,
+      ),
       title: p.version.title,
       introduction: p.version.introduction
         ? richTextToPlainText(p.version.introduction) || null
@@ -916,6 +927,7 @@ const mapPublishedPrayer = (p: {
           assetId: audio.asset!.id,
           assetKey: audio.asset!.object_key,
           assetUrl: S3_PUBLIC_URL({ key: audio.asset!.object_key }),
+          durationSeconds: generatedAudioDurationSeconds(audio.asset!.byte_size),
           approvedAt: toIso(audio.approved_at) ?? '',
         }
       : null,
@@ -959,8 +971,18 @@ const LIST_PUBLISHED_PRAYERS_UNCACHED = async ({
     ? await db.prayerVersion.findMany({
         where: { id: { in: versionIds } },
         include: {
-          pastor: { select: { name: true } },
-          selected_audio: { include: { asset: { select: { id: true, object_key: true } } } },
+          pastor: {
+            select: {
+              name: true,
+              image_asset: { select: { object_key: true } },
+              churchPastors: {
+                select: { church_id: true, image_asset: { select: { object_key: true } } },
+              },
+            },
+          },
+          selected_audio: {
+            include: { asset: { select: { id: true, object_key: true, byte_size: true } } },
+          },
         },
       })
     : []
@@ -1033,8 +1055,18 @@ const LIST_LATEST_PUBLISHED_PRAYERS_UNCACHED = async ({
     ? await db.prayerVersion.findMany({
         where: { id: { in: versionIds } },
         include: {
-          pastor: { select: { name: true } },
-          selected_audio: { include: { asset: { select: { id: true, object_key: true } } } },
+          pastor: {
+            select: {
+              name: true,
+              image_asset: { select: { object_key: true } },
+              churchPastors: {
+                select: { church_id: true, image_asset: { select: { object_key: true } } },
+              },
+            },
+          },
+          selected_audio: {
+            include: { asset: { select: { id: true, object_key: true, byte_size: true } } },
+          },
         },
       })
     : []
@@ -1089,8 +1121,18 @@ export const GET_PUBLISHED_PRAYER = async ({
   const version = await db.prayerVersion.findFirst({
     where: { id: p.published_version_id, prayer_id: p.id },
     include: {
-      pastor: { select: { name: true } },
-      selected_audio: { include: { asset: { select: { id: true, object_key: true } } } },
+      pastor: {
+        select: {
+          name: true,
+          image_asset: { select: { object_key: true } },
+          churchPastors: {
+            select: { church_id: true, image_asset: { select: { object_key: true } } },
+          },
+        },
+      },
+      selected_audio: {
+        include: { asset: { select: { id: true, object_key: true, byte_size: true } } },
+      },
     },
   })
   return mapPublishedPrayer({

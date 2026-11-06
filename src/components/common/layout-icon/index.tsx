@@ -1,7 +1,9 @@
 import type { CSSProperties, HTMLAttributes } from 'react'
 
 const iconSources = {
+  angleRight: '/icons/icon-angle-right.svg',
   announcement: '/icons/Icon-announcement.svg',
+  arrowRightTail: '/icons/icon-arrow-right-tail.svg',
   back: '/icons/Icon-back.svg',
   bell: '/icons/Icon-bell.svg',
   church: '/icons/icon-church.svg',
@@ -9,6 +11,7 @@ const iconSources = {
   dashboard: '/icons/Icon-dashboard.svg',
   earth: '/icons/Icon-earth.svg',
   eye: '/icons/Icon-eye-outlined.svg',
+  handsPraying: '/icons/icon-hands-praying.svg',
   home: '/icons/icon-home.svg',
   information: '/icons/Icon-information.svg',
   language: '/icons/Icon-language.svg',
@@ -17,7 +20,9 @@ const iconSources = {
   smile: '/icons/Icon-smile.svg',
   user: '/icons/Icon-user.svg',
   userSettings: '/icons/Icon-user-settings.svg',
+  verified: '/icons/icon-verified.svg',
   users: '/icons/icon-users-2.svg',
+  usersSolid: '/icons/icon-users.svg',
   hierarchy: '/icons/icon-users-3.svg',
 } as const
 
@@ -32,11 +37,19 @@ const glyphSizes: Partial<Record<LayoutIconName, number>> = {
 
 type LayoutIconProps = Omit<HTMLAttributes<HTMLSpanElement>, 'children'> & {
   name: LayoutIconName
+  /** Glyph height in px; overrides the per-name default (24). */
+  size?: number
 }
 
-export default function LayoutIcon({ name, className = '', style, ...props }: LayoutIconProps) {
+export default function LayoutIcon({
+  name,
+  size,
+  className = '',
+  style,
+  ...props
+}: LayoutIconProps) {
   const source = `url("${iconSources[name]}")`
-  const glyphSize = glyphSizes[name] ?? 24
+  const glyphSize = size ?? glyphSizes[name] ?? 24
   const iconStyle: CSSProperties = {
     backgroundColor: 'currentColor',
     height: glyphSize,

@@ -161,9 +161,16 @@ export interface ChurchSetupFormProps {
   churchId?: string
   onClose?: () => void
   isDrawer?: boolean
+  /** Deanery to pre-select when the form is opened from a hierarchy row. */
+  defaultParentId?: string
 }
 
-export function ChurchSetupForm({ churchId, onClose, isDrawer = false }: ChurchSetupFormProps) {
+export function ChurchSetupForm({
+  churchId,
+  onClose,
+  isDrawer = false,
+  defaultParentId,
+}: ChurchSetupFormProps) {
   const router = useRouter()
   const [form] = Form.useForm<SetupValues & PlacementValues>()
   const [purgeOpen, setPurgeOpen] = useState(false)
@@ -207,6 +214,21 @@ export function ChurchSetupForm({ churchId, onClose, isDrawer = false }: ChurchS
   useEffect(() => {
     if (!churchId) form.setFieldValue('timezone', browserTimezone)
   }, [churchId, form])
+
+  // Opened from a deanery row: fill the country → diocese → deanery chain.
+  useEffect(() => {
+    if (churchId || !defaultParentId || !flat.length) return
+    const byId = new Map(flat.map((node) => [node.id, node]))
+    const deanery = byId.get(defaultParentId)
+    if (deanery?.kind !== 'DEANERY') return
+    const diocese = deanery.parentId ? byId.get(deanery.parentId) : undefined
+    const country = diocese?.parentId ? byId.get(diocese.parentId) : undefined
+    form.setFieldsValue({
+      deaneryId: deanery.id,
+      dioceseId: diocese?.id,
+      countryId: country?.id,
+    })
+  }, [churchId, defaultParentId, flat, form])
 
   const optionsFor = (kind: OrgNodeKind, parentId?: string) =>
     flat

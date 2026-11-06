@@ -301,12 +301,15 @@ model OrgNode {
   country_code String?     @unique @db.Char(2)
   country      Country?    @relation(fields: [country_code], references: [code])
   version      Int         @default(1)
+  /// Sibling position within `parent_id`; ascending order is the display order.
+  sort_order   Int         @default(0)
 
   church          Church?
   roleAssignments RoleAssignment[]
 
   @@unique([kind, country_code])
   @@index([parent_id])
+  @@index([parent_id, sort_order])
   @@map("org_nodes")
 }
 
