@@ -1,13 +1,19 @@
+import { SiteMessageKey } from '@/i18n/messages'
+
 /**
- * Static copy and mock structure for the /welcome landing page (Figma node 87-8752).
+ * Static structure for the /welcome landing page (Figma node 87-8752).
+ *
+ * Copy lives in `src/i18n/messages.ts` under `welcome*` keys so every locale
+ * renders translated text. This module only maps the layout order to those keys.
  *
  * Per SPEC:
  * - Real data is used when available via existing server controllers (audio prayer, member count).
  * - When an API exists but returns null, render "Data not available" / "No open prayer available yet."
- * - Where no API exists in the system (church chips, testimonials, static marketing copy, schedule blocks),
- *   this registry supplies the exact Figma design strings.
+ * - Where no API exists (church chips, testimonials, static marketing copy, schedule blocks),
+ *   this registry supplies the exact Figma design strings via message keys.
  */
 
+/** Proper parish names — not translated. */
 export const CHURCH_NETWORK_CHIPS = [
   "St. John's Church, Tallinn",
   "St. Michael's Swedish Parish",
@@ -17,99 +23,84 @@ export const CHURCH_NETWORK_CHIPS = [
 ]
 
 export interface ScheduleBlock {
-  title: string
-  time: string
+  titleKey: SiteMessageKey
+  timeKey: SiteMessageKey
 }
 
 export const LITURGY_SCHEDULE_BLOCKS: ScheduleBlock[] = [
-  { title: 'Morning Matins', time: '06:30 Daily' },
-  { title: 'Midday Angelus', time: '12:00 Daily' },
-  { title: 'Evening Compline', time: '21:00 Daily' },
+  { titleKey: 'welcomeScheduleMatins', timeKey: 'welcomeScheduleMatinsTime' },
+  { titleKey: 'welcomeScheduleAngelus', timeKey: 'welcomeScheduleAngelusTime' },
+  { titleKey: 'welcomeScheduleCompline', timeKey: 'welcomeScheduleComplineTime' },
 ]
 
 export interface AppFeature {
-  title: string
-  hint: string
+  titleKey: SiteMessageKey
+  hintKey: SiteMessageKey
 }
 
 export const APP_FEATURES: AppFeature[] = [
-  {
-    title: '06:30 Scripture Gentle Push',
-    hint: 'Wake to consecrated lectionary verse.',
-  },
-  {
-    title: 'Offline Liturgy Playback',
-    hint: 'Pre-cache hymns and homilies for travel',
-  },
-  {
-    title: 'Parish Bell Chime Prompts',
-    hint: 'Authentic acoustic bell reminders at noon.',
-  },
-  {
-    title: 'Pocket Intercession',
-    hint: 'Encrypted chaplain requests on the go.',
-  },
+  { titleKey: 'welcomeAppFeature1Title', hintKey: 'welcomeAppFeature1Hint' },
+  { titleKey: 'welcomeAppFeature2Title', hintKey: 'welcomeAppFeature2Hint' },
+  { titleKey: 'welcomeAppFeature3Title', hintKey: 'welcomeAppFeature3Hint' },
+  { titleKey: 'welcomeAppFeature4Title', hintKey: 'welcomeAppFeature4Hint' },
 ]
 
 export interface Testimonial {
-  quote: string
+  quoteKey: SiteMessageKey
+  /** Proper name — not translated. */
   author: string
-  role: string
+  roleKey: SiteMessageKey
   avatarUrl: string
 }
 
 export const TESTIMONIALS: Testimonial[] = [
   {
-    quote:
-      '“Prayer 365 has restored the rhythm of daily Matins for our dispersed diaspora congregation. Even when miles apart, our flock prays the same words at dawn.”',
+    quoteKey: 'welcomeTestimonial1Quote',
     author: 'Rev. Thomas Lindqvist',
-    role: "Vicar, St. Michael's Swedish Parish",
+    roleKey: 'welcomeTestimonial1Role',
     avatarUrl:
       'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=80&h=80&fit=crop&crop=faces&auto=format&q=80',
   },
   {
-    quote:
-      '“The confidential prayer wall has provided our young people a safe, sacred place to share deep anxieties and receive gentle chaplain guidance without judgment.”',
+    quoteKey: 'welcomeTestimonial2Quote',
     author: 'Diaconal Sister Kristiina',
-    role: 'Youth Ministry, Tallinn Deanery',
+    roleKey: 'welcomeTestimonial2Role',
     avatarUrl:
       'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=80&h=80&fit=crop&crop=faces&auto=format&q=80',
   },
   {
-    quote:
-      '“Listening to Compline through headphones on my evening commute transforms public transit into a quiet cathedral. A sanctuary in the pocket.”',
+    quoteKey: 'welcomeTestimonial3Quote',
     author: 'Mart Tamm',
-    role: 'Lay Pilgrim, Tartu',
+    roleKey: 'welcomeTestimonial3Role',
     avatarUrl:
       'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=80&h=80&fit=crop&crop=faces&auto=format&q=80',
   },
 ]
 
 export interface MosaicTile {
-  eyebrow: string
-  title: string
-  description: string
+  eyebrowKey: SiteMessageKey
+  titleKey: SiteMessageKey
+  descriptionKey: SiteMessageKey
   imageSrc: string
 }
 
 export const MOSAIC_TILES: MosaicTile[] = [
   {
-    eyebrow: 'CHORAL VESPERS & LITURGY',
-    title: 'Light Across Ancient Stone',
-    description:
-      'Historic sanctuaries bathed in jewel-toned morning reflections across Tallinn & Riga.',
+    eyebrowKey: 'welcomeMosaic1Eyebrow',
+    titleKey: 'welcomeMosaic1Title',
+    descriptionKey: 'welcomeMosaic1Body',
     imageSrc: '/images/church.jpeg',
   },
   {
-    eyebrow: 'SACRED RESTORATION',
-    title: 'Contemporary Sanctuary Space',
-    description: 'Modern timber architecture welcoming contemplative silence and fellowship.',
+    eyebrowKey: 'welcomeMosaic2Eyebrow',
+    titleKey: 'welcomeMosaic2Title',
+    descriptionKey: 'welcomeMosaic2Body',
     imageSrc: '/images/viimsi-church-indoor.jpeg',
   },
   {
-    eyebrow: 'CONTEMPLATIVE RETREAT',
-    title: 'Quiet Water Pilgrimages',
-    description: 'Coastal stillness and outdoor prayer along the Baltic coastline.',
+    eyebrowKey: 'welcomeMosaic3Eyebrow',
+    titleKey: 'welcomeMosaic3Title',
+    descriptionKey: 'welcomeMosaic3Body',
     imageSrc: '/images/wb3-devotional-lake.png',
   },
 ]
@@ -121,28 +112,23 @@ export const PASTOR_AVATARS = [
 ]
 
 export const SCRIPTURE_BLESSING = {
-  quote:
-    '“The Lord bless you and keep you; the Lord make his face shine upon you and be gracious to you.”',
-  attribution: 'NUMBERS 6:24-25 • THE AARONIC BLESSING',
-}
+  quoteKey: 'welcomeScriptureQuote',
+  attributionKey: 'welcomeScriptureAttribution',
+} as const satisfies Record<string, SiteMessageKey>
+
+/** Hotline number is a constant; the labels around it are translated. */
+export const FOOTER_HOTLINE = '+372 644 1483'
 
 export const FOOTER_DATA = {
-  hotline: '+372 644 1483',
-  hotlineLabel: '24/7 Spiritual Hotline',
-  hotlineNote: 'Confidential chaplain consultation',
-  brandSubtitle: 'Ecumenical Portal',
-  verse:
-    '“The Lord bless you and keep you; the Lord make his face shine upon you and be gracious to you.”',
-  verseReference: 'Numbers 6:24-25 • In fellowship with EELK Baltic & Nordic Ecumenical Council',
   parishLinks: [
-    { label: 'Tallinn Deanery Directory', href: '/churches' },
-    { label: 'Helsinki Diocese Partners', href: '/churches' },
-    { label: 'Diaconal Food & Shelter Fund', href: '/donate' },
-    { label: 'Youth Ministry Gatherings', href: '/prayers' },
+    { key: 'welcomeFooterLinkTallinn', href: '/churches' },
+    { key: 'welcomeFooterLinkHelsinki', href: '/churches' },
+    { key: 'welcomeFooterLinkFund', href: '/donate' },
+    { key: 'welcomeFooterLinkYouth', href: '/prayers' },
   ],
   legalLinks: [
-    { label: 'Privacy of Confession', href: '/privacy' },
-    { label: 'Terms of Fellowship', href: '/terms' },
-    { label: 'Pastoral Support', href: '/support' },
+    { key: 'welcomeFooterPrivacy', href: '/privacy' },
+    { key: 'welcomeFooterTerms', href: '/terms' },
+    { key: 'welcomeFooterSupport', href: '/support' },
   ],
-}
+} as const satisfies Record<string, { key: SiteMessageKey; href: string }[]>

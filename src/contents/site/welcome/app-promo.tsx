@@ -2,8 +2,8 @@ import { AppleIcon } from '@/components/icon/apple'
 import { BellOutlined, CheckOutlined, HeartOutlined } from '@/components/icon/antd-icons'
 import { BellRingIcon } from '@/components/icon/bell-ring'
 import { GoogleIcon } from '@/components/icon/google'
+import { useSiteI18n } from '@/i18n/site-i18n'
 import { APP_FEATURES } from './data'
-import { QRCode } from 'antd'
 import Image from 'next/image'
 
 const FEATURE_ICONS = [
@@ -14,6 +14,7 @@ const FEATURE_ICONS = [
 ]
 
 export default function WelcomeAppPromo() {
+  const { t } = useSiteI18n()
   const appStoreUrl =
     process.env.NEXT_PUBLIC_APP_STORE_URL ||
     process.env.NEXT_PUBLIC_IOS_APP_URL ||
@@ -24,13 +25,9 @@ export default function WelcomeAppPromo() {
     process.env.NEXT_PUBLIC_ANDROID_APP_URL ||
     'https://play.google.com/store/apps/details?id=com.prayer365'
 
-  // One QR cannot hold two links, so it encodes the App Store URL and falls back
-  // to Play Store when only that one is configured.
-  const qrCodeUrl = appStoreUrl || playStoreUrl
-
   return (
     <section
-      aria-label="Mobile Sanctuary for iOS and Android"
+      aria-label={t('welcomeAppSectionAria')}
       className="py-16 md:py-20 px-6 max-w-[1280px] mx-auto overflow-visible"
       id="app-promo"
     >
@@ -50,31 +47,30 @@ export default function WelcomeAppPromo() {
               />
               <circle cx="5" cy="10.5" fill="currentColor" r="0.75" />
             </svg>
-            <span>Mobile Sanctuary for iOS &amp; Android</span>
+            <span>{t('welcomeAppBadge')}</span>
           </div>
 
           <h2 className="text-[32px] sm:text-[38px] lg:text-[42px] font-bold leading-[1.15] tracking-[-1px] text-white mb-4">
-            Take the Sanctuary Wherever You Walk
+            {t('welcomeAppTitle')}
           </h2>
 
           <p className="text-[15px] sm:text-[16px] text-white/85 mb-8 leading-relaxed max-w-[540px]">
-            Carry the silence of the nave, the comfort of daily scripture, and immediate pastoral
-            care with you on morning commutes, forest strolls, and peaceful bedtimes.
+            {t('welcomeAppBody')}
           </p>
 
           {/* 4 Feature Bullets */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-5 mb-8">
             {APP_FEATURES.map((feature, i) => (
-              <div className="flex items-start gap-3" key={feature.title}>
+              <div className="flex items-start gap-3" key={feature.titleKey}>
                 <div className="w-9 h-9 rounded-lg bg-white/15 flex items-center justify-center shrink-0 border border-white/10 text-white mt-0.5">
                   {FEATURE_ICONS[i]}
                 </div>
                 <div className="flex flex-col">
                   <span className="text-[14px] sm:text-[15px] font-semibold text-white leading-snug">
-                    {feature.title}
+                    {t(feature.titleKey)}
                   </span>
                   <span className="text-[12px] text-[#C2D9FF] mt-0.5 leading-snug">
-                    {feature.hint}
+                    {t(feature.hintKey)}
                   </span>
                 </div>
               </div>
@@ -84,8 +80,8 @@ export default function WelcomeAppPromo() {
           {/* App Badges */}
           <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:gap-4">
             <a
-              aria-label="Download on the App Store"
-              className="flex h-[51px] w-full items-center justify-center gap-3 rounded-xl border border-white/20 bg-black/85 px-4 shadow-md transition-colors hover:bg-black sm:w-auto"
+              aria-label={t('welcomeDownloadAppStoreAria')}
+              className="flex h-[51px] w-full items-center justify-start gap-3 rounded-xl border border-white/20 bg-black/85 px-4 shadow-md transition-colors hover:bg-black sm:w-[220px]"
               href={appStoreUrl}
               rel="noopener noreferrer"
               target="_blank"
@@ -93,17 +89,17 @@ export default function WelcomeAppPromo() {
               <AppleIcon aria-hidden className="text-white" style={{ fontSize: 26 }} />
               <div className="flex flex-col text-left">
                 <span className="text-[10px] tracking-[2px] uppercase text-[#CBD5E1] font-semibold leading-none">
-                  Download on the
+                  {t('welcomeDownloadOnThe')}
                 </span>
                 <span className="text-[13px] text-white font-semibold leading-tight mt-0.5">
-                  App Store
+                  {t('welcomeAppStore')}
                 </span>
               </div>
             </a>
 
             <a
-              aria-label="Get it on Google Play"
-              className="flex h-[51px] w-full items-center justify-center gap-3 rounded-xl border border-white/20 bg-black/85 px-4 shadow-md transition-colors hover:bg-black sm:w-auto"
+              aria-label={t('welcomeGetOnPlayAria')}
+              className="flex h-[51px] w-full items-center justify-start gap-3 rounded-xl border border-white/20 bg-black/85 px-4 shadow-md transition-colors hover:bg-black sm:w-[220px]"
               href={playStoreUrl}
               rel="noopener noreferrer"
               target="_blank"
@@ -111,21 +107,21 @@ export default function WelcomeAppPromo() {
               <GoogleIcon aria-hidden style={{ fontSize: 22 }} />
               <div className="flex flex-col text-left">
                 <span className="text-[10px] tracking-[2px] uppercase text-[#CBD5E1] font-semibold leading-none">
-                  Get it on
+                  {t('welcomeGetItOn')}
                 </span>
                 <span className="text-[13px] text-white font-semibold leading-tight mt-0.5">
-                  Google Play
+                  {t('welcomeGooglePlay')}
                 </span>
               </div>
             </a>
           </div>
         </div>
 
-        {/* Right Column: phone clipped by the card edge, QR card floating over it */}
+        {/* Right Column: phone clipped by the card edge */}
         <div className="relative h-[300px] w-full overflow-hidden sm:h-[400px] lg:col-span-5 lg:h-full lg:min-h-[500px]">
           <div className="pointer-events-none absolute left-1/2 top-0 w-[220px] -translate-x-1/2 sm:w-[280px] lg:left-auto lg:right-6 lg:w-[360px] lg:translate-x-0">
             <Image
-              alt="Prayer 365 Mobile App Screen"
+              alt={t('welcomeAppPhoneAlt')}
               className="h-auto w-full drop-shadow-2xl"
               height={1958}
               priority
@@ -133,24 +129,6 @@ export default function WelcomeAppPromo() {
               unoptimized
               width={967}
             />
-          </div>
-
-          {/* QR card: desktop only — a phone cannot scan its own screen */}
-          <div className="absolute right-0 bottom-6 z-20 hidden w-[160px] flex-col items-center rounded-2xl bg-white p-3.5 text-center text-[#191C1E] shadow-2xl lg:flex">
-            <div className="rounded-lg bg-white p-1">
-              <QRCode
-                bordered={false}
-                color="#005CAD"
-                errorLevel="M"
-                size={105}
-                value={qrCodeUrl}
-              />
-            </div>
-
-            <span className="mt-2 text-[13px] font-bold text-[#0E203E]">Scan on Camera</span>
-            <span className="mt-0.5 text-[11px] font-medium leading-snug text-[#5C6370]">
-              Direct app download for iOS &amp; Android
-            </span>
           </div>
         </div>
       </div>

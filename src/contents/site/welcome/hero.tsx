@@ -5,40 +5,40 @@ import { LockIcon } from '@/components/icon/lock'
 import { SparklesIcon } from '@/components/icon/sparkles'
 import { WaveformIcon } from '@/components/icon/waveform'
 import { StarFilled } from '@/components/icon/antd-icons'
-import { SiteLocale } from '@/config/site-locale'
-import { SiteT } from '@/i18n/messages'
+import { useSiteI18n } from '@/i18n/site-i18n'
 import { SiteLoginPrayer } from '@/models/site-prayer'
 import Image from 'next/image'
 import Link from 'next/link'
 import { PASTOR_AVATARS } from './data'
 import WelcomePrayerPlayer from './prayer-player'
 export default function WelcomeHero({
-  locale = 'en',
   memberCount = null,
   prayer = null,
-  t,
 }: {
-  locale?: SiteLocale
   memberCount?: number | null
   prayer?: SiteLoginPrayer | null
-  t: SiteT
 }) {
+  const { locale, t } = useSiteI18n()
   const believersLabel =
     typeof memberCount === 'number'
-      ? `${new Intl.NumberFormat(locale).format(memberCount)} Believers`
+      ? t('welcomeBelievers', { count: new Intl.NumberFormat(locale).format(memberCount) })
       : t('welcomeStatsUnavailable')
-  // The hero badges always jump to the app promo section; the store links live there
-  // (and in the QR code) because the app ships to both stores.
+  // The hero badges always jump to the app promo section, where the store links live
+  // because the app ships to both stores.
   const appDownloadHref = '#app-promo'
 
   return (
     <section
-      aria-label="Welcome Hero"
+      aria-label={t('welcomeHeroAria')}
       className="relative flex min-h-[calc(100vh-64px)] items-center bg-[linear-gradient(110.95deg,#0E203E_0%,#1B2123_100%)] px-6 py-14 text-white overflow-hidden"
     >
       {/* Hero background: the cover of the church behind the newest prayer, faded into the hero blue */}
       <Image
-        alt={prayer ? `${prayer.churchName} sanctuary` : 'Sanctuary interior'}
+        alt={
+          prayer
+            ? t('welcomeChurchSanctuaryAlt', { church: prayer.churchName })
+            : t('welcomeSanctuaryInteriorAlt')
+        }
         className="object-cover"
         fill
         priority
@@ -59,24 +59,23 @@ export default function WelcomeHero({
             <div className="inline-flex items-center gap-1.5 rounded-full bg-white/15 px-4 py-1 w-fit mb-6 border border-white/10">
               <SparklesIcon aria-hidden className="text-white" style={{ fontSize: 12 }} />
               <span className="text-[12px] font-medium text-white tracking-wide">
-                Ecumenical Fellowship &amp; Daily Liturgy
+                {t('welcomeEyebrow')}
               </span>
             </div>
 
             {/* H1 Heading */}
             <h1 className="tracking-normal">
               <span className="block font-font_quote italic font-normal text-[48px] md:text-[56px] leading-[1.1] text-white">
-                Everyday Faith.
+                {t('welcomeHeroTitleQuote')}
               </span>
               <span className="block font-font_heading font-bold text-[32px] md:text-[36px] leading-tight tracking-[-1px] text-white mt-4">
-                A More Connected Tomorrow.
+                {t('welcomeHeroTitle')}
               </span>
             </h1>
 
             {/* Body Paragraph */}
             <p className="mt-6 text-[16px] leading-[24px] text-[#DDE0E4] max-w-[662px]">
-              Uniting Baltic parish communities through daily liturgical prayer, confidential
-              pastoral care, and open intercession across traditions.
+              {t('welcomeHeroBody')}
             </p>
 
             {/* Primary Action Buttons */}
@@ -85,7 +84,7 @@ export default function WelcomeHero({
                 className="h-14 rounded-xl bg-[#2F7AD2] text-white text-[16px] font-semibold px-6 flex items-center gap-2 hover:bg-[#256bb8] transition-colors shadow-sm"
                 href="/register"
               >
-                <span>Join the Sanctuary — Register Free</span>
+                <span>{t('welcomeJoinFree')}</span>
                 <ArrowRightIcon aria-hidden style={{ fontSize: 16 }} />
               </Link>
 
@@ -94,40 +93,40 @@ export default function WelcomeHero({
                 href="/login"
               >
                 <LockIcon aria-hidden style={{ fontSize: 16 }} />
-                <span>Sign In to Portal</span>
+                <span>{t('welcomeSignInPortal')}</span>
               </Link>
             </div>
 
             {/* App Store Badges */}
             <div className="mt-6 flex flex-wrap gap-4">
               <a
-                aria-label="Download on the App Store"
-                className="h-[51px] rounded-xl bg-black/85 border border-white/20 flex items-center gap-3 px-4 shadow-[0px_4px_6px_-1px_rgba(0,0,0,0.1),0px_2px_4px_-2px_rgba(0,0,0,0.1)] hover:bg-black transition-colors"
+                aria-label={t('welcomeDownloadAppStoreAria')}
+                className="h-[51px] w-full rounded-xl bg-black/85 border border-white/20 flex items-center gap-3 px-4 shadow-[0px_4px_6px_-1px_rgba(0,0,0,0.1),0px_2px_4px_-2px_rgba(0,0,0,0.1)] hover:bg-black transition-colors sm:w-[220px]"
                 href={appDownloadHref}
               >
                 <AppleIcon aria-hidden className="text-white" style={{ fontSize: 26 }} />
                 <div className="flex flex-col text-left">
                   <span className="text-[10px] tracking-[2px] uppercase text-[#CBD5E1] font-semibold leading-none">
-                    Download on the
+                    {t('welcomeDownloadOnThe')}
                   </span>
                   <span className="text-[13px] text-white font-semibold leading-tight mt-0.5">
-                    App Store
+                    {t('welcomeAppStore')}
                   </span>
                 </div>
               </a>
 
               <a
-                aria-label="Get it on Google Play"
-                className="h-[51px] rounded-xl bg-black/85 border border-white/20 flex items-center gap-3 px-4 shadow-[0px_4px_6px_-1px_rgba(0,0,0,0.1),0px_2px_4px_-2px_rgba(0,0,0,0.1)] hover:bg-black transition-colors"
+                aria-label={t('welcomeGetOnPlayAria')}
+                className="h-[51px] w-full rounded-xl bg-black/85 border border-white/20 flex items-center gap-3 px-4 shadow-[0px_4px_6px_-1px_rgba(0,0,0,0.1),0px_2px_4px_-2px_rgba(0,0,0,0.1)] hover:bg-black transition-colors sm:w-[220px]"
                 href={appDownloadHref}
               >
                 <GoogleIcon aria-hidden style={{ fontSize: 22 }} />
                 <div className="flex flex-col text-left">
                   <span className="text-[10px] tracking-[2px] uppercase text-[#CBD5E1] font-semibold leading-none">
-                    Get it on
+                    {t('welcomeGetItOn')}
                   </span>
                   <span className="text-[13px] text-white font-semibold leading-tight mt-0.5">
-                    Google Play
+                    {t('welcomeGooglePlay')}
                   </span>
                 </div>
               </a>
@@ -138,21 +137,21 @@ export default function WelcomeHero({
               <div
                 className="flex items-center gap-0.5 mr-1"
                 role="img"
-                aria-label="5 stars rating"
+                aria-label={t('welcomeRatingAria')}
               >
                 {[...Array(5)].map((_, i) => (
                   <StarFilled className="!text-[#FCD34D] text-[13px]" key={i} />
                 ))}
               </div>
-              <span className="font-medium text-[#FCD34D]">4.9 ★ Ecumenical Rating</span>
+              <span className="font-medium text-[#FCD34D]">{t('welcomeRating')}</span>
               <span aria-hidden className="text-[#94A3B8]">
                 •
               </span>
-              <span>Available free on iOS &amp; Android</span>
+              <span>{t('welcomeFreeIosAndroid')}</span>
               <span aria-hidden className="text-[#94A3B8]">
                 •
               </span>
-              <span>Sacred space, zero advertisements</span>
+              <span>{t('welcomeNoAds')}</span>
             </div>
           </div>
 
@@ -179,7 +178,7 @@ export default function WelcomeHero({
                     {believersLabel}
                   </span>
                   <span className="truncate text-[12px] leading-[1.5] text-white">
-                    United in prayer today across 42 Baltic parishes
+                    {t('welcomeUnitedInPrayer')}
                   </span>
                 </div>
               </div>
@@ -196,7 +195,7 @@ export default function WelcomeHero({
                           style={{ fontSize: 12 }}
                         />
                         <span className="text-[10px] font-semibold uppercase leading-[1.5] tracking-[2px] text-[#2F7AD2]">
-                          Guided Contemplation
+                          {t('welcomeGuidedContemplation')}
                         </span>
                       </div>
 
@@ -254,7 +253,7 @@ export default function WelcomeHero({
                   <div className="flex items-center">
                     {PASTOR_AVATARS.map((avatar, idx) => (
                       <Image
-                        alt="Pastor online"
+                        alt={t('welcomePastorOnlineAlt')}
                         className="-mr-3 h-6 w-6 rounded-full object-cover ring-2 ring-white last:mr-0"
                         height={24}
                         key={idx}
@@ -265,7 +264,7 @@ export default function WelcomeHero({
                     ))}
                   </div>
                   <span className="truncate text-[10px] font-medium leading-none text-white/45">
-                    Pastors online for prayer
+                    {t('welcomePastorsOnline')}
                   </span>
                 </div>
 
@@ -273,7 +272,7 @@ export default function WelcomeHero({
                   className="flex shrink-0 items-center gap-1 whitespace-nowrap text-[12px] font-semibold leading-[1.5] text-white transition-colors hover:text-white/80"
                   href="/login"
                 >
-                  <span>Request Prayer</span>
+                  <span>{t('welcomeRequestPrayer')}</span>
                   <ArrowRightIcon aria-hidden style={{ fontSize: 12 }} />
                 </Link>
               </div>

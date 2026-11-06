@@ -15,6 +15,7 @@ import { SITE_MESSAGES } from './messages'
 describe('SITE_MESSAGES', () => {
   const chromeKeys = Object.keys(SITE_MESSAGES.en).filter((key) => /^(header|footer)/.test(key))
   const profileKeys = Object.keys(SITE_MESSAGES.en).filter((key) => /^profile/.test(key))
+  const welcomeKeys = Object.keys(SITE_MESSAGES.en).filter((key) => /^welcome/.test(key))
 
   it('keeps every header/footer key in all four locales', () => {
     expect(chromeKeys.length).toBeGreaterThan(20)
@@ -31,6 +32,16 @@ describe('SITE_MESSAGES', () => {
     SITE_LOCALES.forEach((locale) => {
       const block = SITE_MESSAGES[locale] as Record<string, string>
       profileKeys.forEach((key) => {
+        expect(block[key], `${locale} is missing ${key}`).toBeTruthy()
+      })
+    })
+  })
+
+  it('keeps every welcome landing key in all four locales', () => {
+    expect(welcomeKeys.length).toBeGreaterThan(100)
+    SITE_LOCALES.forEach((locale) => {
+      const block = SITE_MESSAGES[locale] as Record<string, string>
+      welcomeKeys.forEach((key) => {
         expect(block[key], `${locale} is missing ${key}`).toBeTruthy()
       })
     })

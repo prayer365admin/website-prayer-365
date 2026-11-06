@@ -1,13 +1,13 @@
 import { ArrowRightIcon } from '@/components/icon/arrow-right'
 import { LockIcon } from '@/components/icon/lock'
+import { useSiteI18n } from '@/i18n/site-i18n'
 import Link from 'next/link'
 
 export default function WelcomeCtaParishioner() {
+  const { t } = useSiteI18n()
+
   return (
-    <section
-      aria-label="Parish and Pilgrim Portal Access"
-      className="py-10 px-6 max-w-[1280px] mx-auto"
-    >
+    <section aria-label={t('welcomePortalBadge')} className="py-10 px-6 max-w-[1280px] mx-auto">
       <div className="rounded-2xl bg-white p-8 md:p-10 shadow-sm border border-[#E6EDFB] flex flex-col md:flex-row items-start justify-between gap-6">
         {/* Left Copy */}
         <div className="max-w-[705px]">
@@ -25,16 +25,15 @@ export default function WelcomeCtaParishioner() {
                 fill="#0B4497"
               />
             </svg>
-            <span>PARISH &amp; PILGRIM PORTAL</span>
+            <span>{t('welcomePortalBadge')}</span>
           </div>
 
           <h3 className="text-[28px] md:text-[32px] font-bold text-[#0E203E] leading-tight">
-            Already a Parishioner or Pilgrim?
+            {t('welcomeCtaTitle')}
           </h3>
 
           <p className="text-[14px] sm:text-[15px] text-[#5C6370] mt-3 leading-relaxed max-w-[576px]">
-            Sign into your consecrated profile to sync your prayer habit streaks, access
-            confidential chaplain replies, and manage diaconal donations.
+            {t('welcomeCtaBody')}
           </p>
         </div>
 
@@ -44,7 +43,7 @@ export default function WelcomeCtaParishioner() {
             className="h-10 rounded-lg bg-[#2F7AD2] text-white text-[14px] font-semibold px-4 flex items-center gap-1.5 hover:bg-[#256bb8] transition-colors shadow-sm"
             href="/register"
           >
-            <span>Create Free Profile</span>
+            <span>{t('welcomeCreateProfile')}</span>
             <ArrowRightIcon aria-hidden style={{ fontSize: 14 }} />
           </Link>
 
@@ -53,7 +52,7 @@ export default function WelcomeCtaParishioner() {
             href="/login"
           >
             <LockIcon aria-hidden className="text-[#2F7AD2]" style={{ fontSize: 14 }} />
-            <span>Sign In to Sanctuary</span>
+            <span>{t('welcomeSignInSanctuary')}</span>
           </Link>
         </div>
       </div>
