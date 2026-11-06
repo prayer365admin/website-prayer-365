@@ -233,15 +233,15 @@ Because `.env` and `.env.staging` target the same secrets, seeding with the wron
 mistake (staging carries a different `ELEVENLABS_API_KEY`, for example). The script therefore rejects a
 `--file` that is not the environment default unless `--allow-file` is passed.
 
-| Secret                     | Built from                                                                     | Notes                                               |
-| -------------------------- | ------------------------------------------------------------------------------ | --------------------------------------------------- |
-| `database-url`             | `DATABASE_URL`                                                                 | must be a `postgres://` / `postgresql://` URL       |
-| `elevenlabs-api-key`       | `ELEVENLABS_API_KEY`                                                           | must pass the ElevenLabs API or audio jobs fail     |
-| `stripe-secret-key`        | `STRIPE_SECRET_KEY`                                                            | `sk_` / `rk_`                                       |
-| `stripe-webhook-secret`    | `STRIPE_WEBHOOK_SECRET`                                                        | `whsec_`                                            |
-| `mail-credentials`         | `MAIL_PROVIDER` + that provider's keys                                         | `ses` → `{}`; mailgun/mailtrap → user+password JSON |
-| `device-token-key`         | `DEVICE_TOKEN_KEY`                                                             | base64 32 bytes, **same value as the web app**      |
-| `firebase-service-account` | `FIREBASE_SERVICE_ACCOUNT` (JSON or base64) or `FIREBASE_SERVICE_ACCOUNT_FILE` | service-account JSON for FCM                        |
+| Secret                     | Built from                                                                     | Notes                                                   |
+| -------------------------- | ------------------------------------------------------------------------------ | ------------------------------------------------------- |
+| `database-url`             | `DATABASE_URL`                                                                 | must be a `postgres://` / `postgresql://` URL           |
+| `elevenlabs-api-key`       | `ELEVENLABS_API_KEY`                                                           | must pass the ElevenLabs API or audio jobs fail         |
+| `stripe-secret-key`        | `STRIPE_SECRET_KEY`                                                            | `sk_` / `rk_`                                           |
+| `stripe-webhook-secret`    | `STRIPE_WEBHOOK_SECRET`                                                        | `whsec_`                                                |
+| `mail-credentials`         | `MAIL_PROVIDER` + that provider's keys                                         | `ses` → `{}`; mailgun/mailtrap → user+password JSON     |
+| `device-token-key`         | `DEVICE_TOKEN_KEY`                                                             | base64 32 bytes, **same value as the web app**          |
+| `firebase-service-account` | `FIREBASE_SERVICE_ACCOUNT` (JSON or base64) or `FIREBASE_SERVICE_ACCOUNT_FILE` | service-account JSON for FCM — see **docs/FIREBASE.md** |
 
 Values are masked unless `--show-values`; `unchanged` secrets are never written; if any secret cannot be
 built from the chosen file the run stops before writing anything and names the missing keys.
