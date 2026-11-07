@@ -1,10 +1,13 @@
 import { QuoteIcon } from '@/components/icon/quote'
+import { useSiteI18n } from '@/i18n/site-i18n'
 import { SCRIPTURE_BLESSING } from './data'
 
 export default function WelcomeScriptureQuote() {
+  const { t } = useSiteI18n()
+
   return (
     <section
-      aria-label="Scripture Blessing"
+      aria-label={t('welcomeScriptureAria')}
       className="border-b border-[#DDE0E4] bg-white px-6 py-10"
     >
       <div className="mx-auto max-w-[1152px]">
@@ -13,11 +16,11 @@ export default function WelcomeScriptureQuote() {
             <QuoteIcon aria-hidden className="text-[#2F7AD2]" style={{ fontSize: 20 }} />
 
             <blockquote className="max-w-[820px] font-font_quote text-[24px] italic leading-[1.15] text-[#0B4497] md:text-[32px]">
-              {SCRIPTURE_BLESSING.quote}
+              {t(SCRIPTURE_BLESSING.quoteKey)}
             </blockquote>
 
             <cite className="text-[10px] font-semibold uppercase not-italic tracking-[2px] text-[#5C6370]">
-              {SCRIPTURE_BLESSING.attribution}
+              {t(SCRIPTURE_BLESSING.attributionKey)}
             </cite>
           </div>
         </div>

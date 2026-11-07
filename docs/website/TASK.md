@@ -182,6 +182,12 @@ Decided while building WB1; answers to the WB1 issue report are in
   pass the native-speaker review (R-13) before public launch.
 - Native-speaker review of et/sv/fi UI strings (R-13), including the header/footer
   chrome keys added by review 013 (`header*`, `footer*`).
+- The `/welcome` landing page now reads i18n keys end to end (`welcome*`, ~120 keys in en/et/sv/fi,
+  parity asserted in `src/i18n/messages.test.ts`). The page and its sections are client components
+  reading `useSiteI18n()` (server data still arrives as props), so the header language switcher
+  re-renders the copy in place instead of keeping the previous locale until a reload. Parish and
+  pastor proper names stay untranslated. The `et`/`sv`/`fi` marketing copy is a best-effort draft
+  and needs the same R-13 review.
 - Set a real, verified pastoral-care phone number in
   `src/components/site/support-hotline.ts` (the footer links to `/churches` while it is empty).
 - Seed `prayer_user` (and the `sv` language) on every environment (R-09).

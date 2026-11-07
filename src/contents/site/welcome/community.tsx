@@ -1,10 +1,13 @@
+import { useSiteI18n } from '@/i18n/site-i18n'
 import Image from 'next/image'
 import { MOSAIC_TILES } from './data'
 
 export default function WelcomeCommunity() {
+  const { t } = useSiteI18n()
+
   return (
     <section
-      aria-label="Moments in Sacred Fellowship"
+      aria-label={t('welcomeCommunityTitle')}
       className="py-16 md:py-24 px-6 max-w-[1280px] mx-auto"
     >
       {/* Header Row */}
@@ -17,15 +20,14 @@ export default function WelcomeCommunity() {
                 fill="#0B4497"
               />
             </svg>
-            <span>Living Sanctuary in Pictures</span>
+            <span>{t('welcomeCommunityEyebrow')}</span>
           </div>
           <h2 className="text-[32px] md:text-[36px] font-bold text-[#0E203E] leading-tight">
-            Moments in Sacred Fellowship
+            {t('welcomeCommunityTitle')}
           </h2>
         </div>
         <p className="text-[15px] text-[#5C6370] max-w-[461px] leading-relaxed">
-          From quiet dawn vigils in medieval stone vaults to vibrant diocesan youth gatherings
-          across the Gulf of Finland.
+          {t('welcomeCommunityBody')}
         </p>
       </div>
 
@@ -34,10 +36,10 @@ export default function WelcomeCommunity() {
         {MOSAIC_TILES.map((tile) => (
           <div
             className="relative h-[384px] rounded-2xl overflow-hidden shadow-sm group border border-[#E6EDFB]"
-            key={tile.title}
+            key={tile.titleKey}
           >
             <Image
-              alt={tile.title}
+              alt={t('welcomeCommunityTitle')}
               className="object-cover transition-transform duration-500 group-hover:scale-105"
               fill
               sizes="(max-width: 768px) 100vw, 384px"
@@ -67,13 +69,13 @@ export default function WelcomeCommunity() {
                   />
                 </svg>
                 <span className="text-[10px] tracking-[2px] uppercase font-semibold">
-                  {tile.eyebrow}
+                  {t(tile.eyebrowKey)}
                 </span>
               </div>
               <h3 className="text-white text-[22px] leading-[28px] font-semibold mb-2">
-                {tile.title}
+                {t(tile.titleKey)}
               </h3>
-              <p className="text-[13px] text-[#DDE0E4] leading-relaxed">{tile.description}</p>
+              <p className="text-[13px] text-[#DDE0E4] leading-relaxed">{t(tile.descriptionKey)}</p>
             </div>
           </div>
         ))}

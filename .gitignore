@@ -38,7 +38,7 @@ bun-error.log*
 .vitest
 
 .omp
-
+.secrets/
 # vercel
 .vercel
 

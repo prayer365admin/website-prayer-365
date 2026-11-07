@@ -1,15 +1,26 @@
+import { SiteLocale } from '@/config/site-locale'
 import { SITE_MESSAGES } from '@/i18n/messages'
-import { SiteI18nProvider } from '@/i18n/site-i18n'
+import { SiteI18nProvider, useSiteI18n } from '@/i18n/site-i18n'
 import { renderWithProviders } from '@/test/frontend/render'
-import { fireEvent, screen, within } from '@testing-library/react'
+import { act, fireEvent, screen, within } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
 import ContentsSiteWelcome from './index'
+
+/** Mirrors the top-bar language switcher: it only calls `setLocale`. */
+function SwitchTo({ locale }: { locale: SiteLocale }) {
+  const { setLocale } = useSiteI18n()
+  return (
+    <button onClick={() => setLocale(locale)} type="button">
+      switch
+    </button>
+  )
+}
 
 describe('Welcome landing page (welcome-landing)', () => {
   it('renders all sections and fallbacks when prayer and memberCount are absent', () => {
     renderWithProviders(
       <SiteI18nProvider initialLocale="en">
-        <ContentsSiteWelcome locale="en" memberCount={null} prayer={null} />
+        <ContentsSiteWelcome memberCount={null} prayer={null} />
       </SiteI18nProvider>,
     )
 
@@ -25,7 +36,7 @@ describe('Welcome landing page (welcome-landing)', () => {
     expect(screen.getByText('Everyday Faith.')).toBeTruthy()
     expect(screen.getByText('A More Connected Tomorrow.')).toBeTruthy()
     expect(screen.getByText('Join the Sanctuary — Register Free')).toBeTruthy()
-    // Store envs drive the promo badges and QR only; hero badges always jump to #app-promo.
+    // Store envs drive the promo badges only; hero badges always jump to #app-promo.
     const hero = within(screen.getByLabelText('Welcome Hero'))
     expect(hero.getByLabelText('Download on the App Store').getAttribute('href')).toBe('#app-promo')
     expect(hero.getByLabelText('Get it on Google Play').getAttribute('href')).toBe('#app-promo')
@@ -59,7 +70,8 @@ describe('Welcome landing page (welcome-landing)', () => {
     expect(screen.getByText('Take the Sanctuary Wherever You Walk')).toBeTruthy()
     expect(screen.getByText('06:30 Scripture Gentle Push')).toBeTruthy()
     expect(screen.getByText('Offline Liturgy Playback')).toBeTruthy()
-    expect(screen.getByText('Scan on Camera')).toBeTruthy()
+    // The downloadable QR card was removed from the promo.
+    expect(screen.queryByText('Scan on Camera')).toBeNull()
 
     // CTA
     expect(screen.getByText('Already a Parishioner or Pilgrim?')).toBeTruthy()
@@ -73,7 +85,7 @@ describe('Welcome landing page (welcome-landing)', () => {
 
     // Scripture Quote
     expect(screen.getAllByText(/The Lord bless you and keep you/).length).toBeGreaterThan(0)
-    expect(screen.getByText(/NUMBERS 6:24-25 • THE AARONIC BLESSING/)).toBeTruthy()
+    expect(screen.getByText(SITE_MESSAGES.en.welcomeScriptureAttribution)).toBeTruthy()
 
     // Footer
     expect(screen.getByText('Parish Network')).toBeTruthy()
@@ -95,7 +107,7 @@ describe('Welcome landing page (welcome-landing)', () => {
 
     renderWithProviders(
       <SiteI18nProvider initialLocale="en">
-        <ContentsSiteWelcome locale="en" memberCount={42100} prayer={mockPrayer} />
+        <ContentsSiteWelcome memberCount={42100} prayer={mockPrayer} />
       </SiteI18nProvider>,
     )
 
@@ -111,5 +123,41 @@ describe('Welcome landing page (welcome-landing)', () => {
     })
     expect(playBtn).toBeTruthy()
     fireEvent.click(playBtn)
+  })
+
+  it('renders the translated copy for the active locale', () => {
+    renderWithProviders(
+      <SiteI18nProvider initialLocale="et">
+        <ContentsSiteWelcome memberCount={null} prayer={null} />
+      </SiteI18nProvider>,
+    )
+
+    expect(screen.getByText(SITE_MESSAGES.et.welcomeHeroTitleQuote)).toBeTruthy()
+    expect(screen.getByText(SITE_MESSAGES.et.welcomeHeroTitle)).toBeTruthy()
+    expect(screen.getByText(SITE_MESSAGES.et.welcomePillarsTitle)).toBeTruthy()
+    expect(screen.getByText(SITE_MESSAGES.et.welcomeCtaTitle)).toBeTruthy()
+    expect(screen.getByText(SITE_MESSAGES.et.welcomeFooterParishNetwork)).toBeTruthy()
+
+    // English marketing copy must not leak through in a translated locale.
+    expect(screen.queryByText('Everyday Faith.')).toBeNull()
+    expect(screen.queryByText('Five Pillars of Our Digital Sanctuary')).toBeNull()
+  })
+
+  it('switches language in place without a page reload', () => {
+    renderWithProviders(
+      <SiteI18nProvider initialLocale="en">
+        <ContentsSiteWelcome memberCount={null} prayer={null} />
+        <SwitchTo locale="sv" />
+      </SiteI18nProvider>,
+    )
+
+    expect(screen.getByText(SITE_MESSAGES.en.welcomeHeroTitleQuote)).toBeTruthy()
+
+    act(() => screen.getByRole('button', { name: 'switch' }).click())
+
+    expect(screen.getByText(SITE_MESSAGES.sv.welcomeHeroTitleQuote)).toBeTruthy()
+    expect(screen.getByText(SITE_MESSAGES.sv.welcomePillarsTitle)).toBeTruthy()
+    expect(screen.getByText(SITE_MESSAGES.sv.welcomeFooterParishNetwork)).toBeTruthy()
+    expect(screen.queryByText(SITE_MESSAGES.en.welcomeHeroTitleQuote)).toBeNull()
   })
 })

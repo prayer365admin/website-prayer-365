@@ -1,24 +1,26 @@
 import { StarFilled } from '@/components/icon/antd-icons'
+import { useSiteI18n } from '@/i18n/site-i18n'
 import Image from 'next/image'
 import { TESTIMONIALS } from './data'
 
 export default function WelcomeTestimonials() {
+  const { t } = useSiteI18n()
+
   return (
     <section
-      aria-label="Voices in Communion"
+      aria-label={t('welcomeTestimonialsEyebrow')}
       className="py-16 md:py-24 px-6 max-w-[1280px] mx-auto"
     >
       {/* Header */}
       <div className="text-center max-w-[640px] mx-auto mb-12">
         <div className="rounded-full bg-[#E6EDFB] px-4 py-1 w-fit mx-auto text-[#2F7AD2] text-[10px] tracking-[2px] uppercase font-semibold mb-3">
-          Voices in Communion
+          {t('welcomeTestimonialsEyebrow')}
         </div>
         <h2 className="text-[32px] md:text-[36px] font-bold text-[#0E203E] leading-tight">
-          Pastoral Solidarity &amp; Testimonies
+          {t('welcomeTestimonialsTitle')}
         </h2>
         <p className="text-[15px] text-[#5C6370] mt-3 leading-relaxed">
-          Reflections from parish priests, diocesan deacons, and daily worshippers across our
-          regional fellowship.
+          {t('welcomeTestimonialsBody')}
         </p>
       </div>
 
@@ -31,7 +33,11 @@ export default function WelcomeTestimonials() {
           >
             <div>
               {/* Star Rating */}
-              <div aria-label="5 stars rating" className="flex items-center gap-1 mb-4" role="img">
+              <div
+                aria-label={t('welcomeRatingAria')}
+                className="flex items-center gap-1 mb-4"
+                role="img"
+              >
                 {[...Array(5)].map((_, i) => (
                   <StarFilled className="!text-[#F59E0B] text-[14px]" key={i} />
                 ))}
@@ -39,7 +45,7 @@ export default function WelcomeTestimonials() {
 
               {/* Quote */}
               <blockquote className="font-font_quote italic text-[18px] md:text-[20px] leading-[26px] text-[#191C1E] mb-6">
-                {item.quote}
+                {t(item.quoteKey)}
               </blockquote>
             </div>
 
@@ -58,7 +64,7 @@ export default function WelcomeTestimonials() {
                 <span className="text-[14px] font-semibold text-[#0E203E] truncate">
                   {item.author}
                 </span>
-                <span className="text-[12px] text-[#5C6370] truncate">{item.role}</span>
+                <span className="text-[12px] text-[#5C6370] truncate">{t(item.roleKey)}</span>
               </div>
             </div>
           </div>

@@ -15,7 +15,7 @@ export default async function Page() {
   return (
     <SiteI18nProvider initialLocale={locale}>
       <SessionAccessGuard access="guest" />
-      <ContentsSiteWelcome locale={locale} memberCount={memberCount} prayer={prayer} />
+      <ContentsSiteWelcome memberCount={memberCount} prayer={prayer} />
     </SiteI18nProvider>
   )
 }

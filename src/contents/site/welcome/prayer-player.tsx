@@ -1,6 +1,7 @@
 'use client'
 
 import { CaretRightFilled } from '@/components/icon/antd-icons'
+import { useSiteI18n } from '@/i18n/site-i18n'
 import { PauseOutlined } from '@ant-design/icons'
 import { useRef, useState } from 'react'
 
@@ -27,6 +28,7 @@ export default function WelcomePrayerPlayer({
   audioUrl?: string | null
   title?: string
 }) {
+  const { t } = useSiteI18n()
   const audioRef = useRef<HTMLAudioElement>(null)
   const [playing, setPlaying] = useState(false)
   const [currentTime, setCurrentTime] = useState(0)
@@ -81,8 +83,8 @@ export default function WelcomePrayerPlayer({
       <button
         aria-label={
           hasAudio
-            ? `${playing ? 'Pause' : 'Play'} audio prayer: ${title ?? ''}`
-            : 'Audio not available'
+            ? t(playing ? 'welcomePlayerPause' : 'welcomePlayerPlay', { title: title ?? '' })
+            : t('welcomePlayerUnavailable')
         }
         className={`grid h-12 w-12 shrink-0 place-items-center rounded-xl transition-colors ${
           hasAudio
@@ -126,8 +128,11 @@ export default function WelcomePrayerPlayer({
 
         <span className="sr-only">
           {hasAudio
-            ? `${formatSeconds(currentTime)} of ${formatSeconds(duration)}`
-            : 'Audio not available'}
+            ? t('welcomePlayerProgress', {
+                current: formatSeconds(currentTime),
+                duration: formatSeconds(duration),
+              })
+            : t('welcomePlayerUnavailable')}
         </span>
       </div>
     </div>

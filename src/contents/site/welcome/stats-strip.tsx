@@ -1,9 +1,12 @@
+import { useSiteI18n } from '@/i18n/site-i18n'
 import { CHURCH_NETWORK_CHIPS } from './data'
 
 export default function WelcomeStatsStrip() {
+  const { t } = useSiteI18n()
+
   return (
     <section
-      aria-label="Canonical Fellowship Network"
+      aria-label={t('welcomeNetworkTitle')}
       className="bg-white border-y border-[#E6EDFB] py-4 px-6"
     >
       <div className="max-w-[1280px] mx-auto flex flex-col lg:flex-row lg:items-center justify-between gap-4">
@@ -16,7 +19,7 @@ export default function WelcomeStatsStrip() {
             />
           </svg>
           <span className="text-[13px] font-bold tracking-[0.65px] uppercase text-[#191C1E]">
-            Canonical Fellowship Network
+            {t('welcomeNetworkTitle')}
           </span>
         </div>
 
