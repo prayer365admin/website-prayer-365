@@ -882,6 +882,12 @@ export const SITE_MESSAGES = {
     welcomeFooterPrivacy: 'Privacy of Confession',
     welcomeFooterTerms: 'Terms of Fellowship',
     welcomeFooterSupport: 'Pastoral Support',
+    maintenanceEyebrow: 'Prayer 365',
+    maintenanceTitle: 'Something new is coming',
+    maintenanceStatus: 'Coming soon',
+    maintenanceBody:
+      'We are putting the finishing touches on the next chapter of Prayer 365. The platform opens very soon — your account and saved data are safe.',
+    maintenanceRetry: 'Check again',
   },
   // DRAFT — Estonian strings not yet reviewed by a native speaker (REPORT R-13).
   // Do not treat as final launch text.
@@ -1671,6 +1677,12 @@ export const SITE_MESSAGES = {
     welcomeFooterPrivacy: 'Pihtimise privaatsus',
     welcomeFooterTerms: 'Osaduse tingimused',
     welcomeFooterSupport: 'Pastoraalne tugi',
+    maintenanceEyebrow: 'Prayer 365',
+    maintenanceTitle: 'Midagi uut on tulemas',
+    maintenanceStatus: 'Tulekul peagi',
+    maintenanceBody:
+      'Viimistleme Prayer 365 järgmist peatükki. Platvorm avaneb varsti — sinu konto ja salvestatud andmed on turvalised.',
+    maintenanceRetry: 'Vaata uuesti',
   },
   // DRAFT — Swedish strings not yet reviewed by a native speaker (REPORT R-13).
   // Do not treat as final launch text.
@@ -2463,6 +2475,12 @@ export const SITE_MESSAGES = {
     welcomeFooterPrivacy: 'Biktens integritet',
     welcomeFooterTerms: 'Gemenskapens villkor',
     welcomeFooterSupport: 'Pastoralt stöd',
+    maintenanceEyebrow: 'Prayer 365',
+    maintenanceTitle: 'Något nytt är på väg',
+    maintenanceStatus: 'Kommer snart',
+    maintenanceBody:
+      'Vi finslipar nästa kapitel av Prayer 365. Plattformen öppnar mycket snart — ditt konto och sparade uppgifter är säkra.',
+    maintenanceRetry: 'Kontrollera igen',
   },
   // DRAFT — Finnish strings not yet reviewed by a native speaker (REPORT R-13).
   // Do not treat as final launch text.
@@ -3259,6 +3277,12 @@ export const SITE_MESSAGES = {
     welcomeFooterPrivacy: 'Rippisalaisuuden yksityisyys',
     welcomeFooterTerms: 'Yhteyden ehdot',
     welcomeFooterSupport: 'Pastoraalinen tuki',
+    maintenanceEyebrow: 'Prayer 365',
+    maintenanceTitle: 'Jotain uutta on tulossa',
+    maintenanceStatus: 'Tulossa pian',
+    maintenanceBody:
+      'Viimeistelemme Prayer 365:n seuraavaa lukua. Alusta avautuu hyvin pian — tilisi ja tallennetut tietosi ovat turvassa.',
+    maintenanceRetry: 'Tarkista uudelleen',
   },
 } satisfies Record<SiteLocale, Record<string, string>>
 

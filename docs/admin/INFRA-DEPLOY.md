@@ -409,6 +409,12 @@ needs:
 `JOBS_QUEUE_URL`, `JOB_CLAIM_LIMIT` and `JOB_LEASE_SECONDS` belong to the Lambda workers only —
 leave them empty on Vercel.
 
+`NEXT_PUBLIC_IS_MAINTENANCE` is the maintenance switch: exactly `true` sends every page to
+`/maintenance`, except `/admin` and `/login` (staff keep working) and `/api` (mobile app and
+webhooks keep working); anything else leaves the site open. The redirect lives in `src/proxy.ts`.
+It is a public variable, so Vercel bakes it into the build: flip it and redeploy to see the change
+(restart `next dev` locally).
+
 ### 4.7 Retiring an environment
 
 ```bash
