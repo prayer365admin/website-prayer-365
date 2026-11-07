@@ -8,11 +8,16 @@ import { requiredScope } from '@/utils/required-scope'
 import { httpError, ok, requestId as genRequestId } from '@/utils/response'
 import { validate } from '@/utils/validate'
 
+const RecurrenceSchema = z.union([z.enum(['weekly', 'monthly']), z.null()])
+
 const RuleDtoSchema = z.object({
   id: z.string(),
   type: z.string(),
   enabled: z.boolean(),
+  push_enabled: z.boolean(),
+  email_enabled: z.boolean(),
   offset_minutes: z.number().nullable(),
+  recurrence: RecurrenceSchema,
   version: z.number(),
 })
 
@@ -35,7 +40,10 @@ registerPath({
         type: z.string(),
         version: z.number(),
         enabled: z.boolean().optional(),
+        push_enabled: z.boolean().optional(),
+        email_enabled: z.boolean().optional(),
         offset_minutes: z.number().nullable().optional(),
+        recurrence: RecurrenceSchema.optional(),
       }),
     ),
   },

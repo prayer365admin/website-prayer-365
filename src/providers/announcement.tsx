@@ -239,12 +239,13 @@ export const PUBLISH_ANNOUNCEMENT = async ({
         requestId,
       }),
     })
-    // Queue the church_announcements push in the same transaction as the
-    // publish, so a published announcement is never silently unnotified.
+    // Queue the announcement_published notification in the same transaction as
+    // the publish, so a published announcement is never silently unnotified.
+    // The trigger name must match the notification rule / sender's trigger map.
     // Dedupe key = the version that just went live (one notification per publish).
     await ENQUEUE_NOTIFICATION(
       {
-        type: 'church_announcements',
+        type: 'announcement_published',
         resourceId: announcementId,
         churchId,
         dedupeKeySuffix: `${announcementId}:${expectedVersion + 1}`,

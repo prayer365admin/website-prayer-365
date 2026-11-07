@@ -212,9 +212,9 @@ describe('Announcement Provider', () => {
     expect(tx.outboxJob.create).toHaveBeenCalledWith({
       data: {
         kind: 'notification.send',
-        dedupe_key: 'notification.send:church_announcements:announcement-1:2',
+        dedupe_key: 'notification.send:announcement_published:announcement-1:2',
         resource_id: 'announcement-1',
-        payload: { type: 'church_announcements', churchId: 'church-1' },
+        payload: { type: 'announcement_published', churchId: 'church-1' },
         available_at: expect.any(Date),
       },
     })

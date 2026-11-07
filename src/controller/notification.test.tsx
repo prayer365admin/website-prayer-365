@@ -62,6 +62,39 @@ describe('notification-rules validation contract', () => {
     ])
   })
 
+  it('accepts a channel-only update without enabling or offset', () => {
+    const parsed = NotificationRulesUpdateSchema.safeParse([
+      { type: 'prayer_published', version: 1, email_enabled: true },
+    ])
+    expect(parsed.success).toBe(true)
+  })
+
+  it('accepts the monthly recurrence for donation reminders only', () => {
+    expect(
+      NotificationRulesUpdateSchema.safeParse([
+        { type: 'donation_reminder', version: 1, recurrence: 'monthly' },
+      ]).success,
+    ).toBe(true)
+    expect(
+      NotificationRulesUpdateSchema.safeParse([
+        { type: 'donation_reminder', version: 1, recurrence: null },
+      ]).success,
+    ).toBe(true)
+    expect(
+      NotificationRulesUpdateSchema.safeParse([
+        { type: 'event_reminder', version: 1, recurrence: 'weekly' },
+      ]).success,
+    ).toBe(false)
+  })
+
+  it('rejects an unknown recurrence', () => {
+    expect(
+      NotificationRulesUpdateSchema.safeParse([
+        { type: 'donation_reminder', version: 1, recurrence: 'daily' },
+      ]).success,
+    ).toBe(false)
+  })
+
   it('accepts an allowlisted offset of null or 1440', () => {
     expect(
       NotificationRulesUpdateSchema.safeParse([

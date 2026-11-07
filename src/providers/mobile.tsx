@@ -1540,7 +1540,7 @@ export const GET_NOTIFICATION_RECIPIENTS = async ({ churchId }: { churchId: stri
       OR: [{ is_main: true }, { is_followed: true }],
       user: { status: 'active' },
     },
-    select: { user_id: true },
+    select: { user_id: true, user: { select: { email: true, name: true } } },
   })
 
 export const GET_ACTIVE_DEVICES_FOR_USERS = async ({ userIds }: { userIds: string[] }) =>
@@ -1624,7 +1624,10 @@ export const GET_NOTIFICATION_CONTENT = async ({
   resourceId: string | null
   churchId: string
 }) => {
-  const church = await db.church.findUnique({ where: { id: churchId }, select: { name: true } })
+  const church = await db.church.findUnique({
+    where: { id: churchId },
+    select: { name: true, slug: true },
+  })
   if (!church) return null
   if (type === 'prayer_published' && resourceId) {
     const prayer = await db.prayer.findFirst({
@@ -1638,7 +1641,12 @@ export const GET_NOTIFICATION_CONTENT = async ({
         })
       : null
     if (!version) return null
-    return { title: `New prayer from ${church.name}`, body: version.title }
+    return {
+      title: `New prayer from ${church.name}`,
+      body: version.title,
+      churchName: church.name,
+      churchSlug: church.slug,
+    }
   }
   if (type === 'announcement_published' && resourceId) {
     const announcement = await db.announcement.findFirst({
@@ -1646,7 +1654,12 @@ export const GET_NOTIFICATION_CONTENT = async ({
       select: { title: true },
     })
     if (!announcement) return null
-    return { title: `New announcement from ${church.name}`, body: announcement.title }
+    return {
+      title: `New announcement from ${church.name}`,
+      body: announcement.title,
+      churchName: church.name,
+      churchSlug: church.slug,
+    }
   }
   if (type === 'event_reminder' && resourceId) {
     const event = await db.event.findFirst({
@@ -1654,10 +1667,20 @@ export const GET_NOTIFICATION_CONTENT = async ({
       select: { title: true },
     })
     if (!event) return null
-    return { title: `Upcoming at ${church.name}`, body: event.title }
+    return {
+      title: `Upcoming at ${church.name}`,
+      body: event.title,
+      churchName: church.name,
+      churchSlug: church.slug,
+    }
   }
   if (type === 'donation_reminder') {
-    return { title: `Support ${church.name}`, body: 'Your giving keeps this ministry going.' }
+    return {
+      title: `Support ${church.name}`,
+      body: 'Your giving keeps this ministry going.',
+      churchName: church.name,
+      churchSlug: church.slug,
+    }
   }
   return null
 }

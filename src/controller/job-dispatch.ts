@@ -4,13 +4,15 @@
  * with the provider seams mocked.
  *
  * NOTE (layer law): this scheduler is the one place a controller imports another
- * controller. `prayer.publish` needs its due-date sweep before claiming, and that
- * sweep must have exactly one implementation. Business controllers stay free of
- * controller-to-controller imports.
+ * controller. `prayer.publish` needs its due-date sweep before claiming, and
+ * `notification.send` needs its calendar sweeps (event reminders, donation
+ * recurrence); each sweep must have exactly one implementation. Business
+ * controllers stay free of controller-to-controller imports.
  */
 import { CLAIM_PENDING_JOBS } from '@/providers/outbox-job'
 import { SQS_SEND_JOB } from '@/providers/sqs'
 import { scanDueScheduledPrayers } from '@/controller/prayer-publish-job'
+import { scanDueDonationReminders, scanDueEventReminders } from '@/controller/notification-schedule'
 import { logger } from '@/utils/logger'
 
 /**
@@ -65,6 +67,12 @@ export const runDispatcher = async (): Promise<DispatchSummary> => {
     if (kind === 'prayer.publish') {
       const scan = await scanDueScheduledPrayers()
       scanned = scan.enqueued
+    }
+    // Reminders and recurring donation nudges become notification.send jobs.
+    if (kind === 'notification.send') {
+      const events = await scanDueEventReminders()
+      const donations = await scanDueDonationReminders()
+      scanned += events.enqueued + donations.enqueued
     }
 
     const claimed = await CLAIM_PENDING_JOBS({ kind, limit, leaseSeconds: lease })

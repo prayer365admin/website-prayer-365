@@ -12,6 +12,7 @@ const mocks = vi.hoisted(() => {
     outbox: fns(['CLAIM_PENDING_JOBS']),
     sqs: fns(['SQS_SEND_JOB']),
     publish: fns(['scanDueScheduledPrayers']),
+    schedule: fns(['scanDueEventReminders', 'scanDueDonationReminders']),
     logger: fns(['info', 'error']),
   }
 })
@@ -19,6 +20,7 @@ const mocks = vi.hoisted(() => {
 vi.mock('@/providers/outbox-job', () => mocks.outbox)
 vi.mock('@/providers/sqs', () => mocks.sqs)
 vi.mock('@/controller/prayer-publish-job', () => mocks.publish)
+vi.mock('@/controller/notification-schedule', () => mocks.schedule)
 vi.mock('@/utils/logger', () => ({ logger: mocks.logger }))
 
 import { runDispatcher, SUPPORTED_KINDS } from './job-dispatch'
@@ -32,6 +34,8 @@ beforeEach(() => {
   delete process.env.JOB_CLAIM_LIMIT
   delete process.env.JOB_LEASE_SECONDS
   mocks.publish.scanDueScheduledPrayers.mockResolvedValue({ enqueued: 0 })
+  mocks.schedule.scanDueEventReminders.mockResolvedValue({ enqueued: 0 })
+  mocks.schedule.scanDueDonationReminders.mockResolvedValue({ enqueued: 0 })
   mocks.outbox.CLAIM_PENDING_JOBS.mockResolvedValue([])
 })
 

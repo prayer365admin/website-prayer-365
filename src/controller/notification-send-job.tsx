@@ -1,6 +1,7 @@
 import crypto from 'node:crypto'
 import { CLAIM_PENDING_JOBS, GET_JOB, MARK_JOB_STATE } from '@/providers/outbox-job'
 import { GET_NOTIFICATION_RULE_BY_TYPE } from '@/providers/notification'
+import { ENQUEUE_MAIL_SEND } from '@/providers/mail-job'
 import {
   FILTER_UNDELIVERED_DEVICES,
   GET_ACTIVE_DEVICES_FOR_USERS,
@@ -13,13 +14,17 @@ import {
 } from '@/providers/mobile'
 import { SEND_PUSH_BATCH } from '@/providers/push'
 import { decryptDeviceToken } from '@/utils/device-token'
+import { logger } from '@/utils/logger'
 
 /*
  * `notification.send` worker (F12).
  *
  * Claims one RUNNING outbox row, resolves the public content, filters recipients
- * by current preference and active tokens, then sends notification+data through
- * FCM. Dedupe is per event/user/device, so an SQS retry never sends twice.
+ * by current preference, then delivers on the channels the rule enables:
+ *   - push: notification+data through FCM, deduped per event/user/device, so an
+ *     SQS retry never sends twice;
+ *   - email: one `mail.send` outbox row per recipient, deduped by the outbox
+ *     unique key, so the existing SQS mail pipeline owns delivery and retries.
  */
 
 const MAX_ATTEMPTS = 3
@@ -37,6 +42,13 @@ const TAP_TYPE_BY_TRIGGER: Record<string, string> = {
   prayer_published: 'prayer',
   announcement_published: 'announcement',
   event_reminder: 'event',
+}
+/** Trigger -> Handlebars template under `public/templates/mail`. */
+const EMAIL_TEMPLATE_BY_TRIGGER: Record<string, string> = {
+  prayer_published: 'notification-prayer',
+  announcement_published: 'notification-announcement',
+  event_reminder: 'notification-event',
+  donation_reminder: 'notification-donation',
 }
 
 export type JobOutcome = 'succeeded' | 'failed' | 'requeued' | 'skipped'
@@ -94,76 +106,79 @@ export const processNotificationSendJob = async (
   const recipients = await GET_NOTIFICATION_RECIPIENTS({ churchId })
   const userIds = recipients.map((r) => r.user_id)
   const prefMap = await GET_PREFERENCE_MAP_FOR_USERS({ userIds })
-  const eligible = userIds.filter((id) => prefMap.get(id)?.get(prefKey) !== false)
-  const devices = await GET_ACTIVE_DEVICES_FOR_USERS({ userIds: eligible })
-  const undelivered = await FILTER_UNDELIVERED_DEVICES({
-    eventKey: job.dedupe_key,
-    deviceTokenIds: devices.map((d) => d.id),
-  })
-  const targets = devices.filter((d) => undelivered.has(d.id))
-  if (targets.length === 0) {
+  const eligible = new Set(userIds.filter((id) => prefMap.get(id)?.get(prefKey) !== false))
+
+  const pushEnabled = rule.push_enabled
+  const emailEnabled = rule.email_enabled
+  if (!pushEnabled && !emailEnabled) {
     await MARK_JOB_STATE({ jobId: job.id, state: 'SUCCEEDED' })
     return 'succeeded'
-  }
-
-  const data: Record<string, string> = {
-    type: tapType ?? type,
-    churchId,
-    messageId: job.dedupe_key,
-    ...(job.resource_id ? { resourceId: job.resource_id } : {}),
   }
 
   try {
-    let transient = false
-    for (let i = 0; i < targets.length; i += CHUNK) {
-      const slice = targets.slice(i, i + CHUNK)
-      const results = await SEND_PUSH_BATCH(
-        slice.map((d) => ({
-          token: decryptDeviceToken(d.token_ciphertext),
-          title: content.title,
-          body: content.body,
-          data,
-        })),
-      )
-      for (let j = 0; j < results.length; j += 1) {
-        const device = slice[j]
-        const result = results[j]
-        const delivery = await UPSERT_NOTIFICATION_DELIVERY({
-          ruleId: rule.id,
-          userId: device.user_id,
-          deviceTokenId: device.id,
-          eventKey: job.dedupe_key,
+    // Email first: it is a single idempotent enqueue per recipient, so a push
+    // retry cannot lose it and cannot duplicate it (outbox unique key).
+    if (emailEnabled) {
+      const template_name = EMAIL_TEMPLATE_BY_TRIGGER[type]
+      if (!template_name) {
+        await MARK_JOB_STATE({
+          jobId: job.id,
+          state: 'FAILED',
+          errorCode: 'UNSUPPORTED_NOTIFICATION',
         })
-        await MARK_NOTIFICATION_DELIVERY({
-          id: delivery.id,
-          status: result.ok ? 'sent' : 'failed',
+        return 'failed'
+      }
+      // Email CTA points at the public church page (W08); BASE_URL is the site
+      // origin the mail pipeline already uses as its template host.
+      const baseUrl = (process.env.BASE_URL || '').replace(/\/$/, '')
+      const ctaLink = `${baseUrl}/churches/${content.churchSlug}`
+
+      for (const recipient of recipients) {
+        if (!eligible.has(recipient.user_id)) continue
+        await ENQUEUE_MAIL_SEND({
+          // One mail per event per user; the outbox unique key absorbs retries.
+          dedupeKeySuffix: `notification:${job.dedupe_key}:${recipient.user_id}`,
+          skipDuplicates: true,
+          message: {
+            from: process.env.MAIL_FROM || 'info@example.com',
+            to: recipient.user.email,
+            subject: content.title,
+            template_name,
+            payload: {
+              customerName: recipient.user.name || recipient.user.email,
+              churchName: content.churchName,
+              body: content.body,
+              ctaLink,
+            },
+            baseUrl,
+          },
         })
-        if (result.ok) continue
-        if (result.invalidToken) {
-          await MARK_DEVICE_DISABLED({ deviceTokenId: device.id })
-          continue
-        }
-        transient = true
       }
     }
 
-    if (transient && job.attempts < MAX_ATTEMPTS) {
-      await MARK_JOB_STATE({
-        jobId: job.id,
-        state: 'PENDING',
-        errorCode: 'PUSH_TRANSIENT',
-        availableAt: backoff(job.attempts),
+    if (pushEnabled) {
+      const outcome = await sendPushLeg({
+        job,
+        ruleId: rule.id,
+        churchId,
+        dedupeKey: job.dedupe_key,
+        userIds: Array.from(eligible),
+        content,
+        data: {
+          type: tapType ?? type,
+          churchId,
+          messageId: job.dedupe_key,
+          ...(job.resource_id ? { resourceId: job.resource_id } : {}),
+        },
       })
-      return 'requeued'
+      if (outcome !== 'succeeded') return outcome
     }
-    if (transient) {
-      await MARK_JOB_STATE({ jobId: job.id, state: 'FAILED', errorCode: 'PUSH_FAILED' })
-      return 'failed'
-    }
+
     await MARK_JOB_STATE({ jobId: job.id, state: 'SUCCEEDED' })
     return 'succeeded'
   } catch (err) {
-    const errorCode = err instanceof Error && 'code' in err ? String(err.code) : 'PUSH_ERROR'
+    const errorCode =
+      err instanceof Error && 'code' in err ? String(err.code) : 'NOTIFICATION_ERROR'
     if (job.attempts < MAX_ATTEMPTS) {
       await MARK_JOB_STATE({
         jobId: job.id,
@@ -176,6 +191,84 @@ export const processNotificationSendJob = async (
     await MARK_JOB_STATE({ jobId: job.id, state: 'FAILED', errorCode })
     return 'failed'
   }
+}
+
+/**
+ * FCM leg. Returns the job outcome the caller should propagate: only
+ * `succeeded` lets the caller finish the job; transient failures requeue and a
+ * spent retry budget fails.
+ */
+const sendPushLeg = async ({
+  job,
+  ruleId,
+  churchId,
+  dedupeKey,
+  userIds,
+  content,
+  data,
+}: {
+  job: { id: string; attempts: number }
+  ruleId: string
+  churchId: string
+  dedupeKey: string
+  userIds: string[]
+  content: { title: string; body: string }
+  data: Record<string, string>
+}): Promise<JobOutcome> => {
+  const devices = userIds.length ? await GET_ACTIVE_DEVICES_FOR_USERS({ userIds }) : []
+  const undelivered = await FILTER_UNDELIVERED_DEVICES({
+    eventKey: dedupeKey,
+    deviceTokenIds: devices.map((d) => d.id),
+  })
+  const targets = devices.filter((d) => undelivered.has(d.id))
+  if (targets.length === 0) return 'succeeded'
+
+  let transient = false
+  for (let i = 0; i < targets.length; i += CHUNK) {
+    const slice = targets.slice(i, i + CHUNK)
+    const results = await SEND_PUSH_BATCH(
+      slice.map((d) => ({
+        token: decryptDeviceToken(d.token_ciphertext),
+        title: content.title,
+        body: content.body,
+        data,
+      })),
+    )
+    for (let j = 0; j < results.length; j += 1) {
+      const device = slice[j]
+      const result = results[j]
+      const delivery = await UPSERT_NOTIFICATION_DELIVERY({
+        ruleId,
+        userId: device.user_id,
+        deviceTokenId: device.id,
+        eventKey: dedupeKey,
+      })
+      await MARK_NOTIFICATION_DELIVERY({
+        id: delivery.id,
+        status: result.ok ? 'sent' : 'failed',
+      })
+      if (result.ok) continue
+      if (result.invalidToken) {
+        await MARK_DEVICE_DISABLED({ deviceTokenId: device.id })
+        continue
+      }
+      transient = true
+    }
+  }
+
+  if (!transient) return 'succeeded'
+  if (job.attempts < MAX_ATTEMPTS) {
+    await MARK_JOB_STATE({
+      jobId: job.id,
+      state: 'PENDING',
+      errorCode: 'PUSH_TRANSIENT',
+      availableAt: backoff(job.attempts),
+    })
+    return 'requeued'
+  }
+  logger.error('notification_push_failed', { job_id: job.id, church_id: churchId })
+  await MARK_JOB_STATE({ jobId: job.id, state: 'FAILED', errorCode: 'PUSH_FAILED' })
+  return 'failed'
 }
 
 export const runNotificationSendTick = async ({
