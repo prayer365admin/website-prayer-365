@@ -249,7 +249,7 @@ export const CREATE_CHURCH = async (
   const data: Prisma.ChurchUncheckedCreateInput = {
     org_node_id: orgNodeId,
     name,
-    slug: await buildChurchSlug(name),
+    slug: await buildChurchSlug(name, tx),
     timezone,
     description: description ?? null,
     denomination: denomination ?? null,

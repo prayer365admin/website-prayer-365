@@ -33,4 +33,14 @@ describe('buildChurchSlug', () => {
     expect(slug).toMatch(/^st-johns-church-[a-zA-Z0-9]{6}$/)
     expect(db.church.findFirst).toHaveBeenCalledTimes(2)
   })
+
+  // Prod pool is 1 connection: a lookup on `db` from inside a transaction
+  // deadlocks until the transaction expires.
+  it('queries through the transaction client when one is given', async () => {
+    const tx = { church: { findFirst: vi.fn().mockResolvedValue(null) } }
+    const slug = await buildChurchSlug("St. John's Church", tx as never)
+    expect(slug).toBe('st-johns-church')
+    expect(tx.church.findFirst).toHaveBeenCalledTimes(1)
+    expect(db.church.findFirst).not.toHaveBeenCalled()
+  })
 })
