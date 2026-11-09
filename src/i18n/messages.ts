@@ -1,4 +1,10 @@
 import { SiteLocale } from '@/config/site-locale'
+import {
+  POLICY_MESSAGES_EN,
+  POLICY_MESSAGES_ET,
+  POLICY_MESSAGES_FI,
+  POLICY_MESSAGES_SV,
+} from './policies'
 
 /**
  * Website UI strings (WF1). Keys are flat and ASCII so later features just add
@@ -6,6 +12,7 @@ import { SiteLocale } from '@/config/site-locale'
  */
 export const SITE_MESSAGES = {
   en: {
+    ...POLICY_MESSAGES_EN,
     brand: 'PRAYER',
     language: 'Language',
     account: 'Account',
@@ -892,6 +899,7 @@ export const SITE_MESSAGES = {
   // DRAFT — Estonian strings not yet reviewed by a native speaker (REPORT R-13).
   // Do not treat as final launch text.
   et: {
+    ...POLICY_MESSAGES_ET,
     brand: 'PRAYER',
     language: 'Keel',
     account: 'Konto',
@@ -1687,6 +1695,7 @@ export const SITE_MESSAGES = {
   // DRAFT — Swedish strings not yet reviewed by a native speaker (REPORT R-13).
   // Do not treat as final launch text.
   sv: {
+    ...POLICY_MESSAGES_SV,
     brand: 'PRAYER',
     language: 'Språk',
     account: 'Konto',
@@ -2485,6 +2494,7 @@ export const SITE_MESSAGES = {
   // DRAFT — Finnish strings not yet reviewed by a native speaker (REPORT R-13).
   // Do not treat as final launch text.
   fi: {
+    ...POLICY_MESSAGES_FI,
     brand: 'PRAYER',
     language: 'Kieli',
     account: 'Tili',
