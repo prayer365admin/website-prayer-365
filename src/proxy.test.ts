@@ -18,17 +18,18 @@ describe('maintenance proxy', () => {
     process.env.NEXT_PUBLIC_IS_MAINTENANCE = 'true'
 
     expect(target('/')).toBe('https://prayer365.test/maintenance')
-    expect(target('/welcome')).toBe('https://prayer365.test/maintenance')
     expect(target('/prayers?churchId=1')).toBe('https://prayer365.test/maintenance')
-    expect(target('/dashboard')).toBe('https://prayer365.test/maintenance')
+    expect(target('/welcome')).toBe('https://prayer365.test/maintenance')
   })
 
-  it('keeps the screen and the staff areas open', () => {
+  it('keeps the screen, the staff areas and the dashboard open', () => {
     process.env.NEXT_PUBLIC_IS_MAINTENANCE = 'true'
 
     expect(target('/maintenance')).toBeNull()
     expect(target('/admin')).toBeNull()
     expect(target('/admin/users')).toBeNull()
+    expect(target('/dashboard')).toBeNull()
+    expect(target('/dashboard/central')).toBeNull()
     expect(target('/login')).toBeNull()
   })
 
