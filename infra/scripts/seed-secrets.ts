@@ -20,7 +20,7 @@
 import { spawnSync } from 'node:child_process'
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+import { join, resolve } from 'node:path'
 import { createInterface } from 'node:readline/promises'
 import { randomBytes } from 'node:crypto'
 import { parse as parseEnv } from 'dotenv'
@@ -132,8 +132,10 @@ if (!file) throw new Error(`No default env file for "${flags.env}"; pass --file`
 // Writing the wrong file's values into /prayer365/<env>/ is the one mistake this
 // tool must not make: .env.staging and .env both point at catatia, .env.prod at the
 // client account. A deliberate override needs --allow-file.
+// Compared as absolute paths: deploy.sh passes --file "$REPO_ROOT/$ENV_FILE", so a
+// plain string compare would reject the default file itself.
 const defaultFile = DEFAULT_ENV_FILE[flags.env]
-if (defaultFile && file !== defaultFile && !flags.allowFile) {
+if (defaultFile && resolve(file) !== resolve(defaultFile) && !flags.allowFile) {
   console.error(
     `\n  --file ${file} is not the default for "${flags.env}" (${defaultFile}).\n` +
       `  Its values would be written to /prayer365/${flags.env}/ in AWS.\n` +
