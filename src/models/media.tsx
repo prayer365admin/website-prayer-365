@@ -47,10 +47,11 @@ export const MediaUploadInputSchema = z
 export type MediaUploadInput = z.infer<typeof MediaUploadInputSchema>
 
 /**
- * Global /uploads request body — churchId is the entity context (SPEC §10.4).
- * It is OPTIONAL only because `USER_AVATAR` is user-scoped; the controller
- * enforces "churchId required for every other purpose" (kept out of the schema
- * so the registered OpenAPI body stays a plain object).
+ * Global /uploads request body — churchId is the entity context (SPEC §10.4)
+ * and is OPTIONAL for every purpose. With no church the asset is stored as a
+ * General asset: `church_id = NULL`, owner = caller, key outside any church
+ * prefix. Purpose-specific constraints are enforced in the controller so the
+ * registered OpenAPI body stays a plain object.
  */
 export const MediaUploadBodySchema = z
   .object({

@@ -194,7 +194,12 @@ export const GET_ASSIGNABLE_PASTOR_IMAGE = async (
   tx: Prisma.TransactionClient = db,
 ) =>
   tx.mediaAsset.findFirst({
-    where: { id: assetId, church_id: churchId, status: 'READY', purpose: 'IMAGE' },
+    where: {
+      id: assetId,
+      status: 'READY',
+      purpose: 'IMAGE',
+      OR: [{ church_id: churchId }, { church_id: null }],
+    },
     select: { id: true },
   })
 
@@ -207,7 +212,11 @@ export const GET_ASSIGNABLE_PROFILE_IMAGE = async (
       id: assetId,
       status: 'READY',
       purpose: 'IMAGE',
-      church: { pastors: { some: { pastor_id: pastorId } } },
+      OR: [
+        { church: { pastors: { some: { pastor_id: pastorId } } } },
+        // General asset: church-less, attachable to any pastor.
+        { church_id: null },
+      ],
     },
     select: { id: true, church_id: true },
   })

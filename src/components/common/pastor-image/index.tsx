@@ -20,10 +20,12 @@ export default function PastorImage({
 
   useEffect(() => {
     let active = true
-    if (!imageAssetId || !churchId) return () => undefined
+    if (!imageAssetId) return () => undefined
 
+    // A General asset has no church; the access route resolves it by id alone.
+    const query = churchId ? `?churchId=${encodeURIComponent(churchId)}` : ''
     axios
-      .get(`/api/v1/uploads/${imageAssetId}/access?churchId=${encodeURIComponent(churchId)}`)
+      .get(`/api/v1/uploads/${imageAssetId}/access${query}`)
       .then((response) => {
         if (active && response.data?.result?.url) {
           setLoaded({ key: imageKey, src: response.data.result.url })

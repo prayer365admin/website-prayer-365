@@ -204,6 +204,8 @@ export const GET_CHURCH_READY_IMAGE = async ({
       purpose: 'IMAGE',
       OR: [
         { church_id: { in: ids } },
+        // General asset: no tenancy, still a valid ready image.
+        { church_id: null },
         { galleryItems: { some: { church_id: { in: ids } } } },
         { coverOf: { some: { id: { in: ids } } } },
         { heroOf: { some: { id: { in: ids } } } },

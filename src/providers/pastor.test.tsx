@@ -1,11 +1,12 @@
 // @vitest-environment node
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { GET_CHURCH_PASTORS, UPDATE_PASTOR } from './pastor'
+import { GET_ASSIGNABLE_PASTOR_IMAGE, GET_CHURCH_PASTORS, UPDATE_PASTOR } from './pastor'
 
 const { db } = vi.hoisted(() => {
   return {
     db: {
       churchPastor: { findMany: vi.fn() },
+      mediaAsset: { findFirst: vi.fn() },
     },
   }
 })
@@ -140,5 +141,21 @@ describe('Pastor Provider', () => {
       data: { name: 'Updated', version: { increment: 1 } },
     })
     expect(result.version).toBe(3)
+  })
+})
+
+describe('GET_ASSIGNABLE_PASTOR_IMAGE', () => {
+  it('accepts a General (church-less) ready image', async () => {
+    db.mediaAsset.findFirst.mockResolvedValue({ id: 'a1' } as never)
+
+    await GET_ASSIGNABLE_PASTOR_IMAGE({ churchId: 'c1', assetId: 'a1' })
+
+    expect(db.mediaAsset.findFirst).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          OR: expect.arrayContaining([{ church_id: null }]),
+        }),
+      }),
+    )
   })
 })

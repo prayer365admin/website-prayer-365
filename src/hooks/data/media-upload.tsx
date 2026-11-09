@@ -4,15 +4,16 @@ import axios from 'axios'
 import { useCallback } from 'react'
 
 /*
- * Single GLOBAL upload API (SPEC §10.4). Entity context (churchId + purpose)
- * is passed to the hook and carried in the request body — one /api/v1/uploads
- * endpoint for every entity, no per-entity upload routes.
+ * Single GLOBAL upload API (SPEC §10.4). Entity context (purpose + an OPTIONAL
+ * churchId) is passed to the hook and carried in the request body — one
+ * /api/v1/uploads endpoint for every entity, no per-entity upload routes.
+ * Without a churchId the asset is a General asset owned by the caller.
  *
  * Flow:
- *  1. POST /api/v1/uploads { churchId, purpose, mimeType, byteSize }
+ *  1. POST /api/v1/uploads { churchId?, purpose, mimeType, byteSize }
  *     → { assetId, objectKey, uploadUrl, fields, expiresIn }
  *  2. POST the file directly to `uploadUrl` with `fields` (presigned S3 post).
- *  3. POST /api/v1/uploads/:assetId/complete { churchId, checksum } → READY.
+ *  3. POST /api/v1/uploads/:assetId/complete { churchId?, checksum } → READY.
  *
  * Browser admin is same-origin → NextAuth cookie is sent automatically, so no
  * manual Authorization header is needed here.

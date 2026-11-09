@@ -8,15 +8,20 @@ import { MediaAccessOutputSchema } from '@/models/media'
 import { getAccess } from '@/controller/media'
 
 /*
- * GET /api/v1/uploads/:assetId/access — GLOBAL. Entity context (churchId) is a
- * query param here because GET has no body; consistent with the single-upload
- * API contract. Returns a short-lived preview URL for a READY asset. Voice
- * samples / consent evidence additionally require voice-review or the
- * submitting pastor's own-submission grant; other assets require prayer_media.
- * Scope + purpose permission resolved in the controller.
+ * GET /api/v1/uploads/:assetId/access — GLOBAL. Entity context (churchId) is an
+ * optional query param here because GET has no body; omitted = a General
+ * (church-less) asset resolved by id. Returns a short-lived preview URL for a
+ * READY asset. Voice samples / consent evidence additionally require
+ * voice-review or the submitting pastor's own-submission grant; other assets
+ * require prayer_media. Scope + purpose permission resolved in the controller.
  */
 
-const churchIdParam = { name: 'churchId', in: 'query' as const, required: true, schema: z.string() }
+const churchIdParam = {
+  name: 'churchId',
+  in: 'query' as const,
+  required: false,
+  schema: z.string(),
+}
 
 registerPath({
   path: '/uploads/{assetId}/access',
@@ -33,14 +38,14 @@ registerPath({
   ],
 })
 
-const QuerySchema = z.object({ churchId: z.string().min(1) })
+const QuerySchema = z.object({ churchId: z.string().min(1).optional() })
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ assetId: string }> }) {
   try {
     const { assetId } = await params
     const { session } = await requiredAuth(req)
     const query = validate(QuerySchema, {
-      churchId: req.nextUrl.searchParams.get('churchId'),
+      churchId: req.nextUrl.searchParams.get('churchId') ?? undefined,
     })
     const result = await getAccess({
       userId: session.user.user_id,

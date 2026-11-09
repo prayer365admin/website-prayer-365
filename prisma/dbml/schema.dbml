@@ -423,7 +423,7 @@ Table voice_profile_samples {
 
 Table media_assets {
   id String [pk]
-  church_id String [note: 'Church scope. NULL only for user-scoped purposes (USER_AVATAR).']
+  church_id String [note: 'Church scope. NULL for user-scoped (USER_AVATAR) and General assets.']
   church churches
   object_key String [unique, not null]
   purpose MediaPurpose [not null]

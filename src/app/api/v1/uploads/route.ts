@@ -10,8 +10,10 @@ import { createUpload } from '@/controller/media'
  * POST /api/v1/uploads — GLOBAL upload endpoint.
  *
  * There is ONE upload API, not one per entity. Entity context is carried in the
- * request body: `churchId` (the scoping organisation) + `purpose` + the MIME /
- * size constraints. Future entity metadata (entityType, entityId, references)
+ * request body: `churchId` (the scoping organisation, OPTIONAL) + `purpose` + the
+ * MIME / size constraints. With no churchId the asset is a General asset
+ * (`church_id = NULL`, owner = caller, key `media/<purpose>/<uuid>`).
+ * Future entity metadata (entityType, entityId, references)
  * is ADDED to this body schema rather than creating per-entity routes.
  *
  * Flow (SPEC §10.4): request → signed upload URL + PENDING media_assets row →

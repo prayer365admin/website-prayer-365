@@ -50,7 +50,7 @@ export const GET_ASSET_BY_ID_AND_CHURCH = ({
 
 /**
  * User-scoped read: a church-less asset is only visible to the user who uploaded
- * it (staff avatars). Never matches a church-scoped asset.
+ * it (staff avatars and any General upload). Never matches a church-scoped asset.
  */
 export const GET_ASSET_BY_ID_FOR_UPLOADER = ({
   assetId,
@@ -62,6 +62,10 @@ export const GET_ASSET_BY_ID_FOR_UPLOADER = ({
   db.mediaAsset.findFirst({
     where: { id: assetId, church_id: null, uploaded_by: uploadedBy },
   })
+
+/** Church-less (General) read by id: used when the caller sends no churchId. */
+export const GET_ASSET_BY_ID_CHURCH_LESS = ({ assetId }: { assetId: string }) =>
+  db.mediaAsset.findFirst({ where: { id: assetId, church_id: null } })
 
 /** Terminal READY transition for a church-less asset, scoped to its uploader. */
 export const MARK_READY_FOR_UPLOADER = ({
@@ -96,6 +100,8 @@ export const GET_ASSET_VISIBLE_TO_CHURCH = ({
       id: assetId,
       OR: [
         { church_id: churchId },
+        // General asset: stored with no church; public media (SPEC §10.4.1).
+        { church_id: null },
         {
           purpose: 'IMAGE',
           pastorProfiles: {

@@ -16,6 +16,8 @@ import { db } from '@/utils/db-connection'
 import {
   GET_ASSET,
   GET_ASSET_BY_ID_AND_CHURCH,
+  GET_ASSET_BY_ID_CHURCH_LESS,
+  GET_ASSET_VISIBLE_TO_CHURCH,
   LIST_UNATTACHED_PENDING_OLDER_THAN,
   MARK_READY,
   CREATE_PENDING_ASSET,
@@ -102,6 +104,28 @@ describe('LIST_UNATTACHED_PENDING_OLDER_THAN', () => {
     expect(args.where.voiceSamples).toEqual({ none: {} })
     expect(args.where.audioAssets).toEqual({ none: {} })
     expect(args.select).toMatchObject({ id: true, object_key: true })
+  })
+})
+
+describe('General (church-less) reads', () => {
+  it('GET_ASSET_VISIBLE_TO_CHURCH also matches a church-less asset', async () => {
+    vi.mocked(db.mediaAsset.findFirst).mockResolvedValue({ id: 'a1' } as never)
+    await GET_ASSET_VISIBLE_TO_CHURCH({ assetId: 'a1', churchId: 'c1' })
+    expect(db.mediaAsset.findFirst).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          OR: expect.arrayContaining([{ church_id: 'c1' }, { church_id: null }]),
+        }),
+      }),
+    )
+  })
+
+  it('GET_ASSET_BY_ID_CHURCH_LESS only matches church_id null', async () => {
+    vi.mocked(db.mediaAsset.findFirst).mockResolvedValue({ id: 'a1' } as never)
+    await GET_ASSET_BY_ID_CHURCH_LESS({ assetId: 'a1' })
+    expect(db.mediaAsset.findFirst).toHaveBeenCalledWith({
+      where: { id: 'a1', church_id: null },
+    })
   })
 })
 

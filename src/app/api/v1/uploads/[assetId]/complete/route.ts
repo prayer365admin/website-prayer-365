@@ -29,7 +29,7 @@ registerPath({
     { status: 403, description: 'Not the upload owner / not allowed' },
     { status: 404, description: 'Asset not found or out of scope' },
     { status: 409, description: 'Asset not pending / object mismatch' },
-    { status: 422, description: 'Validation error (checksum/churchId)' },
+    { status: 422, description: 'Validation error (checksum)' },
   ],
 })
 

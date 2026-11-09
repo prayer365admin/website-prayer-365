@@ -5,6 +5,7 @@ import {
   UPDATE_CHURCH_PROFILE,
   GET_CHURCH_OVERVIEW,
   GET_CHURCH_PROFILE,
+  GET_CHURCH_READY_IMAGE,
   GET_REQUEST_OVERVIEW,
 } from './church'
 import { Prisma } from '@prisma/client'
@@ -440,5 +441,21 @@ describe('Church Provider', () => {
 
       expect(db.request.count).toHaveBeenCalledWith({ where: { church_id: 'c1' } })
     })
+  })
+})
+
+describe('GET_CHURCH_READY_IMAGE', () => {
+  it('accepts a General (church-less) ready image', async () => {
+    db.mediaAsset.findFirst.mockResolvedValue({ id: 'a1' } as never)
+
+    await GET_CHURCH_READY_IMAGE({ churchIds: new Set(['c1']), assetId: 'a1' })
+
+    expect(db.mediaAsset.findFirst).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          OR: expect.arrayContaining([{ church_id: null }]),
+        }),
+      }),
+    )
   })
 })

@@ -143,8 +143,8 @@ function PastorDrawerForm({ pastor, onClose }: { pastor?: PastorData; onClose: (
   })
   const fileInputRef = useRef<HTMLInputElement>(null)
 
-  // The picked file is uploaded during save, so a pastor that has no church yet can
-  // still choose a photo; the upload context comes from the church assigned on save.
+  // The picked file is uploaded during save. There is no church requirement any
+  // more: with no assignment the upload becomes a General (church-less) asset.
   const handlePhotoPicked = (file: File | undefined) => {
     if (!file) return
     setImage({

@@ -626,7 +626,7 @@ model VoiceProfileSample {
 
 model MediaAsset {
   id          String       @id @default(uuid(7))
-  /// Church scope. NULL only for user-scoped purposes (USER_AVATAR).
+  /// Church scope. NULL for user-scoped (USER_AVATAR) and General assets.
   church_id   String?
   church      Church?      @relation(fields: [church_id], references: [id])
   object_key  String       @unique

@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 vi.mock('@/providers/media', () => ({
   CREATE_PENDING_ASSET: vi.fn(),
   GET_ASSET_BY_ID_AND_CHURCH: vi.fn(),
+  GET_ASSET_BY_ID_CHURCH_LESS: vi.fn(),
   GET_ASSET_BY_ID_FOR_UPLOADER: vi.fn(),
   GET_ASSET_VISIBLE_TO_CHURCH: vi.fn(),
   MARK_READY: vi.fn(),
@@ -19,6 +20,7 @@ vi.mock('@/utils/db-connection', () => ({ db: { auditLog: { create: vi.fn() } } 
 import { requiredScope } from '@/utils/required-scope'
 import {
   GET_ASSET_BY_ID_AND_CHURCH,
+  GET_ASSET_BY_ID_CHURCH_LESS,
   GET_ASSET_BY_ID_FOR_UPLOADER,
   GET_ASSET_VISIBLE_TO_CHURCH,
   CREATE_PENDING_ASSET,
@@ -281,16 +283,44 @@ describe('USER_AVATAR (user-scoped media)', () => {
     )
   })
 
-  it('rejects a USER_AVATAR upload that carries a churchId (422)', async () => {
-    await expect(
-      createUpload({ userId: 'u1', churchId: 'c1', input: avatarUpload, requestId: 'r' }),
-    ).rejects.toMatchObject({ code: 422, error_code: 'INVALID_MEDIA_CONTEXT' })
+  it('ignores a churchId on a USER_AVATAR upload', async () => {
+    vi.mocked(S3_PRESIGN_UPLOAD).mockResolvedValue({
+      url: 'https://s3/u',
+      fields: {},
+      key: 'k',
+    } as never)
+    vi.mocked(CREATE_PENDING_ASSET).mockResolvedValue({ id: 'a1' } as never)
+
+    const res = await createUpload({
+      userId: 'u1',
+      churchId: 'c1',
+      input: avatarUpload,
+      requestId: 'r',
+    })
+
+    expect(res.assetId).toBe('a1')
+    expect(CREATE_PENDING_ASSET).toHaveBeenCalledWith(
+      expect.objectContaining({ churchId: null, uploadedBy: 'u1' }),
+    )
   })
 
-  it('rejects a church-scoped purpose with no churchId (422)', async () => {
-    await expect(
-      createUpload({ userId: 'u1', input: validUpload, requestId: 'r' }),
-    ).rejects.toMatchObject({ code: 422, error_code: 'INVALID_MEDIA_CONTEXT' })
+  it('stores a church-less IMAGE as a General asset outside any church prefix', async () => {
+    vi.mocked(S3_PRESIGN_UPLOAD).mockResolvedValue({
+      url: 'https://s3/u',
+      fields: {},
+      key: 'k',
+    } as never)
+    vi.mocked(CREATE_PENDING_ASSET).mockResolvedValue({ id: 'a1' } as never)
+
+    await createUpload({ userId: 'u1', input: validUpload, requestId: 'r' })
+
+    expect(requiredScope).not.toHaveBeenCalled()
+    expect(S3_PRESIGN_UPLOAD).toHaveBeenCalledWith(
+      expect.objectContaining({ key: expect.stringMatching(/^media\/image\/[0-9a-f-]{36}$/) }),
+    )
+    expect(CREATE_PENDING_ASSET).toHaveBeenCalledWith(
+      expect.objectContaining({ churchId: null, uploadedBy: 'u1', purpose: 'IMAGE' }),
+    )
   })
 
   it('completes the caller’s own avatar without a church scope', async () => {
@@ -325,5 +355,57 @@ describe('USER_AVATAR (user-scoped media)', () => {
         requestId: 'r',
       }),
     ).rejects.toMatchObject({ code: 404 })
+  })
+})
+
+describe('General (church-less) assets', () => {
+  it('completes a church-less IMAGE owned by the caller', async () => {
+    vi.mocked(GET_ASSET_BY_ID_FOR_UPLOADER).mockResolvedValue(
+      asset({ church_id: null, purpose: 'IMAGE', object_key: 'media/image/x' }) as never,
+    )
+    vi.mocked(S3_HEAD_OBJECT).mockResolvedValue({
+      contentLength: 1024,
+      contentType: 'image/png',
+    } as never)
+    vi.mocked(MARK_READY_FOR_UPLOADER).mockResolvedValue({ count: 1 } as never)
+
+    const res = await completeUpload({
+      userId: 'u1',
+      assetId: 'a1',
+      input: { checksum: 'c'.repeat(64) },
+      requestId: 'r',
+    })
+
+    expect(res.status).toBe('READY')
+    expect(requiredScope).not.toHaveBeenCalled()
+    expect(MARK_READY_FOR_UPLOADER).toHaveBeenCalledWith(
+      expect.objectContaining({ assetId: 'a1', uploadedBy: 'u1' }),
+    )
+  })
+
+  it('returns a preview for a READY General asset without a churchId', async () => {
+    vi.mocked(GET_ASSET_BY_ID_CHURCH_LESS).mockResolvedValue(
+      asset({ church_id: null, status: 'READY' }) as never,
+    )
+    vi.mocked(S3_GET_SIGNED_URL).mockResolvedValue('https://preview/u')
+
+    const res = await getAccess({ userId: 'u1', assetId: 'a1', requestId: 'r' })
+
+    expect(res.url).toBe('https://preview/u')
+    expect(requiredScope).not.toHaveBeenCalled()
+  })
+
+  it('keeps a church-less avatar owner-only when no churchId is sent', async () => {
+    vi.mocked(GET_ASSET_BY_ID_CHURCH_LESS).mockResolvedValue(
+      asset({
+        church_id: null,
+        purpose: 'USER_AVATAR',
+        status: 'READY',
+        uploaded_by: 'u2',
+      }) as never,
+    )
+    await expect(getAccess({ userId: 'u1', assetId: 'a1', requestId: 'r' })).rejects.toMatchObject({
+      code: 403,
+    })
   })
 })

@@ -6,6 +6,7 @@ import { auditPayload } from '@/utils/audit'
 import {
   CREATE_PENDING_ASSET,
   GET_ASSET_BY_ID_AND_CHURCH,
+  GET_ASSET_BY_ID_CHURCH_LESS,
   GET_ASSET_BY_ID_FOR_UPLOADER,
   GET_ASSET_VISIBLE_TO_CHURCH,
   MARK_READY,
@@ -47,15 +48,6 @@ const notFound = () =>
     error: 'NOT_FOUND',
     error_code: 'RESOURCE_NOT_FOUND',
     details: 'Media asset not found.',
-  })
-
-/** The upload body carries no entity context for this purpose, or one it may not use. */
-const invalidMediaContext = (details: string) =>
-  new GeneralError({
-    code: 422,
-    error: 'VALIDATION_ERROR',
-    error_code: 'INVALID_MEDIA_CONTEXT',
-    details,
   })
 
 const purposeSubject = (p: MediaPurpose): string =>
@@ -142,8 +134,8 @@ export const createUpload = async ({
   assertUploadConstraints(input)
 
   // Staff avatars are user-scoped: no church, owned by the caller (SPEC §10.4 extension).
+  // A churchId sent with USER_AVATAR is ignored — the asset stays church-less.
   if (input.purpose === 'USER_AVATAR') {
-    if (churchId) throw invalidMediaContext('USER_AVATAR is user-scoped and takes no churchId.')
     const objectKey = `media/users/${userId}/avatar/${randomUUID()}`
     const { url, fields } = await S3_PRESIGN_UPLOAD({
       key: objectKey,
@@ -172,16 +164,22 @@ export const createUpload = async ({
     return { assetId: asset.id, objectKey, uploadUrl: url, fields, expiresIn: 900 }
   }
 
-  if (!churchId) throw invalidMediaContext('churchId is required for this upload purpose.')
+  // No church context -> a General asset: stored outside any church prefix and
+  // owned by the caller. There is no church to authorize against; the request
+  // is already authenticated (SPEC §10.4).
+  const scopedChurchId = churchId ?? null
+  if (scopedChurchId) {
+    await assertPurposeScope({
+      userId,
+      churchId: scopedChurchId,
+      purpose: input.purpose,
+      action: 'create',
+    })
+  }
 
-  await assertPurposeScope({
-    userId,
-    churchId,
-    purpose: input.purpose,
-    action: 'create',
-  })
-
-  const objectKey = `media/${churchId}/${input.purpose.toLowerCase()}/${randomUUID()}`
+  const objectKey = scopedChurchId
+    ? `media/${scopedChurchId}/${input.purpose.toLowerCase()}/${randomUUID()}`
+    : `media/${input.purpose.toLowerCase()}/${randomUUID()}`
   const { url, fields } = await S3_PRESIGN_UPLOAD({
     key: objectKey,
     contentType: input.mimeType,
@@ -189,7 +187,7 @@ export const createUpload = async ({
   })
 
   const asset = await CREATE_PENDING_ASSET({
-    churchId,
+    churchId: scopedChurchId,
     purpose: input.purpose,
     mimeType: input.mimeType,
     byteSize: input.byteSize,
@@ -199,7 +197,7 @@ export const createUpload = async ({
   await db.auditLog.create({
     data: auditPayload({
       actorId: userId,
-      churchId,
+      churchId: scopedChurchId,
       action: 'media.upload.initiate',
       resourceType: 'media_asset',
       resourceId: asset.id,
@@ -232,11 +230,11 @@ export const completeUpload = async ({
   if (!asset) throw notFound()
   const purpose = asset.purpose as MediaPurpose
 
+  // No churchId -> the asset must be a General asset owned by the caller
+  // (GET_ASSET_BY_ID_FOR_UPLOADER already matched church_id null + uploaded_by).
   let churchIds: Set<string> | null = null
   if (churchId) {
     churchIds = await assertPurposeScope({ userId, churchId, purpose, action: 'create' })
-  } else if (purpose !== 'USER_AVATAR') {
-    throw invalidMediaContext('churchId is required for this upload purpose.')
   }
   // Complete requires an owned upload (the same caller that requested it).
   if (asset.uploaded_by !== userId) throw scopeError()
@@ -295,11 +293,13 @@ export const getAccess = async ({
   requestId,
 }: {
   userId: string
-  churchId: string
+  churchId?: string
   assetId: string
   requestId: string
 }): Promise<MediaAccessOutput> => {
-  const asset = await GET_ASSET_VISIBLE_TO_CHURCH({ assetId, churchId })
+  const asset = churchId
+    ? await GET_ASSET_VISIBLE_TO_CHURCH({ assetId, churchId })
+    : await GET_ASSET_BY_ID_CHURCH_LESS({ assetId })
   if (!asset) throw notFound()
   const purpose = asset.purpose as MediaPurpose
 
@@ -312,8 +312,11 @@ export const getAccess = async ({
     })
   }
 
-  const isVoiceSensitive = purpose === 'VOICE_SAMPLE' || purpose === 'CONSENT_EVIDENCE'
-  if (isVoiceSensitive) {
+  if (purpose === 'USER_AVATAR') {
+    // User-scoped whether or not a churchId was sent — purposeSubject() has no
+    // avatar subject, so this branch must come first.
+    if (asset.uploaded_by !== userId) throw scopeError()
+  } else if (churchId && (purpose === 'VOICE_SAMPLE' || purpose === 'CONSENT_EVIDENCE')) {
     // Voice/consent samples: voice-reviewer, OR the submitting pastor's own asset.
     const isReviewer = await canScope({
       userId,
@@ -325,15 +328,16 @@ export const getAccess = async ({
       asset.uploaded_by === userId &&
       (await canScope({ userId, churchId, subject: 'prayer_voice_submission', action: 'read' }))
     if (!isReviewer && !isOwner) throw scopeError()
-  } else {
+  } else if (churchId) {
     await assertPurposeScope({ userId, churchId, purpose, action: 'read' })
   }
+  // else: General (church-less) asset — no tenant to scope; public media by random id.
 
   const url = await S3_GET_SIGNED_URL({ key: asset.object_key, expiresIn: 3600 })
   await db.auditLog.create({
     data: auditPayload({
       actorId: userId,
-      churchId,
+      churchId: asset.church_id,
       action: 'media.access',
       resourceType: 'media_asset',
       resourceId: assetId,
