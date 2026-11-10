@@ -22,6 +22,9 @@ const prefix = `prayer365-${config.name}`
 
 new StorageStack(app, `${prefix}-storage`, { env, config })
 const data = new DataStack(app, `${prefix}-data`, { env, config })
-// The VPC is handed over only when the environment runs in `network.mode: 'vpc'`;
-// for public databases the Lambdas stay outside a VPC (no NAT, no extra cost).
-new WorkerStack(app, `${prefix}-workers`, { env, config, vpc: data.vpc })
+// The VPC is handed over only when the environment runs in `network.mode: 'vpc'` AND the
+// workers are meant to sit in it; `lambdaInVpc: false` keeps them outside, where they reach
+// the internet directly and talk to a PUBLIC database endpoint over TLS (the Vercel shape).
+const workersVpc =
+  config.network.mode === 'vpc' && config.network.lambdaInVpc !== false ? data.vpc : undefined
+new WorkerStack(app, `${prefix}-workers`, { env, config, vpc: workersVpc })

@@ -1,5 +1,6 @@
 import ContentsSitePrivacy from '@/contents/site/privacy'
 import SiteShell from '@/components/site'
+import { SITE_NAME } from '@/config/site-brand'
 import { SiteI18nProvider } from '@/i18n/site-i18n'
 import { getSiteLocale } from '@/utils/site-locale'
 import { Metadata } from 'next'
@@ -19,8 +20,10 @@ import { Metadata } from 'next'
  * /terms, and /terms + /cookies redirect into the anchors defined here.
  */
 export const metadata: Metadata = {
-  title: 'Prayer 365 — Privacy & Policies',
-  description: 'Privacy Policy, Terms & Conditions and Cookie Policy for Prayer365.',
+  title: 'Privacy Policy, Terms & Cookie Policy',
+  description: `Privacy policy, terms of fellowship and cookie policy for ${SITE_NAME}.`,
+  alternates: { canonical: '/privacy' },
+  robots: { index: true, follow: true },
 }
 
 export default async function Page() {

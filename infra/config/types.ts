@@ -49,7 +49,20 @@ export type NetworkConfig =
    * (`staticEgressIp: true` gives the NAT instance a fixed Elastic IP to add to
    * that allow-list). Costs ~$4/month for the instance plus ~$3.6 for the IP.
    */
-  | { mode: 'vpc'; natInstanceType: string; staticEgressIp: boolean }
+  | {
+      mode: 'vpc'
+      natInstanceType: string
+      staticEgressIp: boolean
+      /**
+       * Keep the WORKER Lambdas out of the VPC even though the stack creates one.
+       *
+       * A Lambda inside a VPC gets no public IP, so all its egress must go through
+       * the NAT; with a public database endpoint (the shape Vercel already uses) the
+       * workers do not need the VPC at all. Set `false` when the NAT cannot provide
+       * reliable egress — a VPC-less Lambda reaches SQS, S3, Stripe and SMTP directly.
+       */
+      lambdaInVpc?: boolean
+    }
 
 export type WorkersConfig = {
   /** Master switch for the worker component (dispatcher + consumer + schedule). */

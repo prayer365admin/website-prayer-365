@@ -1,3 +1,4 @@
+import type { Metadata } from 'next'
 import PrayerArchive from '@/contents/site/prayers'
 import { getSitePrayerArchive } from '@/controller/site-prayer'
 import { SitePrayerArchiveQuerySchema } from '@/models/site-prayer'
@@ -7,6 +8,13 @@ import { redirect } from 'next/navigation'
 type SearchParams = Promise<Record<string, string | string[] | undefined>>
 
 const first = (value: string | string[] | undefined) => (Array.isArray(value) ? value[0] : value)
+
+// Member-only surface inside an otherwise public folder: the page guards itself
+// (the public /churches layout above guards nothing) and stays out of search.
+export const metadata: Metadata = {
+  title: 'Prayer archive',
+  robots: { index: false, follow: false },
+}
 
 export default async function ChurchPrayerArchivePage({
   params,

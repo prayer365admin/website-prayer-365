@@ -9,7 +9,7 @@ import { useSiteChurchPrayers, useSiteChurchProfile } from '@/hooks/data/site/ch
 import { useSiteHome } from '@/hooks/data/site/home'
 import { useMe, useMyChurches } from '@/hooks/data/site/me'
 import { useSiteI18n } from '@/i18n/site-i18n'
-import type { MobilePublishedPrayer } from '@/models/mobile'
+import type { MobilePublicChurch, MobilePublishedPrayer } from '@/models/mobile'
 import {
   CaretRightFilled,
   EnvironmentOutlined,
@@ -268,9 +268,19 @@ function GalleryImage({
   )
 }
 
-export default function ContentsSiteChurchProfile({ slug }: { slug: string }) {
+export default function ContentsSiteChurchProfile({
+  slug,
+  initialChurch,
+}: {
+  slug: string
+  /** Server-rendered church row from the public page: present in the crawlable HTML. */
+  initialChurch?: MobilePublicChurch
+}) {
   const { t } = useSiteI18n()
-  const { data, loading, error, retry } = useSiteChurchProfile(slug)
+  const profile = useSiteChurchProfile(slug)
+  // The page already fetched the row on the server; the session query only refreshes it.
+  const data = profile.data ?? initialChurch
+  const { loading, error, retry } = profile
   const { data: prayers = [], loading: prayersLoading } = useSiteChurchPrayers(slug)
   const { data: homeData } = useSiteHome()
   const isPrimaryParish = homeData?.mainChurch?.id === data?.id
@@ -279,7 +289,10 @@ export default function ContentsSiteChurchProfile({ slug }: { slug: string }) {
   const churchRelation = list.find((c) => c?.churchId === data?.id)
   const isFollowed = Boolean(churchRelation?.isFollowed || isPrimaryParish)
 
-  const { onPatch, patching: setMainPending } = useMe()
+  const { data: me, onPatch, patching: setMainPending } = useMe()
+  // Signed-out visitors still need the page: prayer archive and follow controls
+  // require an account, so they render a sign-in call to action instead.
+  const signedIn = Boolean(me?.id)
 
   const handleToggleFollow = async () => {
     if (isPrimaryParish || !data?.id) return
@@ -302,7 +315,7 @@ export default function ContentsSiteChurchProfile({ slug }: { slug: string }) {
 
   const is404 = axios.isAxiosError(error) && error.response?.status === 404
 
-  if (loading) {
+  if (loading && !initialChurch) {
     return (
       <div className="mx-auto max-w-[1152px] p-6">
         <Skeleton active paragraph={{ rows: 10 }} />
@@ -358,9 +371,9 @@ export default function ContentsSiteChurchProfile({ slug }: { slug: string }) {
         isPrimaryParish={isPrimaryParish}
         isFollowed={isFollowed}
         isFollowPending={followPending}
-        onToggleFollow={handleToggleFollow}
+        onToggleFollow={signedIn ? handleToggleFollow : undefined}
         isSetMainPending={setMainPending}
-        onSetMainChurch={handleSetMainChurch}
+        onSetMainChurch={signedIn ? handleSetMainChurch : undefined}
       />
 
       {/* 2. Main content grid */}
@@ -462,8 +475,21 @@ export default function ContentsSiteChurchProfile({ slug }: { slug: string }) {
               )}
             </SectionCard>
 
-            {/* Prayer Lists card */}
-            {(prayersLoading || prayerList.length > 0) && (
+            {/* Prayer Lists card — members only; guests get the sign-in CTA */}
+            {!signedIn && (
+              <SectionCard title={t('prayerLists')} subtitle={t('guidedContemplation')}>
+                <div className="p-6">
+                  <Link
+                    className="inline-flex rounded-full bg-[#2F7AD2] px-5 py-2 text-sm font-semibold text-white transition-colors hover:bg-[#0B4497]"
+                    href="/login"
+                  >
+                    {t('churchSignInToPray')}
+                  </Link>
+                  <p className="mt-2 text-xs text-[#5C6370]">{t('churchSignInNote')}</p>
+                </div>
+              </SectionCard>
+            )}
+            {signedIn && (prayersLoading || prayerList.length > 0) && (
               <SectionCard
                 title={t('prayerLists')}
                 subtitle={t('guidedContemplation')}

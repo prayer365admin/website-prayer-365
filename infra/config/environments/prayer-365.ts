@@ -25,10 +25,19 @@ export const prayer365: EnvConfig = {
     // must be reachable from the internet (open security group + TLS).
     publiclyAccessible: true,
   },
-  // The Lambdas run in the VPC behind a NAT instance (fixed egress IP, usable for
-  // the client's own allow-lists). The database itself is public because Vercel
-  // hosts the web app and has no fixed egress IPs.
-  network: { mode: 'vpc', natInstanceType: 't4g.nano', staticEgressIp: true },
+  // The data stack keeps its VPC + NAT instance (the RDS instance lives in that VPC and
+  // moving it would replace the database), but the WORKER Lambdas stay out of it:
+  // `lambdaInVpc: false`. A Lambda inside a VPC has no public IP, so its whole egress
+  // depends on the NAT — and this stack's t4g.nano cannot provide it (512 MB OOMs while
+  // installing iptables, so nothing is masqueraded and every SQS/S3/Stripe/SMTP call
+  // times out). Outside the VPC the workers reach those services directly and use the
+  // same public RDS endpoint the Vercel app already uses.
+  network: {
+    mode: 'vpc',
+    natInstanceType: 't4g.nano',
+    staticEgressIp: true,
+    lambdaInVpc: false,
+  },
   // Transactional email: prayer365.eu has to be verified in this account's SES.
   // The DKIM + MAIL FROM records the domain owner must publish are printed by the
   // data stack and listed in docs/admin/SES-DNS.md.
@@ -36,7 +45,7 @@ export const prayer365: EnvConfig = {
     mode: 'create',
     domain: 'prayer365.eu',
     mailFromDomain: 'mail.prayer365.eu',
-    provider: 'ses',
+    provider: 'brevo',
   },
   workers: {
     enabled: true,

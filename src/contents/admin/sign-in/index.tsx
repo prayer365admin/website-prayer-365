@@ -1,4 +1,5 @@
 import type { Metadata } from 'next'
+import { ADMIN_SUITE_NAME } from '@/config/site-brand'
 import {
   DiocesanGovernanceIcon,
   ProtectedPastoralCareIcon,
@@ -9,7 +10,10 @@ import AuditNotice from './audit-notice'
 import AuthCardHeader from './auth-card-header'
 import SignInForm from './form'
 
-export const metadata: Metadata = { title: 'Staff Sign-in - PRAYER 365 Admin Suite' }
+export const metadata: Metadata = {
+  title: `Staff Sign-in — ${ADMIN_SUITE_NAME}`,
+  robots: { index: false, follow: false },
+}
 
 export default function ContentsAdminSignIn() {
   return (

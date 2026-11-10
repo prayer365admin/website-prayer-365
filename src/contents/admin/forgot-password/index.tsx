@@ -1,7 +1,11 @@
 import type { Metadata } from 'next'
+import { ADMIN_SUITE_NAME } from '@/config/site-brand'
 import ForgotPasswordForm from './form'
 
-export const metadata: Metadata = { title: 'Forgot Password - PRAYER 365 Admin Suite' }
+export const metadata: Metadata = {
+  title: `Forgot Password — ${ADMIN_SUITE_NAME}`,
+  robots: { index: false, follow: false },
+}
 
 export default function ContentsAdminForgotPassword() {
   return (

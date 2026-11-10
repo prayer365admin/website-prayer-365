@@ -1,9 +1,13 @@
 import type { Metadata } from 'next'
 import AuditNotice from '@/contents/admin/sign-in/audit-notice'
+import { ADMIN_SUITE_NAME } from '@/config/site-brand'
 import { Suspense } from 'react'
 import ResetPasswordForm from './form'
 
-export const metadata: Metadata = { title: 'Reset Password - PRAYER 365 Admin Suite' }
+export const metadata: Metadata = {
+  title: `Reset Password — ${ADMIN_SUITE_NAME}`,
+  robots: { index: false, follow: false },
+}
 
 export default function ContentsAdminResetPassword() {
   return (

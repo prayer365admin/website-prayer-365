@@ -18,6 +18,18 @@ describe('SITE_MESSAGES', () => {
   const profileKeys = Object.keys(SITE_MESSAGES.en).filter((key) => /^profile/.test(key))
   const welcomeKeys = Object.keys(SITE_MESSAGES.en).filter((key) => /^welcome/.test(key))
   const maintenanceKeys = Object.keys(SITE_MESSAGES.en).filter((key) => /^maintenance/.test(key))
+  // Public church pages (/churches) are crawlable, so a missing translation is visible to visitors.
+  const churchKeys = Object.keys(SITE_MESSAGES.en).filter((key) => /^church/.test(key))
+
+  it('keeps every public church key in all four locales', () => {
+    expect(churchKeys.length).toBeGreaterThanOrEqual(3)
+    SITE_LOCALES.forEach((locale) => {
+      const block = SITE_MESSAGES[locale] as Record<string, string>
+      churchKeys.forEach((key) => {
+        expect(block[key], `${locale} is missing ${key}`).toBeTruthy()
+      })
+    })
+  })
 
   it('keeps every header/footer key in all four locales', () => {
     expect(chromeKeys.length).toBeGreaterThan(20)

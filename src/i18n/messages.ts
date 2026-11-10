@@ -161,6 +161,9 @@ export const SITE_MESSAGES = {
     directoryDonationBannerBody:
       'Support the sacred heritage, community meals, and ongoing pastoral ministry of local churches.',
     directoryDonationBannerCta: 'Support Local Churches',
+    churchDirectoryAllHeading: 'All parishes',
+    churchSignInToPray: 'Sign in to pray with this parish',
+    churchSignInNote: 'The prayer archive and following a parish need a free Prayer 365 account.',
     facilitiesAccess: 'Sanctuary Facilities & Access',
     parishNoticeBoard: 'Parish Notice Board',
     bulletin: 'Bulletin (PDF)',
@@ -1048,6 +1051,9 @@ export const SITE_MESSAGES = {
     directoryDonationBannerBody:
       'Toeta kohalike koguduste sakraalset pärandit, kogukonnaeineid ja igapäevast hingehoidu.',
     directoryDonationBannerCta: 'Toeta kohalikke kogudusi',
+    churchDirectoryAllHeading: 'Kõik kogudused',
+    churchSignInToPray: 'Logi sisse, et selle kogudusega palvetada',
+    churchSignInNote: 'Palvetearhiiv ja koguduse jälgimine nõuavad tasuta Prayer 365 kontot.',
     facilitiesAccess: 'Pühakoja mugavused ja ligipääs',
     parishNoticeBoard: 'Koguduse teadetetahvel',
     bulletin: 'Teateleht (PDF)',
@@ -1844,6 +1850,10 @@ export const SITE_MESSAGES = {
     directoryDonationBannerBody:
       'Stöd lokala församlingars sakrala kulturarv, gemenskapsmåltider och pågående pastorala arbete.',
     directoryDonationBannerCta: 'Stöd lokala församlingar',
+    churchDirectoryAllHeading: 'Alla församlingar',
+    churchSignInToPray: 'Logga in för att be med den här församlingen',
+    churchSignInNote:
+      'Bönearkivet och att följa en församling kräver ett kostnadsfritt Prayer 365-konto.',
     facilitiesAccess: 'Helgedomens faciliteter och tillgänglighet',
     parishNoticeBoard: 'Församlingens anslagstavla',
     bulletin: 'Församlingsblad (PDF)',
@@ -2644,6 +2654,10 @@ export const SITE_MESSAGES = {
     directoryDonationBannerBody:
       'Tue paikallisten seurakuntien sakraaliperintöä, yhteisöaterioita ja jatkuvaa sielunhoitotyötä.',
     directoryDonationBannerCta: 'Tue paikallisia seurakuntia',
+    churchDirectoryAllHeading: 'Kaikki seurakunnat',
+    churchSignInToPray: 'Kirjaudu sisään rukoillaksesi tämän seurakunnan kanssa',
+    churchSignInNote:
+      'Rukousarkisto ja seurakunnan seuraaminen vaativat ilmaisen Prayer 365 -tilin.',
     facilitiesAccess: 'Pyhäkön tilat ja esteettömyys',
     parishNoticeBoard: 'Seurakunnan ilmoitustaulu',
     bulletin: 'Seurakuntalehti (PDF)',
