@@ -1,4 +1,5 @@
 import { SITE_MESSAGES } from '@/i18n/messages'
+import { FEATURED_WELCOME_PRAYER } from '@/config/featured-prayer'
 import { renderWithProviders } from '@/test/frontend/render'
 import { screen } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
@@ -33,7 +34,7 @@ describe('/welcome route page', () => {
     expect(redirectAuthenticatedCustomer).toHaveBeenCalledOnce()
   })
 
-  it('renders welcome hero and fallback labels when data is null', async () => {
+  it('falls back to the featured prayer and unavailable stats when data is null', async () => {
     getCachedWelcomePublicData.mockResolvedValue({
       prayer: null,
       memberCount: null,
@@ -43,7 +44,8 @@ describe('/welcome route page', () => {
 
     expect(screen.getByText('Everyday Faith.')).toBeTruthy()
     expect(screen.getByText('A More Connected Tomorrow.')).toBeTruthy()
-    expect(screen.getByText(SITE_MESSAGES.en.welcomeNoOpenPrayer)).toBeTruthy()
+    expect(screen.getByText(FEATURED_WELCOME_PRAYER.title)).toBeTruthy()
+    expect(screen.getByText(FEATURED_WELCOME_PRAYER.pastorName)).toBeTruthy()
     expect(screen.getAllByText(SITE_MESSAGES.en.welcomeStatsUnavailable).length).toBeGreaterThan(0)
   })
 

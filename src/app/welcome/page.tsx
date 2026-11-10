@@ -1,5 +1,6 @@
 import type { Metadata } from 'next'
 import SessionAccessGuard from '@/components/site/session-access-guard'
+import { FEATURED_WELCOME_PRAYER } from '@/config/featured-prayer'
 import ContentsSiteWelcome from '@/contents/site/welcome'
 import { SITE_DESCRIPTION, SITE_NAME, SITE_TAGLINE } from '@/config/site-brand'
 import { SiteI18nProvider } from '@/i18n/site-i18n'
@@ -26,7 +27,7 @@ export default async function Page() {
   return (
     <SiteI18nProvider initialLocale={locale}>
       <SessionAccessGuard access="guest" />
-      <ContentsSiteWelcome memberCount={memberCount} prayer={prayer} />
+      <ContentsSiteWelcome memberCount={memberCount} prayer={prayer ?? FEATURED_WELCOME_PRAYER} />
     </SiteI18nProvider>
   )
 }

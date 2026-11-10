@@ -9,7 +9,8 @@ import { MobileDonationOptions } from '@/models/mobile'
  */
 export const DONATION_FALLBACK_OPTIONS: MobileDonationOptions = {
   currency: 'EUR',
-  presetsMinor: [1000, 2500, 5000, 10000],
+  // Client-facing default ladder: 5, 10, 25, 50 EUR.
+  presetsMinor: [500, 1000, 2500, 5000],
   monthlyEnabled: true,
 }
 

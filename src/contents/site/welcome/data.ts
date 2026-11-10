@@ -70,10 +70,10 @@ export const TESTIMONIALS: Testimonial[] = [
   },
   {
     quoteKey: 'welcomeTestimonial3Quote',
-    author: 'Mart Tamm',
+    author: 'Arnold Lepp',
     roleKey: 'welcomeTestimonial3Role',
     avatarUrl:
-      'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=80&h=80&fit=crop&crop=faces&auto=format&q=80',
+      'https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?q=80&w=987&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=NHwxMjA3fDA%3D',
   },
 ]
 

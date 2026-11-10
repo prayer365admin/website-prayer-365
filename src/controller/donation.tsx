@@ -225,67 +225,85 @@ export const getDonationStatus = async ({
     GET_CHECKOUT_RECEIPT({ sessionId: query.sessionId }),
   ])
 
+  // A checkout session that is still live outranks the ledger: Stripe can report
+  // `payment_intent.payment_failed` and then succeed on the SAME intent a minute
+  // later (payer retry / late 3-D Secure). Reading the transient FAILED row as a
+  // final answer parked paid givers on the "Failed" screen (observed live
+  // 2026-11-10: failed event T, succeeded event T+78s, one ledger row).
+  let stillSettling = false
   if (query.sessionId && isStripeEnabled()) {
-    try {
-      const session = await STRIPE.retrieveCheckoutSession(query.sessionId)
-      const metadataToSync: Record<string, string> = {
-        churchId: church.id,
-        userId,
-      }
-      if (session.metadata?.category) metadataToSync.category = session.metadata.category
-      if (session.payment_intent) {
-        await STRIPE.updatePaymentIntentMetadata(session.payment_intent, metadataToSync)
-      }
-      const isPaid = session.paymentStatus === 'paid' || session.status === 'complete'
-      if (isPaid && session.mode === 'subscription' && session.subscription) {
-        const currentSubId = session.subscription
-        await UPSERT_DONATION_SUBSCRIPTION({
-          churchId: church.id,
-          userId,
-          providerSubscriptionId: currentSubId,
-          amountMinor: query.amountMinor,
-          currency: query.currency,
-          providerStatus: 'active',
-          eventCreated: Math.floor(Date.now() / 1000),
-        })
-        const paymentId = session.payment_intent || session.id
-        await UPSERT_DONATION_PAYMENT({
-          churchId: church.id,
-          userId,
-          providerPaymentId: String(paymentId),
-          amountMinor: query.amountMinor,
-          currency: query.currency,
-          status: 'PAID',
-          paidAt: new Date(),
-          providerSubscriptionId: currentSubId,
-        })
-        await CANCEL_OTHER_CHURCH_SUBSCRIPTIONS({
-          userId,
-          churchId: church.id,
-          currentSubscriptionId: currentSubId,
-        })
-        const sub = await STRIPE.retrieveSubscription(currentSubId).catch(() => null)
-        if (sub?.customer) {
-          await STRIPE.cancelOtherChurchSubscriptions({
-            customerId: sub.customer,
+    const session = await STRIPE.retrieveCheckoutSession(query.sessionId).catch(() => null)
+    // `paid` only: a completed session with an async payment method (bank debit)
+    // reports payment_status `unpaid` while the money is still moving.
+    const isPaid = session?.paymentStatus === 'paid'
+    stillSettling = Boolean(session) && !isPaid && session?.status !== 'expired'
+
+    if (session && isPaid) {
+      // Ledger first. Metadata is bookkeeping for the parish's Stripe view, so a
+      // failure there must never cost the giver their receipt.
+      try {
+        if (session.mode === 'subscription' && session.subscription) {
+          await UPSERT_DONATION_SUBSCRIPTION({
             churchId: church.id,
-            currentSubscriptionId: currentSubId,
+            userId,
+            providerSubscriptionId: session.subscription,
+            amountMinor: query.amountMinor,
+            currency: query.currency,
+            providerStatus: 'active',
+            eventCreated: Math.floor(Date.now() / 1000),
+          })
+          await UPSERT_DONATION_PAYMENT({
+            churchId: church.id,
+            userId,
+            providerPaymentId: String(session.payment_intent || session.id),
+            amountMinor: query.amountMinor,
+            currency: query.currency,
+            status: 'PAID',
+            paidAt: new Date(),
+            providerSubscriptionId: session.subscription,
+          })
+          await CANCEL_OTHER_CHURCH_SUBSCRIPTIONS({
+            userId,
+            churchId: church.id,
+            currentSubscriptionId: session.subscription,
+          })
+        } else if (session.mode === 'payment') {
+          await UPSERT_DONATION_PAYMENT({
+            churchId: church.id,
+            userId,
+            providerPaymentId: String(session.payment_intent || session.id),
+            amountMinor: query.amountMinor,
+            currency: query.currency,
+            status: 'PAID',
+            paidAt: new Date(),
           })
         }
-      } else if (isPaid && session.mode === 'payment') {
-        const paymentId = session.payment_intent || session.id
-        await UPSERT_DONATION_PAYMENT({
+      } catch {
+        // Best-effort immediate sync; the webhook worker is the eventual backup.
+      }
+
+      try {
+        const metadataToSync: Record<string, string> = {
           churchId: church.id,
           userId,
-          providerPaymentId: String(paymentId),
-          amountMinor: query.amountMinor,
-          currency: query.currency,
-          status: 'PAID',
-          paidAt: new Date(),
-        })
+        }
+        if (session.metadata?.category) metadataToSync.category = session.metadata.category
+        if (session.payment_intent) {
+          await STRIPE.updatePaymentIntentMetadata(session.payment_intent, metadataToSync)
+        }
+        if (session.mode === 'subscription' && session.subscription) {
+          const sub = await STRIPE.retrieveSubscription(session.subscription).catch(() => null)
+          if (sub?.customer) {
+            await STRIPE.cancelOtherChurchSubscriptions({
+              customerId: sub.customer,
+              churchId: church.id,
+              currentSubscriptionId: session.subscription,
+            })
+          }
+        }
+      } catch {
+        // Provider-side metadata and duplicate-subscription cleanup are optional.
       }
-    } catch {
-      // Best-effort immediate sync; webhook worker serves as eventual consistency backup
     }
   }
 
@@ -313,6 +331,11 @@ export const getDonationStatus = async ({
 
   if (finalAttempt?.status === 'PAID' || finalAttempt?.status === 'REFUNDED') {
     return { ...base, state: 'confirmed', paidAt: finalAttempt.paidAt }
+  }
+  // A live session outranks a FAILED row: that row can still flip to PAID for the
+  // same payment intent, so it is not an answer yet.
+  if (stillSettling) {
+    return { ...base, state: 'pending', paidAt: null }
   }
   if (finalAttempt?.status === 'FAILED') {
     return { ...base, state: 'failed', paidAt: null }

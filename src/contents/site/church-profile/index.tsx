@@ -30,6 +30,7 @@ import { SectionCard } from './section-card'
 import { Stewardship } from './stewardship'
 import { DownloadIcon } from '@/components/icon/download'
 import { TranscriptIcon } from '@/components/icon/transcript'
+import { prayerTextForDisplay } from '@/utils/rich-text-plain'
 
 const WEEKDAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
 dayjs.extend(utc)
@@ -142,7 +143,9 @@ function PrayerAudioRow({
             )}
           </button>
           <div className="flex-1 min-w-0">
-            <h3 className="text-base font-semibold text-[#0E203E]">{prayer.version.title}</h3>
+            <h3 className="text-base font-semibold break-words text-[#0E203E]">
+              {prayerTextForDisplay(prayer.version.title)}
+            </h3>
             {isActive ? (
               <div className="mt-2 flex items-center gap-3">
                 <span className="text-xs font-medium text-[#5C6370]">
@@ -170,8 +173,9 @@ function PrayerAudioRow({
                 </span>
               </div>
             ) : (
-              <div className="mt-0.5 text-xs text-[#5C6370]">
-                {prayer.version.introduction ||
+              <div className="mt-0.5 line-clamp-2 text-xs break-words text-[#5C6370]">
+                {(prayer.version.introduction &&
+                  prayerTextForDisplay(prayer.version.introduction)) ||
                   `Led by ${pastorFallback || 'Pastor'}, ${churchName}`}
               </div>
             )}
@@ -390,7 +394,7 @@ export default function ContentsSiteChurchProfile({
                 </div>
 
                 {data.description ? (
-                  <p className="whitespace-pre-wrap text-sm leading-relaxed text-[#5C6370] sm:text-base">
+                  <p className="whitespace-pre-wrap text-sm leading-relaxed break-words text-[#5C6370] sm:text-base">
                     {data.description}
                   </p>
                 ) : (

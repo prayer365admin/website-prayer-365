@@ -81,7 +81,7 @@ describe('Welcome landing page (welcome-landing)', () => {
     expect(screen.getByText('Pastoral Solidarity & Testimonies')).toBeTruthy()
     expect(screen.getByText('Rev. Thomas Lindqvist')).toBeTruthy()
     expect(screen.getByText('Diaconal Sister Kristiina')).toBeTruthy()
-    expect(screen.getByText('Mart Tamm')).toBeTruthy()
+    expect(screen.getByText('Arnold Lepp')).toBeTruthy()
 
     // Scripture Quote
     expect(screen.getAllByText(/The Lord bless you and keep you/).length).toBeGreaterThan(0)

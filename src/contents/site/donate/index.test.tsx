@@ -1,6 +1,7 @@
 import { fireEvent, screen, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { SiteI18nProvider } from '@/i18n/site-i18n'
+import { SITE_MESSAGES } from '@/i18n/messages'
 import { DonateNeighborSpotlight, MyDonationOverview } from '@/models/donation'
 import { MobileDonationOptions } from '@/models/mobile'
 import { axiosMock, replaceMock, renderWithProviders } from '@/test/frontend/render'
@@ -117,6 +118,29 @@ describe('ContentsSiteDonate (W11)', () => {
     expect(screen.getByRole('button', { name: 'Monthly Sustaining Pledge' }).ariaPressed).toBe(
       'true',
     )
+  })
+
+  it('falls back to the 5/10/25/50 ladder when the parish has no donation options', () => {
+    renderScreen({
+      church: {
+        churchId: 'c1',
+        slug: 'c1',
+        churchName: "St. John's Church",
+        isMainParish: true,
+      },
+    })
+
+    for (const [amount, captionKey] of [
+      ['€5.00', 'donatePresetLocally'],
+      ['€10.00', 'donatePresetCare'],
+      ['€25.00', 'donatePresetMusic'],
+      ['€50.00', 'donatePresetPillar'],
+    ] as const) {
+      expect(
+        screen.getByRole('button', { name: `${amount}${SITE_MESSAGES.en[captionKey]}` }),
+      ).toBeTruthy()
+    }
+    expect(screen.getByRole('button', { name: /complete gift of €5\.00 \/ month/i })).toBeTruthy()
   })
 
   it('starts on a one-time gift when opened from the home One-time Offering link', () => {

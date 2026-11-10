@@ -7,6 +7,17 @@ const m = vi.hoisted(() => ({
   GET_MY_ACTIVE_GIFT: vi.fn(),
   GET_MY_LATEST_DONATION: vi.fn(),
   GET_MY_PAID_DONATIONS: vi.fn(),
+  UPSERT_DONATION_PAYMENT: vi.fn(),
+  UPSERT_DONATION_SUBSCRIPTION: vi.fn(),
+  stripe: {
+    enabled: false,
+    STRIPE: {
+      retrieveCheckoutSession: vi.fn(),
+      updatePaymentIntentMetadata: vi.fn(),
+      retrieveSubscription: vi.fn(),
+      cancelOtherChurchSubscriptions: vi.fn(),
+    },
+  },
 }))
 
 vi.mock('@/providers/donation', () => ({
@@ -22,7 +33,14 @@ vi.mock('@/providers/donation', () => ({
   GET_CHECKOUT_RECEIPT: m.GET_CHECKOUT_RECEIPT,
   CANCEL_OTHER_CHURCH_SUBSCRIPTIONS: vi.fn(),
 }))
-vi.mock('@/providers/stripe', () => ({ STRIPE: {}, isStripeEnabled: () => false }))
+vi.mock('@/providers/payment-sync', () => ({
+  UPSERT_DONATION_PAYMENT: m.UPSERT_DONATION_PAYMENT,
+  UPSERT_DONATION_SUBSCRIPTION: m.UPSERT_DONATION_SUBSCRIPTION,
+}))
+vi.mock('@/providers/stripe', () => ({
+  STRIPE: m.stripe.STRIPE,
+  isStripeEnabled: () => m.stripe.enabled,
+}))
 
 import { getDonationStatus, getMyDonationOverview } from './donation'
 
@@ -37,7 +55,8 @@ const query = {
 const paidAt = new Date('2026-10-20T09:15:00Z')
 
 beforeEach(() => {
-  vi.clearAllMocks()
+  vi.resetAllMocks()
+  m.stripe.enabled = false
   m.GET_CHURCH_LABEL.mockResolvedValue({ id: 'c1', name: 'St. John' })
   m.GET_CHECKOUT_RECEIPT.mockResolvedValue(null)
   m.GET_MY_DONATION_ATTEMPT.mockResolvedValue(null)
@@ -81,6 +100,63 @@ describe('getDonationStatus — outcome comes from our records, never the URL', 
 
     expect(status.state).toBe('failed')
     expect(status.paidAt).toBeNull()
+  })
+
+  it('keeps a live checkout pending even when the ledger holds a FAILED row', async () => {
+    m.stripe.enabled = true
+    m.stripe.STRIPE.retrieveCheckoutSession.mockResolvedValue({
+      id: 'cs_1',
+      mode: 'payment',
+      status: 'open',
+      paymentStatus: 'unpaid',
+      payment_intent: 'pi_1',
+      subscription: null,
+      metadata: {},
+    })
+    m.GET_MY_DONATION_ATTEMPT.mockResolvedValue({ status: 'FAILED', paidAt: null })
+
+    const status = await getDonationStatus({ userId: 'u1', query })
+
+    expect(status.state).toBe('pending')
+    expect(m.UPSERT_DONATION_PAYMENT).not.toHaveBeenCalled()
+  })
+
+  it('reports failed only after the checkout session itself expired', async () => {
+    m.stripe.enabled = true
+    m.stripe.STRIPE.retrieveCheckoutSession.mockResolvedValue({
+      id: 'cs_1',
+      mode: 'payment',
+      status: 'expired',
+      paymentStatus: 'unpaid',
+      payment_intent: null,
+      subscription: null,
+      metadata: {},
+    })
+    m.GET_MY_DONATION_ATTEMPT.mockResolvedValue({ status: 'FAILED', paidAt: null })
+
+    expect((await getDonationStatus({ userId: 'u1', query })).state).toBe('failed')
+  })
+
+  it('records the PAID row even when the Stripe metadata write fails', async () => {
+    m.stripe.enabled = true
+    m.stripe.STRIPE.retrieveCheckoutSession.mockResolvedValue({
+      id: 'cs_1',
+      mode: 'payment',
+      status: 'complete',
+      paymentStatus: 'paid',
+      payment_intent: 'pi_1',
+      subscription: null,
+      metadata: { category: 'general' },
+    })
+    m.stripe.STRIPE.updatePaymentIntentMetadata.mockRejectedValue(new Error('stripe unavailable'))
+    m.GET_MY_DONATION_ATTEMPT.mockResolvedValue({ status: 'PAID', paidAt })
+
+    const status = await getDonationStatus({ userId: 'u1', query })
+
+    expect(m.UPSERT_DONATION_PAYMENT).toHaveBeenCalledWith(
+      expect.objectContaining({ providerPaymentId: 'pi_1', status: 'PAID' }),
+    )
+    expect(status.state).toBe('confirmed')
   })
 
   it('stays pending when Stripe reported the session but no row has landed', async () => {

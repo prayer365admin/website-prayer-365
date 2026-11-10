@@ -34,4 +34,14 @@ describe('prayer rich-text conversion', () => {
       prayerTextForDisplay('<p>[warm] Be <strong>still</strong>.</p><p>[pause] Amen.</p>'),
     ).toBe('Be still. Amen.')
   })
+
+  it('decodes double-escaped entities so imported non-breaking spaces become real spaces', () => {
+    expect(prayerTextForDisplay('Miks&amp;nbsp;kogudus?&amp;nbsp;Aeg-ajalt öeldakse.')).toBe(
+      'Miks kogudus? Aeg-ajalt öeldakse.',
+    )
+  })
+
+  it('leaves unknown entities untouched', () => {
+    expect(richTextToPlainText('Love &slotis; grace')).toBe('Love &slotis; grace')
+  })
 })

@@ -33,7 +33,8 @@
     "worker:notification-send": "bun workers/notification-send.ts",
     "viimsi:voice-audio": "bunx tsx prisma/viimsi-voice-audio.ts",
     "update-dbdocs": "bun prisma generate && dbdocs build prisma/dbml/schema.dbml --project catatia_dashboard",
-    "stripe:listen": "stripe listen --forward-to localhost:3000/api/v1/webhooks/stripe --events payment_intent.succeeded,payment_intent.payment_failed,checkout.session.completed,customer.subscription.created,customer.subscription.updated,customer.subscription.deleted,charge.succeeded,charge.failed,charge.refunded,invoice.payment_succeeded,invoice.payment_failed"
+    "stripe:listen": "stripe listen --forward-to localhost:3000/api/v1/webhooks/stripe --events payment_intent.succeeded,payment_intent.payment_failed,checkout.session.completed,customer.subscription.created,customer.subscription.updated,customer.subscription.deleted,charge.succeeded,charge.failed,charge.refunded,invoice.payment_succeeded,invoice.payment_failed",
+    "import:churches": "bunx tsx src/script/import-church-directory.ts"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"
@@ -88,6 +89,7 @@
     "@testing-library/user-event": "14.6.7",
     "@types/aws-lambda": "^8.10.145",
     "@types/bcryptjs": "^3.0.0",
+    "@types/jsdom": "^30.0.0",
     "@types/node": "^24",
     "@types/nodemailer": "^8.0.2",
     "@types/react": "^19.3.0",

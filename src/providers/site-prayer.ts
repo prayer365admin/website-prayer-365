@@ -50,6 +50,20 @@ const publishedWhere = {
   published_at: { not: null },
 } as const
 
+/**
+ * Fictional parishes created by `prisma/seeds` (demo fixtures). Their prayers and
+ * audio are approved like real content, so without this guard a seeded demo prayer
+ * becomes the guest hero on /welcome and /login the moment the live database has no
+ * playable prayer of its own.
+ */
+const DEMO_CHURCH_SLUGS = [
+  'parnu-st-elizabeths-church',
+  'tallinn-demo-church',
+  'tartu-demo-church',
+  'st-johns-church',
+  'st-olafs-church',
+]
+
 /** Maps published prayers to reader items in three batched queries (no per-prayer lookups). */
 const toItems = async (prayers: PublishedRow[]): Promise<SitePrayerArchiveItem[]> => {
   const churchIds = Array.from(new Set(prayers.map((prayer) => prayer.church_id)))
@@ -146,7 +160,7 @@ export const COUNT_SITE_PRAYERS = ({ userId }: { userId: string }): Promise<numb
 /** Most recently published public prayer that has an approved, playable audio asset. */
 export const GET_LATEST_PLAYABLE_SITE_PRAYER = async (): Promise<SiteLoginPrayer | null> => {
   const prayers = (await db.prayer.findMany({
-    where: publishedWhere,
+    where: { ...publishedWhere, church: { status: APPROVED, slug: { notIn: DEMO_CHURCH_SLUGS } } },
     orderBy: [{ published_at: 'desc' }, { id: 'desc' }],
     select: publishedSelect,
   })) as PublishedRow[]

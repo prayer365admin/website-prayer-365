@@ -31,10 +31,11 @@ export default function ContentsSiteDonationResult({
   }
 }) {
   const { locale, t } = useSiteI18n()
-  // Re-poll only while nothing is settled; a settled state never downgrades.
+  // Keep watching until the ledger says PAID. A `failed` row is provisional — the
+  // same Stripe attempt can settle a minute later, and the giver must see it.
   const { status, checking } = useDonationStatus({
     attempt,
-    enabled: initialStatus.state === 'pending',
+    enabled: initialStatus.state !== 'confirmed',
   })
   const current = status ?? initialStatus
   const [videoDismissed, setVideoDismissed] = useState(() => {

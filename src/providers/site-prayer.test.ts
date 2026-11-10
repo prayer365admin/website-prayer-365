@@ -240,13 +240,20 @@ describe('GET_LATEST_PLAYABLE_SITE_PRAYER', () => {
     })
     expect(db.prayer.findMany).toHaveBeenCalledWith({
       where: {
-        church: { status: 'APPROVED' },
+        church: { status: 'APPROVED', slug: { notIn: expect.any(Array) } },
         published_version_id: { not: null },
         published_at: { not: null },
       },
       orderBy: [{ published_at: 'desc' }, { id: 'desc' }],
       select: expect.any(Object),
     })
+  })
+
+  it('never features a seeded demo church as the guest hero', async () => {
+    await GET_LATEST_PLAYABLE_SITE_PRAYER()
+
+    const where = db.prayer.findMany.mock.calls[0][0].where
+    expect(where.church.slug.notIn).toContain('parnu-st-elizabeths-church')
   })
 
   it('returns null when no published prayer has playable audio', async () => {

@@ -1,10 +1,10 @@
-import { AppleIcon } from '@/components/icon/apple'
 import { BellOutlined, CheckOutlined, HeartOutlined } from '@/components/icon/antd-icons'
+import { AppleIcon } from '@/components/icon/apple'
 import { BellRingIcon } from '@/components/icon/bell-ring'
 import { GoogleIcon } from '@/components/icon/google'
 import { useSiteI18n } from '@/i18n/site-i18n'
-import { APP_FEATURES } from './data'
 import Image from 'next/image'
+import { APP_FEATURES } from './data'
 
 const FEATURE_ICONS = [
   <BellRingIcon aria-hidden key="bell-ring" style={{ fontSize: 16 }} />,
@@ -78,7 +78,7 @@ export default function WelcomeAppPromo() {
           </div>
 
           {/* App Badges */}
-          <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:gap-4">
+          <div className="hidden flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:gap-4">
             <a
               aria-label={t('welcomeDownloadAppStoreAria')}
               className="flex h-[51px] w-full items-center justify-start gap-3 rounded-xl border border-white/20 bg-black/85 px-4 shadow-md transition-colors hover:bg-black sm:w-[220px]"

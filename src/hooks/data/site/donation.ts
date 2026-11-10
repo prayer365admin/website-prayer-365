@@ -1,6 +1,7 @@
 import { DonationInitiateResult, DonationInput, DonationStatusView } from '@/models/donation'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import axios from 'axios'
+import { useRef } from 'react'
 
 /**
  * Website donations (WB-43). One Idempotency-Key per checkout attempt, so a
@@ -42,10 +43,14 @@ export const useOpenBillingPortal = () => {
 }
 
 /**
- * W12 attempt outcome. Polls only while the recorded state is `pending`: our own
- * ledger is the source of truth, so the page keeps asking until a PAID row (or a
- * failure) exists, and never assumes success.
+ * W12 attempt outcome. Polls until the ledger confirms: our own records are the
+ * source of truth, and a `failed` row is not final — Stripe can still settle the
+ * same payment intent (payer retry, late 3-D Secure), which flips that row to
+ * PAID a minute later. So the page keeps asking through `pending` AND for a short
+ * grace after `failed`; an abandoned checkout stops on its own.
  */
+const FAILED_GRACE_MS = 60 * 1000
+
 export const useDonationStatus = ({
   attempt,
   enabled,
@@ -60,6 +65,7 @@ export const useDonationStatus = ({
   enabled: boolean
 }) => {
   const { sessionId, churchId, amountMinor, currency, frequency } = attempt
+  const failedSince = useRef<number | null>(null)
   const query = useQuery({
     queryKey: [
       'site',
@@ -78,7 +84,18 @@ export const useDonationStatus = ({
         })
       ).data.result as DonationStatusView,
     enabled: enabled && Boolean(sessionId && churchId && amountMinor && currency && frequency),
-    refetchInterval: (current) => (current.state.data?.state === 'pending' ? 3000 : false),
+    refetchInterval: (current) => {
+      const state = current.state.data?.state
+      if (state === 'confirmed') return false
+      if (state !== 'failed') {
+        failedSince.current = null
+        return 3000
+      }
+      // `failed` is provisional for one minute: the same attempt can still settle.
+      const since = failedSince.current ?? Date.now()
+      failedSince.current = since
+      return Date.now() - since < FAILED_GRACE_MS ? 3000 : false
+    },
     // A transient network blip must not end the watch on a real payment.
     retry: 5,
     retryDelay: 3000,
