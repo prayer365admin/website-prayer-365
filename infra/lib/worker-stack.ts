@@ -141,6 +141,13 @@ export class WorkerStack extends Stack {
       MAIL_PROVIDER: config.email.provider,
       // The SES identity is per-region: send from the region it was verified in.
       SES_REGION: config.region,
+      // Sender stamped on every message this worker enqueues. Without it the
+      // mailer falls back to info@example.com (src/controller/auth.tsx).
+      MAIL_FROM: `do-not-reply@${config.email.domain}`,
+      // Origin the templates build their links from. The web app sets this in
+      // Vercel, but notification mail is enqueued INSIDE the consumer, so the
+      // worker needs it too — otherwise CTA links come out relative.
+      BASE_URL: config.appUrl,
       MAIL_CREDENTIALS: secretEnv('MAIL_CREDENTIALS'),
       // Per-email pacing for SES sandbox 1 msg/s; values larger than the
       // consumer timeout inflate consumerTimeoutSeconds requirements.

@@ -39,7 +39,14 @@ const single = (key: string, isValid: (value: string) => boolean): SecretSpec =>
 })
 
 /** Providers the mailer supports (src/controller/mail.tsx). */
-const MAIL_PROVIDERS = ['ses', 'mailgun', 'mailtrap'] as const
+const MAIL_PROVIDERS = ['ses', 'mailgun', 'mailtrap', 'brevo'] as const
+
+/** Env names each provider stores in the mail-credentials secret (Brevo uses SMTP names). */
+const MAIL_CREDENTIAL_KEYS: Record<string, { user: string; pass: string }> = {
+  mailgun: { user: 'MAILGUN_USER', pass: 'MAILGUN_PASSWORD' },
+  mailtrap: { user: 'MAILTRAP_USER', pass: 'MAILTRAP_PASSWORD' },
+  brevo: { user: 'BREVO_SMTP_USER', pass: 'BREVO_SMTP_KEY' },
+}
 
 export const SECRET_SPECS: SecretSpec[] = [
   {
@@ -66,6 +73,8 @@ export const SECRET_SPECS: SecretSpec[] = [
       'MAILGUN_PASSWORD',
       'MAILTRAP_USER',
       'MAILTRAP_PASSWORD',
+      'BREVO_SMTP_USER',
+      'BREVO_SMTP_KEY',
     ],
     isValid: isJson,
     build: (env) => {
@@ -74,16 +83,16 @@ export const SECRET_SPECS: SecretSpec[] = [
         return { error: `MAIL_PROVIDER="${provider}" is not one of ${MAIL_PROVIDERS.join(', ')}` }
       }
       if (provider === 'ses') return { value: '{}' }
-      const prefix = provider.toUpperCase()
-      const user = present(env, `${prefix}_USER`)
-      const password = present(env, `${prefix}_PASSWORD`)
+      const names = MAIL_CREDENTIAL_KEYS[provider]
+      const user = present(env, names.user)
+      const password = present(env, names.pass)
       if (!user || !password) {
         return {
-          error: `${prefix}_USER and ${prefix}_PASSWORD are needed when MAIL_PROVIDER=${provider}`,
+          error: `${names.user} and ${names.pass} are needed when MAIL_PROVIDER=${provider}`,
         }
       }
       return {
-        value: JSON.stringify({ [`${prefix}_USER`]: user, [`${prefix}_PASSWORD`]: password }),
+        value: JSON.stringify({ [names.user]: user, [names.pass]: password }),
       }
     },
   },

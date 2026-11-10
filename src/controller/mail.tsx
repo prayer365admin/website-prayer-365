@@ -57,6 +57,21 @@ export function createMailTransport(provider: string, env = process.env): Transp
     })
   }
 
+  // With Brevo (formerly Sendinblue) over its SMTP relay. The key is generated
+  // under Settings > SMTP & API; server/port are overridable so a relay change is
+  // an environment change, not a code change.
+  if (provider === 'brevo') {
+    return nodemailer.createTransport({
+      host: env.BREVO_SMTP_SERVER || 'smtp-relay.brevo.com',
+      port: Number(env.BREVO_SMTP_PORT || 587),
+      secure: false,
+      auth: {
+        user: env.BREVO_SMTP_USER,
+        pass: env.BREVO_SMTP_KEY,
+      },
+    })
+  }
+
   // With MailTrap
   if (provider === 'mailtrap') {
     return nodemailer.createTransport({
@@ -74,7 +89,7 @@ export function createMailTransport(provider: string, env = process.env): Transp
   throw new GeneralError({
     error: 'mail provider not supported',
     error_code: 'MAIL_PROVIDER_UNSUPPORTED',
-    details: `MAIL_PROVIDER="${provider}" has no transport. Use mailtrap, mailgun or ses.`,
+    details: `MAIL_PROVIDER="${provider}" has no transport. Use mailtrap, mailgun, brevo or ses.`,
     code: 500,
   })
 }

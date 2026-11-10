@@ -86,7 +86,7 @@ export type EmailConfig = {
    * A `MAIL_PROVIDER` key inside the mail-credentials secret is ignored on purpose:
    * provider selection is deployment configuration, not a credential.
    */
-  provider: 'ses' | 'mailgun' | 'mailtrap'
+  provider: 'ses' | 'mailgun' | 'mailtrap' | 'brevo'
 }
 
 export type EnvConfig = {
@@ -96,6 +96,14 @@ export type EnvConfig = {
   removalPolicy: 'retain' | 'destroy'
   /** Repo allowed to assume the deploy role through GitHub OIDC. */
   githubRepo: string
+  /**
+   * Public origin of the web app, without a trailing slash. Mail templates build
+   * their links from it (`BASE_URL`), and notification mail is enqueued INSIDE the
+   * consumer Lambda — so the origin has to reach the worker environment, not just
+   * Vercel. Use the canonical host (the one that does not redirect), otherwise
+   * every link costs a redirect.
+   */
+  appUrl: string
   storage: StorageConfig
   database: DatabaseConfig
   network: NetworkConfig

@@ -13,6 +13,8 @@ export const prayer365: EnvConfig = {
   region: 'eu-north-1',
   removalPolicy: 'retain',
   githubRepo: 'Catalyst-Inertia/prayer-365-dashboard',
+  // Apex 308-redirects to www, so www is the canonical origin mail links use.
+  appUrl: 'https://www.prayer365.eu',
   storage: { mode: 'create' },
   database: {
     mode: 'create',

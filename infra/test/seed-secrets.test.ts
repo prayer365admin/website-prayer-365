@@ -61,6 +61,14 @@ describe('mail-credentials', () => {
         MAILTRAP_PASSWORD: 'p2',
       }),
     ).toEqual({ value: JSON.stringify({ MAILTRAP_USER: 'u2', MAILTRAP_PASSWORD: 'p2' }) })
+
+    expect(
+      build('mail-credentials', {
+        MAIL_PROVIDER: 'brevo',
+        BREVO_SMTP_USER: 'u3',
+        BREVO_SMTP_KEY: 'p3',
+      }),
+    ).toEqual({ value: JSON.stringify({ BREVO_SMTP_USER: 'u3', BREVO_SMTP_KEY: 'p3' }) })
   })
 
   it('refuses an unknown provider and a missing credential pair', () => {

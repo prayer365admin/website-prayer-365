@@ -116,6 +116,8 @@ describe('WorkerStack', () => {
     expect(consumer?.Properties.Environment.Variables).toMatchObject({
       MAIL_PROVIDER: catatia.email.provider,
       SES_REGION: catatia.region,
+      MAIL_FROM: `do-not-reply@${catatia.email.domain}`,
+      BASE_URL: catatia.appUrl,
     })
   })
 

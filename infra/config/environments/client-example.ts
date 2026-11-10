@@ -15,6 +15,8 @@ export const clientExample: EnvConfig = {
   region: 'ap-southeast-1',
   removalPolicy: 'retain',
   githubRepo: 'Catalyst-Inertia/prayer-365-dashboard',
+  // Replace with the client's canonical web origin (no trailing slash).
+  appUrl: 'https://example.org',
   storage: { mode: 'create' },
   database: {
     mode: 'create',

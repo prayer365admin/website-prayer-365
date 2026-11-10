@@ -82,6 +82,33 @@ describe('createMailTransport', () => {
     )
   })
 
+  it('builds the Brevo SMTP relay transport, honoring server and port overrides', () => {
+    createMailTransport(
+      'brevo',
+      env({
+        BREVO_SMTP_SERVER: 'smtp-relay.brevo.com',
+        BREVO_SMTP_PORT: '587',
+        BREVO_SMTP_USER: 'u4',
+        BREVO_SMTP_KEY: 'k4',
+      }),
+    )
+
+    expect(createTransport).toHaveBeenCalledWith({
+      host: 'smtp-relay.brevo.com',
+      port: 587,
+      secure: false,
+      auth: { user: 'u4', pass: 'k4' },
+    })
+  })
+
+  it('falls back to the default Brevo relay when server and port are unset', () => {
+    createMailTransport('brevo', env({ BREVO_SMTP_USER: 'u5', BREVO_SMTP_KEY: 'k5' }))
+
+    expect(createTransport).toHaveBeenCalledWith(
+      expect.objectContaining({ host: 'smtp-relay.brevo.com', port: 587 }),
+    )
+  })
+
   it('fails loudly on an unknown provider', () => {
     let thrown: unknown
     try {

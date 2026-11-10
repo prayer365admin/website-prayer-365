@@ -11,6 +11,7 @@ export const catatia: EnvConfig = {
   region: 'ap-southeast-1',
   removalPolicy: 'destroy',
   githubRepo: 'Catalyst-Inertia/prayer-365-dashboard',
+  appUrl: 'https://www.catatia.com',
   storage: { mode: 'existing', bucketName: 'bucket-catatia' },
   database: { mode: 'external' },
   /*
