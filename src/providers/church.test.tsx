@@ -146,6 +146,74 @@ describe('Church Provider', () => {
       const res = await GET_CHURCH_PROFILE({ churchId: 'c1', churchIds: new Set(['c1']) })
       expect(res?.organization).toEqual(['Estonia Diocese', 'Tallin Deanery'])
     })
+
+    it('fills a missing address country code from the COUNTRY org node', async () => {
+      db.church.findFirst.mockResolvedValue({
+        id: 'c1',
+        name: 'New Church',
+        org_node_id: 'n-church',
+        status: 'DRAFT',
+        timezone: 'Europe/Tallinn',
+        description: null,
+        denomination: null,
+        address: { line1: 'Lai 1', city: 'Tallinn' },
+        latitude: null,
+        longitude: null,
+        contacts: null,
+        website: null,
+        social_links: null,
+        cover_asset_id: null,
+        version: 1,
+        churchLanguages: [],
+      })
+      db.orgNode.findMany.mockResolvedValue([
+        { id: 'n-country', parent_id: null, kind: 'COUNTRY', name: 'Estonia', country_code: 'EE' },
+        {
+          id: 'n-church',
+          parent_id: 'n-country',
+          kind: 'CHURCH',
+          name: 'New Church',
+          country_code: null,
+        },
+      ])
+
+      const res = await GET_CHURCH_PROFILE({ churchId: 'c1', churchIds: new Set(['c1']) })
+      expect(res?.address).toEqual({ line1: 'Lai 1', city: 'Tallinn', countryCode: 'EE' })
+    })
+
+    it('keeps a stored address country code over the org node code', async () => {
+      db.church.findFirst.mockResolvedValue({
+        id: 'c1',
+        name: 'New Church',
+        org_node_id: 'n-church',
+        status: 'DRAFT',
+        timezone: 'Europe/Tallinn',
+        description: null,
+        denomination: null,
+        address: { line1: 'Lai 1', city: 'Tallinn', countryCode: 'ID' },
+        latitude: null,
+        longitude: null,
+        contacts: null,
+        website: null,
+        social_links: null,
+        cover_asset_id: null,
+        version: 1,
+        churchLanguages: [],
+      })
+      db.orgNode.findMany.mockResolvedValue([
+        { id: 'n-country', parent_id: null, kind: 'COUNTRY', name: 'Estonia', country_code: 'EE' },
+        {
+          id: 'n-church',
+          parent_id: 'n-country',
+          kind: 'CHURCH',
+          name: 'New Church',
+          country_code: null,
+        },
+      ])
+
+      const res = await GET_CHURCH_PROFILE({ churchId: 'c1', churchIds: new Set(['c1']) })
+      expect(res?.address).toEqual({ line1: 'Lai 1', city: 'Tallinn', countryCode: 'ID' })
+    })
   })
 
   describe('UPDATE_CHURCH_PROFILE', () => {

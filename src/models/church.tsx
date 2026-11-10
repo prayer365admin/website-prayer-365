@@ -22,7 +22,9 @@ export const ChurchAddressSchema = z
     line2: z.string().trim().max(200).optional(),
     city: z.string().trim().min(1).max(100),
     postalCode: z.string().trim().max(50).optional(),
-    countryCode: z.string().length(2),
+    // Optional: churches created from the central setup form have no country
+    // code. The profile read derives it from the placement when it can.
+    countryCode: z.string().length(2).optional(),
   })
   .strict()
 

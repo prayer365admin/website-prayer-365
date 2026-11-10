@@ -128,6 +128,26 @@ describe('PATCH /api/v1/admin/churches/[churchId]/profile', () => {
     )
   })
 
+  it('accepts an address without a country code (central-created churches)', async () => {
+    vi.mocked(requiredAuth).mockResolvedValue(auth() as never)
+    vi.mocked(requiredScope).mockResolvedValue(scope as never)
+    vi.mocked(patchChurchProfile).mockResolvedValue({ ...profile, version: 4 } as never)
+    const req = new NextRequest('http://x/profile', {
+      method: 'PATCH',
+      body: JSON.stringify({
+        ...validInput,
+        address: { line1: '1 St', city: 'X' },
+      }),
+    })
+    const res = (await PATCH(req, params as never))!
+    expect(res.status).toBe(200)
+    expect(patchChurchProfile).toHaveBeenCalledWith(
+      expect.objectContaining({
+        input: expect.objectContaining({ address: { line1: '1 St', city: 'X' } }),
+      }),
+    )
+  })
+
   it('rejects server-owned fields with 422', async () => {
     vi.mocked(requiredAuth).mockResolvedValue(auth() as never)
     const req = new NextRequest('http://x/profile', {

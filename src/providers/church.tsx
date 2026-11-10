@@ -91,12 +91,17 @@ export const GET_CHURCH_PROFILE = async ({
     GET_ORG_NODE_MAP(),
   ])
   if (!row) return null
+  const org = row.org_node_id
+    ? churchOrgPath(nodes, row.org_node_id)
+    : { country: null, countryCode: null, organization: [] }
   return mapProfile(
     row,
     row.churchLanguages.map((l) => l.language_code.trim()),
-    row.org_node_id ? churchOrgPath(nodes, row.org_node_id).organization : [],
+    org.organization,
+    org.countryCode,
   )
 }
+
 const mapProfile = (
   row: {
     id: string
@@ -125,9 +130,20 @@ const mapProfile = (
   },
   languageCodes: string[],
   organization: string[] = [],
+  countryCode: string | null = null,
 ): ChurchProfileOutput => {
   const lat = row.latitude as number | null
   const lng = row.longitude as number | null
+  // Central-created churches carry no address country code; fall back to the
+  // COUNTRY node of the church placement so the profile still passes validation.
+  const addressRecord =
+    row.address && typeof row.address === 'object' && !Array.isArray(row.address)
+      ? (row.address as Record<string, unknown>)
+      : {}
+  const storedCountryCode =
+    typeof addressRecord.countryCode === 'string' ? addressRecord.countryCode : null
+  const address =
+    countryCode && !storedCountryCode ? { ...addressRecord, countryCode } : row.address
   return {
     id: row.id,
     name: row.name,
@@ -135,7 +151,7 @@ const mapProfile = (
     description: row.description,
     denomination: row.denomination,
     churchStyle: row.church_style ?? null,
-    address: row.address,
+    address,
     coordinates:
       lat !== null && lng !== null ? { latitude: Number(lat), longitude: Number(lng) } : null,
     timezone: row.timezone,
