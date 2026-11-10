@@ -1,4 +1,5 @@
 import { SITE_LOCALES } from '@/config/site-locale'
+import { POLICY_MESSAGE_KEYS } from '@/contents/site/privacy/data'
 import { describe, expect, it } from 'vitest'
 import { SITE_MESSAGES } from './messages'
 
@@ -62,5 +63,49 @@ describe('SITE_MESSAGES', () => {
     expect(chromeKeys.every((key) => SITE_MESSAGES.en[key as keyof typeof SITE_MESSAGES.en])).toBe(
       true,
     )
+  })
+})
+
+/**
+ * /privacy renders three legal documents from `src/i18n/policies/*`. Every one
+ * of its ~200 keys must exist in all four languages — a fallback here would show
+ * an English paragraph inside an otherwise translated policy.
+ *
+ * The second half of this block ties the copy to the page structure: every key
+ * `POLICY_DOCUMENTS` names must exist, and no `policies*` key may be orphaned
+ * (written but never rendered). Both directions are checked because the data
+ * module types keys as `SiteMessageKey`, which proves they compile — not that
+ * every translated row is reachable.
+ */
+describe('SITE_MESSAGES — policies keys', () => {
+  const policyKeys = Object.keys(SITE_MESSAGES.en).filter((key) => /^policies/.test(key))
+
+  it('covers all three documents with enough content', () => {
+    expect(policyKeys.length).toBeGreaterThan(190)
+    expect(POLICY_MESSAGE_KEYS.length).toBe(policyKeys.length)
+  })
+
+  it('keeps every policies key in all four locales', () => {
+    SITE_LOCALES.forEach((locale) => {
+      const block = SITE_MESSAGES[locale] as Record<string, string>
+      policyKeys.forEach((key) => {
+        expect(block[key], `${locale} is missing ${key}`).toBeTruthy()
+      })
+    })
+  })
+
+  it('renders every key the page structure names', () => {
+    const rendered = new Set<string>(POLICY_MESSAGE_KEYS)
+    POLICY_MESSAGE_KEYS.forEach((key) => {
+      expect(policyKeys, `${key} is rendered but has no message`).toContain(key)
+      expect(rendered.has(key)).toBe(true)
+    })
+  })
+
+  it('has no policy key the page structure leaves unused', () => {
+    const rendered = new Set<string>(POLICY_MESSAGE_KEYS)
+    policyKeys.forEach((key) => {
+      expect(rendered.has(key), `${key} is translated but never rendered`).toBe(true)
+    })
   })
 })

@@ -33,6 +33,16 @@ describe('maintenance proxy', () => {
     expect(target('/login')).toBeNull()
   })
 
+  it('keeps the policy pages readable while the switch is on', () => {
+    process.env.NEXT_PUBLIC_IS_MAINTENANCE = 'true'
+
+    // People must be able to read the documents they accepted even while the
+    // product is paused, and /terms + /cookies only forward into /privacy.
+    expect(target('/privacy')).toBeNull()
+    expect(target('/terms')).toBeNull()
+    expect(target('/cookies')).toBeNull()
+  })
+
   it('lets everything through while the flag is off', () => {
     process.env.NEXT_PUBLIC_IS_MAINTENANCE = 'false'
 

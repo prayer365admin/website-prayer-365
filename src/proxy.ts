@@ -7,12 +7,15 @@ import { NextRequest, NextResponse } from 'next/server'
  *   1. /api/*   — CORS headers (and the preflight answer).
  *   2. pages    — the maintenance switch (NEXT_PUBLIC_IS_MAINTENANCE).
  *
- * While the switch is on every page request goes to /maintenance, except four
+ * While the switch is on every page request goes to /maintenance, except the
  * paths that stay open:
  *   - /maintenance  the screen itself, or it would redirect to itself
  *   - /admin        staff keep working; the dashboard is not the public surface
  *   - /dashboard    where staff land after sign-in (the actual dashboard)
  *   - /login        staff need the door to /admin
+ *   - /privacy      the policies stay readable while the product is paused,
+ *   - /terms        and the two short links that forward into them must not be
+ *   - /cookies      sent back to /maintenance on the way
  * API routes, Next internals (_next/*) and anything naming a file (icons,
  * images, robots.txt, .well-known) are outside the matcher, so the API, the
  * mobile app, webhooks and assets behave exactly as today — the switch takes
@@ -21,7 +24,15 @@ import { NextRequest, NextResponse } from 'next/server'
  * The flag is a public variable baked into the build: flip it and redeploy
  * (restart `next dev` locally) to see the change.
  */
-const OPEN_PATHS = ['/maintenance', '/admin', '/dashboard', '/login']
+const OPEN_PATHS = [
+  '/maintenance',
+  '/admin',
+  '/dashboard',
+  '/login',
+  '/privacy',
+  '/terms',
+  '/cookies',
+]
 
 const isOpenPath = (pathname: string) =>
   OPEN_PATHS.some((path) => pathname === path || pathname.startsWith(`${path}/`))

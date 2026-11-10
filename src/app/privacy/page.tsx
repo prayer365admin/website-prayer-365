@@ -1,0 +1,36 @@
+import ContentsSitePrivacy from '@/contents/site/privacy'
+import SiteShell from '@/components/site'
+import { SiteI18nProvider } from '@/i18n/site-i18n'
+import { getSiteLocale } from '@/utils/site-locale'
+import { Metadata } from 'next'
+
+/*
+ * Public policy page (/privacy). Lives OUTSIDE the `(site)` group: that layout
+ * calls requiredWebAuth() and would send visitors to /welcome, but the policies
+ * must be readable before sign-up and while the platform is in maintenance
+ * (src/proxy.ts lists /privacy among the open paths).
+ *
+ * No SessionAccessGuard on purpose: this page belongs to every visitor. The
+ * guard's only modes are `protected` and `guest`, and `guest` would send a
+ * signed-in customer to SITE_HOME when the page is restored from the
+ * back/forward cache — exactly wrong for a document they already accepted.
+ *
+ * One page for all three documents: the footer already links to /privacy and
+ * /terms, and /terms + /cookies redirect into the anchors defined here.
+ */
+export const metadata: Metadata = {
+  title: 'Prayer 365 — Privacy & Policies',
+  description: 'Privacy Policy, Terms & Conditions and Cookie Policy for Prayer365.',
+}
+
+export default async function Page() {
+  const locale = await getSiteLocale()
+
+  return (
+    <SiteI18nProvider initialLocale={locale}>
+      <SiteShell footerVariant="legal-only" headerVariant="none">
+        <ContentsSitePrivacy locale={locale} />
+      </SiteShell>
+    </SiteI18nProvider>
+  )
+}
