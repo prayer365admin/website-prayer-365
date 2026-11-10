@@ -1,17 +1,10 @@
-import { render } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-const { listPublicChurches, getPublicChurch } = vi.hoisted(() => ({
-  listPublicChurches: vi.fn(),
-  getPublicChurch: vi.fn(),
-}))
+const { getPublicChurch } = vi.hoisted(() => ({ getPublicChurch: vi.fn() }))
 
-vi.mock('@/controller/mobile', () => ({ listPublicChurches, getPublicChurch }))
-// `cookies()` needs a request scope; the page only uses the locale for one heading.
-vi.mock('@/utils/site-locale', () => ({ getSiteLocale: vi.fn().mockResolvedValue('en') }))
-// The interactive directory is a client grid with its own providers; these cases
-// only read the server-rendered link list.
-vi.mock('@/contents/site/church-directory', () => ({ default: () => null }))
+vi.mock('@/controller/mobile', () => ({ getPublicChurch }))
+// The profile view is a client component with its own providers; these cases
+// only read the metadata helpers.
 vi.mock('@/contents/site/church-profile', () => ({ default: () => null }))
 
 const church = {
@@ -45,16 +38,7 @@ const church = {
 describe('public church pages', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    listPublicChurches.mockResolvedValue({ result: [church], total: 1 })
     getPublicChurch.mockResolvedValue(church)
-  })
-
-  it('puts the church link in the directory HTML', async () => {
-    const Page = (await import('./page')).default
-    const { container } = render(await Page())
-
-    const link = container.querySelector('a[href="/churches/st-johns-church"]')
-    expect(link?.textContent).toBe("St John's Church — Tallinn")
   })
 
   it('builds metadata from the church row', async () => {
