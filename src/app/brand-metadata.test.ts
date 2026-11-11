@@ -4,6 +4,9 @@ import manifest from './manifest'
 import robots from './robots'
 import sitemap from './sitemap'
 
+vi.mock('@/controller/mobile', () => ({
+  listPublicChurches: vi.fn().mockResolvedValue({ result: [{ slug: 'grace-church' }] }),
+}))
 vi.mock('next/font/google', () => ({
   Manrope: () => ({ variable: '--font-heading' }),
   Instrument_Serif: () => ({ variable: '--font-quote' }),
@@ -22,6 +25,7 @@ describe('brand metadata', () => {
       `${SITE_URL}/churches`,
       `${SITE_URL}/privacy`,
     ])
+    expect(urls).toContain(`${SITE_URL}/churches/grace-church`)
     expect(urls.some((url) => url.includes('/terms'))).toBe(false)
     expect(urls.some((url) => url.includes('/cookies'))).toBe(false)
   })
