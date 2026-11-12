@@ -136,6 +136,12 @@ The webhook endpoint idempotently stores webhook receipts and pushes a `payment.
 - **`POST /api/v1/site/donations/portal`** — mints a Stripe **billing portal** session so the giver pauses or changes their own pledge in Stripe (`billingPortal.sessions.create`). The subscription is resolved from the signed-in giver's newest `active` `DonationSubscription` and its Customer comes from `subscriptions.retrieve`, so no client-supplied subscription/customer id is ever trusted. Optional `returnPath` must stay on `/donate*` and is resolved against this origin. No active pledge → `404 NO_ACTIVE_SUBSCRIPTION`.
 - **`GET /api/v1/site/donations/status`** — W12 attempt outcome read from our own ledger.
 
+**Mobile (bearer token, `Cache-Control: no-store`):**
+
+- **`POST /api/v1/mobile/me/donation-attempts/:sessionId/expire`** — "start over": expires the caller's own **open** Checkout Session so its page can no longer be paid and the app can safely start a replacement. The session must carry the caller's `userId` in its metadata (else `404 DONATION_ATTEMPT_NOT_FOUND`). A session that is already `complete`/paid is never expired and answers `{ state: 'completed' }` (the app then reads the status, not a second payment); an already expired one answers `{ state: 'expired' }`. A race between our read and Stripe's expire call resolves to `completed`. Disabled integration → `503 DONATIONS_NOT_READY`.
+- Checkout Sessions are created with `expires_at` = creation + 31 minutes (Stripe's minimum is 30), just past the 30-minute attempt window the status read honours, so abandoned pages close on their own.
+- `GET …/donation-attempts` (and the site status read) answers from the ledger alone when a PAID/REFUNDED row exists; otherwise it reads the Stripe session through a 3-second per-instance cache (unpaid answers only) so polling cannot hammer the Stripe API.
+
 **Reporting (all read-only, scoped by `requiredAuth` + `requiredScope` `prayer_donation` read, responses carry `Cache-Control: private, no-store`):**
 
 - **`GET /api/v1/admin/churches/:churchId/donations`**

@@ -16,6 +16,9 @@ import { verifyStripeWebhookSignature, parseStripeWebhookEvent } from './stripe-
  * Phase 10 worker/reconciliation deliverable.
  */
 
+/** 31 min: just past the 30-minute attempt window, and over Stripe's 30-minute minimum. */
+const CHECKOUT_TTL_SECONDS = 31 * 60
+
 const PENDING_MESSAGE = 'external integration pending — see Phase 10 worker/webhook deliverable'
 
 /** One lazily-created SDK client; the platform uses a single Stripe account (no Connect per church). */
@@ -251,6 +254,9 @@ export const STRIPE = {
           },
         },
       ],
+      // Abandoned pages close themselves a little after the 30-minute attempt window the status
+      // read honours (Stripe's minimum is 30 minutes from creation; its default is 24 hours).
+      expires_at: Math.floor(Date.now() / 1000) + CHECKOUT_TTL_SECONDS,
       success_url: req.successUrl,
       cancel_url: req.cancelUrl,
       metadata,
@@ -269,6 +275,14 @@ export const STRIPE = {
       })
     }
     return { sessionId: session.id, url: session.url }
+  },
+  /**
+   * Expire an OPEN Checkout Session so its hosted page can no longer take a payment. Stripe rejects
+   * this for a session that is already complete or expired; the caller handles that.
+   */
+  async expireCheckoutSession(id: string): Promise<void> {
+    ensureEnabled('expireCheckoutSession')
+    await makeStripe().checkout.sessions.expire(id)
   },
   /**
    * Open the Stripe-hosted billing portal for a Customer. The giver pauses or
