@@ -1,4 +1,4 @@
-import { STRIPE, isStripeEnabled } from '@/providers/stripe'
+import { STRIPE, isStripeEnabled, type StripeCheckoutSession } from '@/providers/stripe'
 import { withExternalIdempotency } from '@/utils/idempotency'
 import { validate } from '@/utils/validate'
 import { GeneralError } from '@/utils/general-error'
@@ -186,11 +186,81 @@ export const initiateDonation = async ({
   }
 }
 
+/**
+ * Mobile "start over" (F11): close the caller's OPEN checkout session so the old hosted page can no
+ * longer be paid, which is what makes minting a replacement session safe (no double charge).
+ *
+ *  - the session must carry the caller's `userId` in its metadata (anything else is 404, so a
+ *    session id never reveals whose it is);
+ *  - `completed` means the money already moved (or is moving): the app must read the status, NOT
+ *    start a second payment. A race between our read and Stripe's expire resolves the same way.
+ */
+export const expireDonationAttempt = async ({
+  userId,
+  sessionId,
+}: {
+  userId: string
+  sessionId: string
+}): Promise<{ state: 'expired' | 'completed' }> => {
+  const notFound = () =>
+    new GeneralError({
+      code: 404,
+      error: 'NOT_FOUND',
+      error_code: 'DONATION_ATTEMPT_NOT_FOUND',
+      details: 'Donation attempt not found.',
+    })
+
+  const session = await STRIPE.retrieveCheckoutSession(sessionId).catch(() => null)
+  if (!session || session.metadata?.userId !== userId) throw notFound()
+
+  if (session.status === 'expired') return { state: 'expired' }
+  if (session.status === 'complete' || session.paymentStatus === 'paid') {
+    return { state: 'completed' }
+  }
+
+  try {
+    await STRIPE.expireCheckoutSession(sessionId)
+    return { state: 'expired' }
+  } catch (error) {
+    // Lost the race: the giver paid between our read and the expire call.
+    const again = await STRIPE.retrieveCheckoutSession(sessionId).catch(() => null)
+    if (again?.status === 'complete' || again?.paymentStatus === 'paid') {
+      return { state: 'completed' }
+    }
+    if (again?.status === 'expired') return { state: 'expired' }
+    throw error
+  }
+}
+
 export const getMyActiveGift = async ({ userId }: { userId: string }) =>
   GET_MY_ACTIVE_GIFT({ userId })
 
 /** A fresh checkout can only produce a row within this window; older rows are a different attempt. */
 const DONATION_ATTEMPT_WINDOW_MS = 30 * 60 * 1000
+
+/**
+ * Short-lived cache of Stripe session reads, so a polling app (or two) cannot turn every poll into a
+ * Stripe API call. Only UNPAID answers are cached: a paid session must be acted on immediately.
+ * ponytail: per-instance memory (no shared store); move to Redis if instances multiply.
+ */
+const SESSION_CACHE_MS = 3_000
+const sessionCache = new Map<string, { at: number; session: StripeCheckoutSession | null }>()
+
+export const clearDonationSessionCache = () => sessionCache.clear()
+
+const retrieveSessionThrottled = async (
+  sessionId: string,
+): Promise<StripeCheckoutSession | null> => {
+  const now = Date.now()
+  const hit = sessionCache.get(sessionId)
+  if (hit && now - hit.at < SESSION_CACHE_MS) return hit.session
+  const session = await STRIPE.retrieveCheckoutSession(sessionId).catch(() => null)
+  sessionCache.forEach((entry, key) => {
+    if (now - entry.at >= SESSION_CACHE_MS) sessionCache.delete(key)
+  })
+  if (session?.paymentStatus !== 'paid') sessionCache.set(sessionId, { at: now, session })
+  return session
+}
 
 /**
  * W12 result-page outcome. Read from our own records, NEVER from the redirect
@@ -226,6 +296,21 @@ export const getDonationStatus = async ({
     GET_CHECKOUT_RECEIPT({ sessionId: query.sessionId }),
   ])
 
+  // The ledger already proves the gift (webhook landed): answer from it, no Stripe call at all.
+  // This is the common case, so the polling path stays database-only.
+  const base = {
+    churchId: church.id,
+    churchSlug: church.slug,
+    churchName: church.name,
+    amountMinor: query.amountMinor,
+    currency: query.currency.toUpperCase(),
+    frequency: query.frequency,
+    receiptSeen: receipt !== null,
+  }
+  if (attempt?.status === 'PAID' || attempt?.status === 'REFUNDED') {
+    return { ...base, state: 'confirmed', paidAt: attempt.paidAt }
+  }
+
   // A checkout session that is still live outranks the ledger: Stripe can report
   // `payment_intent.payment_failed` and then succeed on the SAME intent a minute
   // later (payer retry / late 3-D Secure). Reading the transient FAILED row as a
@@ -233,7 +318,7 @@ export const getDonationStatus = async ({
   // 2026-11-10: failed event T, succeeded event T+78s, one ledger row).
   let stillSettling = false
   if (query.sessionId && isStripeEnabled()) {
-    const session = await STRIPE.retrieveCheckoutSession(query.sessionId).catch(() => null)
+    const session = await retrieveSessionThrottled(query.sessionId)
     // `paid` only: a completed session with an async payment method (bank debit)
     // reports payment_status `unpaid` while the money is still moving.
     const isPaid = session?.paymentStatus === 'paid'
@@ -331,16 +416,6 @@ export const getDonationStatus = async ({
       frequency: query.frequency,
       since: new Date(Date.now() - DONATION_ATTEMPT_WINDOW_MS),
     }))
-
-  const base = {
-    churchId: church.id,
-    churchSlug: church.slug,
-    churchName: church.name,
-    amountMinor: query.amountMinor,
-    currency: query.currency.toUpperCase(),
-    frequency: query.frequency,
-    receiptSeen: receipt !== null,
-  }
 
   if (finalAttempt?.status === 'PAID' || finalAttempt?.status === 'REFUNDED') {
     return { ...base, state: 'confirmed', paidAt: finalAttempt.paidAt }

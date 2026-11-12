@@ -43,7 +43,7 @@ vi.mock('@/providers/stripe', () => ({
   isStripeEnabled: () => m.stripe.enabled,
 }))
 
-import { getDonationStatus, getMyDonationOverview } from './donation'
+import { clearDonationSessionCache, getDonationStatus, getMyDonationOverview } from './donation'
 
 const query = {
   sessionId: 'cs_1',
@@ -56,6 +56,7 @@ const query = {
 const paidAt = new Date('2026-10-20T09:15:00Z')
 
 beforeEach(() => {
+  clearDonationSessionCache()
   vi.resetAllMocks()
   m.stripe.enabled = false
   m.GET_CHURCH_LABEL.mockResolvedValue({ id: 'c1', name: 'St. John' })
@@ -86,6 +87,41 @@ describe('getDonationStatus — outcome comes from our records, never the URL', 
         frequency: 'monthly',
       }),
     )
+  })
+
+  it('answers a PAID row from the ledger alone, without calling Stripe', async () => {
+    m.stripe.enabled = true
+    m.GET_MY_DONATION_ATTEMPT.mockResolvedValue({ status: 'PAID', paidAt })
+    const status = await getDonationStatus({ userId: 'u1', query })
+    expect(status.state).toBe('confirmed')
+    expect(m.stripe.STRIPE.retrieveCheckoutSession).not.toHaveBeenCalled()
+  })
+
+  it('reads the Stripe session once for polls inside the throttle window', async () => {
+    m.stripe.enabled = true
+    m.stripe.STRIPE.retrieveCheckoutSession.mockResolvedValue({
+      id: 'cs_1',
+      mode: 'payment',
+      status: 'open',
+      paymentStatus: 'unpaid',
+    })
+    await getDonationStatus({ userId: 'u1', query })
+    await getDonationStatus({ userId: 'u1', query })
+    expect(m.stripe.STRIPE.retrieveCheckoutSession).toHaveBeenCalledTimes(1)
+  })
+
+  it('never caches a paid session: it is acted on at once', async () => {
+    m.stripe.enabled = true
+    m.stripe.STRIPE.retrieveCheckoutSession.mockResolvedValue({
+      id: 'cs_1',
+      mode: 'payment',
+      status: 'complete',
+      paymentStatus: 'paid',
+      payment_intent: 'pi_1',
+    })
+    await getDonationStatus({ userId: 'u1', query })
+    await getDonationStatus({ userId: 'u1', query })
+    expect(m.stripe.STRIPE.retrieveCheckoutSession).toHaveBeenCalledTimes(2)
   })
 
   it('treats a REFUNDED gift as a gift that was paid', async () => {
@@ -150,7 +186,11 @@ describe('getDonationStatus — outcome comes from our records, never the URL', 
       metadata: { category: 'general' },
     })
     m.stripe.STRIPE.updatePaymentIntentMetadata.mockRejectedValue(new Error('stripe unavailable'))
-    m.GET_MY_DONATION_ATTEMPT.mockResolvedValue({ status: 'PAID', paidAt })
+    // Webhook has not landed yet: the first read has no row, the post-sync re-read does.
+    m.GET_MY_DONATION_ATTEMPT.mockResolvedValueOnce(null).mockResolvedValue({
+      status: 'PAID',
+      paidAt,
+    })
 
     const status = await getDonationStatus({ userId: 'u1', query })
 

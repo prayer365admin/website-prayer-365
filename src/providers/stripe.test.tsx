@@ -4,6 +4,7 @@ import { NotImplementedError } from '@/utils/not-implemented-error'
 const m = vi.hoisted(() => ({
   create: vi.fn(),
   retrieve: vi.fn(),
+  expire: vi.fn(),
   subRetrieve: vi.fn(),
   subCancel: vi.fn(),
   subList: vi.fn(),
@@ -13,7 +14,7 @@ const m = vi.hoisted(() => ({
 
 vi.mock('stripe', () => ({
   default: class {
-    checkout = { sessions: { create: m.create, retrieve: m.retrieve } }
+    checkout = { sessions: { create: m.create, retrieve: m.retrieve, expire: m.expire } }
     subscriptions = { retrieve: m.subRetrieve, cancel: m.subCancel, list: m.subList }
     billingPortal = { sessions: { create: m.portalCreate } }
     constructor(...args: unknown[]) {
@@ -256,5 +257,30 @@ describe('STRIPE.retrieveCheckoutSession', () => {
       metadata: { churchId: 'c1' },
     })
     expect(m.retrieve).toHaveBeenCalledWith('cs_1', {}, undefined)
+  })
+})
+
+describe('STRIPE.createCheckoutSession expiry', () => {
+  it('closes an abandoned page just after the 30-minute attempt window', async () => {
+    m.create.mockResolvedValue({ id: 'cs_1', url: 'https://checkout.test/cs_1' })
+    const before = Math.floor(Date.now() / 1000)
+    await STRIPE.createCheckoutSession({ ...request, frequency: 'one_time' })
+    const { expires_at } = m.create.mock.calls[0][0]
+    expect(expires_at - before).toBeGreaterThanOrEqual(30 * 60)
+    expect(expires_at - before).toBeLessThanOrEqual(32 * 60)
+  })
+})
+
+describe('STRIPE.expireCheckoutSession', () => {
+  it('expires the session through the SDK', async () => {
+    m.expire.mockResolvedValue({ id: 'cs_1', status: 'expired' })
+    await STRIPE.expireCheckoutSession('cs_1')
+    expect(m.expire).toHaveBeenCalledWith('cs_1')
+  })
+
+  it('refuses to pretend when the integration flag is off', async () => {
+    process.env.STRIPE_ENABLED = 'false'
+    await expect(STRIPE.expireCheckoutSession('cs_1')).rejects.toBeInstanceOf(NotImplementedError)
+    expect(m.expire).not.toHaveBeenCalled()
   })
 })
