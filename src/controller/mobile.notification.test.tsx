@@ -2,6 +2,9 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const auditCreate = vi.fn(async () => ({}))
 
+// changeMyPassword's login/user controllers pull next-auth, which vitest cannot resolve
+vi.mock('@/controller/authentication', () => ({ loginUser: vi.fn() }))
+vi.mock('@/controller/user', () => ({ updateUser: vi.fn() }))
 vi.mock('@/utils/db-transaction', () => ({
   dbTransaction: vi.fn(async (fn: (tx: unknown) => unknown) =>
     fn({ auditLog: { create: auditCreate } }),

@@ -1,5 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
+// changeMyPassword's login/user controllers pull next-auth, which vitest cannot resolve
+vi.mock('@/controller/authentication', () => ({ loginUser: vi.fn() }))
+vi.mock('@/controller/user', () => ({ updateUser: vi.fn() }))
 vi.mock('@/providers/mobile', () => ({
   CREATE_ANALYTICS_EVENTS: vi.fn(),
   CREATE_CHECKIN: vi.fn(),

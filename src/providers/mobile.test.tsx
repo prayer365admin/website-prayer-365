@@ -1465,7 +1465,8 @@ describe('church cover URLs (MB-17)', () => {
     church: {
       id: 'c1',
       name: 'Grace',
-      address: { city: 'Tallinn' },
+      denomination: 'EELK',
+      address: { city: 'Tallinn', line1: 'Rootsi 9', line2: 'Rüütli' },
       cover_asset_id: 'm1',
       status: 'APPROVED',
     },
@@ -1480,6 +1481,11 @@ describe('church cover URLs (MB-17)', () => {
 
     expect(res[0].coverAssetId).toBe('m1')
     expect(res[0].coverUrl).toBe('https://cdn.test/media/c1/image/abc')
+    expect(res[0]).toMatchObject({
+      denomination: 'EELK',
+      addressLine1: 'Rootsi 9',
+      district: 'Rüütli',
+    })
     expect(db.mediaAsset.findMany).toHaveBeenCalledWith({
       where: { id: { in: ['m1'] }, status: 'READY', purpose: 'IMAGE' },
       select: { id: true, object_key: true },

@@ -3,6 +3,8 @@ import { GeneralError } from '@/utils/general-error'
 import { withIdempotency } from '@/utils/idempotency'
 import { auditPayload } from '@/utils/audit'
 import { dbTransaction } from '@/utils/db-transaction'
+import { loginUser } from '@/controller/authentication'
+import { updateUser } from '@/controller/user'
 import {
   MobileAnalyticsAck,
   MobileAnalyticsInput,
@@ -12,6 +14,7 @@ import {
   MobileDeviceRegistration,
   MobileMe,
   MobileMePatch,
+  MobileChangePassword,
   MobileMyChurch,
   MobileNotificationPreferences,
   MobilePublicAnnouncement,
@@ -474,3 +477,41 @@ export const revokeDevice = async ({
     })
     return { revoked: result.count }
   })
+
+const MIN_PASSWORD_LENGTH = 8
+
+const passwordError = (error_code: string, details: string) =>
+  new GeneralError({ code: 400, error: 'BAD_REQUEST', error_code, details })
+
+/**
+ * Signed-in password change. Verifies the CURRENT password through the same login path (so
+ * failures count toward the lockout), then `updateUser` hashes the new one and bumps
+ * auth_version — every outstanding mobile token (this session included) stops working, so the
+ * client signs in again.
+ */
+export const changeMyPassword = async ({
+  userId,
+  data,
+}: {
+  userId: string
+  data: MobileChangePassword
+}): Promise<{ success: true }> => {
+  if (data.new_password !== data.confirm_password) {
+    throw passwordError('PASSWORD_MISMATCH', 'Password and confirm password do not match!')
+  }
+  if (data.new_password.length < MIN_PASSWORD_LENGTH) {
+    throw passwordError(
+      'INVALID_PASSWORD',
+      `Password must be at least ${MIN_PASSWORD_LENGTH} characters!`,
+    )
+  }
+  const me = await GET_ME_PROFILE({ userId })
+  if (!me) throw notFound('User not found.')
+  try {
+    await loginUser({ email: me.email, password: data.current_password })
+  } catch {
+    throw passwordError('INVALID_CURRENT_PASSWORD', 'Current password is incorrect!')
+  }
+  await updateUser({ user_id: userId, payload: { password: data.new_password } })
+  return { success: true }
+}

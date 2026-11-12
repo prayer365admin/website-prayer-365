@@ -197,6 +197,17 @@ export const MobileMePatchSchema = z
 
 export type MobileMePatch = z.infer<typeof MobileMePatchSchema>
 
+/** POST /mobile/me/password — signed-in password change (current password required). */
+export const MobileChangePasswordSchema = z
+  .object({
+    current_password: z.string().min(1).max(200),
+    new_password: z.string().min(1).max(200),
+    confirm_password: z.string().min(1).max(200),
+  })
+  .strict()
+
+export type MobileChangePassword = z.infer<typeof MobileChangePasswordSchema>
+
 /**
  * Website profile patch (WB1). The locale must be a site locale (en/et/sv/fi)
  * and cannot be cleared; the main church is optional and can be cleared with
@@ -217,6 +228,10 @@ export const MobileMyChurchSchema = z.object({
   churchName: z.string(),
   city: z.string().nullable(),
   address: z.string().nullable(),
+  /** Card fields (Manage Churches); null when the church has none. */
+  denomination: z.string().nullable().optional(),
+  addressLine1: z.string().nullable().optional(),
+  district: z.string().nullable().optional(),
   coverAssetId: z.string().nullable(),
   coverUrl: z.string().nullable(),
   isMain: z.boolean(),
