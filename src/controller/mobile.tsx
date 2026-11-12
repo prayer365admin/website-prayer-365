@@ -5,6 +5,7 @@ import { auditPayload } from '@/utils/audit'
 import { dbTransaction } from '@/utils/db-transaction'
 import { loginUser } from '@/controller/authentication'
 import { updateUser } from '@/controller/user'
+import { IS_LOGIN_BLOCKED } from '@/providers/auth-login-attempt'
 import {
   MobileAnalyticsAck,
   MobileAnalyticsInput,
@@ -507,9 +508,18 @@ export const changeMyPassword = async ({
   }
   const me = await GET_ME_PROFILE({ userId })
   if (!me) throw notFound('User not found.')
+  // A locked account and an unverified email are NOT a wrong password; say so, because
+  // the app shows a different message (and a different next step) for each.
+  if (await IS_LOGIN_BLOCKED({ user_id: userId })) {
+    throw passwordError('ACCOUNT_LOCKED', 'Too many failed attempts. Try again later!')
+  }
   try {
     await loginUser({ email: me.email, password: data.current_password })
-  } catch {
+  } catch (error) {
+    const code = (error as { code?: unknown } | null)?.code
+    if (code === 'EMAIL_NOT_VERIFIED') {
+      throw passwordError('EMAIL_NOT_VERIFIED', 'Verify your email address before changing it!')
+    }
     throw passwordError('INVALID_CURRENT_PASSWORD', 'Current password is incorrect!')
   }
   await updateUser({ user_id: userId, payload: { password: data.new_password } })

@@ -50,6 +50,41 @@ export const useOpenBillingPortal = () => {
  * grace after `failed`; an abandoned checkout stops on its own.
  */
 const FAILED_GRACE_MS = 60 * 1000
+/** Adaptive backoff: a fresh redirect is checked fast, an old one rarely. */
+const POLL_FAST_MS = 3_000
+const POLL_SLOW_MS = 10_000
+const POLL_IDLE_MS = 30_000
+const POLL_FAST_WINDOW_MS = 60 * 1000
+const POLL_SLOW_WINDOW_MS = 5 * 60 * 1000
+/** Hard stop: after the checkout TTL the webhook is the only source of truth. */
+export const POLL_TOTAL_MS = 10 * 60 * 1000
+
+/**
+ * Next refetch delay for the result page, or `false` to stop. Pure on purpose: the
+ * backoff ladder and the hard stop are the whole behaviour, so they are unit-tested
+ * directly instead of through fake timers.
+ */
+export const nextDonationPollInterval = ({
+  state,
+  elapsedMs,
+  failedSinceMs,
+  nowMs,
+}: {
+  state?: string
+  elapsedMs: number
+  failedSinceMs: number | null
+  nowMs: number
+}): number | false => {
+  if (state === 'confirmed') return false
+  if (elapsedMs >= POLL_TOTAL_MS) return false
+  // `failed` is provisional for one minute: the same attempt can still settle.
+  if (state === 'failed') {
+    const since = failedSinceMs ?? nowMs
+    return nowMs - since < FAILED_GRACE_MS ? POLL_FAST_MS : false
+  }
+  if (elapsedMs < POLL_FAST_WINDOW_MS) return POLL_FAST_MS
+  return elapsedMs < POLL_SLOW_WINDOW_MS ? POLL_SLOW_MS : POLL_IDLE_MS
+}
 
 export const useDonationStatus = ({
   attempt,
@@ -66,6 +101,7 @@ export const useDonationStatus = ({
 }) => {
   const { sessionId, churchId, amountMinor, currency, frequency } = attempt
   const failedSince = useRef<number | null>(null)
+  const startedAt = useRef<number | null>(null)
   const query = useQuery({
     queryKey: [
       'site',
@@ -85,16 +121,18 @@ export const useDonationStatus = ({
       ).data.result as DonationStatusView,
     enabled: enabled && Boolean(sessionId && churchId && amountMinor && currency && frequency),
     refetchInterval: (current) => {
-      const state = current.state.data?.state
-      if (state === 'confirmed') return false
-      if (state !== 'failed') {
-        failedSince.current = null
-        return 3000
-      }
-      // `failed` is provisional for one minute: the same attempt can still settle.
-      const since = failedSince.current ?? Date.now()
-      failedSince.current = since
-      return Date.now() - since < FAILED_GRACE_MS ? 3000 : false
+      const now = Date.now()
+      const sinceStart = (startedAt.current ??= now)
+      const interval = nextDonationPollInterval({
+        state: current.state.data?.state,
+        elapsedMs: now - sinceStart,
+        failedSinceMs: failedSince.current,
+        nowMs: now,
+      })
+      // Remember when the provisional `failed` state first appeared.
+      failedSince.current =
+        current.state.data?.state === 'failed' ? (failedSince.current ?? now) : null
+      return interval
     },
     // A transient network blip must not end the watch on a real payment.
     retry: 5,

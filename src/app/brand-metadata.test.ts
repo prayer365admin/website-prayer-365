@@ -20,11 +20,9 @@ describe('brand metadata', () => {
     const entries = await sitemap()
     const urls = entries.map((entry) => entry.url)
 
-    expect(urls.slice(0, 3)).toEqual([
-      `${SITE_URL}/welcome`,
-      `${SITE_URL}/churches`,
-      `${SITE_URL}/privacy`,
-    ])
+    expect(urls.slice(0, 2)).toEqual([`${SITE_URL}/welcome`, `${SITE_URL}/privacy`])
+    // The church directory needs a session, so it is not a public URL.
+    expect(urls).not.toContain(`${SITE_URL}/churches`)
     expect(urls).toContain(`${SITE_URL}/churches/grace-church`)
     expect(urls.some((url) => url.includes('/terms'))).toBe(false)
     expect(urls.some((url) => url.includes('/cookies'))).toBe(false)

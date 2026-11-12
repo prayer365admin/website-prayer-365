@@ -491,6 +491,19 @@ describe('payment-sync-job controller', () => {
     expect(donations.find((d) => d.provider_payment_id === invoiceId)).toBeUndefined()
   })
 
+  it('requeues an invoice whose payment intent cannot be resolved instead of keying it on the invoice id', async () => {
+    const invoiceId = `in_${crypto.randomUUID()}`
+    const { job } = createJob({
+      eventType: 'invoice.payment_succeeded',
+      dataObject: { id: invoiceId, amount_paid: 400, currency: 'eur', metadata: { churchId } },
+    })
+
+    const outcome = await processPaymentSyncJob(job.id, 'req_invoice_unresolved')
+
+    expect(outcome).toBe('requeued')
+    expect(donations.find((d) => d.provider_payment_id === invoiceId)).toBeUndefined()
+  })
+
   it('successfully processes charge.refunded', async () => {
     const chId = `ch_test_${crypto.randomUUID()}`
     const piId = `pi_ref_${crypto.randomUUID()}`

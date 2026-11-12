@@ -311,11 +311,12 @@ export const updateUser = async ({
   }
   if (password) {
     safePayload.password = await hashSecret({ secret: `${password}` })
-    // D1 (plan 002): any password change invalidates outstanding mobile tokens.
-    await INCREMENT_AUTH_VERSION({ user_id })
   }
 
   const result = await UPDATE_USER({ user_id: user_id, payload: safePayload })
+  // D1 (plan 002): any password change invalidates outstanding mobile tokens — after the
+  // write, so a failed write cannot end every session while keeping the old password.
+  if (password) await INCREMENT_AUTH_VERSION({ user_id })
   // Promote/demote into the super-admin role also reconciles the tenancy layer.
   if (role_id !== undefined)
     await ensureGlobalAdminAssignment({ userId: user_id, actorId, requestId })

@@ -3,7 +3,12 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { ReactNode } from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { axiosMock } from '@/test/frontend/render'
-import { useDonationStatus, useInitiateDonation } from './donation'
+import {
+  useDonationStatus,
+  useInitiateDonation,
+  POLL_TOTAL_MS,
+  nextDonationPollInterval,
+} from './donation'
 
 const wrapper = ({ children }: { children: ReactNode }) => (
   <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
@@ -82,5 +87,33 @@ describe('useDonationStatus', () => {
       params: expect.objectContaining({ sessionId: 'cs_1', churchId: 'c1', amountMinor: 1000 }),
     })
     expect(result.current.status?.state).toBe('pending')
+  })
+
+  it('backs off and hard-stops instead of polling forever', () => {
+    const now = Date.now()
+    const at = (elapsedMs: number, state = 'pending') =>
+      nextDonationPollInterval({ state, elapsedMs, failedSinceMs: null, nowMs: now })
+
+    expect(at(0)).toBe(3000)
+    expect(at(2 * 60 * 1000)).toBe(10000)
+    expect(at(8 * 60 * 1000)).toBe(30000)
+    expect(at(POLL_TOTAL_MS)).toBe(false)
+    expect(at(5000, 'confirmed')).toBe(false)
+    expect(
+      nextDonationPollInterval({
+        state: 'failed',
+        elapsedMs: 5000,
+        failedSinceMs: now - 30_000,
+        nowMs: now,
+      }),
+    ).toBe(3000)
+    expect(
+      nextDonationPollInterval({
+        state: 'failed',
+        elapsedMs: 5000,
+        failedSinceMs: now - 90_000,
+        nowMs: now,
+      }),
+    ).toBe(false)
   })
 })

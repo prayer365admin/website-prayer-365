@@ -21,7 +21,8 @@ registerPath({
     { status: 200, description: 'Password changed' },
     {
       status: 400,
-      description: 'PASSWORD_MISMATCH / INVALID_PASSWORD / INVALID_CURRENT_PASSWORD',
+      description:
+        'PASSWORD_MISMATCH / INVALID_PASSWORD / INVALID_CURRENT_PASSWORD / EMAIL_NOT_VERIFIED / ACCOUNT_LOCKED',
     },
     { status: 401, description: 'Not authenticated' },
     { status: 422, description: 'Validation error' },

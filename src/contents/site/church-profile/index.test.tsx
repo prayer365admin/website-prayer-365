@@ -2,6 +2,7 @@ import { fireEvent, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { SiteI18nProvider } from '@/i18n/site-i18n'
+import type { MobilePublicChurch } from '@/models/mobile'
 import { axiosMock, renderWithProviders, resolveGet, sessionMock } from '@/test/frontend/render'
 import ContentsSiteChurchProfile from './index'
 
@@ -381,6 +382,22 @@ describe('ContentsSiteChurchProfile', () => {
     await waitFor(() => {
       expect(screen.getByRole('heading', { level: 1, name: 'Grace' })).toBeTruthy()
     })
+  })
+
+  it('keeps the server-rendered profile when the client refresh fails', async () => {
+    axiosMock.get.mockRejectedValue(new Error('boom'))
+
+    renderWithProviders(
+      <SiteI18nProvider initialLocale="en">
+        <ContentsSiteChurchProfile
+          slug="c1"
+          initialChurch={church as unknown as MobilePublicChurch}
+        />
+      </SiteI18nProvider>,
+    )
+
+    expect(await screen.findByRole('heading', { level: 1, name: 'Grace' })).toBeTruthy()
+    expect(screen.queryByText('Something went wrong. Please try again.')).toBeNull()
   })
 
   it('links to the church donate page', async () => {

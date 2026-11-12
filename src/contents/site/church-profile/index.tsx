@@ -327,7 +327,8 @@ export default function ContentsSiteChurchProfile({
     )
   }
 
-  if (error && !loading) {
+  // The server already rendered the row; a failed refresh must not wipe it.
+  if (error && !loading && !initialChurch) {
     return (
       <div className="mx-auto max-w-[1152px] p-6">
         {is404 ? (

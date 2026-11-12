@@ -221,7 +221,10 @@ describe('getDonationStatus — outcome comes from our records, never the URL', 
       total: 400,
       currency: 'eur',
     })
-    m.GET_MY_DONATION_ATTEMPT.mockResolvedValue({ status: 'PAID', paidAt })
+    m.GET_MY_DONATION_ATTEMPT.mockResolvedValueOnce(null).mockResolvedValue({
+      status: 'PAID',
+      paidAt,
+    })
 
     await getDonationStatus({ userId: 'u1', query: { ...query, amountMinor: 400 } })
 

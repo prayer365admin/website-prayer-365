@@ -18,10 +18,13 @@ const providerRefId = (value: unknown): string | undefined => {
  * Reading only the legacy fields made the redirect page write a `cs_…` row and
  * `invoice.payment_succeeded` write an `in_…` row for the same payment.
  *
- * Falls back to the invoice id only when the invoice exposes no payment intent at
- * all, so the fallback is stable across writers instead of per-caller.
+ * Falls back to the invoice id only when the caller allows it, so a LEDGER WRITER can opt
+ * out and leave the row to the webhook retry instead of splitting one gift into two rows.
  */
-export function RESOLVE_INVOICE_PAYMENT_ID(invoice: unknown): string | undefined {
+export function RESOLVE_INVOICE_PAYMENT_ID(
+  invoice: unknown,
+  options: { invoiceIdFallback?: boolean } = {},
+): string | undefined {
   if (typeof invoice !== 'object' || invoice === null) return undefined
 
   const direct = 'payment_intent' in invoice ? providerRefId(invoice.payment_intent) : undefined
@@ -58,5 +61,8 @@ export function RESOLVE_INVOICE_PAYMENT_ID(invoice: unknown): string | undefined
     }
   }
 
+  // A caller that writes a ledger row must NOT fall back to the invoice id: the webhook
+  // would key the same gift on `pi_…` and split it into two rows.
+  if (options.invoiceIdFallback === false) return undefined
   return 'id' in invoice ? providerRefId(invoice.id) : undefined
 }

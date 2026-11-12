@@ -1,8 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
+const { IS_LOGIN_BLOCKED } = vi.hoisted(() => ({ IS_LOGIN_BLOCKED: vi.fn() }))
+
 vi.mock('@/providers/mobile', () => ({ GET_ME_PROFILE: vi.fn() }))
 vi.mock('@/controller/authentication', () => ({ loginUser: vi.fn() }))
 vi.mock('@/controller/user', () => ({ updateUser: vi.fn() }))
+vi.mock('@/providers/auth-login-attempt', () => ({ IS_LOGIN_BLOCKED }))
 
 import { GET_ME_PROFILE } from '@/providers/mobile'
 import { loginUser } from '@/controller/authentication'
@@ -31,6 +34,7 @@ describe('changeMyPassword (POST /mobile/me/password)', () => {
     vi.mocked(GET_ME_PROFILE).mockResolvedValue({ id: 'u1', email: 'a@b.c' } as never)
     vi.mocked(loginUser).mockResolvedValue({ id: 'u1' } as never)
     vi.mocked(updateUser).mockResolvedValue({} as never)
+    IS_LOGIN_BLOCKED.mockResolvedValue(false)
   })
 
   it('verifies the current password through login, then sets the new one for the session user', async () => {
@@ -74,6 +78,23 @@ describe('changeMyPassword (POST /mobile/me/password)', () => {
     const code = await errorCode(changeMyPassword({ userId: 'gone', data }))
     expect(code).toBe('RESOURCE_NOT_FOUND')
     expect(loginUser).not.toHaveBeenCalled()
+  })
+
+  it('reports a locked account as ACCOUNT_LOCKED, not a wrong password', async () => {
+    IS_LOGIN_BLOCKED.mockResolvedValue(true)
+    const code = await errorCode(changeMyPassword({ userId: 'u1', data }))
+    expect(code).toBe('ACCOUNT_LOCKED')
+    expect(loginUser).not.toHaveBeenCalled()
+    expect(updateUser).not.toHaveBeenCalled()
+  })
+
+  it('reports an unverified email as EMAIL_NOT_VERIFIED', async () => {
+    vi.mocked(loginUser).mockRejectedValue(
+      Object.assign(new Error('EMAIL_NOT_VERIFIED'), { code: 'EMAIL_NOT_VERIFIED' }),
+    )
+    const code = await errorCode(changeMyPassword({ userId: 'u1', data }))
+    expect(code).toBe('EMAIL_NOT_VERIFIED')
+    expect(updateUser).not.toHaveBeenCalled()
   })
 })
 

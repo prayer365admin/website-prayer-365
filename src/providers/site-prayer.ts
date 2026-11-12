@@ -1,4 +1,5 @@
 import { db } from '@/utils/db-connection'
+import { DEMO_CHURCH_SLUGS } from '@/config/demo-churches'
 import { S3_PUBLIC_URL } from '@/providers/s3'
 import { stripAudioTags } from '@/utils/strip-audio-tags'
 import { sanitizePrayerRichText } from '@/utils/sanitize-prayer-rich-text'
@@ -49,20 +50,6 @@ const publishedWhere = {
   published_version_id: { not: null },
   published_at: { not: null },
 } as const
-
-/**
- * Fictional parishes created by `prisma/seeds` (demo fixtures). Their prayers and
- * audio are approved like real content, so without this guard a seeded demo prayer
- * becomes the guest hero on /welcome and /login the moment the live database has no
- * playable prayer of its own.
- */
-const DEMO_CHURCH_SLUGS = [
-  'parnu-st-elizabeths-church',
-  'tallinn-demo-church',
-  'tartu-demo-church',
-  'st-johns-church',
-  'st-olafs-church',
-]
 
 /** Maps published prayers to reader items in three batched queries (no per-prayer lookups). */
 const toItems = async (prayers: PublishedRow[]): Promise<SitePrayerArchiveItem[]> => {

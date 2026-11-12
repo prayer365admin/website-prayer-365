@@ -464,9 +464,13 @@ describe('DO-08 Donation Tests and Edge-Case Synchronization', () => {
     it('processes invoice.payment_failed', async () => {
       const subId = 'sub_' + crypto.randomBytes(8).toString('hex')
       const invId = 'in_' + crypto.randomBytes(8).toString('hex')
+      const piId = 'pi_' + crypto.randomBytes(8).toString('hex')
       await injectWebhook('invoice.payment_failed', {
         id: invId,
+        // API 2025-03-31: the money movement lives in the payments list, never on the
+        // invoice id — a ledger row keyed on `in_…` would be the second row for the gift.
         payment_intent: null,
+        payments: { data: [{ status: 'open', payment: { payment_intent: piId } }] },
         subscription: subId,
         amount_due: 7500,
         currency: 'usd',
@@ -474,6 +478,8 @@ describe('DO-08 Donation Tests and Edge-Case Synchronization', () => {
 
       expect(donations).toHaveLength(1)
       expect(donations[0].status).toBe('FAILED')
+      expect(donations[0].provider_payment_id).toBe(piId)
+      expect(donations.find((d) => d.provider_payment_id === invId)).toBeUndefined()
       expect(donations[0].subscription_id).toBeDefined()
     })
   })

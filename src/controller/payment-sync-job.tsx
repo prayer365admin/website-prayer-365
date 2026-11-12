@@ -343,11 +343,14 @@ export const processPaymentSyncJob = async (
       // and the invoice's own `payment_intent` field no longer exists. The payments
       // list is expand-only, so a webhook payload can carry no payment intent; ask
       // Stripe instead of falling back to the invoice id and splitting the row.
-      let paymentId = RESOLVE_INVOICE_PAYMENT_ID(obj)
-      if (isStripeEnabled() && typeof obj.id === 'string' && paymentId === obj.id) {
+      let paymentId = RESOLVE_INVOICE_PAYMENT_ID(obj, { invoiceIdFallback: false })
+      if (!paymentId && isStripeEnabled() && typeof obj.id === 'string') {
         const invoice = await STRIPE.retrieveInvoice(obj.id).catch(() => null)
-        paymentId = RESOLVE_INVOICE_PAYMENT_ID(invoice) ?? paymentId
+        paymentId = RESOLVE_INVOICE_PAYMENT_ID(invoice, { invoiceIdFallback: false })
       }
+      // Never key a ledger row on the invoice id: the redirect page uses the payment
+      // intent, so an `in_…` row here would be the second row for the same gift.
+      if (!paymentId) return requeueOrFail(job, 'INVOICE_PAYMENT_ID_UNRESOLVED')
 
       if (payload.eventType === 'invoice.payment_failed') {
         const dueAmount = obj.amount_due ?? obj.total ?? 0

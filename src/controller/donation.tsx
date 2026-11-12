@@ -333,7 +333,8 @@ export const getDonationStatus = async ({
         session.mode === 'subscription' && session.invoice
           ? await STRIPE.retrieveInvoice(session.invoice).catch(() => null)
           : null
-      const providerPaymentId = session.payment_intent ?? RESOLVE_INVOICE_PAYMENT_ID(invoice)
+      const providerPaymentId =
+        session.payment_intent ?? RESOLVE_INVOICE_PAYMENT_ID(invoice, { invoiceIdFallback: false })
 
       // Ledger first. Metadata is bookkeeping for the parish's Stripe view, so a
       // failure there must never cost the giver their receipt.

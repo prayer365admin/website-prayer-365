@@ -51,6 +51,21 @@ describe('RESOLVE_INVOICE_PAYMENT_ID — one ledger key per payment', () => {
     expect(RESOLVE_INVOICE_PAYMENT_ID({ id: 'in_only' })).toBe('in_only')
   })
 
+  it('refuses the invoice-id fallback when a ledger writer opts out', () => {
+    expect(
+      RESOLVE_INVOICE_PAYMENT_ID({ id: 'in_only' }, { invoiceIdFallback: false }),
+    ).toBeUndefined()
+    expect(
+      RESOLVE_INVOICE_PAYMENT_ID(
+        {
+          id: 'in_1',
+          payments: { data: [{ status: 'paid', payment: { payment_intent: 'pi_1' } }] },
+        },
+        { invoiceIdFallback: false },
+      ),
+    ).toBe('pi_1')
+  })
+
   it('resolves nothing for a missing or non-object payload', () => {
     expect(RESOLVE_INVOICE_PAYMENT_ID(null)).toBeUndefined()
     expect(RESOLVE_INVOICE_PAYMENT_ID(undefined)).toBeUndefined()
