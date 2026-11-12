@@ -436,6 +436,61 @@ describe('payment-sync-job controller', () => {
     expect(sub?.provider_status).toBe('canceled')
   })
 
+  it('keys invoice.payment_succeeded on the payment intent the payload omits', async () => {
+    // Only the invoice re-fetch runs with the integration enabled.
+    mocks.stripe.isStripeEnabled.mockReturnValueOnce(true)
+    const invoiceId = `in_${crypto.randomUUID()}`
+    const paymentId = `pi_${crypto.randomUUID()}`
+    mocks.stripe.STRIPE.retrieveInvoice.mockResolvedValueOnce({
+      id: invoiceId,
+      payments: { data: [{ status: 'paid', payment: { payment_intent: paymentId } }] },
+      amount_paid: 400,
+      total: 400,
+      currency: 'eur',
+    })
+    const { job } = createJob({
+      eventType: 'invoice.payment_succeeded',
+      eventCreated: 1750000000,
+      dataObject: {
+        id: invoiceId,
+        parent: { subscription_details: { subscription: 'sub_inv' } },
+        amount_paid: 400,
+        currency: 'eur',
+        metadata: { churchId },
+      },
+    })
+
+    const outcome = await processPaymentSyncJob(job.id, 'req_invoice_fetch')
+
+    expect(outcome).toBe('succeeded')
+    expect(mocks.stripe.STRIPE.retrieveInvoice).toHaveBeenCalledWith(invoiceId)
+    // The invoice id never becomes a ledger key: the redirect page resolves the same
+    // payment intent, so a second row for this gift can no longer appear.
+    expect(donations.find((d) => d.provider_payment_id === invoiceId)).toBeUndefined()
+    expect(donations.find((d) => d.provider_payment_id === paymentId)).toBeDefined()
+  })
+
+  it('keys invoice.payment_failed on the resolved payment intent', async () => {
+    const invoiceId = `in_${crypto.randomUUID()}`
+    const paymentId = `pi_${crypto.randomUUID()}`
+    const { job } = createJob({
+      eventType: 'invoice.payment_failed',
+      dataObject: {
+        id: invoiceId,
+        payments: { data: [{ status: 'open', payment: { payment_intent: paymentId } }] },
+        amount_due: 750,
+        currency: 'eur',
+        metadata: { churchId },
+      },
+    })
+
+    const outcome = await processPaymentSyncJob(job.id, 'req_invoice_failed')
+
+    expect(outcome).toBe('succeeded')
+    expect(donations.find((d) => d.provider_payment_id === paymentId)?.status).toBe('FAILED')
+    expect(donations.find((d) => d.provider_payment_id === invoiceId)).toBeUndefined()
+  })
+
   it('successfully processes charge.refunded', async () => {
     const chId = `ch_test_${crypto.randomUUID()}`
     const piId = `pi_ref_${crypto.randomUUID()}`

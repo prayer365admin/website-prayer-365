@@ -95,6 +95,8 @@ bun run worker:payment-sync
 - Donations are keyed by `provider_payment_id` (globally unique); subscriptions by `provider_subscription_id`.
 - If a later webhook event carries a different `metadata.churchId` than the stored row, the row's `church_id` is **reassigned to the incoming event's value** — provider events are the source of truth for attribution.
 - State machine guards (enforced in `payment-sync` provider): a `PAID` donation is never downgraded to `FAILED` by a stale failure event; `refunded_minor` is monotonic (a late partial refund never lowers the cumulative total); a fully refunded donation flips to `REFUNDED`.
+- **Ledger key is the payment intent** (`RESOLVE_INVOICE_PAYMENT_ID` in `src/utils/stripe-payment-id.ts`), resolved identically by the checkout redirect (`getDonationStatus`) and the webhook job. `CheckoutSession.payment_intent` exists only in `payment` mode, so a monthly session has none; `Invoice.payment_intent` was removed in API 2025-03-31 and the payment now lives in `Invoice.payments[].payment.payment_intent` (expand-only). Reading the legacy fields made one monthly gift land as two rows — a `cs_…` row from the redirect and an `in_…` row from `invoice.payment_succeeded` — which doubled the church's confirmed amount. The invoice id is used only when the invoice exposes no payment at all.
+- Existing rows keyed `cs_…`/`in_…` are repaired once with `bun run stripe:donation-dedupe` (dry run by default; `--apply` merges twins, keeps the highest refunded amount and earliest paid date, and re-keys to the payment intent).
 
 ## Donation Initiation (admin)
 

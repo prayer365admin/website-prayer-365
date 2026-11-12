@@ -16,6 +16,7 @@ import {
   GET_CHECKOUT_RECEIPT,
   CANCEL_OTHER_CHURCH_SUBSCRIPTIONS,
 } from '@/providers/donation'
+import { RESOLVE_INVOICE_PAYMENT_ID } from '@/utils/stripe-payment-id'
 import { UPSERT_DONATION_SUBSCRIPTION, UPSERT_DONATION_PAYMENT } from '@/providers/payment-sync'
 import {
   type DonationListQuery,
@@ -239,6 +240,16 @@ export const getDonationStatus = async ({
     stillSettling = Boolean(session) && !isPaid && session?.status !== 'expired'
 
     if (session && isPaid) {
+      // One ledger key per payment. A monthly session carries no payment_intent
+      // (Stripe sets it only in `payment` mode), so the invoice's settled payment
+      // intent is the id `invoice.payment_succeeded` writes too; without it this
+      // page wrote a second `cs_…` row for the same gift.
+      const invoice =
+        session.mode === 'subscription' && session.invoice
+          ? await STRIPE.retrieveInvoice(session.invoice).catch(() => null)
+          : null
+      const providerPaymentId = session.payment_intent ?? RESOLVE_INVOICE_PAYMENT_ID(invoice)
+
       // Ledger first. Metadata is bookkeeping for the parish's Stripe view, so a
       // failure there must never cost the giver their receipt.
       try {
@@ -252,26 +263,28 @@ export const getDonationStatus = async ({
             providerStatus: 'active',
             eventCreated: Math.floor(Date.now() / 1000),
           })
-          await UPSERT_DONATION_PAYMENT({
-            churchId: church.id,
-            userId,
-            providerPaymentId: String(session.payment_intent || session.id),
-            amountMinor: query.amountMinor,
-            currency: query.currency,
-            status: 'PAID',
-            paidAt: new Date(),
-            providerSubscriptionId: session.subscription,
-          })
+          if (providerPaymentId) {
+            await UPSERT_DONATION_PAYMENT({
+              churchId: church.id,
+              userId,
+              providerPaymentId,
+              amountMinor: query.amountMinor,
+              currency: query.currency,
+              status: 'PAID',
+              paidAt: new Date(),
+              providerSubscriptionId: session.subscription,
+            })
+          }
           await CANCEL_OTHER_CHURCH_SUBSCRIPTIONS({
             userId,
             churchId: church.id,
             currentSubscriptionId: session.subscription,
           })
-        } else if (session.mode === 'payment') {
+        } else if (providerPaymentId) {
           await UPSERT_DONATION_PAYMENT({
             churchId: church.id,
             userId,
-            providerPaymentId: String(session.payment_intent || session.id),
+            providerPaymentId,
             amountMinor: query.amountMinor,
             currency: query.currency,
             status: 'PAID',
@@ -288,8 +301,8 @@ export const getDonationStatus = async ({
           userId,
         }
         if (session.metadata?.category) metadataToSync.category = session.metadata.category
-        if (session.payment_intent) {
-          await STRIPE.updatePaymentIntentMetadata(session.payment_intent, metadataToSync)
+        if (providerPaymentId) {
+          await STRIPE.updatePaymentIntentMetadata(providerPaymentId, metadataToSync)
         }
         if (session.mode === 'subscription' && session.subscription) {
           const sub = await STRIPE.retrieveSubscription(session.subscription).catch(() => null)

@@ -10,6 +10,7 @@ import {
   APPLY_DONATION_REFUND,
   FINALIZE_PAYMENT_SYNC_JOB,
 } from '@/providers/payment-sync'
+import { RESOLVE_INVOICE_PAYMENT_ID } from '@/utils/stripe-payment-id'
 import { STRIPE, isStripeEnabled } from '@/providers/stripe'
 import { CANCEL_OTHER_CHURCH_SUBSCRIPTIONS } from '@/providers/donation'
 
@@ -75,25 +76,18 @@ export const processPaymentSyncJob = async (
   try {
     let obj = payload.dataObject
     if (!obj && isStripeEnabled()) {
+      // Spread into a fresh literal: the adapter projects each Stripe object, and the
+      // branches below read the provider's own field names off the record.
       if (payload.eventType.startsWith('payment_intent.')) {
-        obj = (await STRIPE.retrievePaymentIntent(payload.objectId)) as unknown as Record<
-          string,
-          unknown
-        >
+        obj = { ...(await STRIPE.retrievePaymentIntent(payload.objectId)) }
       } else if (payload.eventType.startsWith('charge.')) {
-        obj = (await STRIPE.retrieveCharge(payload.objectId)) as unknown as Record<string, unknown>
+        obj = { ...(await STRIPE.retrieveCharge(payload.objectId)) }
       } else if (payload.eventType.startsWith('customer.subscription.')) {
-        obj = (await STRIPE.retrieveSubscription(payload.objectId)) as unknown as Record<
-          string,
-          unknown
-        >
+        obj = { ...(await STRIPE.retrieveSubscription(payload.objectId)) }
       } else if (payload.eventType.startsWith('checkout.session.')) {
-        obj = (await STRIPE.retrieveCheckoutSession(payload.objectId)) as unknown as Record<
-          string,
-          unknown
-        >
+        obj = { ...(await STRIPE.retrieveCheckoutSession(payload.objectId)) }
       } else if (payload.eventType.startsWith('invoice.')) {
-        obj = (await STRIPE.retrieveInvoice(payload.objectId)) as unknown as Record<string, unknown>
+        obj = { ...(await STRIPE.retrieveInvoice(payload.objectId)) }
       }
     }
 
@@ -341,43 +335,54 @@ export const processPaymentSyncJob = async (
           currentSubscriptionId: String(subId),
         })
       }
-    } else if (payload.eventType === 'invoice.payment_succeeded') {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const inv = obj as any
-      const pi = inv.payment_intent
-      const paymentId = typeof pi === 'string' ? pi : pi?.id || inv.id
-      await UPSERT_DONATION_PAYMENT({
-        churchId,
-        userId: payerUserId,
-        providerPaymentId: String(paymentId),
-        amountMinor: Number(inv.amount_paid ?? inv.total ?? 0),
-        currency: String(inv.currency ?? 'usd'),
-        status: 'PAID',
-        paidAt: providerPaidAt,
-        providerSubscriptionId: extractSubscriptionId(inv),
-      })
-      if (isStripeEnabled() && metadata && Object.keys(metadata).length > 0) {
-        if (typeof pi === 'string' && pi.startsWith('pi_')) {
-          await STRIPE.updatePaymentIntentMetadata(pi, metadata as Record<string, string>)
+    } else if (
+      payload.eventType === 'invoice.payment_succeeded' ||
+      payload.eventType === 'invoice.payment_failed'
+    ) {
+      // The resolver owns the ledger key: the redirect page resolves the same id,
+      // and the invoice's own `payment_intent` field no longer exists. The payments
+      // list is expand-only, so a webhook payload can carry no payment intent; ask
+      // Stripe instead of falling back to the invoice id and splitting the row.
+      let paymentId = RESOLVE_INVOICE_PAYMENT_ID(obj)
+      if (isStripeEnabled() && typeof obj.id === 'string' && paymentId === obj.id) {
+        const invoice = await STRIPE.retrieveInvoice(obj.id).catch(() => null)
+        paymentId = RESOLVE_INVOICE_PAYMENT_ID(invoice) ?? paymentId
+      }
+
+      if (payload.eventType === 'invoice.payment_failed') {
+        const dueAmount = obj.amount_due ?? obj.total ?? 0
+        await UPSERT_DONATION_PAYMENT({
+          churchId,
+          userId: payerUserId,
+          providerPaymentId: String(paymentId),
+          amountMinor: typeof dueAmount === 'number' ? dueAmount : 0,
+          currency: typeof obj.currency === 'string' ? obj.currency : 'usd',
+          status: 'FAILED',
+          paidAt: null,
+          providerSubscriptionId: extractSubscriptionId(obj),
+        })
+      } else {
+        const paidAmount = obj.amount_paid ?? obj.total ?? 0
+        await UPSERT_DONATION_PAYMENT({
+          churchId,
+          userId: payerUserId,
+          providerPaymentId: String(paymentId),
+          amountMinor: typeof paidAmount === 'number' ? paidAmount : 0,
+          currency: typeof obj.currency === 'string' ? obj.currency : 'usd',
+          status: 'PAID',
+          paidAt: providerPaidAt,
+          providerSubscriptionId: extractSubscriptionId(obj),
+        })
+        if (
+          isStripeEnabled() &&
+          metadata &&
+          Object.keys(metadata).length > 0 &&
+          typeof paymentId === 'string' &&
+          paymentId.startsWith('pi_')
+        ) {
+          await STRIPE.updatePaymentIntentMetadata(paymentId, metadata as Record<string, string>)
         }
       }
-    } else if (payload.eventType === 'invoice.payment_failed') {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const inv = obj as any
-      const paymentId =
-        typeof inv.payment_intent === 'string'
-          ? inv.payment_intent
-          : inv.payment_intent?.id || inv.id
-      await UPSERT_DONATION_PAYMENT({
-        churchId,
-        userId: payerUserId,
-        providerPaymentId: String(paymentId),
-        amountMinor: Number(inv.amount_due ?? inv.total ?? 0),
-        currency: String(inv.currency ?? 'usd'),
-        status: 'FAILED',
-        paidAt: null,
-        providerSubscriptionId: extractSubscriptionId(inv),
-      })
     }
 
     await FINALIZE_PAYMENT_SYNC_JOB({

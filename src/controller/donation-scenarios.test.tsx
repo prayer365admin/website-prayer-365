@@ -640,6 +640,34 @@ describe('DO-08 Donation Tests and Edge-Case Synchronization', () => {
       const subRefs = new Set(donations.map((d) => d.subscription_id))
       expect(subRefs.size).toBe(1)
     })
+
+    it('keys a modern invoice on its settled payment intent, never on the invoice id', async () => {
+      const subId = 'sub_' + crypto.randomBytes(8).toString('hex')
+      const invId = 'in_' + crypto.randomBytes(8).toString('hex')
+      const piId = 'pi_' + crypto.randomBytes(8).toString('hex')
+
+      await injectWebhook('invoice.payment_succeeded', {
+        id: invId,
+        // API 2025-03-31 shape: no top-level payment_intent, the money movement
+        // lives in the invoice's payments list.
+        payments: {
+          data: [
+            {
+              id: 'inpay_' + crypto.randomBytes(8).toString('hex'),
+              status: 'paid',
+              payment: { type: 'payment_intent', payment_intent: piId },
+            },
+          ],
+        },
+        parent: { subscription_details: { subscription: subId } },
+        amount_paid: 4000,
+        currency: 'usd',
+      })
+
+      expect(donations).toHaveLength(1)
+      expect(donations[0].provider_payment_id).toBe(piId)
+      expect(donations[0].subscription_id).toBeDefined()
+    })
   })
 
   describe('Scenario 4: Refunds', () => {

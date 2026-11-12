@@ -13,6 +13,7 @@ const m = vi.hoisted(() => ({
     enabled: false,
     STRIPE: {
       retrieveCheckoutSession: vi.fn(),
+      retrieveInvoice: vi.fn(),
       updatePaymentIntentMetadata: vi.fn(),
       retrieveSubscription: vi.fn(),
       cancelOtherChurchSubscriptions: vi.fn(),
@@ -157,6 +158,61 @@ describe('getDonationStatus — outcome comes from our records, never the URL', 
       expect.objectContaining({ providerPaymentId: 'pi_1', status: 'PAID' }),
     )
     expect(status.state).toBe('confirmed')
+  })
+
+  it('keys a monthly gift on the invoice payment intent, never on the session id', async () => {
+    m.stripe.enabled = true
+    // A subscription session has no payment_intent; the money sits on its invoice.
+    m.stripe.STRIPE.retrieveCheckoutSession.mockResolvedValue({
+      id: 'cs_test_monthly',
+      mode: 'subscription',
+      status: 'complete',
+      paymentStatus: 'paid',
+      payment_intent: null,
+      subscription: 'sub_1',
+      invoice: 'in_1',
+      metadata: {},
+    })
+    m.stripe.STRIPE.retrieveInvoice.mockResolvedValue({
+      id: 'in_1',
+      payments: { data: [{ status: 'paid', payment: { payment_intent: 'pi_monthly_1' } }] },
+      subscription: 'sub_1',
+      amount_paid: 400,
+      total: 400,
+      currency: 'eur',
+    })
+    m.GET_MY_DONATION_ATTEMPT.mockResolvedValue({ status: 'PAID', paidAt })
+
+    await getDonationStatus({ userId: 'u1', query: { ...query, amountMinor: 400 } })
+
+    expect(m.stripe.STRIPE.retrieveInvoice).toHaveBeenCalledWith('in_1')
+    expect(m.UPSERT_DONATION_PAYMENT).toHaveBeenCalledWith(
+      expect.objectContaining({ providerPaymentId: 'pi_monthly_1', status: 'PAID' }),
+    )
+    const keyed = m.UPSERT_DONATION_PAYMENT.mock.calls.map(([arg]) => arg.providerPaymentId)
+    expect(keyed).not.toContain('cs_test_monthly')
+    expect(m.stripe.STRIPE.updatePaymentIntentMetadata).toHaveBeenCalledWith(
+      'pi_monthly_1',
+      expect.objectContaining({ churchId: 'c1', userId: 'u1' }),
+    )
+  })
+
+  it('skips the ledger write when a monthly invoice cannot be resolved', async () => {
+    m.stripe.enabled = true
+    m.stripe.STRIPE.retrieveCheckoutSession.mockResolvedValue({
+      id: 'cs_test_unresolved',
+      mode: 'subscription',
+      status: 'complete',
+      paymentStatus: 'paid',
+      payment_intent: null,
+      subscription: 'sub_2',
+      metadata: {},
+    })
+
+    await getDonationStatus({ userId: 'u1', query })
+
+    expect(m.UPSERT_DONATION_PAYMENT).not.toHaveBeenCalled()
+    expect(m.UPSERT_DONATION_SUBSCRIPTION).toHaveBeenCalled()
   })
 
   it('stays pending when Stripe reported the session but no row has landed', async () => {

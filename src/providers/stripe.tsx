@@ -122,8 +122,11 @@ export interface StripeCheckoutSession {
   mode: string
   status?: string | null
   paymentStatus?: string | null
+  /** Set only in `payment` mode; a monthly session carries the payment on its invoice. */
   payment_intent?: string
   subscription?: string
+  /** Invoice that holds the money movement for `subscription` mode. */
+  invoice?: string
   metadata?: Record<string, string>
 }
 
@@ -136,9 +139,18 @@ export interface StripeCharge {
   payment_intent?: string | { id: string }
 }
 
+/** `invoice.payments[]` entry — the money movement of a subscription invoice. */
+export interface StripeInvoicePayment {
+  status: string
+  payment: { payment_intent?: string; charge?: string }
+}
+
 export interface StripeInvoice {
   id: string
+  /** Removed from the Invoice object in API 2025-03-31; kept for legacy payloads. */
   payment_intent?: string | { id: string }
+  /** Same list shape Stripe sends in webhook payloads, so one resolver reads both. */
+  payments?: { data: StripeInvoicePayment[] }
   subscription?: string
   amount_paid: number
   total: number
@@ -212,16 +224,42 @@ export const STRIPE = {
           : session.payment_intent?.id,
       subscription:
         typeof session.subscription === 'string' ? session.subscription : session.subscription?.id,
+      invoice: typeof session.invoice === 'string' ? session.invoice : session.invoice?.id,
       metadata: session.metadata ?? undefined,
     }
   },
-  /** Retrieve a Stripe Invoice. */
-  async retrieveInvoice(
-    _id: string,
-    _options?: { stripeAccount?: string },
-  ): Promise<StripeInvoice> {
+  /** Retrieve a Stripe Invoice, including the `payments` list that now carries its payment intent. */
+  async retrieveInvoice(id: string, options?: { stripeAccount?: string }): Promise<StripeInvoice> {
     ensureEnabled('retrieveInvoice')
-    return pending('retrieveInvoice')
+    // `payments` is an includable sub-list: without the expand the response has no
+    // payment intent at all, which is what made callers fall back to the invoice id.
+    const invoice = await makeStripe().invoices.retrieve(
+      id,
+      { expand: ['payments'] },
+      options?.stripeAccount ? { stripeAccount: options.stripeAccount } : undefined,
+    )
+    const subscription = invoice.parent?.subscription_details?.subscription
+    return {
+      id: invoice.id,
+      payments: invoice.payments
+        ? {
+            data: invoice.payments.data.map((entry) => ({
+              status: entry.status,
+              payment: {
+                payment_intent:
+                  typeof entry.payment.payment_intent === 'string'
+                    ? entry.payment.payment_intent
+                    : entry.payment.payment_intent?.id,
+                charge: typeof entry.payment.charge === 'string' ? entry.payment.charge : undefined,
+              },
+            })),
+          }
+        : undefined,
+      subscription: typeof subscription === 'string' ? subscription : subscription?.id,
+      amount_paid: invoice.amount_paid ?? invoice.total,
+      total: invoice.total,
+      currency: invoice.currency,
+    }
   },
   /** Create a Stripe Checkout/payment session for a church donation. */
   async createCheckoutSession(req: CheckoutSessionRequest): Promise<CheckoutSessionResult> {

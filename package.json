@@ -20,6 +20,7 @@
     "seed:verify": "bun src/script/seed-verify.ts",
     "env:sync": "bun src/script/sync-env.ts",
     "stripe:migrate-prod": "bun src/script/stripe-migrate-prod.ts",
+    "stripe:donation-dedupe": "bun src/script/stripe-donation-dedupe.ts",
     "seed:demo": "bun src/script/seed-media.ts && bunx tsx prisma/seed.ts && bun src/script/seed-verify.ts",
     "seed:viimsi": "bunx tsx prisma/seed-viimsi.ts",
     "request:submit": "bun src/script/submit-request.ts",
