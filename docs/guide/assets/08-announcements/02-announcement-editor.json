@@ -1,0 +1,13 @@
+{
+  "image": "02-announcement-editor.png",
+  "viewport": [1440, 900],
+  "steps": [
+    {
+      "n": 1,
+      "x": 304,
+      "y": 254,
+      "w": 323,
+      "h": 41
+    }
+  ]
+}

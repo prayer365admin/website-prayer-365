@@ -1,0 +1,13 @@
+{
+  "image": "02-sidebar-request-reader.png",
+  "viewport": [1440, 900],
+  "steps": [
+    {
+      "n": 1,
+      "x": 453,
+      "y": 26,
+      "w": 53,
+      "h": 18
+    }
+  ]
+}

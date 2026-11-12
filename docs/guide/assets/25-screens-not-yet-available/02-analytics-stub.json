@@ -1,0 +1,13 @@
+{
+  "image": "02-analytics-stub.png",
+  "viewport": [1440, 900],
+  "steps": [
+    {
+      "n": 1,
+      "x": 453,
+      "y": 26,
+      "w": 52,
+      "h": 18
+    }
+  ]
+}

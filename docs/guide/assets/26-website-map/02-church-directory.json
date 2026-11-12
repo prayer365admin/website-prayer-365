@@ -1,0 +1,13 @@
+{
+  "image": "02-church-directory.png",
+  "viewport": [1440, 2376],
+  "steps": [
+    {
+      "n": 1,
+      "x": 208,
+      "y": 168,
+      "w": 713,
+      "h": 32
+    }
+  ]
+}

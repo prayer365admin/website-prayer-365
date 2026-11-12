@@ -1,0 +1,13 @@
+{
+  "image": "06-dashboard-landing.png",
+  "viewport": [1440, 900],
+  "steps": [
+    {
+      "n": 1,
+      "x": 45,
+      "y": 208,
+      "w": 211,
+      "h": 21
+    }
+  ]
+}

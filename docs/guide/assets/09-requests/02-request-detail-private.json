@@ -1,0 +1,13 @@
+{
+  "image": "02-request-detail-private.png",
+  "viewport": [1440, 900],
+  "steps": [
+    {
+      "n": 1,
+      "x": 354,
+      "y": 286,
+      "w": 61,
+      "h": 24
+    }
+  ]
+}
