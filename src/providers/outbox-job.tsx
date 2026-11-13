@@ -1,3 +1,4 @@
+import { Prisma } from '@prisma/client'
 import { db } from '@/utils/db-connection'
 
 /*
@@ -66,17 +67,23 @@ export const GET_JOB = ({ jobId }: { jobId: string }) =>
 
 export type OutboxTerminalState = 'SUCCEEDED' | 'FAILED' | 'PENDING'
 
-/** Terminal/requeue transition. Success clears a stale error code from earlier attempts. */
+/**
+ * Terminal/requeue transition. Success clears a stale error code from earlier
+ * attempts. `payload` is only written by a resumable fan-out (general prayer
+ * send), which advances its cursor when it hands the rest to the next attempt.
+ */
 export const MARK_JOB_STATE = ({
   jobId,
   state,
   errorCode,
   availableAt,
+  payload,
 }: {
   jobId: string
   state: OutboxTerminalState
   errorCode?: string
   availableAt?: Date
+  payload?: Prisma.InputJsonValue
 }) =>
   db.outboxJob.update({
     where: { id: jobId },
@@ -84,6 +91,7 @@ export const MARK_JOB_STATE = ({
       state,
       ...(errorCode ? { last_error_code: errorCode } : {}),
       ...(state === 'PENDING' && availableAt ? { available_at: availableAt } : {}),
+      ...(payload === undefined ? {} : { payload }),
       // Never called with RUNNING (claiming sets the lease via updateMany):
       // terminal + requeue states own no lease.
       lease_until: null,

@@ -78,6 +78,13 @@ import '@/app/api/v1/admin/central/hierarchy/[nodeId]/route'
 import '@/app/api/v1/admin/central/pastors/route'
 import '@/app/api/v1/admin/central/pastors/[pastorId]/route'
 
+// --- Central: general prayer (platform 365-day daily prayer) ---
+import '@/app/api/v1/admin/central/general-prayers/route'
+import '@/app/api/v1/admin/central/general-prayers/[generalPrayerId]/route'
+import '@/app/api/v1/admin/central/general-prayers/[generalPrayerId]/audio/route'
+import '@/app/api/v1/mobile/general-prayers/today/route'
+import '@/app/api/v1/mobile/general-prayers/[slug]/route'
+
 // --- Global media upload (Phase 7 refactor: single /uploads API) ---
 import '@/app/api/v1/uploads/route'
 import '@/app/api/v1/uploads/[assetId]/complete/route'

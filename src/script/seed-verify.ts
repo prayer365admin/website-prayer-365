@@ -6,11 +6,12 @@ import { DEMO_CHURCH_CONTENT } from '../../prisma/seeds/demo-content'
 import { DEMO_MEDIA } from '../../prisma/seeds/demo-media'
 import { S3_PUBLIC_URL } from '../providers/s3'
 import { db } from '../utils/db-connection'
-import { findDemoProblems } from './seed-verify-rules'
+import { findDemoProblems, findGeneralPrayerProblems } from './seed-verify-rules'
 import type {
   ChurchReadiness,
   DemoExpectation,
   DemoReadiness,
+  GeneralPrayerReadiness,
   PrayerReadiness,
 } from './seed-verify-rules'
 
@@ -60,6 +61,28 @@ const headObjects = async (keys: string[]): Promise<Record<string, boolean>> => 
     }
   }
   return status
+}
+
+const collectGeneralPrayers = async (): Promise<GeneralPrayerReadiness[]> => {
+  const rows = await db.generalPrayer.findMany({
+    orderBy: { sequence: 'asc' },
+    select: {
+      sequence: true,
+      slug: true,
+      body: true,
+      language_code: true,
+      audio_status: true,
+      is_active: true,
+    },
+  })
+  return rows.map((row) => ({
+    sequence: row.sequence,
+    slug: row.slug,
+    bodyLength: row.body.trim().length,
+    languageCode: row.language_code,
+    audioStatus: row.audio_status,
+    isActive: row.is_active,
+  }))
 }
 
 const collect = async (): Promise<DemoReadiness> => {
@@ -133,6 +156,7 @@ const collect = async (): Promise<DemoReadiness> => {
 
 async function main() {
   const readiness = await collect()
+  const generalPrayers = await collectGeneralPrayers()
 
   console.log(`bucket: ${bucket() || '(unset — object check skipped)'}`)
   console.log('\nchurch                          cover gallery svc evt ann pastor prayers-ok')
@@ -164,7 +188,14 @@ async function main() {
     for (const [key] of missing) console.log(`  MISSING ${key}`)
   }
 
-  const problems = findDemoProblems(readiness)
+  console.log(`\ngeneral prayers: ${generalPrayers.length}`)
+  for (const row of generalPrayers) {
+    console.log(
+      `  #${String(row.sequence).padStart(2)} ${row.audioStatus.padEnd(9)} ${row.slug.padEnd(14)} ${row.bodyLength} chars`,
+    )
+  }
+
+  const problems = [...findDemoProblems(readiness), ...findGeneralPrayerProblems(generalPrayers)]
   if (problems.length > 0) {
     console.log(`\nNOT DEMO-READY — ${problems.length} problem(s):`)
     for (const problem of problems) console.log(`  - ${problem}`)

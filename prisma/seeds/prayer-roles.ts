@@ -48,6 +48,9 @@ export const PRAYER_CATALOGUE: PrayerGrant[] = [
 
   // Content
   ...ANY_CRUD('prayer_prayer', 'read,create,update'),
+  // Platform daily prayer (general prayer). No `delete`: removing a cycle
+  // position would silently shorten the cycle, so retirement is `is_active=false`.
+  ...ANY_CRUD('prayer_general_prayer', 'read,create,update'),
   { subject: 'prayer_prayer_review', actions: 'update', scope: 'ANY' },
   { subject: 'prayer_prayer_publication', actions: 'update', scope: 'ANY' },
   ...ANY_CRUD('prayer_event', 'read,create,update,delete'),
@@ -106,6 +109,7 @@ export const PRAYER_ROLES: PrayerRole[] = [
       { subject: 'prayer_church_lifecycle', actions: 'update', scope: 'ANY' },
       { subject: 'prayer_pastor', actions: 'read,create,update,delete', scope: 'ANY' },
       { subject: 'prayer_prayer', actions: 'read,create,update', scope: 'ANY' },
+      { subject: 'prayer_general_prayer', actions: 'read,create,update', scope: 'ANY' },
       { subject: 'prayer_prayer_review', actions: 'update', scope: 'ANY' },
       { subject: 'prayer_prayer_publication', actions: 'update', scope: 'ANY' },
       { subject: 'prayer_voice_generation', actions: 'create', scope: 'ANY' },

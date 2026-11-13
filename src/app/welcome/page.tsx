@@ -5,6 +5,7 @@ import ContentsSiteWelcome from '@/contents/site/welcome'
 import { SITE_DESCRIPTION, SITE_NAME, SITE_TAGLINE } from '@/config/site-brand'
 import { SiteI18nProvider } from '@/i18n/site-i18n'
 import redirectAuthenticatedCustomer from '@/utils/redirect-authenticated-customer'
+import { todayInTallinn } from '@/utils/general-prayer-cycle'
 import { getSiteLocale } from '@/utils/site-locale'
 import { getCachedWelcomePublicData } from '@/utils/site-public-cache'
 
@@ -17,9 +18,15 @@ export const metadata: Metadata = {
   robots: { index: true, follow: true },
 }
 
+/** `2026-11-13` -> `13.11.2026`, the same date form the prayer content uses. */
+const dailyDateLabel = () => {
+  const [year, month, day] = todayInTallinn().dateISO.split('-')
+  return `${day}.${month}.${year}`
+}
+
 export default async function Page() {
   await redirectAuthenticatedCustomer()
-  const [locale, { prayer, memberCount }] = await Promise.all([
+  const [locale, { dailyPrayer, prayer, memberCount }] = await Promise.all([
     getSiteLocale(),
     getCachedWelcomePublicData(),
   ])
@@ -27,7 +34,12 @@ export default async function Page() {
   return (
     <SiteI18nProvider initialLocale={locale}>
       <SessionAccessGuard access="guest" />
-      <ContentsSiteWelcome memberCount={memberCount} prayer={prayer ?? FEATURED_WELCOME_PRAYER} />
+      <ContentsSiteWelcome
+        dailyDate={dailyDateLabel()}
+        dailyPrayer={dailyPrayer}
+        memberCount={memberCount}
+        prayer={prayer ?? FEATURED_WELCOME_PRAYER}
+      />
     </SiteI18nProvider>
   )
 }

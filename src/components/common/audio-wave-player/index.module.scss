@@ -2,7 +2,10 @@
   position: relative;
   width: 100%;
   min-width: 0;
-  flex: 1 1 360px;
+  /* Basis `auto`, not 360px: in a row parent the width comes from `width: 100%` and
+   * grows; in a column parent (the audio cards) a fixed basis would set the HEIGHT
+   * to 360px and leave dead space under the controls. */
+  flex: 1 1 auto;
   padding: 14px 12px 12px;
   border-radius: 8px;
   background: var(--color-primary-100, #edf4ff);

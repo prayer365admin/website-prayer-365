@@ -59,6 +59,8 @@ describe('notification-rules validation contract', () => {
       'prayer_published',
       'event_reminder',
       'announcement_published',
+      // Platform daily prayer (365-day cycle): push + email, once per day.
+      'general_prayer',
     ])
   })
 

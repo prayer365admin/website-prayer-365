@@ -1,6 +1,7 @@
 import type { MetadataRoute } from 'next'
 import { SITE_URL } from '@/config/site-brand'
 import { listPublicChurches } from '@/controller/mobile'
+import { listGeneralPrayerCycle } from '@/controller/general-prayer'
 import { MobileChurchListQuerySchema } from '@/models/mobile'
 
 // Regenerated hourly; the church listing itself is cached for 60s underneath.
@@ -34,7 +35,26 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       }
       if (result.length < 100) break
     }
-    return [...pages, ...churches]
+
+    // The platform daily prayer: the cycle index plus every active position.
+    const generalPrayers: MetadataRoute.Sitemap = [
+      {
+        url: `${SITE_URL}/prayers/general`,
+        lastModified,
+        changeFrequency: 'daily',
+        priority: 0.7,
+      },
+    ]
+    const { cycle } = await listGeneralPrayerCycle()
+    for (const prayer of cycle) {
+      generalPrayers.push({
+        url: `${SITE_URL}/prayers/general/${prayer.slug}`,
+        lastModified,
+        changeFrequency: 'daily',
+        priority: 0.6,
+      })
+    }
+    return [...pages, ...churches, ...generalPrayers]
   } catch {
     // A DB-less build (container image, CI preview) must not fail on the sitemap.
     return pages

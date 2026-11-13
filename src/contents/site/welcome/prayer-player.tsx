@@ -3,16 +3,10 @@
 import { CaretRightFilled } from '@/components/icon/antd-icons'
 import { useSiteI18n } from '@/i18n/site-i18n'
 import { PauseOutlined } from '@ant-design/icons'
-import { useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { waveformBars } from '@/utils/audio-waveform'
 
 const BAR_COUNT = 76
-
-// Deterministic pseudo-waveform so the server and the client render identical bars.
-const WAVEFORM_HEIGHTS = Array.from({ length: BAR_COUNT }, (_, index) => {
-  const envelope = Math.sin((index / BAR_COUNT) * Math.PI)
-  const noise = ((index * 37) % 19) / 19
-  return Math.round(5 + envelope * 13 + noise * 9)
-})
 
 function formatSeconds(sec: number) {
   if (!Number.isFinite(sec) || sec <= 0) return '0:00'
@@ -24,9 +18,12 @@ function formatSeconds(sec: number) {
 export default function WelcomePrayerPlayer({
   audioUrl,
   title,
+  seed = 'welcome',
 }: {
   audioUrl?: string | null
   title?: string
+  /** Stable content id so the decorative wave differs per prayer and matches SSR. */
+  seed?: string
 }) {
   const { t } = useSiteI18n()
   const audioRef = useRef<HTMLAudioElement>(null)
@@ -34,7 +31,24 @@ export default function WelcomePrayerPlayer({
   const [currentTime, setCurrentTime] = useState(0)
   const [duration, setDuration] = useState(0)
 
+  // Same generator as the dashboard and reader players, seeded by the prayer so the
+  // card and the reader page show the same shape for the same recording.
+  const wave = useMemo(() => waveformBars({ count: BAR_COUNT, min: 4, range: 30, seed }), [seed])
   const hasAudio = Boolean(audioUrl)
+
+  /**
+   * Read the real length from the element.
+   *
+   * `loadedmetadata` can fire BEFORE React attaches its listener (the element starts
+   * loading the moment `src` is committed), which used to leave `duration` at 0: the
+   * audio played while the progress stayed on the first bar. Every event that can
+   * carry the value calls this, and so does each time update, so the state heals
+   * itself instead of depending on one event that may already be gone.
+   */
+  const syncDuration = () => {
+    const value = audioRef.current?.duration
+    if (value && Number.isFinite(value) && value > 0) setDuration(value)
+  }
 
   const togglePlayback = async () => {
     const audio = audioRef.current
@@ -48,6 +62,7 @@ export default function WelcomePrayerPlayer({
 
     try {
       await audio.play()
+      syncDuration()
       setPlaying(true)
     } catch {
       setPlaying(false)
@@ -56,13 +71,15 @@ export default function WelcomePrayerPlayer({
 
   const handleTimeUpdate = () => {
     const audio = audioRef.current
-    if (audio) setCurrentTime(audio.currentTime)
+    if (!audio) return
+    setCurrentTime(audio.currentTime)
+    syncDuration()
   }
 
-  const handleLoadedMetadata = () => {
-    const audio = audioRef.current
-    if (audio) setDuration(audio.duration)
-  }
+  // Same guard as the reader page: metadata may already be loaded at mount.
+  useEffect(() => {
+    if ((audioRef.current?.readyState ?? 0) >= 1) syncDuration()
+  }, [])
 
   const progressPercent = duration > 0 ? Math.min(100, (currentTime / duration) * 100) : 0
 
@@ -72,7 +89,10 @@ export default function WelcomePrayerPlayer({
         <audio
           onEnded={() => setPlaying(false)}
           onError={() => setPlaying(false)}
-          onLoadedMetadata={handleLoadedMetadata}
+          onCanPlay={syncDuration}
+          onDurationChange={syncDuration}
+          onLoadedData={syncDuration}
+          onLoadedMetadata={syncDuration}
           onTimeUpdate={handleTimeUpdate}
           preload="metadata"
           ref={audioRef}
@@ -104,7 +124,7 @@ export default function WelcomePrayerPlayer({
 
       <div className="flex min-w-0 flex-1 flex-col justify-between gap-2 self-stretch">
         <div aria-hidden className="flex h-[34px] items-end gap-[2px]">
-          {WAVEFORM_HEIGHTS.map((height, index) => {
+          {wave.map((height, index) => {
             const barProgress = (index / BAR_COUNT) * 100
             const isPlayed = hasAudio && barProgress <= progressPercent
             return (

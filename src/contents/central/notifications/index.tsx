@@ -28,6 +28,8 @@ const RULE_LABELS: Record<NotificationRuleType, string> = {
   prayer_published: 'Prayer Published',
   event_reminder: 'Event Reminder',
   announcement_published: 'Announcement Published',
+  // Platform daily prayer (365-day cycle): push + email, once per day at 07:00 Tallinn.
+  general_prayer: 'Daily Prayer (General)',
 }
 
 const OFFSET_OPTIONS = ALLOWED_OFFSET_MINUTES.map((minutes) => ({

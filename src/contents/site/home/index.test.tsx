@@ -12,6 +12,8 @@ const home = (audioUrl: string | null = null): MobileHome => ({
   followedChurches: [],
   latestEvents: [],
   latestAnnouncements: [],
+  // The app contract carries it; the website home does not render it.
+  featuredPrayer: null,
   latestPrayers: [
     {
       id: 'prayer-1',

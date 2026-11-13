@@ -6,6 +6,7 @@ const iconSources = {
   arrowRightTail: '/icons/icon-arrow-right-tail.svg',
   back: '/icons/Icon-back.svg',
   bell: '/icons/Icon-bell.svg',
+  bible: '/icons/icon-book-bible.svg',
   church: '/icons/icon-church.svg',
   customers: '/icons/Icon-customers.svg',
   dashboard: '/icons/Icon-dashboard.svg',

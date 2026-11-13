@@ -6,6 +6,7 @@ import { SparklesIcon } from '@/components/icon/sparkles'
 import { WaveformIcon } from '@/components/icon/waveform'
 import { StarFilled } from '@/components/icon/antd-icons'
 import { useSiteI18n } from '@/i18n/site-i18n'
+import { GeneralPrayerSiteOutput } from '@/models/general-prayer'
 import { SiteLoginPrayer } from '@/models/site-prayer'
 import Image from 'next/image'
 import Link from 'next/link'
@@ -14,9 +15,14 @@ import WelcomePrayerPlayer from './prayer-player'
 export default function WelcomeHero({
   memberCount = null,
   prayer = null,
+  dailyPrayer = null,
+  dailyDate = null,
 }: {
   memberCount?: number | null
   prayer?: SiteLoginPrayer | null
+  /** Today's platform daily prayer. When present it is what the listening card plays. */
+  dailyPrayer?: GeneralPrayerSiteOutput | null
+  dailyDate?: string | null
 }) {
   const { locale, t } = useSiteI18n()
   const believersLabel =
@@ -199,12 +205,31 @@ export default function WelcomeHero({
                         </span>
                       </div>
 
-                      <h2 className="pt-0.5 text-[16px] font-semibold leading-[1.5] text-[#0E203E]">
-                        {prayer ? prayer.title : t('welcomeNoOpenPrayer')}
+                      {/* The delivered prayer titles are full verse sentences: clamp so the card
+                          keeps the reference height instead of growing to four lines. */}
+                      <h2 className="line-clamp-2 pt-0.5 text-[16px] font-semibold leading-[1.5] text-[#0E203E]">
+                        {dailyPrayer
+                          ? dailyPrayer.title
+                          : prayer
+                            ? prayer.title
+                            : t('welcomeNoOpenPrayer')}
                       </h2>
 
                       <div className="flex items-center gap-2 text-[12px] leading-[1.5] text-[#5C6370]">
-                        {prayer ? (
+                        {dailyPrayer ? (
+                          <>
+                            <span className="truncate">{t('generalPrayerEyebrow')}</span>
+                            {dailyDate && (
+                              <>
+                                <span
+                                  aria-hidden
+                                  className="h-[3px] w-[3px] shrink-0 rounded-full bg-[#B0B6BF]"
+                                />
+                                <span className="truncate">{dailyDate}</span>
+                              </>
+                            )}
+                          </>
+                        ) : prayer ? (
                           <>
                             <span className="truncate">{prayer.pastorName}</span>
                             <span
@@ -218,33 +243,32 @@ export default function WelcomeHero({
                         )}
                       </div>
                     </div>
-
-                    <span
-                      aria-hidden
-                      className="grid h-8 w-8 shrink-0 place-items-center rounded-lg border border-[#DDE0E4] bg-white text-[#2555A7]"
-                    >
-                      <svg fill="none" height="14" viewBox="0 0 12 14" width="12">
-                        <path
-                          d="M1 1.75C1 1.33579 1.33579 1 1.75 1H10.25C10.6642 1 11 1.33579 11 1.75V12.75C11 12.9541 10.7865 13.082 10.6113 12.9806L6 10.3194L1.38866 12.9806C1.21349 13.082 1 12.9541 1 12.75V1.75Z"
-                          stroke="currentColor"
-                          strokeWidth="1.4"
-                        />
-                        <path d="M6 3.5V8M3.75 5.75H8.25" stroke="currentColor" strokeWidth="1.2" />
-                      </svg>
-                    </span>
                   </div>
 
-                  {prayer?.introduction && (
-                    <p className="w-full text-[12px] leading-[1.5] text-[#737C8C]">
-                      &ldquo;{prayer.introduction}&rdquo;
+                  {(dailyPrayer?.verse ?? dailyPrayer?.introduction ?? prayer?.introduction) && (
+                    <p className="line-clamp-2 w-full text-[12px] leading-[1.5] text-[#737C8C]">
+                      &ldquo;
+                      {dailyPrayer?.verse ?? dailyPrayer?.introduction ?? prayer?.introduction}
+                      &rdquo;
                     </p>
                   )}
                 </div>
 
                 <WelcomePrayerPlayer
-                  audioUrl={prayer?.audioUrl ?? null}
-                  title={prayer?.title ?? ''}
+                  audioUrl={dailyPrayer?.audioUrl ?? prayer?.audioUrl ?? null}
+                  seed={dailyPrayer?.slug ?? prayer?.id ?? 'welcome'}
+                  title={dailyPrayer?.title ?? prayer?.title ?? ''}
                 />
+
+                {dailyPrayer && (
+                  <Link
+                    className="inline-flex w-fit items-center gap-1.5 rounded-full bg-[#2F7AD2] px-4 py-2 text-[12px] font-semibold text-white transition-colors hover:bg-[#256bb8]"
+                    href={`/prayers/general/${dailyPrayer.slug}`}
+                  >
+                    {t('generalPrayerOpen')}
+                    <ArrowRightIcon aria-hidden style={{ fontSize: 12 }} />
+                  </Link>
+                )}
               </div>
 
               {/* Pastors Online for Prayer Row */}

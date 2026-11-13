@@ -10,7 +10,7 @@ import { DEMO_CHURCH_NAME, DEMO_PASTOR_NAME, getAdminUser } from './test-context
  * list the account's voices with:
  *   curl -s https://api.elevenlabs.io/v1/voices -H "xi-api-key: $ELEVENLABS_API_KEY"
  */
-const providerVoiceId = process.env.DEMO_VOICE_PROVIDER_ID ?? 'EXAVITQu4vr4xn8SDxMaL'
+const providerVoiceId = process.env.DEMO_VOICE_PROVIDER_ID ?? 'EXAVITQu4vr4xnSDxMaL'
 
 export const seedVoiceProfiles = async () => {
   const existing = await db.voiceProfile.findFirst({ where: { registration_state: 'READY' } })

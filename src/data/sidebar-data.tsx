@@ -1,6 +1,7 @@
 import { MenuProps } from 'antd'
 import { useRouter } from 'next/navigation'
 import LayoutIcon from '@/components/common/layout-icon'
+import { useAccessPermission } from '@/hooks/data/access-permission'
 
 const DashboardItems = (router: ReturnType<typeof useRouter>): MenuProps['items'] => [
   {
@@ -154,4 +155,45 @@ const DashboardItems = (router: ReturnType<typeof useRouter>): MenuProps['items'
   },
 ]
 
-export const SidebarMenu = () => DashboardItems(useRouter())
+/**
+ * Central menu entries gated per subject: roles without the permission never
+ * see the item. Hooks must run inside a component, so filtering happens here
+ * rather than inside the plain items array.
+ */
+const CentralGeneralPrayersItem = (router: ReturnType<typeof useRouter>): MenuProps['items'] => {
+  const permission = useAccessPermission()
+  const canRead =
+    permission.readAny('prayer_general_prayer').granted ||
+    permission.readOwn('prayer_general_prayer').granted
+  if (!canRead) return []
+  return [
+    {
+      key: '/dashboard/central/general-prayers',
+      label: 'General Prayers',
+      // A bible, not the praying hands: that one is the church-prayers entry, and its
+      // dense artwork reads much heavier than the neighbouring outline icons.
+      icon: <LayoutIcon name="bible" />,
+      onClick: () => {
+        router.push('/dashboard/central/general-prayers')
+      },
+    },
+  ]
+}
+
+export const SidebarMenu = () => {
+  const router = useRouter()
+  const items = DashboardItems(router) ?? []
+  const generalPrayers = CentralGeneralPrayersItem(router) ?? []
+
+  // Splice the gated entry into the central group, leaving every other entry untouched.
+  return items.map((item) => {
+    if (!item || !('children' in item) || item.key !== 'central') return item
+    const children = item.children ?? []
+    const head = children.slice(0, 3)
+    const tail = children.slice(3)
+    return {
+      ...item,
+      children: [...head, ...generalPrayers, ...tail],
+    }
+  })
+}
