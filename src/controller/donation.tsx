@@ -15,6 +15,8 @@ import {
   GET_MY_LATEST_DONATION,
   GET_CHECKOUT_RECEIPT,
   CANCEL_OTHER_CHURCH_SUBSCRIPTIONS,
+  GET_PLATFORM_CHURCH,
+  GET_DONATION_BY_PAYMENT_ID,
 } from '@/providers/donation'
 import { RESOLVE_INVOICE_PAYMENT_ID } from '@/utils/stripe-payment-id'
 import { UPSERT_DONATION_SUBSCRIPTION, UPSERT_DONATION_PAYMENT } from '@/providers/payment-sync'
@@ -28,7 +30,12 @@ import {
   type MyDonationContribution,
   type MyDonationOverview,
   assertNoRawCardData,
+  PublicDonationInitiateSchema,
+  type PublicDonationStatusQuery,
+  type PublicDonationStatusView,
 } from '@/models/donation'
+import { PLATFORM_GIVE_PATH, PLATFORM_GIVE_THANKS_PATH } from '@/config/platform-church'
+import { SITE_URL } from '@/config/site-brand'
 
 /*
  * Donation controller (Tasks 29-30). Routes authenticate + resolve the primary
@@ -538,4 +545,102 @@ export const openBillingPortal = async ({
   }
 
   return STRIPE.createBillingPortalSession({ customerId: provider.customer, returnUrl })
+}
+
+/*
+ * Public (unauthenticated) giving — PD-API-02 / PD-API-05.
+ *
+ * A guest gift is always addressed to Prayer 365 itself. The beneficiary is
+ * resolved server-side from the seeded platform row (D-15), the amount ladder and
+ * the return URLs come from server config (D-12), and no idempotency record is
+ * created because a guest has no actor to key one on (D-13).
+ */
+
+const donationsNotReady = () =>
+  new GeneralError({
+    code: 503,
+    error: 'SERVICE_UNAVAILABLE',
+    error_code: 'DONATIONS_NOT_READY',
+    details: 'Donations are not ready yet. Please try again later.',
+  })
+
+export const initiatePublicDonation = async ({ input }: { input: unknown }) => {
+  const validated = validate(PublicDonationInitiateSchema, input)
+  const platform = await GET_PLATFORM_CHURCH()
+  if (!platform) throw donationsNotReady()
+
+  return initiateDonation({
+    churchId: platform.id,
+    // No giver: this is what bypasses `withExternalIdempotency` and leaves
+    // `donations.user_id` NULL (Stripe owns the receipt, D-03).
+    userId: undefined,
+    input: {
+      amountMinor: validated.amountMinor,
+      currency: 'eur',
+      frequency: 'one_time',
+      // Built here, never accepted from the browser: an unauthenticated endpoint
+      // taking free-form URLs is an open-redirect and a spoofed-return hole.
+      successUrl: `${SITE_URL}${PLATFORM_GIVE_THANKS_PATH}?session_id={CHECKOUT_SESSION_ID}`,
+      cancelUrl: `${SITE_URL}${PLATFORM_GIVE_PATH}?canceled=1`,
+    },
+  })
+}
+
+/**
+ * Outcome read for one guest checkout (PD-API-02).
+ *
+ * The same rules as `getDonationStatus` apply — a live session outranks a FAILED
+ * ledger row, and only `paymentStatus === 'paid'` counts as paid — because a paid
+ * giver must never land on a failure screen. The one addition is D-14: a session
+ * that is not the platform's own answers 404, so an anonymous caller cannot probe
+ * another giver's outcome by session id.
+ */
+export const getPublicDonationStatus = async ({
+  query,
+}: {
+  query: PublicDonationStatusQuery
+}): Promise<PublicDonationStatusView> => {
+  const platform = await GET_PLATFORM_CHURCH()
+  if (!platform) throw donationsNotReady()
+
+  const notFound = () =>
+    new GeneralError({
+      code: 404,
+      error: 'NOT_FOUND',
+      error_code: 'RESOURCE_NOT_FOUND',
+      details: 'Checkout session not found.',
+    })
+
+  const session = isStripeEnabled()
+    ? await STRIPE.retrieveCheckoutSession(query.sessionId).catch(() => null)
+    : null
+
+  if (!session || session.metadata?.churchId !== platform.id || session.mode !== 'payment') {
+    throw notFound()
+  }
+
+  const isPaid = session.paymentStatus === 'paid'
+  // `one_time` only, so the session is always `payment` mode and the money
+  // movement is its payment intent (never an invoice).
+  const providerPaymentId = session.payment_intent ?? null
+  const ledger = providerPaymentId ? await GET_DONATION_BY_PAYMENT_ID({ providerPaymentId }) : null
+
+  const confirmed = isPaid || ledger?.status === 'PAID' || ledger?.status === 'REFUNDED'
+  // A live session outranks a FAILED row: the same intent can still settle
+  // (payer retry / late 3-D Secure).
+  const stillSettling = !isPaid && session.status !== 'expired'
+  const state: PublicDonationStatusView['state'] = confirmed
+    ? 'confirmed'
+    : stillSettling
+      ? 'pending'
+      : 'failed'
+
+  return {
+    state,
+    // The ledger row is written by the webhook: until it lands there is no amount
+    // to show, and the thank-you copy must not invent one.
+    amountMinor: ledger ? Number(ledger.amount_minor) : null,
+    currency: ledger ? ledger.currency.toUpperCase() : null,
+    paidAt: confirmed ? (ledger?.paid_at ?? new Date()) : null,
+  }
 }

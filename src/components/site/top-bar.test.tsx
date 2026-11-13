@@ -115,7 +115,7 @@ describe('SiteTopBar', () => {
     ).toEqual([
       [SITE_MESSAGES.en.headerDiscoverChurches, '/churches'],
       [SITE_MESSAGES.en.headerPrayers, '/prayers'],
-      [SITE_MESSAGES.en.headerGiving, '/donate'],
+      [SITE_MESSAGES.en.headerGiving, '/give'],
     ])
     expect(screen.queryByRole('link', { name: SITE_MESSAGES.en.headerEvents })).toBeNull()
     expect(screen.queryByRole('link', { name: SITE_MESSAGES.en.headerSearch })).toBeNull()
@@ -160,8 +160,8 @@ describe('SiteTopBar', () => {
     expect(link(SITE_MESSAGES.en.headerPrayers).className).toContain('activeNavigationLink')
   })
 
-  it.each(['/donate', '/donate/c1', '/donate/result'])(
-    'keeps Giving & Stewardship active on %s',
+  it.each(['/give', '/give/thank-you'])(
+    'keeps Giving & Stewardship active on the public giving page %s',
     (pathname) => {
       pathnameMock.mockReturnValue(pathname)
 
@@ -293,7 +293,7 @@ describe('SiteTopBar', () => {
   })
 
   it('opens a menu drawer with the navigation links for small screens', async () => {
-    pathnameMock.mockReturnValue('/donate')
+    pathnameMock.mockReturnValue('/give')
     renderWithProviders(
       <SiteI18nProvider initialLocale="en">
         <SiteTopBar />

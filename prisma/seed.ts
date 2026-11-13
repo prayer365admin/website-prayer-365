@@ -19,6 +19,7 @@ import { seedNotificationRules } from './seeds/notification-rule'
 import { seedOrgNodes } from './seeds/org-node'
 import { seedPastors } from './seeds/pastor'
 import { seedPermission } from './seeds/permission'
+import { seedPlatformChurch } from './seeds/platform-church'
 import { seedRequests } from './seeds/request'
 import { seedRolePermissions } from './seeds/role-permission'
 import { seedRoles } from './seeds/role'
@@ -47,6 +48,10 @@ async function main() {
   await seedLanguages()
   await seedCountries()
   await seedOrgNodes()
+
+  // 2b. Hidden platform beneficiary: every guest gift from /give is attributed
+  // to this APPROVED, is_platform row (D-01). Only needs the org nodes above.
+  await seedPlatformChurch()
 
   // 3. Admin (all-access actor) before domain seeds reference it.
   await seedAdminUser()

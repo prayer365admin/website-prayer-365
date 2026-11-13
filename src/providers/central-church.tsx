@@ -51,6 +51,7 @@ export const GET_CHURCHES = async ({
         denomination: c.denomination,
         church_style: c.church_style,
         ...path,
+        isPlatform: c.is_platform,
         version: c.version,
         createdAt: c.created_at.toISOString(),
       }

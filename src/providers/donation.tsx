@@ -1,8 +1,11 @@
 import { Prisma } from '@prisma/client'
+import { unstable_cache } from 'next/cache'
 import { db } from '@/utils/db-connection'
 import { GeneralError } from '@/utils/general-error'
 import { STRIPE, isStripeEnabled } from './stripe'
 import { logger } from '@/utils/logger'
+import { SITE_PUBLIC_TAG } from '@/utils/site-cache-tags'
+import { PLATFORM_CHURCH_SLUG } from '@/config/platform-church'
 import {
   DonationListQuery,
   DonationRow,
@@ -235,6 +238,39 @@ export const ENSURE_CHURCH_DONATION_ELIGIBLE = async ({
     churchName: church.name,
   }
 }
+
+/**
+ * The hidden platform beneficiary (D-01 / D-15): resolved by slug at runtime, so
+ * one artefact serves every environment and a re-seed cannot desync an env-var id.
+ * Cached like the public church reads — the row changes never, and a 60s window
+ * keeps the anonymous checkout start off the database per request.
+ */
+const GET_PLATFORM_CHURCH_UNCACHED = async (): Promise<{ id: string; name: string } | null> =>
+  db.church.findFirst({
+    where: { slug: PLATFORM_CHURCH_SLUG, status: 'APPROVED', is_platform: true },
+    select: { id: true, name: true },
+  })
+
+export const GET_PLATFORM_CHURCH = unstable_cache(
+  GET_PLATFORM_CHURCH_UNCACHED,
+  ['site-platform-church'],
+  { revalidate: 60, tags: [SITE_PUBLIC_TAG] },
+)
+
+/**
+ * The ledger row for one provider payment (the Stripe payment intent). The public
+ * status endpoint keys on it: `provider_payment_id` is unique, so this is the
+ * single gift the giver is asking about. No donor PII is selected.
+ */
+export const GET_DONATION_BY_PAYMENT_ID = async ({
+  providerPaymentId,
+}: {
+  providerPaymentId: string
+}) =>
+  db.donation.findUnique({
+    where: { provider_payment_id: providerPaymentId },
+    select: { id: true, status: true, amount_minor: true, currency: true, paid_at: true },
+  })
 
 /**
  * If Stripe is enabled, verifies that the database subscription is still active

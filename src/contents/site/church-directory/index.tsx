@@ -483,7 +483,7 @@ export default function ContentsSiteChurchDirectory() {
         <DonationBanner
           body={t('directoryDonationBannerBody')}
           ctaLabel={t('directoryDonationBannerCta')}
-          href="/donate"
+          href="/give"
         />
       </div>
     </div>

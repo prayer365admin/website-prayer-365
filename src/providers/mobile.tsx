@@ -74,9 +74,13 @@ const activeChurchWhereId = (id: string): Prisma.ChurchWhereInput => ({
  * carry `slug`. Resolving on only one of the two made every id-addressed call a
  * 404 — the URL segment is an opaque identifier, so accept both. `id` and `slug`
  * are both unique, so an OR can never return the wrong church.
+ *
+ * `is_platform: false` keeps the platform beneficiary (Prayer 365's own giving
+ * row) out of the public profile contract — it is not a parish and has no page.
  */
 const activeChurchWhereAny = (identifier: string): Prisma.ChurchWhereInput => ({
   status: APPROVED,
+  is_platform: false,
   OR: [{ id: identifier }, { slug: identifier }],
 })
 
@@ -264,8 +268,14 @@ const radiusBox = (query: MobileChurchListQuery): Prisma.ChurchWhereInput => {
   }
 }
 
+/**
+ * The one `where` every public directory/listing surface shares (directory API,
+ * sitemap, donate neighbour spotlight). `is_platform: false` keeps the platform
+ * beneficiary out of all of them with a single key (D-10).
+ */
 const churchListWhere = (query: MobileChurchListQuery): Prisma.ChurchWhereInput => ({
   status: APPROVED,
+  is_platform: false,
   ...radiusBox(query),
   ...(query.search
     ? {

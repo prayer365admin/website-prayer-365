@@ -19,7 +19,9 @@ vi.mock('@/utils/db-connection', () => ({
       findMany: vi.fn(),
       groupBy: vi.fn(),
       findFirst: vi.fn(),
+      findUnique: vi.fn(),
     },
+    church: { findFirst: vi.fn() },
     donationSubscription: {
       findUnique: vi.fn(),
       count: vi.fn(),
@@ -406,5 +408,39 @@ describe('GET_MY_LATEST_DONATION', () => {
   it('returns null when user has no paid donations', async () => {
     vi.mocked(db.donation.findFirst).mockResolvedValue(null)
     expect(await GET_MY_LATEST_DONATION({ userId: 'u1' })).toBeNull()
+  })
+})
+
+describe('GET_PLATFORM_CHURCH (PD-DB-04)', () => {
+  it('resolves the platform beneficiary by slug, APPROVED and flagged', async () => {
+    vi.mocked(db.church.findFirst).mockResolvedValue({ id: 'p1', name: 'Prayer 365' } as never)
+
+    const { GET_PLATFORM_CHURCH } = await import('./donation')
+    expect(await GET_PLATFORM_CHURCH()).toEqual({ id: 'p1', name: 'Prayer 365' })
+    expect(db.church.findFirst).toHaveBeenCalledWith({
+      where: { slug: 'prayer365', status: 'APPROVED', is_platform: true },
+      select: { id: true, name: true },
+    })
+  })
+})
+
+describe('GET_DONATION_BY_PAYMENT_ID (PD-DB-04)', () => {
+  it('looks the ledger row up by the unique provider payment id, no donor PII', async () => {
+    vi.mocked(db.donation.findUnique).mockResolvedValue({
+      id: 'd1',
+      status: 'PAID',
+      amount_minor: BigInt(1000),
+      currency: 'eur',
+      paid_at: new Date('2026-11-12T10:00:00.000Z'),
+    } as never)
+
+    const { GET_DONATION_BY_PAYMENT_ID } = await import('./donation')
+    const res = await GET_DONATION_BY_PAYMENT_ID({ providerPaymentId: 'pi_123' })
+
+    expect(db.donation.findUnique).toHaveBeenCalledWith({
+      where: { provider_payment_id: 'pi_123' },
+      select: { id: true, status: true, amount_minor: true, currency: true, paid_at: true },
+    })
+    expect(res?.status).toBe('PAID')
   })
 })

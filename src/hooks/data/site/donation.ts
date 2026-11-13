@@ -1,4 +1,9 @@
-import { DonationInitiateResult, DonationInput, DonationStatusView } from '@/models/donation'
+import {
+  DonationInitiateResult,
+  DonationInput,
+  DonationStatusView,
+  PublicDonationStatusClientView,
+} from '@/models/donation'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import axios from 'axios'
 import { useRef } from 'react'
@@ -19,6 +24,24 @@ export const useInitiateDonation = () => {
           { headers: { 'Idempotency-Key': crypto.randomUUID() } },
         )
       ).data.result as DonationInitiateResult,
+  })
+  return { onInitiate, initiating }
+}
+
+/**
+ * Public giving (`/give`, PD-UI-02). A guest has no actor to key an idempotent
+ * request on (D-13), so no `Idempotency-Key` is sent; a duplicate Checkout
+ * session simply expires unpaid and writes no ledger row.
+ */
+export const useInitiatePublicDonation = () => {
+  const { mutateAsync: onInitiate, isPending: initiating } = useMutation({
+    mutationFn: async ({
+      input,
+    }: {
+      input: { amountMinor: number; currency: string; frequency: 'one_time' }
+    }) =>
+      (await axios.post('/api/v1/site/donations/public', input)).data
+        .result as DonationInitiateResult,
   })
   return { onInitiate, initiating }
 }
@@ -135,6 +158,50 @@ export const useDonationStatus = ({
       return interval
     },
     // A transient network blip must not end the watch on a real payment.
+    retry: 5,
+    retryDelay: 3000,
+  })
+  return { status: query.data ?? null, checking: query.isFetching }
+}
+
+/**
+ * The public thank-you page's own watch (PD-UI-03). Same rules, same backoff and
+ * same hard stop as `useDonationStatus` — the shared `nextDonationPollInterval`
+ * is reused verbatim rather than forked, because two ladders would drift and a
+ * paid guest would be parked on the wrong screen. The server scopes the answer to
+ * the platform's own sessions (D-14); the client only names the session.
+ */
+export const usePublicDonationStatus = ({
+  sessionId,
+  enabled,
+}: {
+  sessionId: string | null
+  enabled: boolean
+}) => {
+  const failedSince = useRef<number | null>(null)
+  const startedAt = useRef<number | null>(null)
+  const query = useQuery({
+    queryKey: ['site', 'donations', 'public', 'status', sessionId],
+    queryFn: async () =>
+      (
+        await axios.get('/api/v1/site/donations/public/status', {
+          params: { sessionId },
+        })
+      ).data.result as PublicDonationStatusClientView,
+    enabled: enabled && Boolean(sessionId),
+    refetchInterval: (current) => {
+      const now = Date.now()
+      const sinceStart = (startedAt.current ??= now)
+      const interval = nextDonationPollInterval({
+        state: current.state.data?.state,
+        elapsedMs: now - sinceStart,
+        failedSinceMs: failedSince.current,
+        nowMs: now,
+      })
+      failedSince.current =
+        current.state.data?.state === 'failed' ? (failedSince.current ?? now) : null
+      return interval
+    },
     retry: 5,
     retryDelay: 3000,
   })
