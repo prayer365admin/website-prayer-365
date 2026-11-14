@@ -1,7 +1,9 @@
 import { unstable_cache } from 'next/cache'
 import { getLatestPlayableSitePrayer } from '@/controller/site-prayer'
+import { getGeneralPrayerForDate } from '@/controller/general-prayer'
 import { getFellowshipMemberCount } from '@/controller/user'
 import { SITE_PUBLIC_TAG } from '@/utils/site-cache-tags'
+import { todayInTallinn } from '@/utils/general-prayer-cycle'
 
 /**
  * Website content that is identical for every visitor, cached in the Next data
@@ -30,14 +32,25 @@ export const getCachedLoginExtras = unstable_cache(
   { revalidate: 60, tags: [SITE_PUBLIC_TAG] },
 )
 
-/** Welcome page: newest playable prayer + fellowship member count. */
+/**
+ * Welcome page: today's platform daily prayer + newest playable church prayer +
+ * fellowship member count.
+ *
+ * `dailyPrayer` is what a visitor without a session leads with (client note, 13 Nov
+ * 2026); the church prayer stays for the sections below and as a fallback when no
+ * daily prayer is published yet.
+ */
 export const getCachedWelcomePublicData = unstable_cache(
   async () => {
-    const [prayer, memberCount] = await Promise.all([
+    const { dateISO } = todayInTallinn()
+    const [dailyPrayer, prayer, memberCount] = await Promise.all([
+      getGeneralPrayerForDate({ dateISO })
+        .then((today) => today?.row ?? null)
+        .catch(() => null),
       getLatestPlayableSitePrayer().catch(() => null),
       getFellowshipMemberCount().catch(() => null),
     ])
-    return { prayer, memberCount }
+    return { dailyPrayer, prayer, memberCount }
   },
   ['site-welcome-public-data'],
   { revalidate: 60, tags: [SITE_PUBLIC_TAG] },

@@ -16,6 +16,10 @@ vi.mock('@/controller/mobile', () => ({
   submitRequest: vi.fn(),
 }))
 vi.mock('@/controller/mobile-avatar', () => ({ createMobileAvatar: vi.fn() }))
+vi.mock('@/controller/general-prayer', () => ({
+  getMobileGeneralPrayer: vi.fn(),
+  getMobileGeneralPrayerBySlug: vi.fn(),
+}))
 
 import requiredAuth from '@/utils/required-auth'
 import {
@@ -29,6 +33,7 @@ import {
   submitRequest,
 } from '@/controller/mobile'
 import { createMobileAvatar } from '@/controller/mobile-avatar'
+import { getMobileGeneralPrayer, getMobileGeneralPrayerBySlug } from '@/controller/general-prayer'
 import { GeneralError } from '@/utils/general-error'
 import { GET as GET_CHURCHES } from './churches/route'
 import { GET as GET_CHURCH_PROFILE } from './churches/[churchId]/route'
@@ -39,6 +44,8 @@ import { POST as POST_REQUEST } from './churches/[churchId]/requests/route'
 import { POST as POST_CHECKIN } from './churches/[churchId]/check-ins/route'
 import { POST as POST_ANALYTICS } from './analytics-events/route'
 import { GET as GET_HOME } from './home/route'
+import { GET as GET_GP_TODAY } from './general-prayers/today/route'
+import { GET as GET_GP_SLUG } from './general-prayers/[slug]/route'
 
 const authUser = (userId: string) => () => ({ session: { user: { user_id: userId } } })
 
@@ -311,6 +318,7 @@ describe('home — MB-10 typed projection', () => {
       latestPrayers: [],
       latestEvents: [],
       latestAnnouncements: [],
+      featuredPrayer: { type: 'general', prayer: { slug: 'paivapalve-2' } },
     } as never)
 
     const res = (await GET_HOME(new NextRequest('http://x/home')))!
@@ -322,6 +330,7 @@ describe('home — MB-10 typed projection', () => {
     expect(body.result.latestPrayers).toEqual([])
     expect(body.result.latestEvents).toEqual([])
     expect(body.result.latestAnnouncements).toEqual([])
+    expect(body.result.featuredPrayer.type).toBe('general')
     expect(body.result).not.toHaveProperty('main')
     expect(getHome).toHaveBeenCalledWith({ userId: 'u1' })
   })
@@ -364,6 +373,110 @@ describe('church profile — identifier passthrough (the app sends a UUID, links
       params: Promise.resolve({ churchId: 'missing' }),
     }))!
 
+    expect(res.status).toBe(404)
+  })
+})
+
+describe('general prayers — platform 365-day daily prayer (MB-19)', () => {
+  const gpPayload = {
+    date: '2026-11-13',
+    sequence: 2,
+    slug: 'paivapalve-2',
+    title: 'Päevapalve',
+    introduction: 'Sissejuhatus',
+    verse: 'Issand on minu karjane',
+    verseReference: 'Psalm 23',
+    liturgicalNote: null,
+    body: '<p>Palve tekst</p>',
+    references: null,
+    languageCode: 'et',
+    audioUrl: null,
+    durationSeconds: null,
+    nextResetAt: '2026-11-14T05:00:00.000Z',
+  }
+
+  it('GET /mobile/general-prayers/today is readable without a session (guest home leads with it)', async () => {
+    // Guests have no token; the daily prayer is platform content (client note, 13 Nov 2026).
+    vi.mocked(requiredAuth).mockRejectedValue(UNAUTH)
+    vi.mocked(getMobileGeneralPrayer).mockResolvedValue(gpPayload as never)
+    const res = (await GET_GP_TODAY(new NextRequest('http://x/general-prayers/today')))!
+    const body = await res.json()
+
+    expect(res.status).toBe(200)
+    expect(body.result.slug).toBe('paivapalve-2')
+    expect(requiredAuth).not.toHaveBeenCalled()
+  })
+
+  it('GET /mobile/general-prayers/today returns the full typed payload + no-store', async () => {
+    vi.mocked(requiredAuth).mockResolvedValue(authUser('u1')() as never)
+    vi.mocked(getMobileGeneralPrayer).mockResolvedValue(gpPayload as never)
+    const res = (await GET_GP_TODAY(new NextRequest('http://x/general-prayers/today')))!
+    const body = await res.json()
+
+    expect(res.status).toBe(200)
+    expect(res.headers.get('Cache-Control')).toContain('no-store')
+    expect(Object.keys(body.result).sort()).toEqual(
+      [
+        'audioUrl',
+        'body',
+        'date',
+        'durationSeconds',
+        'introduction',
+        'languageCode',
+        'liturgicalNote',
+        'nextResetAt',
+        'references',
+        'sequence',
+        'slug',
+        'title',
+        'verse',
+        'verseReference',
+      ].sort(),
+    )
+    expect(getMobileGeneralPrayer).toHaveBeenCalledWith({ dateISO: expect.any(String) })
+  })
+
+  it('GET /mobile/general-prayers/today answers 404 when there is no active content', async () => {
+    vi.mocked(requiredAuth).mockResolvedValue(authUser('u1')() as never)
+    vi.mocked(getMobileGeneralPrayer).mockResolvedValue(null as never)
+    const res = (await GET_GP_TODAY(new NextRequest('http://x/general-prayers/today')))!
+    expect(res.status).toBe(404)
+  })
+
+  it('GET /mobile/general-prayers/:slug is readable without a session (email/push deep link)', async () => {
+    vi.mocked(requiredAuth).mockRejectedValue(UNAUTH)
+    vi.mocked(getMobileGeneralPrayerBySlug).mockResolvedValue(gpPayload as never)
+    const res = (await GET_GP_SLUG(new NextRequest('http://x/general-prayers/paivapalve-2'), {
+      params: Promise.resolve({ slug: 'paivapalve-2' }),
+    } as never))!
+    const body = await res.json()
+
+    expect(res.status).toBe(200)
+    expect(body.result.slug).toBe('paivapalve-2')
+    expect(requiredAuth).not.toHaveBeenCalled()
+  })
+
+  it('GET /mobile/general-prayers/:slug passes the segment through and returns the payload', async () => {
+    vi.mocked(requiredAuth).mockResolvedValue(authUser('u1')() as never)
+    vi.mocked(getMobileGeneralPrayerBySlug).mockResolvedValue(gpPayload as never)
+    const res = (await GET_GP_SLUG(new NextRequest('http://x/general-prayers/paivapalve-2'), {
+      params: Promise.resolve({ slug: 'paivapalve-2' }),
+    } as never))!
+    const body = await res.json()
+
+    expect(res.status).toBe(200)
+    expect(res.headers.get('Cache-Control')).toContain('no-store')
+    expect(body.result.slug).toBe('paivapalve-2')
+    expect(body.result.nextResetAt).toBe('2026-11-14T05:00:00.000Z')
+    expect(getMobileGeneralPrayerBySlug).toHaveBeenCalledWith({ slug: 'paivapalve-2' })
+  })
+
+  it('GET /mobile/general-prayers/:slug answers 404 for an unknown/inactive slug', async () => {
+    vi.mocked(requiredAuth).mockResolvedValue(authUser('u1')() as never)
+    vi.mocked(getMobileGeneralPrayerBySlug).mockResolvedValue(null as never)
+    const res = (await GET_GP_SLUG(new NextRequest('http://x/general-prayers/missing'), {
+      params: Promise.resolve({ slug: 'missing' }),
+    } as never))!
     expect(res.status).toBe(404)
   })
 })

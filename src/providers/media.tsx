@@ -145,6 +145,23 @@ export const MARK_READY = async ({
   })
 
 /**
+ * Church-less READY transition (General Prayer generated audio). Same as
+ * `MARK_READY` but without a church filter: the asset has `church_id = null`,
+ * so a tenant `in` clause can never match it.
+ */
+export const MARK_READY_CHURCH_LESS = async ({
+  assetId,
+  checksum,
+}: {
+  assetId: string
+  checksum: string
+}) =>
+  db.mediaAsset.updateMany({
+    where: { id: assetId, church_id: null, status: 'PENDING' },
+    data: { status: 'READY' as MediaStatus, checksum, updated_at: new Date() },
+  })
+
+/**
  * Unattached PENDING assets older than `olderThan` — nothing references them
  * (no church cover, pastor image, voice sample, consent evidence or generated
  * audio). Used by the cleanup job (Task 34).

@@ -1,6 +1,7 @@
 'use client'
 
 import SiteTopBar from '@/components/site/top-bar'
+import { GeneralPrayerSiteOutput } from '@/models/general-prayer'
 import { SiteLoginPrayer } from '@/models/site-prayer'
 import WelcomeAppPromo from './app-promo'
 import WelcomeCommunity from './community'
@@ -22,15 +23,26 @@ import WelcomeTestimonials from './testimonials'
 export default function ContentsSiteWelcome({
   memberCount = null,
   prayer = null,
+  dailyPrayer = null,
+  dailyDate = null,
 }: {
   memberCount?: number | null
   prayer?: SiteLoginPrayer | null
+  /** Today's platform prayer: it fills the hero's listening card for a visitor. */
+  dailyPrayer?: GeneralPrayerSiteOutput | null
+  /** `13.11.2026` — the day the daily prayer belongs to. */
+  dailyDate?: string | null
 }) {
   return (
     <div className="min-h-screen bg-[#F5F7FF] text-[#191C1E] font-font_heading flex flex-col justify-between selection:bg-[#2F7AD2] selection:text-white">
       <SiteTopBar variant="general" />
       <main className="flex-1">
-        <WelcomeHero memberCount={memberCount} prayer={prayer} />
+        <WelcomeHero
+          dailyDate={dailyDate}
+          dailyPrayer={dailyPrayer}
+          memberCount={memberCount}
+          prayer={prayer}
+        />
         <WelcomeStatsStrip />
         <WelcomePillars />
         <WelcomeCommunity />

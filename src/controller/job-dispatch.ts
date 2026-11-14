@@ -13,6 +13,7 @@ import { CLAIM_PENDING_JOBS } from '@/providers/outbox-job'
 import { SQS_SEND_JOB } from '@/providers/sqs'
 import { scanDueScheduledPrayers } from '@/controller/prayer-publish-job'
 import { scanDueDonationReminders, scanDueEventReminders } from '@/controller/notification-schedule'
+import { scanDueGeneralPrayer } from '@/controller/general-prayer-schedule'
 import { logger } from '@/utils/logger'
 
 /**
@@ -26,6 +27,8 @@ export const SUPPORTED_KINDS = [
   'voice.register',
   'mail.send',
   'notification.send',
+  'general_prayer.audio',
+  'general_prayer.send',
 ] as const
 
 export type JobKind = (typeof SUPPORTED_KINDS)[number]
@@ -33,6 +36,38 @@ export type JobKind = (typeof SUPPORTED_KINDS)[number]
 export type DispatchSummary = {
   scanned: number
   byKind: Record<string, number>
+}
+
+export type CalendarSweepSummary = {
+  enqueued: number
+  bySweep: Record<string, number>
+}
+
+/**
+ * The calendar producers: everything that turns a date into an outbox row.
+ *
+ * Shared by the dispatcher Lambda (which then claims and forwards to SQS) and
+ * `workers/scheduler.ts` (local dev, where there is no SQS and therefore no
+ * dispatcher). One implementation per sweep is the point — a second copy would
+ * drift and fire at a different hour.
+ */
+export const runCalendarSweeps = async ({
+  now,
+}: { now?: Date } = {}): Promise<CalendarSweepSummary> => {
+  const scheduled = await scanDueScheduledPrayers()
+  const events = await scanDueEventReminders({ now })
+  const donations = await scanDueDonationReminders({ now })
+  const daily = await scanDueGeneralPrayer({ now })
+
+  return {
+    enqueued: scheduled.enqueued + events.enqueued + donations.enqueued + daily.enqueued,
+    bySweep: {
+      'prayer.publish': scheduled.enqueued,
+      event_reminder: events.enqueued,
+      donation_reminder: donations.enqueued,
+      general_prayer: daily.enqueued,
+    },
+  }
 }
 
 const claimLimit = () => {
@@ -60,21 +95,13 @@ export const runDispatcher = async (): Promise<DispatchSummary> => {
   const limit = claimLimit()
   const lease = leaseSeconds()
   const byKind: Record<string, number> = {}
-  let scanned = 0
+
+  // Every calendar producer runs before the first claim, so a row it creates can
+  // be dispatched on the same tick instead of the next one.
+  const sweeps = await runCalendarSweeps()
+  const scanned = sweeps.enqueued
 
   for (const kind of SUPPORTED_KINDS) {
-    // Due scheduled prayers become prayer.publish jobs before they are claimed.
-    if (kind === 'prayer.publish') {
-      const scan = await scanDueScheduledPrayers()
-      scanned = scan.enqueued
-    }
-    // Reminders and recurring donation nudges become notification.send jobs.
-    if (kind === 'notification.send') {
-      const events = await scanDueEventReminders()
-      const donations = await scanDueDonationReminders()
-      scanned += events.enqueued + donations.enqueued
-    }
-
     const claimed = await CLAIM_PENDING_JOBS({ kind, limit, leaseSeconds: lease })
     for (const job of claimed) {
       await SQS_SEND_JOB({ queueUrl, kind, jobId: job.id })

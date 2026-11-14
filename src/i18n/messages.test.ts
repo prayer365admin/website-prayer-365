@@ -20,12 +20,26 @@ describe('SITE_MESSAGES', () => {
   const maintenanceKeys = Object.keys(SITE_MESSAGES.en).filter((key) => /^maintenance/.test(key))
   // Public church pages (/churches) are crawlable, so a missing translation is visible to visitors.
   const churchKeys = Object.keys(SITE_MESSAGES.en).filter((key) => /^church/.test(key))
+  // The general prayer pages (/prayers/general) are public and crawlable too.
+  const generalPrayerKeys = Object.keys(SITE_MESSAGES.en).filter((key) =>
+    /^generalPrayer/.test(key),
+  )
 
   it('keeps every public church key in all four locales', () => {
     expect(churchKeys.length).toBeGreaterThanOrEqual(3)
     SITE_LOCALES.forEach((locale) => {
       const block = SITE_MESSAGES[locale] as Record<string, string>
       churchKeys.forEach((key) => {
+        expect(block[key], `${locale} is missing ${key}`).toBeTruthy()
+      })
+    })
+  })
+
+  it('keeps every general prayer key in all four locales', () => {
+    expect(generalPrayerKeys.length).toBeGreaterThanOrEqual(17)
+    SITE_LOCALES.forEach((locale) => {
+      const block = SITE_MESSAGES[locale] as Record<string, string>
+      generalPrayerKeys.forEach((key) => {
         expect(block[key], `${locale} is missing ${key}`).toBeTruthy()
       })
     })

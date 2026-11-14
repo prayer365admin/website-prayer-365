@@ -12,7 +12,7 @@ import {
   MobileChurchListQuery,
   MobileChurchSummary,
   MobileEventListQuery,
-  MobileHome,
+  MobileHomeBase,
   MobileMyChurch,
   MobileNotificationPreferences,
   MobileNotificationType,
@@ -770,7 +770,7 @@ export const SET_FOLLOW = async ({
   return { churchId, isFollowed }
 }
 
-export const GET_HOME = async ({ userId }: { userId: string }): Promise<MobileHome> => {
+export const GET_HOME = async ({ userId }: { userId: string }): Promise<MobileHomeBase> => {
   const rows = await db.userChurch.findMany({
     where: { user_id: userId, church: { status: APPROVED } },
     select: {

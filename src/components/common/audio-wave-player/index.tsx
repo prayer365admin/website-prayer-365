@@ -4,21 +4,17 @@ import { DownloadIcon } from '@/components/icon/download'
 import { FastForwardIcon } from '@/components/icon/fast-forward'
 import { PauseIcon } from '@/components/icon/pause'
 import { PlayIcon } from '@/components/icon/play'
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { waveformBars } from '@/utils/audio-waveform'
 import styles from './index.module.scss'
 
 const BAR_COUNT = 96
 const SKELETON_WAVE_HEIGHTS = [12, 25, 18, 34, 22, 40, 16, 30, 20, 36, 14, 27, 19, 33, 23, 38]
 
-const createWave = (seed: string) => {
-  let state = seed
-    .split('')
-    .reduce((hash, character) => Math.imul(hash ^ character.charCodeAt(0), 16777619), 2166136261)
-
-  return Array.from({ length: BAR_COUNT }, () => {
-    state = Math.imul(state ^ (state >>> 15), 2246822507) + 0x6d2b79f5
-    return 5 + (((state >>> 0) % 1000) / 1000) * 35
-  })
+/** Usable length from the media element; `null` while it is still unknown or broken. */
+const readableDuration = (audio: HTMLAudioElement | null): number | null => {
+  const value = audio?.duration
+  return value && Number.isFinite(value) ? value : null
 }
 
 export const formatAudioTime = (seconds: number) => {
@@ -73,14 +69,21 @@ export default function AudioWavePlayer({
   const [failed, setFailed] = useState(false)
   const [playing, setPlaying] = useState(false)
   const [rate, setRate] = useState(1)
-  const [wave] = useState(() => createWave(seed))
+  const wave = useMemo(() => waveformBars({ count: BAR_COUNT, min: 5, range: 35, seed }), [seed])
   const progress = duration > 0 ? Math.min(current / duration, 1) : 0
 
   useEffect(() => {
     if (!playing) return
     let frame = 0
     const update = () => {
-      if (audioRef.current) setCurrent(audioRef.current.currentTime)
+      const audio = audioRef.current
+      if (audio) {
+        setCurrent(audio.currentTime)
+        // Metadata can complete before React attaches its listeners; this frame loop
+        // is the one hook that always runs while playing.
+        const value = readableDuration(audio)
+        if (value !== null) setDuration(value)
+      }
       frame = requestAnimationFrame(update)
     }
     frame = requestAnimationFrame(update)
@@ -88,8 +91,8 @@ export default function AudioWavePlayer({
   }, [playing])
 
   const syncDuration = () => {
-    const nextDuration = audioRef.current?.duration
-    if (!nextDuration || !Number.isFinite(nextDuration)) return
+    const nextDuration = readableDuration(audioRef.current)
+    if (nextDuration === null) return
     setDuration(nextDuration)
     onDuration?.(nextDuration)
   }
@@ -125,7 +128,9 @@ export default function AudioWavePlayer({
   return (
     <div className={styles.player}>
       <audio
+        onCanPlay={syncDuration}
         onDurationChange={syncDuration}
+        onLoadedData={syncDuration}
         onEnded={() => setPlaying(false)}
         onError={() => {
           setFailed(true)

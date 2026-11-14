@@ -17,6 +17,9 @@ const rules = [
     email_enabled: false,
     recurrence: null,
   },
+  // Platform daily prayer (D-GP-5): both channels on — the client asked for
+  // push AND email for this trigger specifically.
+  { type: 'general_prayer', enabled: true, push_enabled: true, email_enabled: true },
 ]
 
 export const seedNotificationRules = async () => {

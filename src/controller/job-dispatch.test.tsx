@@ -13,6 +13,7 @@ const mocks = vi.hoisted(() => {
     sqs: fns(['SQS_SEND_JOB']),
     publish: fns(['scanDueScheduledPrayers']),
     schedule: fns(['scanDueEventReminders', 'scanDueDonationReminders']),
+    generalPrayer: fns(['scanDueGeneralPrayer']),
     logger: fns(['info', 'error']),
   }
 })
@@ -21,9 +22,10 @@ vi.mock('@/providers/outbox-job', () => mocks.outbox)
 vi.mock('@/providers/sqs', () => mocks.sqs)
 vi.mock('@/controller/prayer-publish-job', () => mocks.publish)
 vi.mock('@/controller/notification-schedule', () => mocks.schedule)
+vi.mock('@/controller/general-prayer-schedule', () => mocks.generalPrayer)
 vi.mock('@/utils/logger', () => ({ logger: mocks.logger }))
 
-import { runDispatcher, SUPPORTED_KINDS } from './job-dispatch'
+import { runCalendarSweeps, runDispatcher, SUPPORTED_KINDS } from './job-dispatch'
 
 const ENV_KEYS = ['JOBS_QUEUE_URL', 'JOB_CLAIM_LIMIT', 'JOB_LEASE_SECONDS'] as const
 const envSnapshot = Object.fromEntries(ENV_KEYS.map((k) => [k, process.env[k]]))
@@ -36,6 +38,7 @@ beforeEach(() => {
   mocks.publish.scanDueScheduledPrayers.mockResolvedValue({ enqueued: 0 })
   mocks.schedule.scanDueEventReminders.mockResolvedValue({ enqueued: 0 })
   mocks.schedule.scanDueDonationReminders.mockResolvedValue({ enqueued: 0 })
+  mocks.generalPrayer.scanDueGeneralPrayer.mockResolvedValue({ enqueued: 0 })
   mocks.outbox.CLAIM_PENDING_JOBS.mockResolvedValue([])
 })
 
@@ -44,6 +47,35 @@ afterEach(() => {
     if (envSnapshot[key] === undefined) delete process.env[key]
     else process.env[key] = envSnapshot[key]
   }
+})
+
+describe('runCalendarSweeps', () => {
+  it('sums every producer and reports them by name', async () => {
+    mocks.publish.scanDueScheduledPrayers.mockResolvedValue({ enqueued: 2 })
+    mocks.schedule.scanDueEventReminders.mockResolvedValue({ enqueued: 1 })
+    mocks.schedule.scanDueDonationReminders.mockResolvedValue({ enqueued: 4 })
+    mocks.generalPrayer.scanDueGeneralPrayer.mockResolvedValue({ enqueued: 1 })
+
+    const summary = await runCalendarSweeps()
+
+    expect(summary.enqueued).toBe(8)
+    expect(summary.bySweep).toEqual({
+      'prayer.publish': 2,
+      event_reminder: 1,
+      donation_reminder: 4,
+      general_prayer: 1,
+    })
+  })
+
+  it('needs no SQS queue to produce the rows (the local scheduler contract)', async () => {
+    const saved = process.env.JOBS_QUEUE_URL
+    delete process.env.JOBS_QUEUE_URL
+    try {
+      await expect(runCalendarSweeps()).resolves.toBeTruthy()
+    } finally {
+      if (saved !== undefined) process.env.JOBS_QUEUE_URL = saved
+    }
+  })
 })
 
 describe('runDispatcher', () => {
@@ -69,12 +101,15 @@ describe('runDispatcher', () => {
     expect(mocks.logger.info).toHaveBeenCalledWith('job_dispatch_tick', summary)
   })
 
-  it('runs the due-prayer sweep only for prayer.publish', async () => {
+  it('runs every calendar producer exactly once per tick', async () => {
     mocks.publish.scanDueScheduledPrayers.mockResolvedValue({ enqueued: 3 })
 
     const summary = await runDispatcher()
 
     expect(mocks.publish.scanDueScheduledPrayers).toHaveBeenCalledTimes(1)
+    expect(mocks.schedule.scanDueEventReminders).toHaveBeenCalledTimes(1)
+    expect(mocks.schedule.scanDueDonationReminders).toHaveBeenCalledTimes(1)
+    expect(mocks.generalPrayer.scanDueGeneralPrayer).toHaveBeenCalledTimes(1)
     expect(summary.scanned).toBe(3)
   })
 

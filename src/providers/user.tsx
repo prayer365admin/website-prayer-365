@@ -484,3 +484,26 @@ export const COUNT_ACTIVE_ADMINS = async ({
       role: { is: { name: ADMINISTRATOR_ROLE } },
     },
   })
+
+/**
+ * Daily-prayer audience page (D-GP-1): every active, non-deleted account —
+ * church members, church-less members and staff — ordered by id so a cursor
+ * can resume an interrupted fan-out without skipping or repeating a user.
+ */
+export const LIST_ACTIVE_USERS = ({
+  cursor,
+  limit,
+}: {
+  cursor?: string
+  limit: number
+}): Promise<{ id: string; name: string; email: string }[]> =>
+  db.user.findMany({
+    where: {
+      status: 'active',
+      deleted_at: null,
+      ...(cursor ? { id: { gt: cursor } } : {}),
+    },
+    orderBy: { id: 'asc' },
+    take: limit,
+    select: { id: true, name: true, email: true },
+  })

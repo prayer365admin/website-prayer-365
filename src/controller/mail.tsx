@@ -123,6 +123,9 @@ export default async function sendMail(request: sendMailRequest) {
     baseUrl,
     host: host || process.env.BASE_URL || 'localhost',
     currentDate: dayjs().format('DD MMMM, YYYY'),
+    // Every template writes "© {{currentYear}} …" in the footer; without this the
+    // year rendered blank (verify-email.html did until now).
+    currentYear: dayjs().format('YYYY'),
   }
 
   const mailFile = fs.readFileSync(filePath, 'utf8')

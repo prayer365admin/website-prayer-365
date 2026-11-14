@@ -13,6 +13,7 @@ export const ALLOWED_RULE_TYPES = [
   'prayer_published',
   'event_reminder',
   'announcement_published',
+  'general_prayer',
 ] as const
 export type NotificationRuleType = (typeof ALLOWED_RULE_TYPES)[number]
 

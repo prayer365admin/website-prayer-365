@@ -20,6 +20,14 @@ export const seedOrgNodes = async () => {
   let parentId: string | null = null
   for (const node of NODES) {
     let row = await db.orgNode.findFirst({ where: { kind: node.kind, name: node.name } })
+    // A COUNTRY node is unique per registry code, and older runs named it after
+    // the registry row ("Estonia"). Match the code too, or the second run tries
+    // to insert a duplicate country node and fails on the unique constraint.
+    if (!row && node.countryCode) {
+      row = await db.orgNode.findFirst({
+        where: { kind: node.kind, country_code: node.countryCode },
+      })
+    }
     if (!row) {
       row = await db.orgNode.create({
         data: {

@@ -1,0 +1,419 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="x-apple-disable-message-reformatting" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <title>Your daily prayer</title>
+    <style>
+      table {
+        border-spacing: 0;
+        mso-table-lspace: 0;
+        mso-table-rspace: 0;
+      }
+      img {
+        border: 0;
+        line-height: 100%;
+        outline: none;
+        text-decoration: none;
+        -ms-interpolation-mode: bicubic;
+      }
+      @media only screen and (max-width: 620px) {
+        .page-pad {
+          padding: 20px 12px !important;
+        }
+        .card-pad {
+          padding-left: 24px !important;
+          padding-right: 24px !important;
+        }
+        .email-title {
+          font-size: 21px !important;
+          line-height: 28px !important;
+        }
+        .footer-pad {
+          padding-left: 20px !important;
+          padding-right: 20px !important;
+        }
+      }
+    </style>
+  </head>
+  <body
+    style="
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      background-color: #f5f8fc;
+      color: #031530;
+      font-family: Arial, Helvetica, sans-serif;
+      -webkit-text-size-adjust: 100%;
+      -ms-text-size-adjust: 100%;
+    "
+  >
+    <div
+      style="
+        display: none;
+        max-height: 0;
+        overflow: hidden;
+        opacity: 0;
+        color: transparent;
+        line-height: 1px;
+      "
+    >
+      Your prayer for {{date}} is ready to read and listen to.
+    </div>
+    <table
+      border="0"
+      cellpadding="0"
+      cellspacing="0"
+      role="presentation"
+      style="width: 100%; background-color: #f5f8fc"
+    >
+      <tr>
+        <td align="center" class="page-pad" style="padding: 40px 16px">
+          <table
+            border="0"
+            cellpadding="0"
+            cellspacing="0"
+            role="presentation"
+            width="600"
+            style="width: 100%; max-width: 600px"
+          >
+            <tr>
+              <td
+                style="
+                  overflow: hidden;
+                  border: 1px solid #e4ebf4;
+                  border-radius: 24px;
+                  background-color: #ffffff;
+                  box-shadow: 0 14px 40px rgba(3, 21, 48, 0.08);
+                "
+              >
+                <table
+                  border="0"
+                  cellpadding="0"
+                  cellspacing="0"
+                  role="presentation"
+                  style="width: 100%"
+                >
+                  <tr>
+                    <td align="center" class="card-pad" style="padding: 36px 48px 20px">
+                      <img
+                        src="{{baseUrl}}/images/logo.png"
+                        width="58"
+                        height="58"
+                        alt="Prayer 365 Sanctuary"
+                        style="
+                          display: block;
+                          width: 58px;
+                          height: 58px;
+                          border: 0;
+                          border-radius: 15px;
+                        "
+                      />
+                      <p
+                        style="
+                          margin: 12px 0 0;
+                          color: #0b4497;
+                          font-size: 12px;
+                          font-weight: 700;
+                          line-height: 18px;
+                          letter-spacing: 1.8px;
+                          text-transform: uppercase;
+                        "
+                      >
+                        Prayer 365 Sanctuary
+                      </p>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td align="center" class="card-pad" style="padding: 10px 48px 42px">
+                      <p
+                        style="
+                          margin: 12px 0 8px;
+                          color: #2f7ad2;
+                          font-size: 11px;
+                          font-weight: 700;
+                          line-height: 16px;
+                          letter-spacing: 2px;
+                          text-transform: uppercase;
+                        "
+                      >
+                        Daily prayer &middot; {{date}}
+                      </p>
+                      <h1
+                        class="email-title"
+                        style="
+                          margin: 0;
+                          color: #031530;
+                          font-size: 26px;
+                          font-weight: 700;
+                          line-height: 33px;
+                          letter-spacing: -0.6px;
+                        "
+                      >
+                        {{title}}
+                      </h1>
+                      <p
+                        style="margin: 16px 0 0; color: #596579; font-size: 16px; line-height: 25px"
+                      >
+                        Hello <strong style="color: #031530">{{customerName}}</strong>, here is the
+                        prayer for today, to start your morning with.
+                      </p>
+                      {{#if verse}}
+                      <table
+                        border="0"
+                        cellpadding="0"
+                        cellspacing="0"
+                        role="presentation"
+                        style="
+                          margin-top: 28px;
+                          width: 100%;
+                          border: 1px solid #dfebfa;
+                          border-radius: 16px;
+                          background-color: #f3f7ff;
+                          background-image: linear-gradient(
+                            135deg,
+                            rgba(194, 217, 255, 0.4) 0%,
+                            rgba(255, 255, 255, 0) 100%
+                          );
+                        "
+                      >
+                        <tr>
+                          <td style="padding: 18px; text-align: left">
+                            <p
+                              style="
+                                margin: 0;
+                                color: #2f7ad2;
+                                font-size: 11px;
+                                font-weight: 700;
+                                line-height: 16px;
+                                letter-spacing: 2px;
+                                text-transform: uppercase;
+                              "
+                            >
+                              Verse{{#if verseReference}} &middot; {{verseReference}}{{/if}}
+                            </p>
+                            <p
+                              style="
+                                margin: 8px 0 0;
+                                color: #031530;
+                                font-size: 16px;
+                                font-style: italic;
+                                line-height: 25px;
+                              "
+                            >
+                              {{verse}}
+                            </p>
+                          </td>
+                        </tr>
+                      </table>
+                      {{/if}}
+                      {{#each bodyParagraphs}}
+                      <p
+                        style="
+                          margin: 18px 0 0;
+                          color: #596579;
+                          font-size: 16px;
+                          line-height: 25px;
+                          text-align: left;
+                        "
+                      >
+                        {{this}}
+                      </p>
+                      {{else}}
+                      <p
+                        style="
+                          margin: 18px 0 0;
+                          color: #596579;
+                          font-size: 16px;
+                          line-height: 25px;
+                          text-align: left;
+                        "
+                      >
+                        {{body}}
+                      </p>
+                      {{/each}}
+                      <table
+                        border="0"
+                        cellpadding="0"
+                        cellspacing="0"
+                        role="presentation"
+                        style="margin-top: 30px; width: 100%"
+                      >
+                        <tr>
+                          <td
+                            align="center"
+                            bgcolor="#2F7AD2"
+                            style="border: 1px solid #1f69bd; border-radius: 12px"
+                          >
+                            <a
+                              href="{{ctaLink}}"
+                              style="
+                                display: block;
+                                padding: 16px 24px;
+                                color: #ffffff;
+                                font-size: 16px;
+                                font-weight: 700;
+                                line-height: 24px;
+                                text-align: center;
+                                text-decoration: none;
+                              "
+                            >
+                              Read today&rsquo;s prayer
+                            </a>
+                          </td>
+                        </tr>
+                      </table>
+                      <p
+                        style="margin: 22px 0 0; color: #596579; font-size: 14px; line-height: 22px"
+                      >
+                        The page also plays the prayer as audio, so you can listen while you read.
+                      </p>
+                      <table
+                        border="0"
+                        cellpadding="0"
+                        cellspacing="0"
+                        role="presentation"
+                        style="
+                          margin-top: 28px;
+                          width: 100%;
+                          border: 1px solid #dfebfa;
+                          border-radius: 16px;
+                          background-color: #f3f7ff;
+                          background-image: linear-gradient(
+                            135deg,
+                            rgba(194, 217, 255, 0.4) 0%,
+                            rgba(255, 255, 255, 0) 100%
+                          );
+                        "
+                      >
+                        <tr>
+                          <td style="padding: 18px; text-align: left">
+                            <table
+                              border="0"
+                              cellpadding="0"
+                              cellspacing="0"
+                              role="presentation"
+                              style="width: 100%"
+                            >
+                              <tr>
+                                <td style="width: 40px; vertical-align: top">
+                                  <div
+                                    style="
+                                      width: 32px;
+                                      height: 32px;
+                                      border-radius: 50%;
+                                      background-color: #dcecff;
+                                      color: #2f7ad2;
+                                      font-size: 16px;
+                                      font-weight: 700;
+                                      line-height: 32px;
+                                      text-align: center;
+                                    "
+                                  >
+                                    <!--[if mso]>
+                                      <span
+                                        style="
+                                          color: #2f7ad2;
+                                          font-size: 16px;
+                                          font-weight: 700;
+                                          line-height: 32px;
+                                        "
+                                        >&#10003;</span
+                                      >
+                                    <![endif]-->
+                                    <!--[if !mso]><!-->
+                                    <svg
+                                      width="16"
+                                      height="16"
+                                      viewBox="0 0 16 16"
+                                      fill="none"
+                                      xmlns="http://www.w3.org/2000/svg"
+                                      role="img"
+                                      aria-label="Daily"
+                                      style="display: block; margin: 8px auto 0"
+                                    >
+                                      <path
+                                        d="M8 1.5v13M4.5 4.5v7M1.5 6.5v3M11.5 4.5v7M14.5 6.5v3"
+                                        stroke="#2F7AD2"
+                                        stroke-width="1.6"
+                                        stroke-linecap="round"
+                                      />
+                                    </svg>
+                                    <!--<![endif]-->
+                                  </div>
+                                </td>
+                                <td style="vertical-align: top">
+                                  <p
+                                    style="
+                                      margin: 0;
+                                      color: #031530;
+                                      font-size: 15px;
+                                      font-weight: 700;
+                                      line-height: 21px;
+                                    "
+                                  >
+                                    Every morning at 07:00
+                                  </p>
+                                  <p
+                                    style="
+                                      margin: 4px 0 0;
+                                      color: #596579;
+                                      font-size: 13px;
+                                      line-height: 20px;
+                                    "
+                                  >
+                                    One prayer from the 365-day cycle reaches your inbox each
+                                    morning, so the day always starts with prayer.
+                                  </p>
+                                </td>
+                              </tr>
+                            </table>
+                          </td>
+                        </tr>
+                      </table>
+                      <p
+                        style="
+                          margin: 28px 0 6px;
+                          color: #7b8798;
+                          font-size: 12px;
+                          line-height: 18px;
+                        "
+                      >
+                        If the button does not work, copy and paste this address into your browser:
+                      </p>
+                      <p
+                        style="
+                          margin: 0;
+                          color: #2f7ad2;
+                          font-size: 12px;
+                          line-height: 18px;
+                          overflow-wrap: anywhere;
+                          word-break: break-all;
+                        "
+                      >
+                        {{ctaLink}}
+                      </p>
+                    </td>
+                  </tr>
+                </table>
+              </td>
+            </tr>
+            <tr>
+              <td align="center" class="footer-pad" style="padding: 24px 32px 8px">
+                <p style="margin: 0; color: #7b8798; font-size: 12px; line-height: 19px">
+                  You receive this because you turned on the daily prayer. Change it any time in
+                  your notification settings.
+                </p>
+                <p style="margin: 8px 0 0; color: #9aa4b3; font-size: 11px; line-height: 18px">
+                  &copy; {{currentYear}} Prayer 365 Sanctuary. All rights reserved in faith.
+                </p>
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>
+  </body>
+</html>

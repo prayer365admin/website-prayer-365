@@ -84,3 +84,63 @@ export const findDemoProblems = (readiness: DemoReadiness): string[] => {
 
   return problems
 }
+
+/** One seeded general prayer, as the gate reads it back. */
+export interface GeneralPrayerReadiness {
+  sequence: number
+  slug: string
+  bodyLength: number
+  languageCode: string
+  audioStatus: string
+  isActive: boolean
+}
+
+/**
+ * The 10 delivered prayers, the minimum the cycle is accepted with (D-GP-4).
+ * The upper bound is deliberately NOT fixed: the client is delivering the
+ * remaining 355 entries, and `docs/new-feature/general-prayer.md` §5 requires
+ * that only the row count changes — no code change — when they arrive.
+ */
+const MIN_GENERAL_PRAYER_COUNT = 10
+const KNOWN_AUDIO_STATUSES = ['QUEUED', 'GENERATING', 'READY', 'FAILED']
+
+/**
+ * The cycle must be complete and continuous: positions 1..N with no gap, each
+ * with real text and Estonian content. A missing body is a prayer the daily
+ * send would publish as an empty page (and speak as silence).
+ */
+export const findGeneralPrayerProblems = (rows: GeneralPrayerReadiness[]): string[] => {
+  const problems: string[] = []
+  if (rows.length < MIN_GENERAL_PRAYER_COUNT) {
+    problems.push(`general prayers: ${rows.length}/${MIN_GENERAL_PRAYER_COUNT} rows`)
+  }
+
+  const sequences = new Set<number>()
+  for (const row of rows) {
+    if (sequences.has(row.sequence)) {
+      problems.push(`general prayer sequence ${row.sequence}: duplicated`)
+    } else {
+      sequences.add(row.sequence)
+    }
+    if (row.slug !== `paivapalve-${row.sequence}`) {
+      problems.push(`general prayer ${row.sequence}: unexpected slug ${row.slug}`)
+    }
+    if (row.bodyLength === 0) problems.push(`general prayer ${row.sequence}: empty body`)
+    if (row.languageCode.trim() !== 'et') {
+      problems.push(`general prayer ${row.sequence}: language ${row.languageCode.trim()}`)
+    }
+    if (!KNOWN_AUDIO_STATUSES.includes(row.audioStatus)) {
+      problems.push(`general prayer ${row.sequence}: audio status ${row.audioStatus}`)
+    }
+    if (!row.isActive) problems.push(`general prayer ${row.sequence}: inactive`)
+  }
+
+  // Contiguity is checked against the rows themselves, so a 365-entry cycle
+  // passes with the same code that accepts today's 10.
+  const highest = rows.reduce((max, row) => Math.max(max, row.sequence), 0)
+  for (let sequence = 1; sequence <= highest; sequence += 1) {
+    if (!sequences.has(sequence)) problems.push(`general prayer sequence ${sequence}: missing`)
+  }
+
+  return problems
+}
