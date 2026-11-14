@@ -95,18 +95,24 @@ export interface GeneralPrayerReadiness {
   isActive: boolean
 }
 
-const EXPECTED_GENERAL_PRAYER_COUNT = 10
+/**
+ * The 10 delivered prayers, the minimum the cycle is accepted with (D-GP-4).
+ * The upper bound is deliberately NOT fixed: the client is delivering the
+ * remaining 355 entries, and `docs/new-feature/general-prayer.md` §5 requires
+ * that only the row count changes — no code change — when they arrive.
+ */
+const MIN_GENERAL_PRAYER_COUNT = 10
 const KNOWN_AUDIO_STATUSES = ['QUEUED', 'GENERATING', 'READY', 'FAILED']
 
 /**
- * The cycle must be complete and continuous: the 10 delivered prayers at
- * positions 1–10, each with real text and Estonian content. A missing body is
- * a prayer the daily send would publish as an empty page (and speak as silence).
+ * The cycle must be complete and continuous: positions 1..N with no gap, each
+ * with real text and Estonian content. A missing body is a prayer the daily
+ * send would publish as an empty page (and speak as silence).
  */
 export const findGeneralPrayerProblems = (rows: GeneralPrayerReadiness[]): string[] => {
   const problems: string[] = []
-  if (rows.length !== EXPECTED_GENERAL_PRAYER_COUNT) {
-    problems.push(`general prayers: ${rows.length}/${EXPECTED_GENERAL_PRAYER_COUNT} rows`)
+  if (rows.length < MIN_GENERAL_PRAYER_COUNT) {
+    problems.push(`general prayers: ${rows.length}/${MIN_GENERAL_PRAYER_COUNT} rows`)
   }
 
   const sequences = new Set<number>()
@@ -129,7 +135,10 @@ export const findGeneralPrayerProblems = (rows: GeneralPrayerReadiness[]): strin
     if (!row.isActive) problems.push(`general prayer ${row.sequence}: inactive`)
   }
 
-  for (let sequence = 1; sequence <= EXPECTED_GENERAL_PRAYER_COUNT; sequence += 1) {
+  // Contiguity is checked against the rows themselves, so a 365-entry cycle
+  // passes with the same code that accepts today's 10.
+  const highest = rows.reduce((max, row) => Math.max(max, row.sequence), 0)
+  for (let sequence = 1; sequence <= highest; sequence += 1) {
     if (!sequences.has(sequence)) problems.push(`general prayer sequence ${sequence}: missing`)
   }
 

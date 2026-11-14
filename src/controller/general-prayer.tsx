@@ -283,6 +283,12 @@ export const updateGeneralPrayer = async ({
   const current = await GET_GENERAL_PRAYER_BY_ID({ generalPrayerId })
   if (!current) throw notFound()
 
+  // A text edit makes the existing narration wrong (it reads the OLD words), so
+  // the audio goes back to QUEUED and a fresh job is enqueued: the public page
+  // falls back to text until the new file is READY, and the next cycle turn of
+  // this prayer already has the right voice.
+  const bodyChanged = copy.body !== undefined && copy.body !== current.body
+
   const row = await UPDATE_GENERAL_PRAYER({
     generalPrayerId,
     expectedVersion: input.version,
@@ -296,8 +302,7 @@ export const updateGeneralPrayer = async ({
       ...(copy.body !== undefined
         ? {
             body: copy.body,
-            // Edited text invalidates the generated audio: regenerate to match.
-            audio_status: current.audio_asset_id ? current.audio_status : 'QUEUED',
+            ...(bodyChanged ? { audio_status: 'QUEUED' as const, last_error_code: null } : {}),
           }
         : {}),
       ...(input.languageCode !== undefined ? { language_code: input.languageCode.trim() } : {}),
@@ -305,6 +310,12 @@ export const updateGeneralPrayer = async ({
     },
   })
   if (!row) throw stale()
+
+  if (bodyChanged) {
+    // Dedupe key ends in the new version, so this is one job per edit and never
+    // a duplicate of the one an admin may have clicked before saving.
+    await ENQUEUE_GENERAL_PRAYER_AUDIO_JOB({ generalPrayerId, version: row.version })
+  }
 
   await db.auditLog.create({
     data: auditPayload({

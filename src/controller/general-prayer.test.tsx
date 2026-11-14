@@ -196,6 +196,47 @@ describe('general prayer controller — writes', () => {
     expect(update.data.body).not.toContain('<iframe')
     expect(update.data.body).toContain('Aamen')
   })
+
+  it('re-queues the audio and enqueues a job when the prayer text changes', async () => {
+    calls.byId.mockResolvedValue(
+      row({
+        audio_status: 'READY',
+        audio_asset_id: 'a1',
+        audio_asset: {
+          object_key: 'media/general_prayer/generated_audio/a.mp3',
+          byte_size: BigInt(1_600_000),
+          status: 'READY',
+        },
+      }),
+    )
+
+    await updateGeneralPrayer({
+      userId: 'admin',
+      requestId: 'r1',
+      generalPrayerId: 'gp-1',
+      input: { version: 1, body: '<p>Uus tekst</p>' },
+    })
+
+    const update = calls.update.mock.calls[0][0] as unknown as { data: Record<string, unknown> }
+    // The old narration reads the old words: it is not READY any more.
+    expect(update.data.audio_status).toBe('QUEUED')
+    expect(calls.enqueueAudio).toHaveBeenCalledWith({ generalPrayerId: 'gp-1', version: 2 })
+  })
+
+  it('leaves the audio alone on a save that does not change the text', async () => {
+    calls.byId.mockResolvedValue(row({ audio_status: 'READY', audio_asset_id: 'a1' }))
+
+    await updateGeneralPrayer({
+      userId: 'admin',
+      requestId: 'r1',
+      generalPrayerId: 'gp-1',
+      input: { version: 1, title: 'Uus pealkiri' },
+    })
+
+    const update = calls.update.mock.calls[0][0] as unknown as { data: Record<string, unknown> }
+    expect(update.data).not.toHaveProperty('audio_status')
+    expect(calls.enqueueAudio).not.toHaveBeenCalled()
+  })
 })
 
 describe('general prayer controller — audio', () => {
