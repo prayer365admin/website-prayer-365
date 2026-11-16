@@ -12,6 +12,7 @@ import {
   MobileAnalyticsAck,
   MobileAnalyticsInput,
   MobileCheckInAck,
+  MobileCheckInToday,
   MobileChurchListQuery,
   MobileChurchSummary,
   MobileDeviceRegistration,
@@ -35,6 +36,7 @@ import {
   CREATE_USER_REQUEST,
   DISABLE_DEVICE_TOKEN,
   GET_CHECK_IN_ACK,
+  GET_CHECK_IN_TODAY,
   GET_HOME,
   GET_ME_PROFILE,
   GET_NOTIFICATION_PREFERENCES,
@@ -372,8 +374,9 @@ export const checkIn = async ({
     operation: 'checkin.create',
     key: idempotencyKey ?? '',
     requestBody: { churchId },
-    run: async () => {
-      const created = await CREATE_CHECKIN({ churchId, userId, requestId })
+    run: async (tx) => {
+      // Same transaction as the idempotency record: the prod pool has ONE connection (see CREATE_CHECKIN).
+      const created = await CREATE_CHECKIN({ churchId, userId, requestId, tx })
       return created.id
     },
   })
@@ -384,6 +387,14 @@ export const checkIn = async ({
   if (!ack) throw notFound('Check-in not found.')
   return ack
 }
+
+export const getCheckInToday = async ({
+  userId,
+  churchId,
+}: {
+  userId: string
+  churchId: string
+}): Promise<MobileCheckInToday> => GET_CHECK_IN_TODAY({ userId, churchId })
 
 export const recordAnalyticsEvents = async ({
   userId,

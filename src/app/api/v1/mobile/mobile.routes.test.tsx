@@ -5,6 +5,7 @@ import { NextRequest } from 'next/server'
 vi.mock('@/utils/required-auth', () => ({ default: vi.fn() }))
 vi.mock('@/controller/mobile', () => ({
   checkIn: vi.fn(),
+  getCheckInToday: vi.fn(),
   getHome: vi.fn(),
   getMe: vi.fn(),
   getPublicChurch: vi.fn(),
@@ -24,6 +25,7 @@ vi.mock('@/controller/general-prayer', () => ({
 import requiredAuth from '@/utils/required-auth'
 import {
   checkIn,
+  getCheckInToday,
   getHome,
   getMe,
   getPublicChurch,
@@ -42,6 +44,7 @@ import { POST as POST_AVATAR } from './me/avatar/route'
 import { PUT as PUT_FOLLOW } from './me/follows/[churchId]/route'
 import { POST as POST_REQUEST } from './churches/[churchId]/requests/route'
 import { POST as POST_CHECKIN } from './churches/[churchId]/check-ins/route'
+import { GET as GET_CHECKIN_TODAY } from './churches/[churchId]/check-ins/today/route'
 import { POST as POST_ANALYTICS } from './analytics-events/route'
 import { GET as GET_HOME } from './home/route'
 import { GET as GET_GP_TODAY } from './general-prayers/today/route'
@@ -271,6 +274,40 @@ describe('check-ins', () => {
     const res = (await POST_CHECKIN(req, churchParams as never))!
     expect(res.status).toBe(200)
     expect(checkIn).toHaveBeenCalledWith(expect.objectContaining({ churchId: 'c1', userId: 'u1' }))
+  })
+})
+
+describe('check-ins today (status)', () => {
+  it('requires authentication (401)', async () => {
+    vi.mocked(requiredAuth).mockRejectedValue(UNAUTH)
+    const res = (await GET_CHECKIN_TODAY(
+      new NextRequest('http://x/check-ins/today'),
+      churchParams as never,
+    ))!
+    expect(res.status).toBe(401)
+    expect(getCheckInToday).not.toHaveBeenCalled()
+  })
+
+  it('answers for the SESSION user only, and is never cached', async () => {
+    vi.mocked(requiredAuth).mockResolvedValue(authUser('u1')() as never)
+    vi.mocked(getCheckInToday).mockResolvedValue({
+      checkedIn: true,
+      localDate: '2026-01-01',
+      occurredAt: '2026-01-01T08:00:00.000Z',
+    })
+    const res = (await GET_CHECKIN_TODAY(
+      new NextRequest('http://x/check-ins/today?userId=attacker'),
+      churchParams as never,
+    ))!
+    expect(res.status).toBe(200)
+    expect(getCheckInToday).toHaveBeenCalledWith({ userId: 'u1', churchId: 'c1' })
+    expect(res.headers.get('cache-control')).toBe('private, no-store')
+    const body = await res.json()
+    expect(body.result).toEqual({
+      checkedIn: true,
+      localDate: '2026-01-01',
+      occurredAt: '2026-01-01T08:00:00.000Z',
+    })
   })
 })
 

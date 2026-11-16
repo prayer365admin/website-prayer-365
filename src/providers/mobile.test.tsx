@@ -1,5 +1,5 @@
 import { Prisma } from '@prisma/client'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi, afterEach } from 'vitest'
 import {
   MobilePublicChurchSchema,
   MobilePublishedAudioSchema,
@@ -31,6 +31,7 @@ vi.mock('@/providers/s3', () => ({ S3_PUBLIC_URL: s3.S3_PUBLIC_URL }))
 import {
   churchLocalDate,
   CREATE_CHECKIN,
+  GET_CHECK_IN_TODAY,
   UPDATE_ME_PROFILE,
   GET_HOME,
   GET_PUBLIC_CHURCH,
@@ -93,7 +94,33 @@ describe('CREATE_CHECKIN — D7 dedupe (one user/church/local-day)', () => {
     )
     expect(res.id).toBe('existing-ck')
     expect(res.localDate).toBe('2026-01-01')
+    // A same-day repeat creates nothing: no second "created" audit entry, and the answer is the ORIGINAL check-in.
+    expect(db.auditLog.create).not.toHaveBeenCalled()
+    expect(res.occurredAt).toBe('2026-01-01T00:00:00.000Z')
     vi.useRealTimers()
+  })
+
+  it('a first check-in writes ONE audit entry; the same-day repeat writes none (no duplicate record of any kind)', async () => {
+    db.auditLog.create.mockClear()
+    db.church.findFirst.mockResolvedValue({ id: 'c1', timezone: 'UTC' })
+    const row = {
+      id: 'ck',
+      church_id: 'c1',
+      user_id: 'u1',
+      occurred_at: new Date('2026-01-01T12:00:00Z'),
+      local_date: new Date('2026-01-01'),
+    }
+    db.checkIn.findFirst.mockResolvedValue(row)
+    db.checkIn.createMany.mockResolvedValueOnce({ count: 1 }).mockResolvedValueOnce({ count: 0 })
+    await CREATE_CHECKIN({ churchId: 'c1', userId: 'u1', requestId: 'r1' })
+    await CREATE_CHECKIN({ churchId: 'c1', userId: 'u1', requestId: 'r2' })
+    expect(db.checkIn.createMany).toHaveBeenCalledTimes(2)
+    // both attempts target the SAME unique dedupe_key, so the database can hold only one row
+    const keys = db.checkIn.createMany.mock.calls.map(
+      (c: unknown[]) => (c[0] as { data: { dedupe_key: string } }).data.dedupe_key,
+    )
+    expect(new Set(keys).size).toBe(1)
+    expect(db.auditLog.create).toHaveBeenCalledTimes(1)
   })
 
   it('returns the freshly inserted row when this is a first check-in', async () => {
@@ -108,6 +135,45 @@ describe('CREATE_CHECKIN — D7 dedupe (one user/church/local-day)', () => {
     })
     const res = await CREATE_CHECKIN({ churchId: 'c1', userId: 'u1', requestId: 'r' })
     expect(res.id).toBe('new-ck')
+  })
+
+  it('uses the given transaction for EVERY query and never touches the global client (pool of 1)', async () => {
+    const tx = {
+      church: { findFirst: vi.fn().mockResolvedValue({ id: 'c1', timezone: 'UTC' }) },
+      checkIn: {
+        createMany: vi.fn().mockResolvedValue({ count: 1 }),
+        findFirst: vi.fn().mockResolvedValue({
+          id: 'tx-ck',
+          church_id: 'c1',
+          user_id: 'u1',
+          occurred_at: new Date('2026-01-01T12:00:00Z'),
+          local_date: new Date('2026-01-01'),
+        }),
+      },
+      auditLog: { create: vi.fn() },
+    }
+    for (const fn of [
+      db.church.findFirst,
+      db.checkIn.createMany,
+      db.checkIn.findFirst,
+      db.auditLog.create,
+    ])
+      fn.mockClear()
+    const res = await CREATE_CHECKIN({
+      churchId: 'c1',
+      userId: 'u1',
+      requestId: 'r',
+      tx: tx as never,
+    })
+    expect(res.id).toBe('tx-ck')
+    expect(tx.church.findFirst).toHaveBeenCalled()
+    expect(tx.checkIn.createMany).toHaveBeenCalled()
+    expect(tx.checkIn.findFirst).toHaveBeenCalled()
+    expect(tx.auditLog.create).toHaveBeenCalled()
+    expect(db.church.findFirst).not.toHaveBeenCalled()
+    expect(db.checkIn.createMany).not.toHaveBeenCalled()
+    expect(db.checkIn.findFirst).not.toHaveBeenCalled()
+    expect(db.auditLog.create).not.toHaveBeenCalled()
   })
 
   it('throws 404 for a non-approved church', async () => {
@@ -1774,6 +1840,67 @@ describe('MB-11 — church summary coordinates', () => {
     expect(home.followedChurches[0].coordinates).toEqual({
       latitude: 58.3776,
       longitude: 26.729,
+    })
+  })
+})
+
+describe('GET_CHECK_IN_TODAY — per-user status for the church-local day', () => {
+  afterEach(() => vi.useRealTimers())
+
+  it("is true with the original time when today's row exists, using the same dedupe key as the write", async () => {
+    vi.setSystemTime(new Date('2026-01-01T12:00:00.000Z'))
+    db.church.findFirst.mockResolvedValue({ id: 'c1', timezone: 'UTC' })
+    db.checkIn.findFirst.mockClear()
+    db.checkIn.findFirst.mockResolvedValue({ occurred_at: new Date('2026-01-01T08:30:00Z') })
+    const res = await GET_CHECK_IN_TODAY({ churchId: 'c1', userId: 'u1' })
+    expect(res).toEqual({
+      checkedIn: true,
+      localDate: '2026-01-01',
+      occurredAt: '2026-01-01T08:30:00.000Z',
+    })
+    expect(db.checkIn.findFirst).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { dedupe_key: 'u1:c1:2026-01-01' } }),
+    )
+  })
+
+  it('is false (null time) when the user has not checked in today', async () => {
+    vi.setSystemTime(new Date('2026-01-01T12:00:00.000Z'))
+    db.church.findFirst.mockResolvedValue({ id: 'c1', timezone: 'UTC' })
+    db.checkIn.findFirst.mockResolvedValue(null)
+    expect(await GET_CHECK_IN_TODAY({ churchId: 'c1', userId: 'u1' })).toEqual({
+      checkedIn: false,
+      localDate: '2026-01-01',
+      occurredAt: null,
+    })
+  })
+
+  it('"today" is the church-local day: 23:30 UTC is already tomorrow in Tallinn, so yesterday\'s row does not count', async () => {
+    vi.setSystemTime(new Date('2026-01-01T23:30:00.000Z'))
+    db.church.findFirst.mockResolvedValue({ id: 'c1', timezone: 'Europe/Tallinn' })
+    db.checkIn.findFirst.mockClear()
+    db.checkIn.findFirst.mockResolvedValue(null)
+    const res = await GET_CHECK_IN_TODAY({ churchId: 'c1', userId: 'u1' })
+    expect(res.localDate).toBe('2026-01-02')
+    expect(db.checkIn.findFirst).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { dedupe_key: 'u1:c1:2026-01-02' } }),
+    )
+  })
+
+  it('only answers for the given user: the key carries the user id', async () => {
+    vi.setSystemTime(new Date('2026-01-01T12:00:00.000Z'))
+    db.church.findFirst.mockResolvedValue({ id: 'c1', timezone: 'UTC' })
+    db.checkIn.findFirst.mockClear()
+    db.checkIn.findFirst.mockResolvedValue(null)
+    await GET_CHECK_IN_TODAY({ churchId: 'c1', userId: 'someone-else' })
+    expect(db.checkIn.findFirst).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { dedupe_key: 'someone-else:c1:2026-01-01' } }),
+    )
+  })
+
+  it('404 for a church that is not approved', async () => {
+    db.church.findFirst.mockResolvedValue(null)
+    await expect(GET_CHECK_IN_TODAY({ churchId: 'nope', userId: 'u1' })).rejects.toMatchObject({
+      code: 404,
     })
   })
 })
