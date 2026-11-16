@@ -20,7 +20,9 @@ parish, and it reuses the existing checkout controller and webhook unchanged.
   `status = APPROVED`, `is_platform = true` (`prisma/seeds/platform-church.ts`, idempotent, part of
   `bunx prisma db seed`). It is identified in code by `PLATFORM_CHURCH_SLUG`
   (`src/config/platform-church.ts`) and resolved server-side at runtime, so staging and production can
-  keep different row ids.
+  keep different row ids. The migration `20261116090000_platform_church_row` inserts the row as soon as
+  its org node exists, so a deployed database serves `/give` before the first seed; `bunx prisma db seed`
+  remains the idempotent source of truth, and it refuses to convert a parish that already owns the slug.
 - **Why `metadata.churchId` still carries an id.** The `payment.sync` worker skips every event without a
   `churchId` (`src/controller/payment-sync-job.tsx`), so a null-church gift would be silently dropped —
   no ledger row, no reconciliation. The platform row satisfies the attribution contract; nothing in the
@@ -38,10 +40,24 @@ parish, and it reuses the existing checkout controller and webhook unchanged.
     is missing (run the seed) or the integration is disabled.
   - **`GET /api/v1/site/donations/public/status?sessionId=cs_…`** — the outcome, `Cache-Control: private, no-store`.
     A session that is not the platform's own, is absent, or is not `payment` mode answers `404`, so an
-    anonymous caller cannot probe another giver's outcome by session id. Status rules mirror the signed-in
-    read: a live session outranks a FAILED ledger row, `paid` is `paymentStatus === 'paid'`, `failed` only
-    when the session is expired and the row is FAILED. The amount is read from the ledger, so it is `null`
-    until the webhook lands.
+    anonymous caller cannot probe another giver's outcome by session id, and a disabled integration answers
+    `503 DONATIONS_NOT_READY` rather than `404` so a broken link and an outage render differently. Status
+    rules mirror the signed-in read: a live session outranks a FAILED ledger row, `paid` is
+    `paymentStatus === 'paid'`, `failed` only when the session is expired and the row is FAILED, and a
+    `REFUNDED` ledger row reports `refunded` — it outranks the session, because Stripe keeps
+    `paymentStatus = 'paid'` after a refund. The amount and `paidAt` are read from the ledger (never
+    minted), so both are `null` until the webhook lands.
+- **Reading guest giving.** These gifts are the platform's own revenue, so they are **not** in any parish
+  report and the parish donation routes answer `403` for the platform row (its org node sits outside the
+  parish scope tree on purpose). They are read at central scope with `prayer_donation` read:
+  - **`GET /api/v1/admin/central/donations`** — paginated `from`/`to`/`currency` ledger of guest gifts
+    (amount, currency, state, date, provider ref; no donor PII), `Cache-Control: private, no-store`.
+  - **`GET /api/v1/admin/central/donation-summary?month=YYYY-MM`** — per-currency gross/refunded/net for
+    that month, same no-cross-currency rule as the parish summary.
+  - **`/dashboard/central/donations`** ("Platform Giving" in the Central menu, shown only to callers who can
+    read donations) renders both: a transactions table and the monthly summary.
+  - Both routes answer `503 DONATIONS_NOT_READY` when the platform row is missing (run the seed), never an
+    empty report — an empty ledger and a missing beneficiary must not look the same.
 - **Admin protection.** The row appears in the central church list as one more beneficiary but is
   read-only: `updateChurch`, `suspendChurch`, `archiveChurch`, `unarchiveChurch` and `purgeChurch` refuse it
   with `403 SYSTEM_RECORD_PROTECTED`, and every public directory surface filters `is_platform: false`. The

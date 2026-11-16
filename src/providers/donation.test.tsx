@@ -425,9 +425,12 @@ describe('GET_PLATFORM_CHURCH (PD-DB-04)', () => {
 })
 
 describe('GET_DONATION_BY_PAYMENT_ID (PD-DB-04)', () => {
-  it('looks the ledger row up by the unique provider payment id, no donor PII', async () => {
+  it('looks the ledger row up by the unique provider payment id, owner id only', async () => {
     vi.mocked(db.donation.findUnique).mockResolvedValue({
       id: 'd1',
+      // The owner id lets a caller bind the row to a signed-in giver; no name,
+      // email or other donor profile data is read.
+      user_id: 'u1',
       status: 'PAID',
       amount_minor: BigInt(1000),
       currency: 'eur',
@@ -439,7 +442,14 @@ describe('GET_DONATION_BY_PAYMENT_ID (PD-DB-04)', () => {
 
     expect(db.donation.findUnique).toHaveBeenCalledWith({
       where: { provider_payment_id: 'pi_123' },
-      select: { id: true, status: true, amount_minor: true, currency: true, paid_at: true },
+      select: {
+        id: true,
+        user_id: true,
+        status: true,
+        amount_minor: true,
+        currency: true,
+        paid_at: true,
+      },
     })
     expect(res?.status).toBe('PAID')
   })

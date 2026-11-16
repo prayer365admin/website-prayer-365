@@ -61,10 +61,15 @@ const notFoundChurch = () =>
     details: 'Church not found or not available.',
   })
 
-/** Church must exist AND be APPROVED for any mobile read/write. */
+/**
+ * Church must exist AND be APPROVED for any mobile read/write, and must not be
+ * the platform beneficiary: that row is a giving target, not a parish, so no
+ * client may make it a main church, follow it or check in to it.
+ */
 const activeChurchWhereId = (id: string): Prisma.ChurchWhereInput => ({
   id,
   status: APPROVED,
+  is_platform: false,
 })
 
 /*

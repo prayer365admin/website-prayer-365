@@ -269,7 +269,14 @@ export const GET_DONATION_BY_PAYMENT_ID = async ({
 }) =>
   db.donation.findUnique({
     where: { provider_payment_id: providerPaymentId },
-    select: { id: true, status: true, amount_minor: true, currency: true, paid_at: true },
+    select: {
+      id: true,
+      user_id: true,
+      status: true,
+      amount_minor: true,
+      currency: true,
+      paid_at: true,
+    },
   })
 
 /**

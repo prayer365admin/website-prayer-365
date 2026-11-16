@@ -937,6 +937,7 @@ export const SITE_MESSAGES = {
     publicGivePresetMusic: 'Sponsors audio recording',
     publicGivePresetPillar: 'Sustains the platform',
     publicGiveCustomAmount: 'Or enter your own amount (1–5,000 EUR)',
+    publicGiveCustomAmountInvalid: 'Enter an amount between 1 and 5,000 EUR',
     publicGiveOneTimeOnly: 'This is a one-time gift. Monthly giving needs an account.',
     publicGiveCompleteGift: 'Give {amount}',
     publicGiveNotReady: 'Donations are not ready yet. Please try again later.',
@@ -956,6 +957,16 @@ export const SITE_MESSAGES = {
       'Stripe has your payment and our records are still catching up. This page updates itself.',
     publicGiveFailedTitle: 'The payment did not complete',
     publicGiveFailedBody: 'No money was taken. You can start a new gift at any time.',
+    publicGiveRefundedTitle: 'Your gift was refunded',
+    publicGiveRefundedBody:
+      "The payment was received and later refunded. The amount is on your card statement, and Stripe's receipt email covers the charge and the refund.",
+    publicGiveUnknownTitle: 'We could not find this checkout',
+    publicGiveUnknownBody:
+      'This link is missing its checkout reference, or the session id is not valid. If you completed a gift, use the link in your receipt email or start again below.',
+    publicGiveNotReadyTitle: 'Giving is temporarily unavailable',
+    publicGiveNotReadyBody:
+      "Giving is temporarily unavailable, so this payment's status cannot be checked. Your gift is safe; the receipt email arrives from Stripe.",
+    publicGiveThanksMetaTitle: 'Thank you',
     publicGiveBackHome: 'Back to giving',
     maintenanceRetry: 'Check again',
   },
@@ -1796,6 +1807,7 @@ export const SITE_MESSAGES = {
     publicGivePresetMusic: 'Toetab helisalvestust',
     publicGivePresetPillar: 'Hoiab platvormi püsti',
     publicGiveCustomAmount: 'Või sisesta oma summa (1–5000 EUR)',
+    publicGiveCustomAmountInvalid: 'Sisesta summa vahemikus 1 kuni 5000 EUR',
     publicGiveOneTimeOnly: 'See on ühekordne annetus. Igakuine annetamine eeldab kontot.',
     publicGiveCompleteGift: 'Anneta {amount}',
     publicGiveNotReady: 'Annetused ei ole veel saadaval. Palun proovi hiljem uuesti.',
@@ -1814,6 +1826,16 @@ export const SITE_MESSAGES = {
       'Stripe on makse kätte saanud ja meie andmed jõuavad järele. See leht uueneb ise.',
     publicGiveFailedTitle: 'Makse ei lõppenud',
     publicGiveFailedBody: 'Raha ei võetud. Võid igal ajal uue annetuse alustada.',
+    publicGiveRefundedTitle: 'Sinu annetus tagastati',
+    publicGiveRefundedBody:
+      "Makse võeti vastu ja hiljem tagastati. Summa näeb kaardi väljavõttes, Stripe'i kviitungi e-kiri hõlmab nii tasu kui tagastust.",
+    publicGiveUnknownTitle: 'Seda makset ei leitud',
+    publicGiveUnknownBody:
+      'Sellel lingil puudub makse viide või seansi tunnus ei ole kehtiv. Kui annetuse tegid, kasuta kviitungi e-kirjas olevat linki või alusta allpool uuesti.',
+    publicGiveNotReadyTitle: 'Annetamine on ajutiselt kinni',
+    publicGiveNotReadyBody:
+      'Annetamine on ajutiselt kinni, seetõttu ei saa selle makse olekut kontrollida. Sinu annetus on turvaline; kviitungi saadab Stripe.',
+    publicGiveThanksMetaTitle: 'Aitäh',
     publicGiveBackHome: 'Tagasi annetamise juurde',
     maintenanceRetry: 'Vaata uuesti',
   },
@@ -2658,6 +2680,7 @@ export const SITE_MESSAGES = {
     publicGivePresetMusic: 'Stöder ljudinspelning',
     publicGivePresetPillar: 'Bär plattformen',
     publicGiveCustomAmount: 'Eller ange ett eget belopp (1–5 000 EUR)',
+    publicGiveCustomAmountInvalid: 'Ange ett belopp mellan 1 och 5 000 EUR',
     publicGiveOneTimeOnly: 'Det här är en engångsgåva. Månadsgivande kräver ett konto.',
     publicGiveCompleteGift: 'Ge {amount}',
     publicGiveNotReady: 'Gåvor är inte tillgängliga ännu. Försök igen senare.',
@@ -2676,6 +2699,16 @@ export const SITE_MESSAGES = {
       'Stripe har din betalning och våra register hinner ifatt. Sidan uppdateras automatiskt.',
     publicGiveFailedTitle: 'Betalningen slutfördes inte',
     publicGiveFailedBody: 'Inga pengar drogs. Du kan starta en ny gåva när som helst.',
+    publicGiveRefundedTitle: 'Din gåva återbetalades',
+    publicGiveRefundedBody:
+      'Betalningen mottogs och återbetalades senare. Beloppet syns på ditt kortutdrag, och Stripes kvittomejl täcker både debiteringen och återbetalningen.',
+    publicGiveUnknownTitle: 'Vi hittade inte den här betalningen',
+    publicGiveUnknownBody:
+      'Länken saknar sin betalningsreferens, eller session-id är inte giltigt. Om du fullföljde en gåva, använd länken i ditt kvittomejl eller börja om nedan.',
+    publicGiveNotReadyTitle: 'Givandet är tillfälligt avstängt',
+    publicGiveNotReadyBody:
+      'Givandet är tillfälligt avstängt, så denna betalnings status kan inte kontrolleras. Din gåva är säker; kvittot kommer från Stripe.',
+    publicGiveThanksMetaTitle: 'Tack',
     publicGiveBackHome: 'Tillbaka till givandet',
     maintenanceRetry: 'Kontrollera igen',
   },
@@ -3524,6 +3557,7 @@ export const SITE_MESSAGES = {
     publicGivePresetMusic: 'Tukee äänityksiä',
     publicGivePresetPillar: 'Kantaa alustaa',
     publicGiveCustomAmount: 'Tai syötä oma summa (1–5 000 EUR)',
+    publicGiveCustomAmountInvalid: 'Syötä summa välillä 1–5 000 EUR',
     publicGiveOneTimeOnly: 'Tämä on kertalahja. Kuukausittainen antaminen vaatii tilin.',
     publicGiveCompleteGift: 'Anna {amount}',
     publicGiveNotReady: 'Lahjoitukset eivät ole vielä käytettävissä. Yritä myöhemmin uudelleen.',
@@ -3543,6 +3577,16 @@ export const SITE_MESSAGES = {
       'Stripe on vastaanottanut maksun ja tietomme päivittyvät vielä. Sivu päivittyy itsestään.',
     publicGiveFailedTitle: 'Maksu ei toteutunut',
     publicGiveFailedBody: 'Rahaa ei veloitettu. Voit aloittaa uuden lahjan milloin tahansa.',
+    publicGiveRefundedTitle: 'Lahjasi palautettiin',
+    publicGiveRefundedBody:
+      'Maksu vastaanotettiin ja palautettiin myöhemmin. Summan näet korttilaskelmassasi, ja Stripesen lähettämä kuiti kattaa sekä veloituksen että palautuksen.',
+    publicGiveUnknownTitle: 'Maksua ei löytynyt',
+    publicGiveUnknownBody:
+      'Linkistä puuttuu maksun tunniste tai istuntotunnus ei ole kelvollinen. Jos teit lahjan, käytä kuitin sähköpostissa olevaa linkkiä tai aloita uudelleen alla.',
+    publicGiveNotReadyTitle: 'Lahjoittaminen on väliaikaisesti pois käytöstä',
+    publicGiveNotReadyBody:
+      'Lahjoittaminen on väliaikaisesti pois käytöstä, joten tämän maksun tilaa ei voi tarkistaa. Lahjasi on turvassa; kuitin lähettää Stripe.',
+    publicGiveThanksMetaTitle: 'Kiitos',
     publicGiveBackHome: 'Takaisin antamiseen',
     maintenanceRetry: 'Tarkista uudelleen',
   },

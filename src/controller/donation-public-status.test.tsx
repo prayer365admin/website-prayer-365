@@ -87,15 +87,41 @@ describe('getPublicDonationStatus', () => {
     })
   })
 
-  it('confirms from the ledger when the session already expired (webhook wins)', async () => {
+  it('reports refunded from the ledger when the session already expired (webhook wins)', async () => {
     m.stripe.retrieveCheckoutSession.mockResolvedValue(
       session({ status: 'expired', paymentStatus: 'unpaid' }),
     )
     m.GET_DONATION_BY_PAYMENT_ID.mockResolvedValue(ledgerRow({ status: 'REFUNDED' }))
 
     await expect(getPublicDonationStatus({ query: { sessionId: 'cs_1' } })).resolves.toMatchObject({
-      state: 'confirmed',
+      state: 'refunded',
       amountMinor: 1000,
+    })
+  })
+
+  it('reports refunded even while the session still reads paid — Stripe never flips that back', async () => {
+    m.stripe.retrieveCheckoutSession.mockResolvedValue(session())
+    m.GET_DONATION_BY_PAYMENT_ID.mockResolvedValue(ledgerRow({ status: 'REFUNDED' }))
+
+    await expect(getPublicDonationStatus({ query: { sessionId: 'cs_1' } })).resolves.toMatchObject({
+      state: 'refunded',
+      amountMinor: 1000,
+      currency: 'EUR',
+      paidAt,
+    })
+  })
+
+  it('reports refunded for an expired unpaid session and keeps the ledger amount', async () => {
+    m.stripe.retrieveCheckoutSession.mockResolvedValue(
+      session({ status: 'expired', paymentStatus: 'unpaid' }),
+    )
+    m.GET_DONATION_BY_PAYMENT_ID.mockResolvedValue(
+      ledgerRow({ status: 'REFUNDED', amount_minor: BigInt(2500) }),
+    )
+
+    await expect(getPublicDonationStatus({ query: { sessionId: 'cs_1' } })).resolves.toMatchObject({
+      state: 'refunded',
+      amountMinor: 2500,
     })
   })
 
@@ -106,7 +132,8 @@ describe('getPublicDonationStatus', () => {
     const res = await getPublicDonationStatus({ query: { sessionId: 'cs_1' } })
 
     expect(res.state).toBe('confirmed')
-    expect(res.paidAt).toBeInstanceOf(Date)
+    // No provider timestamp → no invented one.
+    expect(res.paidAt).toBeNull()
   })
 
   it('reports pending while the session is open and unpaid', async () => {
@@ -193,6 +220,16 @@ describe('getPublicDonationStatus', () => {
       error_code: 'DONATIONS_NOT_READY',
     })
   })
+
+  it('503s instead of 404ing while the integration is disabled', async () => {
+    m.stripe.enabled = false
+
+    await expect(getPublicDonationStatus({ query: { sessionId: 'cs_1' } })).rejects.toMatchObject({
+      code: 503,
+      error_code: 'DONATIONS_NOT_READY',
+    })
+    expect(m.stripe.retrieveCheckoutSession).not.toHaveBeenCalled()
+  })
 })
 
 describe('initiatePublicDonation', () => {
@@ -220,7 +257,7 @@ describe('initiatePublicDonation', () => {
       frequency: 'one_time',
       category: undefined,
       customerId: undefined,
-      successUrl: 'http://localhost:3000/give/thank-you?session_id={CHECKOUT_SESSION_ID}',
+      successUrl: 'http://localhost:3000/donate/result?session_id={CHECKOUT_SESSION_ID}',
       cancelUrl: 'http://localhost:3000/give?canceled=1',
     })
     expect(res).toMatchObject({ sessionId: 'cs_1', url: 'https://pay.test' })

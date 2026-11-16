@@ -259,7 +259,7 @@ export type PublicDonationStatusQuery = z.infer<typeof PublicDonationStatusQuery
 
 /** What the public thank-you page reads: the outcome only, never donor identity. */
 export type PublicDonationStatusView = {
-  state: 'confirmed' | 'pending' | 'failed'
+  state: 'confirmed' | 'refunded' | 'pending' | 'failed' | 'unknown'
   amountMinor: number | null
   currency: string | null
   paidAt: Date | null

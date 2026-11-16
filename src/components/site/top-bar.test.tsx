@@ -115,7 +115,7 @@ describe('SiteTopBar', () => {
     ).toEqual([
       [SITE_MESSAGES.en.headerDiscoverChurches, '/churches'],
       [SITE_MESSAGES.en.headerPrayers, '/prayers'],
-      [SITE_MESSAGES.en.headerGiving, '/give'],
+      [SITE_MESSAGES.en.headerGiving, '/donate'],
     ])
     expect(screen.queryByRole('link', { name: SITE_MESSAGES.en.headerEvents })).toBeNull()
     expect(screen.queryByRole('link', { name: SITE_MESSAGES.en.headerSearch })).toBeNull()
@@ -160,8 +160,8 @@ describe('SiteTopBar', () => {
     expect(link(SITE_MESSAGES.en.headerPrayers).className).toContain('activeNavigationLink')
   })
 
-  it.each(['/give', '/give/thank-you'])(
-    'keeps Giving & Stewardship active on the public giving page %s',
+  it.each(['/donate', '/give'])(
+    'keeps Giving & Stewardship active on the giving pages %s',
     (pathname) => {
       pathnameMock.mockReturnValue(pathname)
 
@@ -315,27 +315,48 @@ describe('SiteTopBar', () => {
     await waitFor(() => expect(menu.getAttribute('aria-expanded')).toBe('false'))
   })
 
-  it('shows the account-flow navigation without customer discovery links', () => {
+  it('hides the session-only menu entries from a guest and offers sign-in instead', () => {
+    sessionMock.mockReturnValue({ data: null, status: 'unauthenticated' })
+
     renderWithProviders(
       <SiteI18nProvider initialLocale="en">
-        <SiteTopBar variant="auth" />
+        <SiteTopBar />
       </SiteI18nProvider>,
     )
 
+    // Public entries stay; the prayer archive needs a session, so it is dropped
+    // instead of leading a guest into a sign-in bounce.
+    expect(link('Discovery Churches')).toBeTruthy()
+    expect(link(SITE_MESSAGES.en.headerGiving)).toBeTruthy()
+    expect(screen.queryByRole('link', { name: SITE_MESSAGES.en.headerPrayers })).toBeNull()
+    // Guest actions: the two account-entry links, never the avatar or church pill.
     expect(screen.getByRole('navigation', { name: 'Account navigation' })).toBeTruthy()
-    expect(screen.getByRole('link', { name: SITE_MESSAGES.en.signInBeginFellowship })).toBeTruthy()
-    expect(screen.queryByRole('link', { name: SITE_MESSAGES.en.headerHome })).toBeNull()
+    expect(link(SITE_MESSAGES.en.headerSignIn)).toBeTruthy()
+    expect(link(SITE_MESSAGES.en.signInBeginFellowship)).toBeTruthy()
     expect(screen.queryByRole('link', { name: SITE_MESSAGES.en.account })).toBeNull()
-    expect(screen.queryByRole('link', { name: SITE_MESSAGES.en.headerSpiritualWalk })).toBeNull()
-    expect(screen.queryByRole('link', { name: 'Discovery Churches' })).toBeNull()
+    expect(screen.queryByLabelText(SITE_MESSAGES.en.headerChooseChurch)).toBeNull()
   })
 
+  it('shows the prayer archive to a signed-in visitor', () => {
+    renderWithProviders(
+      <SiteI18nProvider initialLocale="en">
+        <SiteTopBar />
+      </SiteI18nProvider>,
+    )
+
+    expect(link(SITE_MESSAGES.en.headerPrayers)).toBeTruthy()
+    expect(screen.queryByRole('navigation', { name: 'Account navigation' })).toBeNull()
+  })
+
+  const asGuest = () => sessionMock.mockReturnValue({ data: null, status: 'unauthenticated' })
+
   it('marks the sign-in link active on the sign-in page', () => {
+    asGuest()
     pathnameMock.mockReturnValue('/login')
 
     renderWithProviders(
       <SiteI18nProvider initialLocale="en">
-        <SiteTopBar variant="auth" />
+        <SiteTopBar />
       </SiteI18nProvider>,
     )
 
@@ -344,11 +365,12 @@ describe('SiteTopBar', () => {
   })
 
   it('marks Begin Fellowship active only on the registration page', () => {
+    asGuest()
     pathnameMock.mockReturnValue('/register')
 
     const { unmount } = renderWithProviders(
       <SiteI18nProvider initialLocale="en">
-        <SiteTopBar variant="auth" />
+        <SiteTopBar />
       </SiteI18nProvider>,
     )
 
@@ -359,7 +381,7 @@ describe('SiteTopBar', () => {
     pathnameMock.mockReturnValue('/forgot-password')
     renderWithProviders(
       <SiteI18nProvider initialLocale="en">
-        <SiteTopBar variant="auth" />
+        <SiteTopBar />
       </SiteI18nProvider>,
     )
 
@@ -368,11 +390,12 @@ describe('SiteTopBar', () => {
   })
 
   it('keeps Begin Fellowship active during customer setup', () => {
+    asGuest()
     pathnameMock.mockReturnValue('/customer/setup')
 
     renderWithProviders(
       <SiteI18nProvider initialLocale="en">
-        <SiteTopBar variant="auth" />
+        <SiteTopBar />
       </SiteI18nProvider>,
     )
 

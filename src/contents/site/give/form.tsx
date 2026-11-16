@@ -171,7 +171,7 @@ export function GiveForm({
           </div>
           {typedAmount && !amountInRange && (
             <p aria-live="polite" className="px-1 text-xs leading-[1.5] text-danger-700">
-              {t('publicGiveCustomAmount')}
+              {t('publicGiveCustomAmountInvalid')}
             </p>
           )}
         </div>

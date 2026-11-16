@@ -15,7 +15,20 @@ import { ok, httpError } from '@/utils/response'
  */
 export async function POST(req: NextRequest) {
   try {
-    const result = await initiatePublicDonation({ input: await req.json() })
+    // A body that is not JSON is a validation failure like any other field: the
+    // controller would 422 it, but `req.json()` throws first.
+    let body: unknown
+    try {
+      body = await req.json()
+    } catch {
+      throw new GeneralError({
+        code: 422,
+        error: 'VALIDATION_ERROR',
+        error_code: 'VALIDATION_ERROR',
+        details: 'Request body is not valid JSON.',
+      })
+    }
+    const result = await initiatePublicDonation({ input: body })
     return ok(result, 'Donation session created.')
   } catch (e) {
     if (e instanceof NotImplementedError) {

@@ -26,7 +26,9 @@ describe('Welcome landing page (welcome-landing)', () => {
 
     // TopBar (shared site header)
     expect(screen.getAllByText(SITE_MESSAGES.en.headerDiscoverChurches).length).toBeGreaterThan(0)
-    expect(screen.getAllByText(SITE_MESSAGES.en.headerPrayers).length).toBeGreaterThan(0)
+    // A guest cannot open the prayer archive, so that entry is hidden rather than
+    // bouncing them to sign-in; discovery and giving stay.
+    expect(screen.queryByRole('link', { name: SITE_MESSAGES.en.headerPrayers })).toBeNull()
     expect(screen.getAllByText(SITE_MESSAGES.en.headerGiving).length).toBeGreaterThan(0)
     // Guests get no church selector
     expect(screen.queryByLabelText(SITE_MESSAGES.en.headerChooseChurch)).toBeNull()

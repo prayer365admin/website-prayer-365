@@ -46,6 +46,8 @@ describe('GET /api/v1/site/donations/public/status', () => {
     const res = await GET(req())
 
     expect(res.status).toBe(404)
+    // Errors are session-specific too: no shared cache may replay them.
+    expect(res.headers.get('Cache-Control')).toBe('private, no-store')
     expect((await res.json()).error_code).toBe('RESOURCE_NOT_FOUND')
   })
 

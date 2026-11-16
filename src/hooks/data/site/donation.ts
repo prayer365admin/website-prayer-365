@@ -6,7 +6,7 @@ import {
 } from '@/models/donation'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import axios from 'axios'
-import { useRef } from 'react'
+import { useEffect, useRef } from 'react'
 
 /**
  * Website donations (WB-43). One Idempotency-Key per checkout attempt, so a
@@ -79,8 +79,8 @@ const POLL_SLOW_MS = 10_000
 const POLL_IDLE_MS = 30_000
 const POLL_FAST_WINDOW_MS = 60 * 1000
 const POLL_SLOW_WINDOW_MS = 5 * 60 * 1000
-/** Hard stop: after the checkout TTL the webhook is the only source of truth. */
-export const POLL_TOTAL_MS = 10 * 60 * 1000
+/** Hard stop at the checkout session TTL (31 min): past it nobody can pay. */
+export const POLL_TOTAL_MS = 31 * 60 * 1000
 
 /**
  * Next refetch delay for the result page, or `false` to stop. Pure on purpose: the
@@ -98,7 +98,8 @@ export const nextDonationPollInterval = ({
   failedSinceMs: number | null
   nowMs: number
 }): number | false => {
-  if (state === 'confirmed') return false
+  // Both are settled ledger outcomes: nothing in the checkout can change them.
+  if (state === 'confirmed' || state === 'refunded') return false
   if (elapsedMs >= POLL_TOTAL_MS) return false
   // `failed` is provisional for one minute: the same attempt can still settle.
   if (state === 'failed') {
@@ -161,6 +162,13 @@ export const useDonationStatus = ({
     retry: 5,
     retryDelay: 3000,
   })
+  // Returning to the tab re-checks once: the interval ladder stops on a
+  // provisional `failed`, and a giver should not have to reload the page.
+  useEffect(() => {
+    const wake = () => void query.refetch()
+    window.addEventListener('focus', wake)
+    return () => window.removeEventListener('focus', wake)
+  }, [query])
   return { status: query.data ?? null, checking: query.isFetching }
 }
 
@@ -205,5 +213,11 @@ export const usePublicDonationStatus = ({
     retry: 5,
     retryDelay: 3000,
   })
+  // Same one-shot wake as the signed-in watch: a tab return re-checks once.
+  useEffect(() => {
+    const wake = () => void query.refetch()
+    window.addEventListener('focus', wake)
+    return () => window.removeEventListener('focus', wake)
+  }, [query])
   return { status: query.data ?? null, checking: query.isFetching }
 }

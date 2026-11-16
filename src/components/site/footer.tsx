@@ -14,7 +14,7 @@ export default function SiteFooter({ legalOnly = false }: { legalOnly?: boolean 
     [t('headerHome'), '/'],
     [t('headerDiscoverChurches'), '/churches'],
     [t('headerPrayers'), '/prayers'],
-    [t('headerGiving'), '/give'],
+    [t('headerGiving'), '/donate'],
   ] as const
 
   const policyLinks = [

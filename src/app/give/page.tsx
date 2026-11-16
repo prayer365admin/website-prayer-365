@@ -1,22 +1,26 @@
 import type { Metadata } from 'next'
 import SiteShell from '@/components/site'
 import {
-  PLATFORM_CHURCH_NAME,
   PLATFORM_DONATION_CURRENCY,
   PLATFORM_DONATION_PRESETS_MINOR,
   PLATFORM_GIVE_PATH,
 } from '@/config/platform-church'
 import { SITE_DESCRIPTION, SITE_NAME } from '@/config/site-brand'
 import ContentsSiteGive from '@/contents/site/give'
+import { SITE_MESSAGES } from '@/i18n/messages'
 import { SiteI18nProvider } from '@/i18n/site-i18n'
 import { isStripeEnabled } from '@/providers/stripe'
 import { firstParam } from '@/utils/search-param'
 import { getSiteLocale } from '@/utils/site-locale'
 
-export const metadata: Metadata = {
-  title: { absolute: `Support ${PLATFORM_CHURCH_NAME} — ${SITE_NAME}` },
-  description: SITE_DESCRIPTION,
-  alternates: { canonical: PLATFORM_GIVE_PATH },
+/** Head tags follow the UI language; the site description stays site-wide. */
+export async function generateMetadata(): Promise<Metadata> {
+  const locale = await getSiteLocale()
+  return {
+    title: { absolute: `${SITE_MESSAGES[locale].publicGiveTitle} — ${SITE_NAME}` },
+    description: SITE_DESCRIPTION,
+    alternates: { canonical: PLATFORM_GIVE_PATH },
+  }
 }
 
 /**

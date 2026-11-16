@@ -94,6 +94,25 @@ export const getDonationSummary = async ({
   return GET_DONATION_SUMMARY({ churchIds, month })
 }
 
+/*
+ * The platform's own giving: guest gifts from `/give`. They are attributed to the
+ * hidden platform church (PD-DB-03), which is deliberately outside the parish
+ * scope tree, so no church-scoped report can cover them. These readers are the
+ * central-scope counterpart — the route enforces `central` + `prayer_donation`
+ * read before calling in; the filter is the platform row alone.
+ */
+const platformChurchIds = async () => {
+  const platform = await GET_PLATFORM_CHURCH()
+  if (!platform) throw donationsNotReady()
+  return { churchId: platform.id, churchIds: new Set([platform.id]) }
+}
+
+export const listPlatformDonations = async ({ query }: { query: DonationListQuery }) =>
+  listDonations({ ...(await platformChurchIds()), query })
+
+export const getPlatformDonationSummary = async ({ month }: { month: string }) =>
+  getDonationSummary({ ...(await platformChurchIds()), month })
+
 export const initiateDonation = async ({
   churchId,
   userId,
@@ -324,11 +343,16 @@ export const getDonationStatus = async ({
   // final answer parked paid givers on the "Failed" screen (observed live
   // 2026-11-10: failed event T, succeeded event T+78s, one ledger row).
   let stillSettling = false
+  // A paid session is proof on its own; once Stripe names the payment, the ledger
+  // is read by that id, so the age of the row cannot demote a settled gift.
+  let sessionPaid = false
+  let settledProviderPaymentId: string | null = null
   if (query.sessionId && isStripeEnabled()) {
     const session = await retrieveSessionThrottled(query.sessionId)
     // `paid` only: a completed session with an async payment method (bank debit)
     // reports payment_status `unpaid` while the money is still moving.
     const isPaid = session?.paymentStatus === 'paid'
+    sessionPaid = isPaid
     stillSettling = Boolean(session) && !isPaid && session?.status !== 'expired'
 
     if (session && isPaid) {
@@ -342,6 +366,7 @@ export const getDonationStatus = async ({
           : null
       const providerPaymentId =
         session.payment_intent ?? RESOLVE_INVOICE_PAYMENT_ID(invoice, { invoiceIdFallback: false })
+      settledProviderPaymentId = providerPaymentId ?? null
 
       // Ledger first. Metadata is bookkeeping for the parish's Stripe view, so a
       // failure there must never cost the giver their receipt.
@@ -410,6 +435,30 @@ export const getDonationStatus = async ({
       } catch {
         // Provider-side metadata and duplicate-subscription cleanup are optional.
       }
+    }
+  }
+
+  /*
+   * Stripe says the money moved. The windowed attempt read above only exists to
+   * bind an *unordered* attempt to a row; once the session names the payment, the
+   * ledger is read by that id, with no age limit. Before this, refreshing a
+   * confirmed receipt past the 30-minute window re-ran the windowed read, found
+   * nothing, and dropped the giver back to "Your gift is being confirmed" even
+   * though their PAID row was sitting in the ledger.
+   */
+  if (sessionPaid) {
+    const ledgerRow = settledProviderPaymentId
+      ? await GET_DONATION_BY_PAYMENT_ID({ providerPaymentId: settledProviderPaymentId })
+      : null
+    // Another giver's session id must not turn into their receipt details: only a
+    // row that belongs to this user is echoed back.
+    const settled = ledgerRow?.user_id === userId ? ledgerRow : null
+    return {
+      ...base,
+      state: 'confirmed',
+      amountMinor: settled ? Number(settled.amount_minor) : base.amountMinor,
+      currency: settled ? settled.currency.toUpperCase() : base.currency,
+      paidAt: settled?.paid_at ?? null,
     }
   }
 
@@ -611,9 +660,12 @@ export const getPublicDonationStatus = async ({
       details: 'Checkout session not found.',
     })
 
-  const session = isStripeEnabled()
-    ? await STRIPE.retrieveCheckoutSession(query.sessionId).catch(() => null)
-    : null
+  // A disabled integration is not a missing session: answering 404 would tell
+  // the giver their checkout does not exist, so the page cannot tell the two
+  // apart. 503 is the only honest answer here.
+  if (!isStripeEnabled()) throw donationsNotReady()
+
+  const session = await STRIPE.retrieveCheckoutSession(query.sessionId).catch(() => null)
 
   if (!session || session.metadata?.churchId !== platform.id || session.mode !== 'payment') {
     throw notFound()
@@ -625,15 +677,20 @@ export const getPublicDonationStatus = async ({
   const providerPaymentId = session.payment_intent ?? null
   const ledger = providerPaymentId ? await GET_DONATION_BY_PAYMENT_ID({ providerPaymentId }) : null
 
-  const confirmed = isPaid || ledger?.status === 'PAID' || ledger?.status === 'REFUNDED'
+  // A refund outranks the session: Stripe keeps `paymentStatus = 'paid'` after a
+  // refund, so the ledger row is the only place the reversal is visible.
+  const refunded = ledger?.status === 'REFUNDED'
+  const confirmed = !refunded && (isPaid || ledger?.status === 'PAID')
   // A live session outranks a FAILED row: the same intent can still settle
   // (payer retry / late 3-D Secure).
   const stillSettling = !isPaid && session.status !== 'expired'
-  const state: PublicDonationStatusView['state'] = confirmed
-    ? 'confirmed'
-    : stillSettling
-      ? 'pending'
-      : 'failed'
+  const state: PublicDonationStatusView['state'] = refunded
+    ? 'refunded'
+    : confirmed
+      ? 'confirmed'
+      : stillSettling
+        ? 'pending'
+        : 'failed'
 
   return {
     state,
@@ -641,6 +698,8 @@ export const getPublicDonationStatus = async ({
     // to show, and the thank-you copy must not invent one.
     amountMinor: ledger ? Number(ledger.amount_minor) : null,
     currency: ledger ? ledger.currency.toUpperCase() : null,
-    paidAt: confirmed ? (ledger?.paid_at ?? new Date()) : null,
+    // Only what the provider recorded: a timestamp minted here would dress a
+    // receipt-less confirmation up as a receipt.
+    paidAt: confirmed || refunded ? (ledger?.paid_at ?? null) : null,
   }
 }

@@ -60,6 +60,20 @@ describe('POST /api/v1/site/donations/public', () => {
     })
   })
 
+  it('422s a body that is not JSON without reaching the controller', async () => {
+    const res = await POST(
+      new NextRequest('http://localhost/api/v1/site/donations/public', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: 'oops',
+      }),
+    )
+
+    expect(res.status).toBe(422)
+    expect((await res.json()).error_code).toBe('VALIDATION_ERROR')
+    expect(m.initiatePublicDonation).not.toHaveBeenCalled()
+  })
+
   it('maps a disabled integration to 503 DONATIONS_NOT_READY', async () => {
     m.initiatePublicDonation.mockRejectedValue(
       new NotImplementedError('STRIPE.createCheckoutSession'),

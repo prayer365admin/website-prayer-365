@@ -202,6 +202,22 @@ describe('UPDATE_ME_PROFILE — main-church is exactly one row', () => {
     expect(tx.userChurch.upsert).not.toHaveBeenCalled()
   })
 
+  it('refuses the platform beneficiary as a main church', async () => {
+    db.$transaction.mockImplementation(async (fn) => fn(tx))
+    tx.church.findFirst.mockResolvedValue(null)
+
+    await expect(
+      UPDATE_ME_PROFILE({ userId: 'u1', mainChurchId: 'c-platform' }),
+    ).rejects.toMatchObject({ code: 404 })
+
+    // The row itself is APPROVED; the flag is what keeps it out of the profile.
+    expect(tx.church.findFirst).toHaveBeenCalledWith({
+      where: { id: 'c-platform', status: 'APPROVED', is_platform: false },
+      select: { id: true },
+    })
+    expect(tx.userChurch.upsert).not.toHaveBeenCalled()
+  })
+
   it('writes profile_picture; explicit null clears it', async () => {
     db.$transaction.mockImplementation(async (fn) => fn(tx))
     await UPDATE_ME_PROFILE({ userId: 'u1', profilePicture: 'https://cdn.example.com/a.png' })

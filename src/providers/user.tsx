@@ -329,7 +329,7 @@ export const CREATE_CUSTOMER = async (payload: {
 
     const church = payload.main_church_id
       ? await tx.church.findFirst({
-          where: { id: payload.main_church_id, status: 'APPROVED' },
+          where: { id: payload.main_church_id, status: 'APPROVED', is_platform: false },
           select: { id: true },
         })
       : null

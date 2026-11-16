@@ -21,4 +21,4 @@ export const PLATFORM_DONATION_MIN_MINOR = 100 // 1 EUR
 export const PLATFORM_DONATION_MAX_MINOR = 500_000 // 5,000 EUR
 
 export const PLATFORM_GIVE_PATH = '/give'
-export const PLATFORM_GIVE_THANKS_PATH = '/give/thank-you'
+export const PLATFORM_GIVE_THANKS_PATH = '/donate/result'

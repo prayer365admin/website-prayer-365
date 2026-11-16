@@ -21,6 +21,8 @@ export async function GET(req: NextRequest) {
     const result = await getPublicDonationStatus({ query })
     return noStore(ok(result, 'Donation status retrieved.'))
   } catch (e) {
-    return httpError(e)
+    // The errors are just as session-specific as the answer: a shared cache must
+    // never replay a 404/422/503 for one giver to another.
+    return noStore(httpError(e))
   }
 }

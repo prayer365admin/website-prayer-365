@@ -25,8 +25,6 @@ import { usePathname, useSearchParams } from 'next/navigation'
 import { useState } from 'react'
 import s from './top-bar.module.scss'
 
-export type SiteHeaderVariant = 'auth' | 'general'
-
 // Hidden until the notifications page exists; flip to show the bell again.
 const SHOW_NOTIFICATIONS = false
 
@@ -34,14 +32,28 @@ const SHOW_NOTIFICATIONS = false
 const isPathWithin = (pathname: string, href: string) =>
   pathname === href || pathname.startsWith(`${href}/`)
 
-const isActivePath = (pathname: string, href: string) => isPathWithin(pathname, href)
+/**
+ * "Giving & Stewardship" points at the church portal (`/donate`). A visitor
+ * without a session is sent to public giving (`/give`) by the proxy, and both
+ * guest is sent to public giving (`/give`) by the proxy. Both land on the one
+ * outcome page (`/donate/result`), so the entry stays highlighted throughout.
+ */
+const GIVING_PATHS = ['/donate', '/give']
 
+const isActivePath = (pathname: string, href: string) =>
+  href === '/donate'
+    ? GIVING_PATHS.some((target) => isPathWithin(pathname, target))
+    : isPathWithin(pathname, href)
+
+/**
+ * One header for every page. There is no per-page variant any more: what a visitor
+ * may use is decided by the session, not by the page they happen to be on, so the
+ * bar cannot drift between "marketing" and "account" shapes.
+ */
 export default function SiteTopBar({
-  variant = 'general',
   initialMe,
   initialChurches,
 }: {
-  variant?: SiteHeaderVariant
   /** Server-loaded account data, so the avatar and church pill render without waiting for the client session. */
   initialMe?: MobileMe
   initialChurches?: MobileMyChurch[]
@@ -62,6 +74,9 @@ export default function SiteTopBar({
   const closeChurchMenu = () => setChurchMenuOpen(false)
   const [navMenuOpen, setNavMenuOpen] = useState(false)
 
+  // Server data counts too: the first paint on a signed-in page must not flash guest entries.
+  const signedIn = Boolean(session?.user || me)
+
   const authLinks = [
     { active: pathname === '/login', href: '/login', label: t('headerSignIn') },
     {
@@ -71,11 +86,18 @@ export default function SiteTopBar({
     },
   ]
 
-  const generalLinks = [
+  /*
+   * Availability is data, not layout: an entry that needs a session is dropped
+   * for a guest instead of leading them into a sign-in bounce. `/donate` stays
+   * listed for everyone — the proxy branches it into public giving when there is
+   * no session, so the destination is always a giving screen.
+   */
+  const navItems: Array<{ href: string; label: string; requiresSession?: boolean }> = [
     { href: '/churches', label: t('headerDiscoverChurches') },
-    { href: '/prayers', label: t('headerPrayers') },
-    { href: '/give', label: t('headerGiving') },
+    { href: '/prayers', label: t('headerPrayers'), requiresSession: true },
+    { href: '/donate', label: t('headerGiving') },
   ]
+  const visibleNavItems = navItems.filter((item) => signedIn || !item.requiresSession)
 
   const churchLinks = churches.length
     ? churches.map((church) => {
@@ -186,33 +208,25 @@ export default function SiteTopBar({
   // Signed in: a STAFF session goes to the dashboard (it has no customer profile
   // data), a customer goes to their profile, where sign-out lives.
   const staffSession = Boolean(session?.user) && !isCustomerRole(session?.user?.role)
-  const signedIn = Boolean(session?.user || me)
-  const accountControl =
-    session?.user || me ? (
-      <Link
-        aria-label={staffSession ? t('headerDashboard') : t('account')}
-        className={`${s.iconButton} ${s.accountButton}`}
-        href={staffSession ? STAFF_HOME : '/customer'}
-      >
-        {me?.profilePicture ? (
-          <Avatar alt="" className={s.accountAvatar} shape="square" src={me.profilePicture} />
-        ) : (
-          <UserOutlined />
-        )}
-      </Link>
-    ) : (
-      <Link
-        aria-label={t('account')}
-        className={`${s.iconButton} ${s.accountButton}`}
-        href="/login"
-      >
+  // Only a signed-in visitor has an account destination; a guest gets Sign In /
+  // Begin Fellowship instead, so nothing here points at a page they cannot use.
+  const accountControl = (
+    <Link
+      aria-label={staffSession ? t('headerDashboard') : t('account')}
+      className={`${s.iconButton} ${s.accountButton}`}
+      href={staffSession ? STAFF_HOME : '/customer'}
+    >
+      {me?.profilePicture ? (
+        <Avatar alt="" className={s.accountAvatar} shape="square" src={me.profilePicture} />
+      ) : (
         <UserOutlined />
-      </Link>
-    )
+      )}
+    </Link>
+  )
 
   return (
     <header className={s.header}>
-      <div className={`${s.inner} ${variant === 'auth' ? s.authInner : s.generalInner}`}>
+      <div className={`${s.inner} ${s.generalInner}`}>
         <div className={s.brandGroup}>
           <Link aria-label={t('headerPrayerHome')} className={s.logoLink} href="/">
             <Image
@@ -224,68 +238,64 @@ export default function SiteTopBar({
               width={32}
             />
           </Link>
-          {variant === 'general' && (
-            <Link
-              aria-current={pathname === '/' ? 'page' : undefined}
-              aria-label={t('headerHome')}
-              className={`${s.iconButton} ${s.homeLink} ${pathname === '/' ? s.homeButton : ''}`}
-              href="/"
-            >
-              <HomeOutlined />
-            </Link>
-          )}
+          <Link
+            aria-current={pathname === '/' ? 'page' : undefined}
+            aria-label={t('headerHome')}
+            className={`${s.iconButton} ${s.homeLink} ${pathname === '/' ? s.homeButton : ''}`}
+            href="/"
+          >
+            <HomeOutlined />
+          </Link>
         </div>
 
-        {variant === 'auth' ? (
-          <nav aria-label={t('headerAccountNav')} className={s.authNavigation}>
-            {authLinks.map((item) => (
-              <Link
-                aria-current={item.active ? 'page' : undefined}
-                className={item.active ? s.primaryLink : s.navigationLink}
-                href={item.href}
-                key={item.href}
-              >
-                {item.label}
-              </Link>
-            ))}
-          </nav>
-        ) : (
-          <div className={s.generalContent}>
-            <nav aria-label={t('headerPrimaryNav')} className={s.generalNavigation}>
-              {generalLinks.map((item) => {
-                const isActive = isActivePath(pathname, item.href)
+        <div className={s.generalContent}>
+          <nav aria-label={t('headerPrimaryNav')} className={s.generalNavigation}>
+            {visibleNavItems.map((item) => {
+              const isActive = isActivePath(pathname, item.href)
 
-                return (
-                  <Link
-                    aria-current={isActive ? 'page' : undefined}
-                    className={`${s.navigationLink} ${isActive ? s.activeNavigationLink : ''}`}
-                    href={item.href}
-                    key={item.href}
-                  >
-                    {item.label}
-                  </Link>
-                )
-              })}
-            </nav>
-          </div>
-        )}
+              return (
+                <Link
+                  aria-current={isActive ? 'page' : undefined}
+                  className={`${s.navigationLink} ${isActive ? s.activeNavigationLink : ''}`}
+                  href={item.href}
+                  key={item.href}
+                >
+                  {item.label}
+                </Link>
+              )
+            })}
+          </nav>
+        </div>
 
         <div className={s.actions}>
-          {variant === 'general' && signedIn && churchControl}
-          <div className={s.desktopLocale}>{localeControl}</div>
-          {variant === 'general' && accountControl}
-          {variant === 'general' && (
-            <button
-              aria-expanded={navMenuOpen}
-              aria-label={t('headerMenu')}
-              className={`${s.iconButton} ${s.menuButton}`}
-              onClick={() => setNavMenuOpen(true)}
-              type="button"
-            >
-              <MenuOutlined />
-            </button>
+          {signedIn ? (
+            churchControl
+          ) : (
+            <nav aria-label={t('headerAccountNav')} className={s.authNavigation}>
+              {authLinks.map((item) => (
+                <Link
+                  aria-current={item.active ? 'page' : undefined}
+                  className={`${s.navigationLink} ${item.active ? s.activeNavigationLink : ''}`}
+                  href={item.href}
+                  key={item.href}
+                >
+                  {item.label}
+                </Link>
+              ))}
+            </nav>
           )}
-          {SHOW_NOTIFICATIONS && variant === 'general' && (
+          <div className={s.desktopLocale}>{localeControl}</div>
+          {signedIn && accountControl}
+          <button
+            aria-expanded={navMenuOpen}
+            aria-label={t('headerMenu')}
+            className={`${s.iconButton} ${s.menuButton}`}
+            onClick={() => setNavMenuOpen(true)}
+            type="button"
+          >
+            <MenuOutlined />
+          </button>
+          {SHOW_NOTIFICATIONS && (
             <Link
               aria-label={t('headerNotifications')}
               className={`${s.iconButton} ${s.notificationButton}`}
@@ -299,46 +309,59 @@ export default function SiteTopBar({
       </div>
 
       {/* Below the desktop breakpoint the header hides the nav links and locale; this drawer carries them. */}
-      {variant === 'general' && (
-        <Drawer
-          onClose={() => setNavMenuOpen(false)}
-          open={navMenuOpen}
-          size="100%"
-          title={t('headerMenu')}
-        >
-          <nav aria-label={t('headerPrimaryNav')} className={s.drawerNavigation}>
-            {[{ href: '/', label: t('headerHome') }, ...generalLinks].map((item) => {
-              const isActive =
-                item.href === '/' ? pathname === '/' : isActivePath(pathname, item.href)
+      <Drawer
+        onClose={() => setNavMenuOpen(false)}
+        open={navMenuOpen}
+        size="100%"
+        title={t('headerMenu')}
+      >
+        <nav aria-label={t('headerPrimaryNav')} className={s.drawerNavigation}>
+          {[{ href: '/', label: t('headerHome') }, ...visibleNavItems].map((item) => {
+            const isActive =
+              item.href === '/' ? pathname === '/' : isActivePath(pathname, item.href)
 
-              return (
-                <Link
-                  aria-current={isActive ? 'page' : undefined}
-                  className={`${s.navigationLink} ${isActive ? s.activeNavigationLink : ''}`}
-                  href={item.href}
-                  key={item.href}
-                  onClick={() => setNavMenuOpen(false)}
-                >
-                  {item.label}
-                </Link>
-              )
-            })}
+            return (
+              <Link
+                aria-current={isActive ? 'page' : undefined}
+                className={`${s.navigationLink} ${isActive ? s.activeNavigationLink : ''}`}
+                href={item.href}
+                key={item.href}
+                onClick={() => setNavMenuOpen(false)}
+              >
+                {item.label}
+              </Link>
+            )
+          })}
+        </nav>
+        {!signedIn && (
+          <nav aria-label={t('headerAccountNav')} className={s.drawerNavigation}>
+            {authLinks.map((item) => (
+              <Link
+                aria-current={item.active ? 'page' : undefined}
+                className={`${s.navigationLink} ${item.active ? s.activeNavigationLink : ''}`}
+                href={item.href}
+                key={item.href}
+                onClick={() => setNavMenuOpen(false)}
+              >
+                {item.label}
+              </Link>
+            ))}
           </nav>
-          <div className={s.drawerLocaleRow}>
-            <Select<SiteLocale>
-              aria-label={t('language')}
-              className={s.drawerLocale}
-              onChange={setLocale}
-              options={SITE_LOCALES.map((code) => ({
-                value: code,
-                label: SITE_LOCALE_NAMES[code],
-              }))}
-              prefix={<LanguageIcon aria-hidden className={s.drawerLocaleIcon} />}
-              value={locale}
-            />
-          </div>
-        </Drawer>
-      )}
+        )}
+        <div className={s.drawerLocaleRow}>
+          <Select<SiteLocale>
+            aria-label={t('language')}
+            className={s.drawerLocale}
+            onChange={setLocale}
+            options={SITE_LOCALES.map((code) => ({
+              value: code,
+              label: SITE_LOCALE_NAMES[code],
+            }))}
+            prefix={<LanguageIcon aria-hidden className={s.drawerLocaleIcon} />}
+            value={locale}
+          />
+        </div>
+      </Drawer>
     </header>
   )
 }

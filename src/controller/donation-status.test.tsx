@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 const m = vi.hoisted(() => ({
   GET_CHURCH_LABEL: vi.fn(),
   GET_MY_DONATION_ATTEMPT: vi.fn(),
+  GET_DONATION_BY_PAYMENT_ID: vi.fn(),
   GET_CHECKOUT_RECEIPT: vi.fn(),
   GET_MY_ACTIVE_GIFT: vi.fn(),
   GET_MY_LATEST_DONATION: vi.fn(),
@@ -31,6 +32,7 @@ vi.mock('@/providers/donation', () => ({
   GET_MY_LATEST_DONATION: m.GET_MY_LATEST_DONATION,
   GET_MY_PAID_DONATIONS: m.GET_MY_PAID_DONATIONS,
   GET_MY_DONATION_ATTEMPT: m.GET_MY_DONATION_ATTEMPT,
+  GET_DONATION_BY_PAYMENT_ID: m.GET_DONATION_BY_PAYMENT_ID,
   GET_CHECKOUT_RECEIPT: m.GET_CHECKOUT_RECEIPT,
   CANCEL_OTHER_CHURCH_SUBSCRIPTIONS: vi.fn(),
 }))
@@ -122,6 +124,36 @@ describe('getDonationStatus — outcome comes from our records, never the URL', 
     await getDonationStatus({ userId: 'u1', query })
     await getDonationStatus({ userId: 'u1', query })
     expect(m.stripe.STRIPE.retrieveCheckoutSession).toHaveBeenCalledTimes(2)
+  })
+
+  it('stays confirmed on refresh after the attempt window, reading the ledger by payment id', async () => {
+    m.stripe.enabled = true
+    m.stripe.STRIPE.retrieveCheckoutSession.mockResolvedValue({
+      id: 'cs_1',
+      mode: 'payment',
+      status: 'complete',
+      paymentStatus: 'paid',
+      payment_intent: 'pi_settled',
+    })
+    // The gift settled an hour ago: no row matches the 30-minute attempt window.
+    m.GET_MY_DONATION_ATTEMPT.mockResolvedValue(null)
+    m.GET_DONATION_BY_PAYMENT_ID.mockResolvedValue({
+      user_id: 'u1',
+      status: 'PAID',
+      amount_minor: BigInt(500),
+      currency: 'eur',
+      paid_at: paidAt,
+    })
+
+    const status = await getDonationStatus({ userId: 'u1', query: { ...query, amountMinor: 500 } })
+
+    expect(m.GET_DONATION_BY_PAYMENT_ID).toHaveBeenCalledWith({ providerPaymentId: 'pi_settled' })
+    expect(status).toMatchObject({
+      state: 'confirmed',
+      amountMinor: 500,
+      currency: 'EUR',
+      paidAt,
+    })
   })
 
   it('treats a REFUNDED gift as a gift that was paid', async () => {

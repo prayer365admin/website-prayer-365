@@ -67,6 +67,14 @@ export const seedPlatformChurch = async () => {
     return
   }
 
+  // A real parish that happens to own the slug must never be converted into the
+  // platform beneficiary: that would hide a live church and redirect its gifts.
+  if (!existing.is_platform) {
+    throw new Error(
+      `A non-platform church already owns slug "${PLATFORM_CHURCH_SLUG}"; refusing to convert it to the platform beneficiary.`,
+    )
+  }
+
   await db.church.update({
     where: { id: existing.id },
     data: {

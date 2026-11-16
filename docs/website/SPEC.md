@@ -110,7 +110,7 @@ No separate database schema needed. The website reads existing Prisma models.
 | `/churches/:slug/prayers` | Prayers (W09)   | Yes    | `listPublishedPrayers`                                                                                                   |
 | `/prayers/:slug`          | Prayer (W10)    | Yes    | `getPublishedPrayer`                                                                                                     |
 | `/donate`                 | Donation (W11)  | Yes    | `?church={slug}` names the beneficiary; bare `/donate` resolves the Main Church, else a gated beneficiary picker (WB-41) |
-| `/donate/result`          | Result (W12)    | Yes    | Donor / attempt status                                                                                                   |
+| `/donate/result`          | Result (W12)    | Yes    | Donor / attempt status (guest and parish branches)                                                                       |
 | `/customer`               | Profile (W13)   | Yes    | `getMe` / `patchMe` / avatar upload                                                                                      |
 
 Routing guard: any website page except the four public account pages requires

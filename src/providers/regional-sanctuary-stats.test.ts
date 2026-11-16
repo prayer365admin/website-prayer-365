@@ -24,11 +24,13 @@ describe('GET_REGIONAL_SANCTUARY_STATS', () => {
       dioceses: 3,
       publishedPrayers: 4812,
     })
-    expect(db.church.count).toHaveBeenCalledWith({ where: { status: 'APPROVED' } })
+    expect(db.church.count).toHaveBeenCalledWith({
+      where: { status: 'APPROVED', is_platform: false },
+    })
     expect(db.orgNode.count).toHaveBeenCalledWith({ where: { kind: 'DIOCESE' } })
     expect(db.prayer.count).toHaveBeenCalledWith({
       where: {
-        church: { status: 'APPROVED' },
+        church: { status: 'APPROVED', is_platform: false },
         published_at: { not: null },
         published_version_id: { not: null },
       },
