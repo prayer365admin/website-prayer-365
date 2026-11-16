@@ -206,6 +206,7 @@ export const DEFAULT_ENV_FILE: Record<string, string> = {
 export const DEFAULT_PROFILE: Record<string, string | undefined> = {
   // catatia: the admin keys live in .env, which deploy.sh sources into the shell.
   catatia: undefined,
-  // The client account's runtime user is S3+SES only; secrets need catatia_dev.
-  'prayer-365': 'catatia_dev',
+  // The client account's runtime user is S3+SES only; secrets need the deploy
+  // profile, which is NAMED after the environment (`prayer-365` = IAM `catatia_dev`).
+  'prayer-365': 'prayer-365',
 }

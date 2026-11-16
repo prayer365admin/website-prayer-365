@@ -145,6 +145,6 @@ describe('presentation', () => {
     expect(DEFAULT_ENV_FILE.catatia).toBe('.env')
     expect(DEFAULT_ENV_FILE['prayer-365']).toBe('.env.prod')
     expect(DEFAULT_PROFILE.catatia).toBeUndefined()
-    expect(DEFAULT_PROFILE['prayer-365']).toBe('catatia_dev')
+    expect(DEFAULT_PROFILE['prayer-365']).toBe('prayer-365')
   })
 })

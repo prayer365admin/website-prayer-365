@@ -18,6 +18,7 @@
     "seed:permissions": "bun src/script/seed-permissions.ts",
     "seed:media": "bun src/script/seed-media.ts",
     "seed:verify": "bun src/script/seed-verify.ts",
+    "seed:general-prayers": "bun src/script/seed-general-prayers.ts",
     "env:sync": "bun src/script/sync-env.ts",
     "stripe:migrate-prod": "bun src/script/stripe-migrate-prod.ts",
     "stripe:donation-dedupe": "bun src/script/stripe-donation-dedupe.ts",

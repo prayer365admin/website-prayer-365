@@ -145,6 +145,12 @@ if [ "${#USABLE[@]}" -eq 1 ]; then
 else
   while :; do
     ask "  Select the credential source [1-${#CANDIDATES[@]}]: " pick || die "no input (stdin closed) — run this in a terminal"
+    # A non-numeric answer (or `q`) must not reach the arithmetic below: under
+    # `set -u` that aborts the script with "unbound variable" instead of re-asking.
+    if ! [[ "$pick" =~ ^[0-9]+$ ]]; then
+      warn "enter a number between 1 and ${#CANDIDATES[@]}"
+      continue
+    fi
     idx=$((pick - 1))
     if [ "$pick" -ge 1 ] 2>/dev/null && [ "$pick" -le "${#CANDIDATES[@]}" ] 2>/dev/null; then
       SOURCE="${CANDIDATES[$idx]}"
@@ -216,15 +222,30 @@ export AWS_REGION="$REGION" AWS_DEFAULT_REGION="$REGION" PRAYER365_ENV="$ENV_NAM
 STORAGE_MODE="$(printf '%s' "$CFG" | sed -E 's/.*"storage":\{"mode":"([a-z]+)".*/\1/')"
 DB_MODE="$(printf '%s' "$CFG" | sed -E 's/.*"database":\{"mode":"([a-z]+)".*/\1/')"
 NET_MODE="$(printf '%s' "$CFG" | sed -E 's/.*"network":\{"mode":"([a-z]+)".*/\1/')"
+# The workers are in the VPC only when the config does not say `lambdaInVpc: false`.
+# When they are not, the data stack creates NO NAT (nothing would route through it).
+LAMBDA_IN_VPC="$(printf '%s' "$CFG" | sed -nE 's/.*"network":\{[^}]*"lambdaInVpc":(true|false).*/\1/p')"
+[ -z "$LAMBDA_IN_VPC" ] && LAMBDA_IN_VPC="true"
+NAT_NEEDED="0"
+[ "$NET_MODE" = "vpc" ] && [ "$LAMBDA_IN_VPC" != "false" ] && NAT_NEEDED="1"
 WORKERS_ENABLED="$(printf '%s' "$CFG" | sed -E 's/.*"workers":\{"enabled":(true|false).*/\1/')"
 SES_DOMAIN="$(cfg_str "$CFG" domain)"
 MAIL_PROVIDER_EXPECTED="$(cfg_str "$CFG" provider)"
+
+NETWORK_LABEL="$NET_MODE"
+if [ "$NET_MODE" = "vpc" ]; then
+  if [ "$NAT_NEEDED" = "1" ]; then
+    NETWORK_LABEL="vpc (NAT instance, workers in VPC)"
+  else
+    NETWORK_LABEL="vpc for RDS only (no NAT, workers outside the VPC)"
+  fi
+fi
 
 printf '  %-14s %s\n' "environment" "$ENV_NAME"
 printf '  %-14s %s\n' "region" "$REGION"
 printf '  %-14s %s\n' "storage" "$STORAGE_MODE"
 printf '  %-14s %s\n' "database" "$DB_MODE"
-printf '  %-14s %s\n' "network" "$NET_MODE"
+printf '  %-14s %s\n' "network" "$NETWORK_LABEL"
 printf '  %-14s %s\n' "email (SES)" "$SES_DOMAIN"
 printf '  %-14s %s\n' "mail provider" "$MAIL_PROVIDER_EXPECTED"
 printf '  %-14s %s\n' "secrets file" "$ENV_FILE"
@@ -288,6 +309,17 @@ checklist() {
     else mark 0 "stack prayer365-${ENV_NAME}-${component} (not deployed)"; fi
   done
 
+  # A stack left in a ROLLBACK state still deploys, but the next update RETRIES the
+  # change that failed. Say so instead of letting the menu look routine.
+  for component in storage data workers; do
+    status="$(stack_status "prayer365-${ENV_NAME}-${component}")"
+    case "$status" in
+      *ROLLBACK_COMPLETE)
+        warn "prayer365-${ENV_NAME}-${component} is ${status}: the last update failed. The next deploy retries that change — read 'aws cloudformation describe-stack-events --stack-name prayer365-${ENV_NAME}-${component}' first."
+        ;;
+    esac
+  done
+
   if [ "$STORAGE_MODE" = "existing" ]; then
     info "storage: reuses an existing bucket, so no bucket check (mode=existing)"
   else
@@ -313,9 +345,11 @@ checklist() {
     info "database: external — the DB lives outside this account (no RDS expected)"
   fi
 
-  if [ "$NET_MODE" = "vpc" ]; then
+  if [ "$NAT_NEEDED" = "1" ]; then
     param_exists "/prayer365/${ENV_NAME}/nat-egress-ip"
     mark_exit "$?" "fixed NAT egress IP parameter (network.mode=vpc)"
+  elif [ "$NET_MODE" = "vpc" ]; then
+    info "network=vpc but lambdaInVpc=false: no NAT is created or expected (RDS only uses the VPC)"
   fi
 
   # SES domain identity: without it the app's transactional mail cannot be sent.
@@ -431,7 +465,13 @@ seed_secrets() {
 
 while :; do
   DATA_LABEL="data component (job queue + secret containers)"
-  [ "$DB_MODE" = "create" ] && DATA_LABEL="data component (job queue + secrets + VPC + NAT + RDS)"
+  if [ "$DB_MODE" = "create" ]; then
+    if [ "$NAT_NEEDED" = "1" ]; then
+      DATA_LABEL="data component (job queue + secrets + VPC + NAT + RDS)"
+    else
+      DATA_LABEL="data component (job queue + secrets + VPC for RDS, no NAT + RDS)"
+    fi
+  fi
   hdr "Step 4 — What do you want to deploy?"
   cat <<MENU
   ${B}1${N}) storage component
@@ -455,7 +495,13 @@ MENU
         bad "database.mode=create needs network.mode=vpc — fix the config first"
         continue
       fi
-      [ "$DB_MODE" = "create" ] && info "this also creates the VPC, NAT instance and RDS instance (slow, ~10 min)"
+      if [ "$DB_MODE" = "create" ]; then
+        if [ "$NAT_NEEDED" = "1" ]; then
+          info "this also creates the VPC, NAT instance and RDS instance (slow, ~10 min)"
+        else
+          info "this also creates the VPC and RDS instance — no NAT (the workers run outside the VPC)"
+        fi
+      fi
       confirm "cdk deploy ${STACK_DATA}" && run_cdk deploy "$STACK_DATA"
       warn_secrets
       ;;

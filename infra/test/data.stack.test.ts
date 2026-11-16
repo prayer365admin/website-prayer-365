@@ -64,6 +64,22 @@ describe('DataStack', () => {
     template.resourceCountIs('AWS::EC2::NatGateway', 0)
   })
 
+  it('omits the NAT instance, EIP and egress parameter when the workers run outside the VPC', () => {
+    const template = build(prayer365)
+
+    // VPC stays (RDS lives in it) but nothing routes through a NAT: no instance, no
+    // EIP, no /nat-egress-ip parameter, and therefore nothing to replace on an AMI bump.
+    template.resourceCountIs('AWS::EC2::VPC', 1)
+    template.resourceCountIs('AWS::EC2::Instance', 0)
+    template.resourceCountIs('AWS::EC2::EIP', 0)
+    template.resourceCountIs('AWS::EC2::EIPAssociation', 0)
+    template.resourceCountIs('AWS::EC2::NatGateway', 0)
+    const params = JSON.stringify(template.findResources('AWS::SSM::Parameter'))
+    expect(params).not.toContain('nat-egress-ip')
+    // The RDS instance still exists and is the public shape the Vercel app uses.
+    template.hasResourceProperties('AWS::RDS::DBInstance', { PubliclyAccessible: true })
+  })
+
   it('creates a domain identity for a new client and adopts catatia existing one', () => {
     // catatia adopts the domain verified in that account: no new resource.
     build(catatia).resourceCountIs('AWS::SES::EmailIdentity', 0)

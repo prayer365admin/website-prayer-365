@@ -102,36 +102,67 @@ export class DataStack extends Stack {
     }
 
     if (config.network.mode === 'vpc') {
-      // NAT *instance* (not a NAT gateway): the Lambdas in the VPC need internet
-      // egress for ElevenLabs/Stripe/SMTP, and a t4g.nano costs ~$4/mo against
-      // ~$32/mo for a gateway. The same instance doubles as the SSM bastion used
-      // to run migrations (see the deploy doc).
-      const natProvider = NatProvider.instanceV2({
-        instanceType: new InstanceType(config.network.natInstanceType),
-        defaultAllowedTraffic: NatTrafficDirection.OUTBOUND_ONLY,
-      })
+      /*
+       * NAT *instance* (not a NAT gateway): an in-VPC Lambda needs internet egress
+       * for ElevenLabs/Stripe/SMTP, and a t4g.nano costs ~$4/mo against ~$32/mo for
+       * a gateway. The same instance doubles as the SSM bastion used to run
+       * migrations (see the deploy doc).
+       *
+       * When the workers run OUTSIDE the VPC (`lambdaInVpc: false`) nothing routes
+       * through it: the instance would be a dead ~$8/mo, and an AMI bump REPLACES
+       * it — a replacement that failed on t4g.nano capacity and rolled the whole
+       * data stack back (prayer-365, 2026-11-10). So the NAT is created only for the
+       * workers that actually use it; the VPC stays because RDS lives in it.
+       */
+      const natNeeded = config.network.lambdaInVpc !== false
+      const natProvider = natNeeded
+        ? NatProvider.instanceV2({
+            instanceType: new InstanceType(config.network.natInstanceType),
+            defaultAllowedTraffic: NatTrafficDirection.OUTBOUND_ONLY,
+          })
+        : undefined
+
       this.vpc = new Vpc(this, 'Vpc', {
         maxAzs: 2,
-        natGatewayProvider: natProvider,
-        natGateways: 1,
+        // natGateways 0 = no NAT and no NAT routes.
+        ...(natProvider
+          ? { natGatewayProvider: natProvider, natGateways: 1 }
+          : {
+              natGateways: 0,
+              /*
+               * Keep the SAME subnet construct names (`PrivateSubnet1/2`) the NAT
+               * template created. Without this, CDK names them `IsolatedSubnet1/2`,
+               * i.e. NEW resources that want the same CIDRs — the create runs before
+               * the old subnets are deleted and CloudFormation aborts with
+               * "CIDR conflicts with another subnet". Same name = in-place update:
+               * only the NAT default routes go away.
+               */
+              subnetConfiguration: [
+                { name: 'Public', subnetType: SubnetType.PUBLIC },
+                { name: 'Private', subnetType: SubnetType.PRIVATE_ISOLATED },
+              ],
+            }),
       })
-      // The private subnets (and therefore the Lambdas) may route egress through it.
-      natProvider.connections.allowFrom(Peer.ipv4(this.vpc.vpcCidrBlock), Port.allTraffic())
 
-      if (config.network.staticEgressIp) {
-        // One fixed egress IP the database firewall can allow-list.
-        const eip = new CfnEIP(this, 'NatEgressIp')
-        for (const gateway of natProvider.gatewayInstances) {
-          new CfnEIPAssociation(this, `NatEgressIpAssociation${gateway.node.id}`, {
-            allocationId: eip.attrAllocationId,
-            instanceId: gateway.instanceId,
+      if (natProvider) {
+        // The private subnets (and therefore the Lambdas) may route egress through it.
+        natProvider.connections.allowFrom(Peer.ipv4(this.vpc.vpcCidrBlock), Port.allTraffic())
+
+        if (config.network.staticEgressIp) {
+          // One fixed egress IP the database firewall can allow-list.
+          const eip = new CfnEIP(this, 'NatEgressIp')
+          for (const gateway of natProvider.gatewayInstances) {
+            new CfnEIPAssociation(this, `NatEgressIpAssociation${gateway.node.id}`, {
+              allocationId: eip.attrAllocationId,
+              instanceId: gateway.instanceId,
+            })
+          }
+          new StringParameter(this, 'NatEgressIpParam', {
+            parameterName: `/prayer365/${config.name}/nat-egress-ip`,
+            stringValue: eip.ref,
           })
+          new CfnOutput(this, 'NatEgressIpOutput', { value: eip.ref })
         }
-        new StringParameter(this, 'NatEgressIpParam', {
-          parameterName: `/prayer365/${config.name}/nat-egress-ip`,
-          stringValue: eip.ref,
-        })
-        new CfnOutput(this, 'NatEgressIpOutput', { value: eip.ref })
       }
     }
 
