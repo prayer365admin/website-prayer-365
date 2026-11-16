@@ -1,6 +1,7 @@
 import 'dotenv/config'
 import { PrismaClient } from '@prisma/client'
 import { PrismaPg } from '@prisma/adapter-pg'
+import { readPoolSettings } from './db-resilience'
 
 const connectionString = process.env.DATABASE_URL
 if (!connectionString) {
@@ -24,23 +25,18 @@ rawUrl.searchParams.delete('sslmode')
 
 const isLocal = ['localhost', '127.0.0.1', '::1'].includes(rawUrl.hostname)
 
-// Serverless (Vercel) / Lambda: every function instance builds its OWN pool, so
-// the pg default of 10 connections per instance exhausts a 25-connection managed
-// Postgres (DigitalOcean, 3 reserved for superusers + ~5 taken by internal
-// agents → ~17 usable) after ~2 instances. Production evidence (25 Oct 2026):
-// ~6 warm instances × 3 slots → `TooManyConnections` (Prisma P2037) on the
-// /donate render. ONE connection per instance keeps ~17 instances inside the
-// ceiling; the parallel queries one request runs simply queue (warm query
-// ≈ 40 ms, pool timeout 10 s). A dev server is a single process, so it keeps 3.
-const POOL_MAX = isLocal ? 3 : 1
+// Pool size per serverless instance comes from DB_POOL_MAX, because the budget
+// differs per deployment (see db-resilience.ts):
+//   prod  (RDS, max_connections 79) → DB_POOL_MAX=unlimited
+//   staging (DigitalOcean, 25)      → unset, i.e. 1 (the old fixed value)
+// A dev server is a single process, so it keeps 3 unless the env says otherwise.
+const poolSettings = isLocal
+  ? { max: 3, connectionTimeoutMillis: 10_000, idleTimeoutMillis: 10_000 }
+  : readPoolSettings()
 
 const adapter = new PrismaPg({
   connectionString: rawUrl.toString(),
-  max: POOL_MAX,
-  // release connections fast so frozen/scale-down instances stop holding slots
-  idleTimeoutMillis: 10_000,
-  // fail with a clear pool error instead of queueing forever under saturation
-  connectionTimeoutMillis: 10_000,
+  ...poolSettings,
   allowExitOnIdle: true,
   // managed Postgres (self-signed): encrypt, don't pin CA.
   // local Postgres has no SSL listener.

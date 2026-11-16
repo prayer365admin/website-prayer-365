@@ -1,7 +1,8 @@
 import { Prisma } from '@prisma/client'
 import { unstable_cache } from 'next/cache'
 import { db } from '@/utils/db-connection'
-import { SITE_PUBLIC_TAG } from '@/utils/site-cache-tags'
+import { withDbRetry } from '@/utils/db-resilience'
+import { SITE_PUBLIC_REVALIDATE_SECONDS, SITE_PUBLIC_TAG } from '@/utils/site-cache-tags'
 
 /*
  * General Prayer data adapter (GP-API-01). All Prisma access for the platform
@@ -128,28 +129,28 @@ export const GET_GENERAL_PRAYER_BY_SEQUENCE = async ({
  * row, and an admin write invalidates `SITE_PUBLIC_TAG`.
  */
 export const GET_GENERAL_PRAYER_BY_SLUG = unstable_cache(
-  async ({ slug }: { slug: string }): Promise<GeneralPrayerRow | null> => {
+  withDbRetry(async ({ slug }: { slug: string }): Promise<GeneralPrayerRow | null> => {
     const row = await db.generalPrayer.findFirst({
       where: { slug, is_active: true },
       select: ROW_SELECT,
     })
     return row ? toRow(row) : null
-  },
+  }),
   ['site-general-prayer-by-slug'],
-  { revalidate: 60, tags: [SITE_PUBLIC_TAG] },
+  { revalidate: SITE_PUBLIC_REVALIDATE_SECONDS, tags: [SITE_PUBLIC_TAG] },
 )
 
 export const LIST_ACTIVE_GENERAL_PRAYERS = unstable_cache(
-  async (): Promise<GeneralPrayerRow[]> => {
+  withDbRetry(async (): Promise<GeneralPrayerRow[]> => {
     const rows = await db.generalPrayer.findMany({
       where: { is_active: true },
       orderBy: [{ sequence: 'asc' }],
       select: ROW_SELECT,
     })
     return rows.map(toRow)
-  },
+  }),
   ['site-general-prayers'],
-  { revalidate: 60, tags: [SITE_PUBLIC_TAG] },
+  { revalidate: SITE_PUBLIC_REVALIDATE_SECONDS, tags: [SITE_PUBLIC_TAG] },
 )
 
 /** Cycle length: the number of positions the date mapping may land on. */

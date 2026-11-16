@@ -1,9 +1,10 @@
 import { EventCategory, Prisma, RequestKind } from '@prisma/client'
 import { unstable_cache } from 'next/cache'
 import { db } from '@/utils/db-connection'
+import { withDbRetry } from '@/utils/db-resilience'
 import { GeneralError } from '@/utils/general-error'
 import { auditPayload } from '@/utils/audit'
-import { SITE_PUBLIC_TAG } from '@/utils/site-cache-tags'
+import { SITE_PUBLIC_REVALIDATE_SECONDS, SITE_PUBLIC_TAG } from '@/utils/site-cache-tags'
 import { fromKind } from '@/providers/request'
 import { S3_PUBLIC_URL } from '@/providers/s3'
 import {
@@ -521,9 +522,9 @@ const LIST_PUBLIC_CHURCHES_UNCACHED = async ({
  * `revalidateTag(SITE_PUBLIC_TAG)`).
  */
 export const LIST_PUBLIC_CHURCHES = unstable_cache(
-  LIST_PUBLIC_CHURCHES_UNCACHED,
+  withDbRetry(LIST_PUBLIC_CHURCHES_UNCACHED),
   ['site-public-churches'],
-  { revalidate: 60, tags: [SITE_PUBLIC_TAG] },
+  { revalidate: SITE_PUBLIC_REVALIDATE_SECONDS, tags: [SITE_PUBLIC_TAG] },
 )
 
 const GET_PUBLIC_CHURCH_UNCACHED = async ({
@@ -592,9 +593,9 @@ const GET_PUBLIC_CHURCH_UNCACHED = async ({
 
 /** Public church profile — cached like the directory (same tag). */
 export const GET_PUBLIC_CHURCH = unstable_cache(
-  GET_PUBLIC_CHURCH_UNCACHED,
+  withDbRetry(GET_PUBLIC_CHURCH_UNCACHED),
   ['site-public-church'],
-  { revalidate: 60, tags: [SITE_PUBLIC_TAG] },
+  { revalidate: SITE_PUBLIC_REVALIDATE_SECONDS, tags: [SITE_PUBLIC_TAG] },
 )
 
 // ---------------------------------------------------------------------------
@@ -1020,9 +1021,9 @@ const LIST_PUBLISHED_PRAYERS_UNCACHED = async ({
  * 2026 — the heaviest single read on the giving page).
  */
 export const LIST_PUBLISHED_PRAYERS = unstable_cache(
-  LIST_PUBLISHED_PRAYERS_UNCACHED,
+  withDbRetry(LIST_PUBLISHED_PRAYERS_UNCACHED),
   ['site-public-published-prayers'],
-  { revalidate: 60, tags: [SITE_PUBLIC_TAG] },
+  { revalidate: SITE_PUBLIC_REVALIDATE_SECONDS, tags: [SITE_PUBLIC_TAG] },
 )
 
 /** Latest published prayers across the customer's main and followed churches. */
@@ -1154,9 +1155,9 @@ export const GET_PUBLISHED_PRAYER = async ({
 
 /** Latest published prayers for a set of churches — public content, cached. */
 export const LIST_LATEST_PUBLISHED_PRAYERS = unstable_cache(
-  LIST_LATEST_PUBLISHED_PRAYERS_UNCACHED,
+  withDbRetry(LIST_LATEST_PUBLISHED_PRAYERS_UNCACHED),
   ['site-public-latest-prayers'],
-  { revalidate: 60, tags: [SITE_PUBLIC_TAG] },
+  { revalidate: SITE_PUBLIC_REVALIDATE_SECONDS, tags: [SITE_PUBLIC_TAG] },
 )
 
 // ---------------------------------------------------------------------------

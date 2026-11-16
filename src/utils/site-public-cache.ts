@@ -2,7 +2,7 @@ import { unstable_cache } from 'next/cache'
 import { getLatestPlayableSitePrayer } from '@/controller/site-prayer'
 import { getGeneralPrayerForDate } from '@/controller/general-prayer'
 import { getFellowshipMemberCount } from '@/controller/user'
-import { SITE_PUBLIC_TAG } from '@/utils/site-cache-tags'
+import { SITE_PUBLIC_REVALIDATE_SECONDS, SITE_PUBLIC_TAG } from '@/utils/site-cache-tags'
 import { todayInTallinn } from '@/utils/general-prayer-cycle'
 
 /**
@@ -29,7 +29,7 @@ export const getCachedLoginExtras = unstable_cache(
     return { prayer, memberCount }
   },
   ['site-login-extras'],
-  { revalidate: 60, tags: [SITE_PUBLIC_TAG] },
+  { revalidate: SITE_PUBLIC_REVALIDATE_SECONDS, tags: [SITE_PUBLIC_TAG] },
 )
 
 /**
@@ -53,5 +53,5 @@ export const getCachedWelcomePublicData = unstable_cache(
     return { dailyPrayer, prayer, memberCount }
   },
   ['site-welcome-public-data'],
-  { revalidate: 60, tags: [SITE_PUBLIC_TAG] },
+  { revalidate: SITE_PUBLIC_REVALIDATE_SECONDS, tags: [SITE_PUBLIC_TAG] },
 )

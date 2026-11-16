@@ -52,11 +52,24 @@ describe('public church pages', () => {
   })
 
   it('marks a missing church as not indexable', async () => {
-    getPublicChurch.mockRejectedValue(new Error('not found'))
+    // Next's notFound() throws an error carrying the NEXT_NOT_FOUND digest.
+    getPublicChurch.mockRejectedValue(
+      Object.assign(new Error('not found'), { digest: 'NEXT_NOT_FOUND' }),
+    )
 
     const { generateMetadata } = await import('./[slug]/page')
     const meta = await generateMetadata({ params: Promise.resolve({ slug: 'missing' }) })
 
     expect(meta.robots).toMatchObject({ index: false, follow: false })
+  })
+
+  it('does not turn a database failure into a 404', async () => {
+    getPublicChurch.mockRejectedValue(new Error('Connection terminated due to connection timeout'))
+
+    const { generateMetadata } = await import('./[slug]/page')
+
+    await expect(
+      generateMetadata({ params: Promise.resolve({ slug: church.slug }) }),
+    ).rejects.toThrow('Connection terminated')
   })
 })
