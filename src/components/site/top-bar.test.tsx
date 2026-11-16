@@ -115,6 +115,7 @@ describe('SiteTopBar', () => {
     ).toEqual([
       [SITE_MESSAGES.en.headerDiscoverChurches, '/churches'],
       [SITE_MESSAGES.en.headerPrayers, '/prayers'],
+      [SITE_MESSAGES.en.headerDailyPrayer, '/prayers/general'],
       [SITE_MESSAGES.en.headerGiving, '/donate'],
     ])
     expect(screen.queryByRole('link', { name: SITE_MESSAGES.en.headerEvents })).toBeNull()
@@ -158,6 +159,21 @@ describe('SiteTopBar', () => {
 
     expect(link(SITE_MESSAGES.en.headerPrayers).getAttribute('aria-current')).toBe('page')
     expect(link(SITE_MESSAGES.en.headerPrayers).className).toContain('activeNavigationLink')
+  })
+
+  it('marks Daily Prayer active on the general cycle instead of Prayer', () => {
+    pathnameMock.mockReturnValue('/prayers/general')
+
+    renderWithProviders(
+      <SiteI18nProvider initialLocale="en">
+        <SiteTopBar />
+      </SiteI18nProvider>,
+    )
+
+    const daily = link(SITE_MESSAGES.en.headerDailyPrayer)
+    expect(daily.getAttribute('href')).toBe('/prayers/general')
+    expect(daily.getAttribute('aria-current')).toBe('page')
+    expect(link(SITE_MESSAGES.en.headerPrayers).getAttribute('aria-current')).toBeNull()
   })
 
   it.each(['/donate', '/give'])(
@@ -327,6 +343,7 @@ describe('SiteTopBar', () => {
     // Public entries stay; the prayer archive needs a session, so it is dropped
     // instead of leading a guest into a sign-in bounce.
     expect(link('Discovery Churches')).toBeTruthy()
+    expect(link(SITE_MESSAGES.en.headerDailyPrayer).getAttribute('href')).toBe('/prayers/general')
     expect(link(SITE_MESSAGES.en.headerGiving)).toBeTruthy()
     expect(screen.queryByRole('link', { name: SITE_MESSAGES.en.headerPrayers })).toBeNull()
     // Guest actions: the two account-entry links, never the avatar or church pill.

@@ -40,10 +40,15 @@ const isPathWithin = (pathname: string, href: string) =>
  */
 const GIVING_PATHS = ['/donate', '/give']
 
-const isActivePath = (pathname: string, href: string) =>
-  href === '/donate'
-    ? GIVING_PATHS.some((target) => isPathWithin(pathname, target))
-    : isPathWithin(pathname, href)
+const DAILY_PRAYER_PATH = '/prayers/general'
+
+const isActivePath = (pathname: string, href: string) => {
+  if (href === '/donate') return GIVING_PATHS.some((target) => isPathWithin(pathname, target))
+  // The daily cycle is its own entry, so the prayer archive must not light up with it.
+  if (href === '/prayers')
+    return isPathWithin(pathname, href) && !isPathWithin(pathname, DAILY_PRAYER_PATH)
+  return isPathWithin(pathname, href)
+}
 
 /**
  * One header for every page. There is no per-page variant any more: what a visitor
@@ -95,6 +100,7 @@ export default function SiteTopBar({
   const navItems: Array<{ href: string; label: string; requiresSession?: boolean }> = [
     { href: '/churches', label: t('headerDiscoverChurches') },
     { href: '/prayers', label: t('headerPrayers'), requiresSession: true },
+    { href: DAILY_PRAYER_PATH, label: t('headerDailyPrayer') },
     { href: '/donate', label: t('headerGiving') },
   ]
   const visibleNavItems = navItems.filter((item) => signedIn || !item.requiresSession)
