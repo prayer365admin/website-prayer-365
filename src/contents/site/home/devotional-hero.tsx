@@ -10,7 +10,14 @@ import Link from 'next/link'
 
 const firstName = (name?: string | null) => name?.trim().split(/\s+/)[0] || 'friend'
 
-/** Home section 1 (`home-1.png`): greeting, newest guided prayer, and scripture-style quote panel. */
+/**
+ * Home section 1 (`home-1.png`): greeting, the newest church prayer, and a
+ * scripture-style quote panel.
+ *
+ * The website home leads with a CHURCH prayer (client decision, 13 Nov 2026: the
+ * home behaviour stays as before). The platform daily prayer has its own surface —
+ * the first block of `/welcome` for visitors, and the prayer pages themselves.
+ */
 export default function DevotionalHero({
   prayer,
   name,

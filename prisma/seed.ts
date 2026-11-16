@@ -9,6 +9,7 @@ import {
 } from './seeds/church'
 import { seedConsents } from './seeds/consent'
 import { seedDonations } from './seeds/donation'
+import { seedGeneralPrayers } from './seeds/general-prayer'
 import { seedCountries } from './seeds/country'
 import { seedEvents } from './seeds/event'
 import { seedLanguages } from './seeds/language'
@@ -64,6 +65,9 @@ async function main() {
 
   // 5. Accounts: prayer test users + end users (needs org nodes + church rows).
   await seedUsers()
+
+  // 5b. Platform daily prayer content. Needs only the admin actor, no media.
+  await seedGeneralPrayers()
 
   // 6. Media + voice dependencies — all of them before the first prayer.
   await seedPastors() // links the demo pastor to the prayer_pastor test user

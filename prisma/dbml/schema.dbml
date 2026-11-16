@@ -31,6 +31,7 @@ browser asks again until both are filled.']
   grantedAssignments role_assignments [not null]
   approvedChurches churches [not null]
   prayerCreations prayers [not null]
+  generalPrayerCreations general_prayers [not null]
   versionApprovals prayer_versions [not null]
   voiceSubmissions voice_profiles [not null]
   voiceReviews voice_profiles [not null]
@@ -446,6 +447,7 @@ Table media_assets {
   voiceSamples voice_profile_samples [not null]
   consentEvidence consents [not null]
   audioAssets prayer_audio [not null]
+  generalPrayerAudio general_prayers [not null]
   galleryItems church_gallery_items [not null]
   created_at DateTime [default: `now()`, not null]
   updated_at DateTime
@@ -699,6 +701,32 @@ Table privacy_jobs {
   result_expires_at DateTime
 }
 
+Table general_prayers {
+  id String [pk]
+  slug String [unique, not null, note: 'Stable public URL key, e.g. "paivapalve-1". Generated once, never edited.']
+  sequence Int [unique, not null, note: 'Cycle position, 1..N (N = the number of active general prayers).']
+  title String [not null]
+  introduction String
+  body String [not null, note: 'Sanitised rich text (sanitize-prayer-rich-text). Never raw editor HTML.']
+  verse String
+  verse_reference String
+  liturgical_note String
+  references String
+  language_code String [not null, default: 'et']
+  audio_status AudioStatus [not null, default: 'QUEUED']
+  audio_asset_id String [unique]
+  audio_asset media_assets
+  provider_request_id String
+  last_error_code String
+  audio_generated_at DateTime
+  is_active Boolean [not null, default: true]
+  created_by String [not null]
+  creator user [not null]
+  version Int [not null, default: 1]
+  created_at DateTime [default: `now()`, not null]
+  updated_at DateTime
+}
+
 Table role_permission {
   permissionId String [ref: > permission.id]
   roleId String [ref: > role.id]
@@ -948,3 +976,7 @@ Ref: notification_deliveries.device_token_id > device_tokens.id
 Ref: audit_logs.actor_id > user.id
 
 Ref: privacy_jobs.user_id > user.id
+
+Ref: general_prayers.audio_asset_id > media_assets.id [delete: Set Null]
+
+Ref: general_prayers.created_by > user.id

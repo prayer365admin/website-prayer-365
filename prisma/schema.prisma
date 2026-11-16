@@ -162,6 +162,7 @@ model User {
   grantedAssignments      RoleAssignment[]         @relation("GrantedBy")
   approvedChurches        Church[]                 @relation("ChurchApprovedBy")
   prayerCreations         Prayer[]                 @relation("PrayerCreator")
+  generalPrayerCreations  GeneralPrayer[]          @relation("GeneralPrayerCreator")
   versionApprovals        PrayerVersion[]          @relation("VersionApprovedBy")
   voiceSubmissions        VoiceProfile[]           @relation("VoiceSubmittedBy")
   voiceReviews            VoiceProfile[]           @relation("VoiceReviewedBy")
@@ -644,16 +645,17 @@ model MediaAsset {
   uploaded_by String?
   uploader    User?        @relation("MediaUploadedBy", fields: [uploaded_by], references: [id])
 
-  coverOf          Church[]             @relation("ChurchCover")
-  heroOf           Church[]             @relation("ChurchHero")
-  avatarOf         User[]               @relation("UserAvatar")
-  featuredPrayerOf Prayer[]             @relation("PrayerFeatured")
-  pastorProfiles   Pastor[]             @relation("PastorProfileImage")
-  pastorImages     ChurchPastor[]       @relation("PastorImage")
-  voiceSamples     VoiceProfileSample[]
-  consentEvidence  Consent[]            @relation("ConsentEvidence")
-  audioAssets      PrayerAudio[]        @relation("AudioAsset")
-  galleryItems     ChurchGalleryItem[]
+  coverOf            Church[]             @relation("ChurchCover")
+  heroOf             Church[]             @relation("ChurchHero")
+  avatarOf           User[]               @relation("UserAvatar")
+  featuredPrayerOf   Prayer[]             @relation("PrayerFeatured")
+  pastorProfiles     Pastor[]             @relation("PastorProfileImage")
+  pastorImages       ChurchPastor[]       @relation("PastorImage")
+  voiceSamples       VoiceProfileSample[]
+  consentEvidence    Consent[]            @relation("ConsentEvidence")
+  audioAssets        PrayerAudio[]        @relation("AudioAsset")
+  generalPrayerAudio GeneralPrayer[]      @relation("GeneralPrayerAudio")
+  galleryItems       ChurchGalleryItem[]
 
   created_at DateTime  @default(now())
   updated_at DateTime? @updatedAt
@@ -963,4 +965,36 @@ model PrivacyJob {
 
   @@index([user_id])
   @@map("privacy_jobs")
+}
+
+model GeneralPrayer {
+  id                  String      @id @default(uuid(7))
+  /// Stable public URL key, e.g. "paivapalve-1". Generated once, never edited.
+  slug                String      @unique
+  /// Cycle position, 1..N (N = the number of active general prayers).
+  sequence            Int         @unique
+  title               String
+  introduction        String?
+  /// Sanitised rich text (sanitize-prayer-rich-text). Never raw editor HTML.
+  body                String
+  verse               String?
+  verse_reference     String?
+  liturgical_note     String?
+  references          String?
+  language_code       String      @default("et") @db.Char(5)
+  audio_status        AudioStatus @default(QUEUED)
+  audio_asset_id      String?     @unique
+  audio_asset         MediaAsset? @relation("GeneralPrayerAudio", fields: [audio_asset_id], references: [id], onDelete: SetNull)
+  provider_request_id String?
+  last_error_code     String?
+  audio_generated_at  DateTime?
+  is_active           Boolean     @default(true)
+  created_by          String
+  creator             User        @relation("GeneralPrayerCreator", fields: [created_by], references: [id])
+  version             Int         @default(1)
+  created_at          DateTime    @default(now())
+  updated_at          DateTime?   @updatedAt
+
+  @@index([is_active, sequence])
+  @@map("general_prayers")
 }

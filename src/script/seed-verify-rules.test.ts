@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
-import { findDemoProblems } from './seed-verify-rules'
-import type { DemoReadiness } from './seed-verify-rules'
+import { findDemoProblems, findGeneralPrayerProblems } from './seed-verify-rules'
+import type { DemoReadiness, GeneralPrayerReadiness } from './seed-verify-rules'
 
 const ready = (): DemoReadiness => ({
   churches: [
@@ -90,5 +90,65 @@ describe('findDemoProblems', () => {
     const data = ready()
     data.prayers[0] = { ...data.prayers[0], published: false }
     expect(findDemoProblems(data)).toEqual(['St. Johns / Peace: not published'])
+  })
+})
+
+/*
+ * The general-prayer gate is the only automated check that the cycle is safe to
+ * publish: a gap or an empty body means the daily send mails a broken page and
+ * ElevenLabs speaks silence. The count must stay content-driven (D-GP-4/§5),
+ * because the client delivers the remaining 355 entries later.
+ */
+
+const generalRow = (
+  sequence: number,
+  overrides: Partial<GeneralPrayerReadiness> = {},
+): GeneralPrayerReadiness => ({
+  sequence,
+  slug: `paivapalve-${sequence}`,
+  bodyLength: 120,
+  languageCode: 'et  ',
+  audioStatus: 'QUEUED',
+  isActive: true,
+  ...overrides,
+})
+
+const generalRows = (count: number) =>
+  Array.from({ length: count }, (_, index) => generalRow(index + 1))
+
+describe('findGeneralPrayerProblems', () => {
+  it('accepts the ten delivered prayers', () => {
+    expect(findGeneralPrayerProblems(generalRows(10))).toEqual([])
+  })
+
+  it('accepts a full 365-day cycle without a code change', () => {
+    expect(findGeneralPrayerProblems(generalRows(365))).toEqual([])
+  })
+
+  it('reports a short cycle and a gap in the positions', () => {
+    expect(findGeneralPrayerProblems(generalRows(3))).toContain('general prayers: 3/10 rows')
+    expect(findGeneralPrayerProblems([generalRow(1), generalRow(3)])).toContain(
+      'general prayer sequence 2: missing',
+    )
+  })
+
+  it('reports content that would be published broken or silent', () => {
+    const problems = findGeneralPrayerProblems([
+      generalRow(1, { bodyLength: 0 }),
+      generalRow(2, { languageCode: 'en' }),
+      generalRow(3, { isActive: false }),
+      generalRow(4, { audioStatus: 'APPROVED' }),
+      generalRow(5, { slug: 'wrong-slug' }),
+    ])
+
+    expect(problems).toEqual(
+      expect.arrayContaining([
+        'general prayer 1: empty body',
+        'general prayer 2: language en',
+        'general prayer 3: inactive',
+        'general prayer 4: audio status APPROVED',
+        'general prayer 5: unexpected slug wrong-slug',
+      ]),
+    )
   })
 })

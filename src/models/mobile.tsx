@@ -1,5 +1,6 @@
 import { z } from 'zod'
 import { SITE_LOCALES } from '@/config/site-locale'
+import { MobileGeneralPrayerSchema } from '@/models/general-prayer'
 
 /*
  * Mobile shared backend DTOs (SPEC §8.4 / Tasks 39-43).
@@ -377,13 +378,39 @@ export type MobileAnnouncementListQuery = z.infer<typeof MobileAnnouncementListQ
  * Typed projection for GET /api/v1/mobile/home. Declared after the content DTOs
  * it embeds (see the note in the Home/me section above). */
 
+/* The one prayer the home screen leads with (client note, 13 Nov 2026): a user
+ * with a selected church sees that church's prayer; everyone else — no church
+ * selected, no published church prayer, or not logged in at all — sees the
+ * platform's 365-day daily prayer. Resolved server-side so every client applies
+ * the same rule. */
+export const MobileHomeFeaturedPrayerSchema = z.discriminatedUnion('type', [
+  z.object({ type: z.literal('church'), prayer: MobilePublishedPrayerSchema }),
+  z.object({ type: z.literal('general'), prayer: MobileGeneralPrayerSchema }),
+])
+
 export const MobileHomeSchema = z.object({
   mainChurch: MobilePublicChurchSchema.nullable(),
   followedChurches: z.array(MobileChurchSummarySchema),
   latestPrayers: z.array(MobilePublishedPrayerSchema).default([]),
   latestEvents: z.array(MobilePublicEventSchema).default([]),
   latestAnnouncements: z.array(MobilePublicAnnouncementSchema).default([]),
+  featuredPrayer: MobileHomeFeaturedPrayerSchema.nullable(),
 })
+
+export type MobileHomeFeaturedPrayer = z.infer<typeof MobileHomeFeaturedPrayerSchema>
+
+/**
+ * What the provider projects from the database. `featuredPrayer` is deliberately
+ * absent: the priority rule is applied by `getHome`, so the wire contract cannot
+ * be produced without it.
+ */
+export type MobileHomeBase = {
+  mainChurch: MobilePublicChurch | null
+  followedChurches: MobileChurchSummary[]
+  latestPrayers: MobilePublishedPrayer[]
+  latestEvents: MobilePublicEvent[]
+  latestAnnouncements: MobilePublicAnnouncement[]
+}
 
 export type MobileHome = {
   mainChurch: MobilePublicChurch | null
@@ -391,6 +418,7 @@ export type MobileHome = {
   latestPrayers: MobilePublishedPrayer[]
   latestEvents: MobilePublicEvent[]
   latestAnnouncements: MobilePublicAnnouncement[]
+  featuredPrayer: MobileHomeFeaturedPrayer | null
 }
 
 // ---------------------------------------------------------------------------

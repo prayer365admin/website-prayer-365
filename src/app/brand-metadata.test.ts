@@ -7,6 +7,15 @@ import sitemap from './sitemap'
 vi.mock('@/controller/mobile', () => ({
   listPublicChurches: vi.fn().mockResolvedValue({ result: [{ slug: 'grace-church' }] }),
 }))
+// The sitemap also lists the platform daily prayer (GP-SITE-05); without this
+// mock the real controller runs, throws without a DB, and the catch in
+// `sitemap()` silently drops the church URLs too.
+vi.mock('@/controller/general-prayer', () => ({
+  listGeneralPrayerCycle: vi.fn().mockResolvedValue({
+    cycle: [{ slug: 'paivapalve-1' }, { slug: 'paivapalve-2' }],
+    todaySequence: 1,
+  }),
+}))
 vi.mock('next/font/google', () => ({
   Manrope: () => ({ variable: '--font-heading' }),
   Instrument_Serif: () => ({ variable: '--font-quote' }),
@@ -26,6 +35,9 @@ describe('brand metadata', () => {
     expect(urls).toContain(`${SITE_URL}/churches/grace-church`)
     expect(urls.some((url) => url.includes('/terms'))).toBe(false)
     expect(urls.some((url) => url.includes('/cookies'))).toBe(false)
+    // The platform daily prayer cycle index and every active position.
+    expect(urls).toContain(`${SITE_URL}/prayers/general`)
+    expect(urls).toContain(`${SITE_URL}/prayers/general/paivapalve-1`)
   })
 
   it('robots allows the public pages and disallows the app', () => {

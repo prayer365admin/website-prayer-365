@@ -4,6 +4,8 @@ import { withIdempotency } from '@/utils/idempotency'
 import { auditPayload } from '@/utils/audit'
 import { dbTransaction } from '@/utils/db-transaction'
 import { loginUser } from '@/controller/authentication'
+import { getMobileGeneralPrayer } from '@/controller/general-prayer'
+import { todayInTallinn } from '@/utils/general-prayer-cycle'
 import { updateUser } from '@/controller/user'
 import { IS_LOGIN_BLOCKED } from '@/providers/auth-login-attempt'
 import {
@@ -13,6 +15,7 @@ import {
   MobileChurchListQuery,
   MobileChurchSummary,
   MobileDeviceRegistration,
+  MobileHome,
   MobileMe,
   MobileMePatch,
   MobileChangePassword,
@@ -112,7 +115,33 @@ export const getPublicChurch = async ({
 // Task 40 — home / me / my churches / follows (subject-only)
 // ---------------------------------------------------------------------------
 
-export const getHome = async ({ userId }: { userId: string }) => GET_HOME({ userId })
+/*
+ * Home leads with ONE prayer, chosen by the client's rule (13 Nov 2026):
+ *
+ *   1. logged in with a selected church that has a published prayer -> that
+ *      church's newest published prayer;
+ *   2. otherwise (no church selected, no published church prayer) -> today's
+ *      platform daily prayer;
+ *   3. neither exists -> null, and the screen shows its own empty state.
+ *
+ * The rule lives here, not in each client, so the app, the website and any
+ * future consumer cannot drift. Composition is the controller's job; the two
+ * reads stay in their own providers/controllers.
+ */
+export const getHome = async ({ userId }: { userId: string }): Promise<MobileHome> => {
+  const home = await GET_HOME({ userId })
+  const mainChurch = home.mainChurch
+  const churchPrayer = mainChurch
+    ? (home.latestPrayers.find((prayer) => prayer.churchId === mainChurch.id) ?? null)
+    : null
+  if (churchPrayer) {
+    return { ...home, featuredPrayer: { type: 'church', prayer: churchPrayer } }
+  }
+
+  const { dateISO } = todayInTallinn()
+  const general = await getMobileGeneralPrayer({ dateISO }).catch(() => null)
+  return { ...home, featuredPrayer: general ? { type: 'general', prayer: general } : null }
+}
 
 /*
  * Request-scoped reads. The `(site)` layout and the page inside it both need the
