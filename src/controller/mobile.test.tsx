@@ -6,6 +6,7 @@ vi.mock('@/controller/user', () => ({ updateUser: vi.fn() }))
 vi.mock('@/providers/mobile', () => ({
   CREATE_ANALYTICS_EVENTS: vi.fn(),
   CREATE_CHECKIN: vi.fn(),
+  GET_CHECK_IN_TODAY: vi.fn(),
   COUNT_RECENT_USER_REQUESTS: vi.fn(),
   CREATE_USER_REQUEST: vi.fn(),
   GET_HOME: vi.fn(),
@@ -27,6 +28,7 @@ vi.mock('@/utils/idempotency', () => ({ withIdempotency: vi.fn() }))
 import {
   CREATE_ANALYTICS_EVENTS,
   CREATE_CHECKIN,
+  GET_CHECK_IN_TODAY,
   COUNT_RECENT_USER_REQUESTS,
   CREATE_USER_REQUEST,
   GET_CHECK_IN_ACK,
@@ -42,6 +44,7 @@ import { MobileMePatchSchema } from '@/models/mobile'
 import { withIdempotency } from '@/utils/idempotency'
 import {
   checkIn,
+  getCheckInToday,
   getMe,
   getPublicChurch,
   getPublishedPrayer,
@@ -345,10 +348,12 @@ describe('Task 43 / requests — idempotent ack', () => {
   })
 })
 
+const TX = { marker: 'idempotency-tx' }
+
 describe('Task 43 / check-in — idempotent ack', () => {
   it('runs the check-in inside withIdempotency', async () => {
     vi.mocked(withIdempotency).mockImplementation(async ({ run }) => {
-      const id = await run({} as never)
+      const id = await run(TX as never)
       return { fresh: true, resource_id: id }
     })
     vi.mocked(CREATE_CHECKIN).mockResolvedValue({
@@ -369,13 +374,28 @@ describe('Task 43 / check-in — idempotent ack', () => {
       idempotencyKey: 'k1',
       requestId: 'r',
     })
+    // The idempotency transaction is handed to the insert: prod has ONE pool connection, so a query
+    // on the global client inside that transaction waits for it forever (500 after the 10 s timeout).
     expect(CREATE_CHECKIN).toHaveBeenCalledWith(
-      expect.objectContaining({ churchId: 'c1', userId: 'u1' }),
+      expect.objectContaining({ churchId: 'c1', userId: 'u1', tx: TX }),
     )
     expect(withIdempotency).toHaveBeenCalledWith(
       expect.objectContaining({ operation: 'checkin.create', key: 'k1' }),
     )
     expect(res.localDate).toBe('2026-01-01')
+  })
+})
+
+describe('getCheckInToday', () => {
+  it('asks the provider for the session user and church', async () => {
+    vi.mocked(GET_CHECK_IN_TODAY).mockResolvedValue({
+      checkedIn: true,
+      localDate: '2026-01-01',
+      occurredAt: '2026-01-01T08:00:00.000Z',
+    })
+    const res = await getCheckInToday({ userId: 'u1', churchId: 'c1' })
+    expect(GET_CHECK_IN_TODAY).toHaveBeenCalledWith({ userId: 'u1', churchId: 'c1' })
+    expect(res.checkedIn).toBe(true)
   })
 })
 

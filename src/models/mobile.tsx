@@ -469,6 +469,17 @@ export const MobileCheckInAckSchema = z.object({
 
 export type MobileCheckInAck = z.infer<typeof MobileCheckInAckSchema>
 
+/** Whether the signed-in user already checked in at this church on the church's current local day. */
+export const MobileCheckInTodaySchema = z.object({
+  checkedIn: z.boolean(),
+  /** The church-local calendar day the answer is for (YYYY-MM-DD). */
+  localDate: z.string(),
+  /** When the check-in happened; null when `checkedIn` is false. */
+  occurredAt: z.string().nullable(),
+})
+
+export type MobileCheckInToday = z.infer<typeof MobileCheckInTodaySchema>
+
 /** Analytics event type allowlist (bounded, no arbitrary payload). */
 export const MOBILE_ANALYTICS_TYPES = [
   'app_open',

@@ -9,6 +9,7 @@ import { S3_PUBLIC_URL } from '@/providers/s3'
 import {
   MobileAnnouncementListQuery,
   MobileCheckInAck,
+  MobileCheckInToday,
   MobileChurchListQuery,
   MobileChurchSummary,
   MobileEventListQuery,
@@ -1347,12 +1348,20 @@ export const CREATE_CHECKIN = async ({
   churchId,
   userId,
   requestId,
+  tx,
 }: {
   churchId: string
   userId: string
   requestId: string
+  /**
+   * The idempotency transaction. Production runs a ONE-connection pool, so a query on the global
+   * client while that transaction is open waits for a connection that never frees and the request
+   * 500s after the 10 s pool timeout. Always pass it when called inside `withIdempotency`.
+   */
+  tx?: Prisma.TransactionClient | null
 }): Promise<MobileCheckInAck> => {
-  const church = await db.church.findFirst({
+  const client: Prisma.TransactionClient = tx ?? (db as unknown as Prisma.TransactionClient)
+  const church = await client.church.findFirst({
     where: activeChurchWhereId(churchId),
     select: { id: true, timezone: true },
   })
@@ -1360,7 +1369,7 @@ export const CREATE_CHECKIN = async ({
   const occurredAt = new Date()
   const localDate = churchLocalDate(occurredAt, church.timezone)
   const dedupeKey = `${userId}:${churchId}:${localDate}`
-  const inserted = await db.checkIn.createMany({
+  const inserted = await client.checkIn.createMany({
     data: {
       church_id: churchId,
       user_id: userId,
@@ -1372,25 +1381,53 @@ export const CREATE_CHECKIN = async ({
   })
   const row =
     inserted.count > 0
-      ? await db.checkIn.findFirst({ where: { dedupe_key: dedupeKey, church_id: churchId } })
-      : await db.checkIn.findFirst({ where: { dedupe_key: dedupeKey } })
-  await db.auditLog.create({
-    data: auditPayload({
-      actorId: userId,
-      churchId,
-      action: 'checkin.create',
-      resourceType: 'checkin',
-      resourceId: row?.id ?? null,
-      outcome: 'success',
-      requestId,
-    }),
-  })
+      ? await client.checkIn.findFirst({ where: { dedupe_key: dedupeKey, church_id: churchId } })
+      : await client.checkIn.findFirst({ where: { dedupe_key: dedupeKey } })
+  // A same-day repeat is a no-op (unique dedupe_key): it must not leave a second "created" audit entry.
+  if (inserted.count > 0) {
+    await client.auditLog.create({
+      data: auditPayload({
+        actorId: userId,
+        churchId,
+        action: 'checkin.create',
+        resourceType: 'checkin',
+        resourceId: row?.id ?? null,
+        outcome: 'success',
+        requestId,
+      }),
+    })
+  }
   return {
     id: row?.id ?? dedupeKey,
     churchId,
-    occurredAt: occurredAt.toISOString(),
+    // A repeat answers with the ORIGINAL check-in, not with the time of this request.
+    occurredAt: (row?.occurred_at ?? occurredAt).toISOString(),
     localDate,
   }
+}
+
+/**
+ * Has this user already checked in at this church on the church's current local day? Same day rule and
+ * dedupe key as `CREATE_CHECKIN`, read only. 404 for a church that is not approved.
+ */
+export const GET_CHECK_IN_TODAY = async ({
+  churchId,
+  userId,
+}: {
+  churchId: string
+  userId: string
+}): Promise<MobileCheckInToday> => {
+  const church = await db.church.findFirst({
+    where: activeChurchWhereId(churchId),
+    select: { id: true, timezone: true },
+  })
+  if (!church) throw notFoundChurch()
+  const localDate = churchLocalDate(new Date(), church.timezone)
+  const row = await db.checkIn.findFirst({
+    where: { dedupe_key: `${userId}:${churchId}:${localDate}` },
+    select: { occurred_at: true },
+  })
+  return { checkedIn: !!row, localDate, occurredAt: row ? row.occurred_at.toISOString() : null }
 }
 
 /** Allowlist + dedupe by event_key (unique in DB) via skipDuplicates. */
