@@ -187,8 +187,8 @@ describe('WB1 onboarding flows (WB-17)', () => {
     for (const rows of Object.values(store)) rows.length = 0
     store.role.push({ id: 'role-user', name: 'prayer_user' })
     store.church.push(
-      { id: 'c1', name: 'Tallinna Jaani', status: 'APPROVED' },
-      { id: 'c2', name: 'Tartu Pauluse', status: 'APPROVED' },
+      { id: 'c1', name: 'Tallinna Jaani', status: 'APPROVED', is_platform: false },
+      { id: 'c2', name: 'Tartu Pauluse', status: 'APPROVED', is_platform: false },
     )
   })
 

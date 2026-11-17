@@ -82,6 +82,10 @@ import '@/app/api/v1/admin/central/pastors/[pastorId]/route'
 import '@/app/api/v1/admin/central/general-prayers/route'
 import '@/app/api/v1/admin/central/general-prayers/[generalPrayerId]/route'
 import '@/app/api/v1/admin/central/general-prayers/[generalPrayerId]/audio/route'
+
+// --- Central: platform (guest) giving, read-only ---
+import '@/app/api/v1/admin/central/donations/route'
+import '@/app/api/v1/admin/central/donation-summary/route'
 import '@/app/api/v1/mobile/general-prayers/today/route'
 import '@/app/api/v1/mobile/general-prayers/[slug]/route'
 

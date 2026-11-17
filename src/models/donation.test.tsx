@@ -7,6 +7,8 @@ import {
   DonationRowSchema,
   DonationSubscriptionRowSchema,
   DonationSummarySchema,
+  PublicDonationInitiateSchema,
+  PublicDonationStatusQuerySchema,
 } from './donation'
 import { GeneralError } from '@/utils/general-error'
 
@@ -198,5 +200,56 @@ describe('F8DO permission catalogue guard', () => {
     for (const role of PRAYER_ROLES) {
       for (const g of role.grants) expect(catalogue.has(g.subject)).toBe(true)
     }
+  })
+})
+
+describe('PublicDonationInitiateSchema (PD-API-01)', () => {
+  const valid = { amountMinor: 1000, currency: 'eur', frequency: 'one_time' }
+
+  it('accepts the amount bounds (1 EUR to 5,000 EUR)', () => {
+    expect(PublicDonationInitiateSchema.parse(valid).amountMinor).toBe(1000)
+    expect(PublicDonationInitiateSchema.parse({ ...valid, amountMinor: 100 })).toBeTruthy()
+    expect(PublicDonationInitiateSchema.parse({ ...valid, amountMinor: 500_000 })).toBeTruthy()
+  })
+
+  it.each([
+    ['below the minimum', { ...valid, amountMinor: 99 }],
+    ['above the maximum', { ...valid, amountMinor: 500_001 }],
+    ['a float amount', { ...valid, amountMinor: 1000.5 }],
+    ['uppercase currency', { ...valid, currency: 'EUR' }],
+    ['a monthly frequency', { ...valid, frequency: 'monthly' }],
+  ])('rejects %s', (_name, payload) => {
+    expect(() => PublicDonationInitiateSchema.parse(payload)).toThrow()
+  })
+
+  it.each([
+    ['churchId', { ...valid, churchId: 'c1' }],
+    ['successUrl', { ...valid, successUrl: 'https://evil.test/return' }],
+    ['cancelUrl', { ...valid, cancelUrl: 'https://evil.test/cancel' }],
+    ['category', { ...valid, category: 'pantry' }],
+    ['userId', { ...valid, userId: 'u1' }],
+  ])('rejects an unknown %s field (strict)', (_name, payload) => {
+    expect(() => PublicDonationInitiateSchema.parse(payload)).toThrow()
+  })
+})
+
+describe('PublicDonationStatusQuerySchema (PD-API-01)', () => {
+  it('accepts a checkout session id', () => {
+    expect(PublicDonationStatusQuerySchema.parse({ sessionId: 'cs_test_a1B2c3' }).sessionId).toBe(
+      'cs_test_a1B2c3',
+    )
+  })
+
+  it.each([['pi_123'], [''], ['cs_' + 'a'.repeat(2) + '-bad'], ['../etc/passwd']])(
+    'rejects a non cs_ session id (%s)',
+    (sessionId) => {
+      expect(() => PublicDonationStatusQuerySchema.parse({ sessionId })).toThrow()
+    },
+  )
+
+  it('rejects an extra query field (strict)', () => {
+    expect(() =>
+      PublicDonationStatusQuerySchema.parse({ sessionId: 'cs_abc', churchId: 'c1' }),
+    ).toThrow()
   })
 })

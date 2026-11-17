@@ -33,6 +33,7 @@ import {
   getChurch,
   purgeChurch,
   suspendChurch,
+  unarchiveChurch,
   unsuspendChurch,
   updateChurch,
 } from './central-church'
@@ -318,5 +319,98 @@ describe('purgeChurch', () => {
 
     expect(DELETE_CHURCH_ROW).toHaveBeenCalledWith({ churchId: 'ch1' }, expect.anything())
     expect(DELETE_ORG_NODE_ROW).toHaveBeenCalledWith({ orgNodeId: 'cnode' }, expect.anything())
+  })
+})
+
+describe('platform beneficiary is read-only (PD-DB-06)', () => {
+  beforeEach(() => vi.clearAllMocks())
+
+  const platformChurch = { ...approvedChurch, is_platform: true }
+  const normalChurch = { ...approvedChurch, is_platform: false }
+
+  it.each([
+    [
+      'updateChurch',
+      () =>
+        updateChurch({
+          churchId: 'p1',
+          payload: { version: 1, name: 'X' },
+          actorId: 'actor',
+          requestId: 'r',
+        }),
+    ],
+    [
+      'suspendChurch',
+      () => suspendChurch({ churchId: 'p1', version: 1, actorId: 'actor', requestId: 'r' }),
+    ],
+    [
+      'archiveChurch',
+      () => archiveChurch({ churchId: 'p1', version: 1, actorId: 'actor', requestId: 'r' }),
+    ],
+    [
+      'unarchiveChurch',
+      () => unarchiveChurch({ churchId: 'p1', version: 1, actorId: 'actor', requestId: 'r' }),
+    ],
+    [
+      'purgeChurch',
+      () =>
+        purgeChurch({
+          churchId: 'p1',
+          payload: { version: 1, confirmName: 'Church' },
+          actorId: 'actor',
+          requestId: 'r',
+        }),
+    ],
+  ])('%s refuses the platform row (403 SYSTEM_RECORD_PROTECTED)', async (_name, call) => {
+    vi.mocked(GET_CHURCH_BY_ID).mockResolvedValue(platformChurch as never)
+    await expect(call()).rejects.toMatchObject({
+      code: 403,
+      error_code: 'SYSTEM_RECORD_PROTECTED',
+    })
+    expect(UPDATE_CHURCH_STATUS).not.toHaveBeenCalled()
+    expect(DELETE_CHURCH_ROW).not.toHaveBeenCalled()
+  })
+
+  it('still updates a normal church', async () => {
+    vi.mocked(GET_CHURCH_BY_ID).mockResolvedValue(normalChurch as never)
+    const { UPDATE_CHURCH } = await import('@/providers/central-church')
+    vi.mocked(UPDATE_CHURCH).mockResolvedValue(normalChurch as never)
+
+    await updateChurch({
+      churchId: 'ch1',
+      payload: { version: 1, name: 'Renamed' },
+      actorId: 'actor',
+      requestId: 'r',
+    })
+
+    expect(UPDATE_CHURCH).toHaveBeenCalled()
+  })
+
+  it('still suspends a normal church', async () => {
+    vi.mocked(GET_CHURCH_BY_ID).mockResolvedValue(normalChurch as never)
+    vi.mocked(UPDATE_CHURCH_STATUS).mockResolvedValue({
+      ...normalChurch,
+      status: 'SUSPENDED',
+    } as never)
+
+    await expect(
+      suspendChurch({ churchId: 'ch1', version: 1, actorId: 'actor', requestId: 'r' }),
+    ).resolves.toMatchObject({ status: 'SUSPENDED' })
+  })
+
+  it('surfaces the flag on the detail DTO', async () => {
+    vi.mocked(GET_CHURCH_BY_ID).mockResolvedValue({
+      ...platformChurch,
+      church_style: null,
+      latitude: null,
+      longitude: null,
+      sunday_live_stream: null,
+      taize_chants: null,
+      youth_ministry: null,
+      approved_at: null,
+    } as never)
+    vi.mocked(GET_ORG_NODE_MAP).mockResolvedValue(new Map() as never)
+
+    await expect(getChurch({ churchId: 'p1' })).resolves.toMatchObject({ isPlatform: true })
   })
 })

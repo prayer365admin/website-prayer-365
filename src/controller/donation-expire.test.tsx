@@ -5,7 +5,7 @@ const m = vi.hoisted(() => ({
   expireCheckoutSession: vi.fn(),
 }))
 
-vi.mock('@/providers/donation', () => ({}))
+vi.mock('@/providers/donation', () => ({ GET_DONATION_BY_PAYMENT_ID: vi.fn() }))
 vi.mock('@/providers/payment-sync', () => ({}))
 vi.mock('@/providers/stripe', () => ({
   STRIPE: {

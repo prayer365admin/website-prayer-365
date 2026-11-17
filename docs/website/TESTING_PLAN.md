@@ -364,7 +364,7 @@ redirects, S3 media or Stripe Checkout.
 | Legal pages          | Footer links `/privacy`, `/terms`, `/support` have no pages                                                                                                                                 | Product + legal   |
 | Translations         | et/sv/fi copy is draft until native review                                                                                                                                                  | Product           |
 | Stripe end to end    | Automated tests mock the provider; live Checkout and webhook must be tested manually in test mode                                                                                           | Backend           |
-| Test coverage gaps   | `prayer-archive` route has no direct route test; `/prayers` and `/donate/result` pages have no page test                                                                                    | Engineering       |
+| Test coverage gaps   | `prayer-archive` route has no direct route test; `/prayers` and the `/donate/result` branches have no page test                                                                             | Engineering       |
 
 ### A.4 Team setup and reset
 

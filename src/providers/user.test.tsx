@@ -45,7 +45,7 @@ describe('CREATE_CUSTOMER (WB1 signup)', () => {
 
     expect(db.$transaction).toHaveBeenCalledTimes(1)
     expect(tx.church.findFirst).toHaveBeenCalledWith({
-      where: { id: 'c1', status: 'APPROVED' },
+      where: { id: 'c1', status: 'APPROVED', is_platform: false },
       select: { id: true },
     })
     expect(tx.user.create).toHaveBeenCalledWith({

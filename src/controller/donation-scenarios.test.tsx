@@ -62,6 +62,7 @@ vi.mock('@/providers/payment-sync', () => ({
 }))
 vi.mock('@/providers/donation', () => ({
   GET_DONATION_SUMMARY: mocks.donationProvider.GET_DONATION_SUMMARY,
+  GET_DONATION_BY_PAYMENT_ID: vi.fn(),
 }))
 vi.mock('@/providers/stripe', () => ({
   isStripeEnabled: mocks.stripe.isStripeEnabled,

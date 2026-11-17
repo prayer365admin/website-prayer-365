@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { GeneralError } from '@/utils/general-error'
 
 vi.mock('@/providers/donation', () => ({
+  GET_DONATION_BY_PAYMENT_ID: vi.fn(),
   GET_DONATIONS: vi.fn(),
   GET_DONATION_SUBSCRIPTIONS: vi.fn(),
   GET_DONATION_SUMMARY: vi.fn(),

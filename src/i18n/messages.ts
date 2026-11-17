@@ -117,6 +117,7 @@ export const SITE_MESSAGES = {
     headerEvents: 'Activity & Events',
     headerGiving: 'Giving & Stewardship',
     headerPrayers: 'Prayer',
+    headerDailyPrayer: 'Daily Prayer',
     headerChooseChurch: 'Choose a church',
     headerNoChurches: 'No churches available',
     headerBrowseChurches: 'Browse churches',
@@ -924,6 +925,50 @@ export const SITE_MESSAGES = {
     maintenanceStatus: 'Coming soon',
     maintenanceBody:
       'We are putting the finishing touches on the next chapter of Prayer 365. The platform opens very soon — your account and saved data are safe.',
+    // --- PD4 Public giving (/give) ---
+    publicGiveEyebrow: 'SUPPORT THE PLATFORM',
+    publicGiveTitle: 'Support Prayer 365',
+    publicGiveLede:
+      'Your gift keeps the daily prayer library, the audio recordings and the church directory online for everyone — no account needed.',
+    publicGiveBeneficiaryNotice:
+      'This gift goes to Prayer 365 itself. It cannot be directed to a church or a parish fund.',
+    publicGiveAmountLabel: 'Choose an amount',
+    publicGivePresetSupport: 'Keeps the platform running',
+    publicGivePresetCare: 'Funds daily production',
+    publicGivePresetMusic: 'Sponsors audio recording',
+    publicGivePresetPillar: 'Sustains the platform',
+    publicGiveCustomAmount: 'Or enter your own amount (1–5,000 EUR)',
+    publicGiveCustomAmountInvalid: 'Enter an amount between 1 and 5,000 EUR',
+    publicGiveOneTimeOnly: 'This is a one-time gift. Monthly giving needs an account.',
+    publicGiveCompleteGift: 'Give {amount}',
+    publicGiveNotReady: 'Donations are not ready yet. Please try again later.',
+    publicGiveInitiateFailed: 'We could not start the checkout. Please try again.',
+    publicGiveCanceledNotice:
+      'Your checkout was canceled and nothing was charged. You can start again below.',
+    publicGiveTrustSecure: 'Card details stay inside Stripe.',
+    publicGiveTrustProvider: 'Payments are processed by Stripe, our payment provider.',
+    publicGiveTrustNoAccount: 'No account is needed to give.',
+    publicGiveThanksTitle: 'Thank you for supporting Prayer 365',
+    publicGiveThanksBody:
+      'Your gift keeps the daily prayer library, the audio recordings and the church directory running.',
+    publicGiveThanksEmailNotice:
+      'Stripe emails the receipt for this payment. Prayer 365 does not send a separate receipt.',
+    publicGivePendingTitle: 'Your gift is being confirmed',
+    publicGivePendingBody:
+      'Stripe has your payment and our records are still catching up. This page updates itself.',
+    publicGiveFailedTitle: 'The payment did not complete',
+    publicGiveFailedBody: 'No money was taken. You can start a new gift at any time.',
+    publicGiveRefundedTitle: 'Your gift was refunded',
+    publicGiveRefundedBody:
+      "The payment was received and later refunded. The amount is on your card statement, and Stripe's receipt email covers the charge and the refund.",
+    publicGiveUnknownTitle: 'We could not find this checkout',
+    publicGiveUnknownBody:
+      'This link is missing its checkout reference, or the session id is not valid. If you completed a gift, use the link in your receipt email or start again below.',
+    publicGiveNotReadyTitle: 'Giving is temporarily unavailable',
+    publicGiveNotReadyBody:
+      "Giving is temporarily unavailable, so this payment's status cannot be checked. Your gift is safe; the receipt email arrives from Stripe.",
+    publicGiveThanksMetaTitle: 'Thank you',
+    publicGiveBackHome: 'Back to giving',
     maintenanceRetry: 'Check again',
   },
   // DRAFT — Estonian strings not yet reviewed by a native speaker (REPORT R-13).
@@ -1034,6 +1079,7 @@ export const SITE_MESSAGES = {
     headerEvents: 'Tegevused ja sündmused',
     headerGiving: 'Annetamine ja majandamine',
     headerPrayers: 'Palve',
+    headerDailyPrayer: 'Päevapalve',
     headerChooseChurch: 'Vali kogudus',
     headerNoChurches: 'Kogudusi ei ole saadaval',
     headerBrowseChurches: 'Sirvi kogudusi',
@@ -1750,6 +1796,49 @@ export const SITE_MESSAGES = {
     maintenanceStatus: 'Tulekul peagi',
     maintenanceBody:
       'Viimistleme Prayer 365 järgmist peatükki. Platvorm avaneb varsti — sinu konto ja salvestatud andmed on turvalised.',
+    // --- PD4 Avalik annetamine (/give) ---
+    publicGiveEyebrow: 'TOETA PLATVORMI',
+    publicGiveTitle: 'Toeta Prayer 365',
+    publicGiveLede:
+      'Sinu annetus hoiab igapäevase palveraamatukogu, helisalvestused ja koguduste kataloogi kõigile avatuna — kontot pole vaja.',
+    publicGiveBeneficiaryNotice:
+      'See annetus läheb Prayer 365 platvormile. Seda ei saa suunata kogudusele ega koguduse fondile.',
+    publicGiveAmountLabel: 'Vali summa',
+    publicGivePresetSupport: 'Hoiab platvormi töös',
+    publicGivePresetCare: 'Rahastab igapäevast tootmist',
+    publicGivePresetMusic: 'Toetab helisalvestust',
+    publicGivePresetPillar: 'Hoiab platvormi püsti',
+    publicGiveCustomAmount: 'Või sisesta oma summa (1–5000 EUR)',
+    publicGiveCustomAmountInvalid: 'Sisesta summa vahemikus 1 kuni 5000 EUR',
+    publicGiveOneTimeOnly: 'See on ühekordne annetus. Igakuine annetamine eeldab kontot.',
+    publicGiveCompleteGift: 'Anneta {amount}',
+    publicGiveNotReady: 'Annetused ei ole veel saadaval. Palun proovi hiljem uuesti.',
+    publicGiveInitiateFailed: 'Makse alustamine ebaõnnestus. Palun proovi uuesti.',
+    publicGiveCanceledNotice: 'Makse katkestati ja raha ei võetud. Võid allpool uuesti alustada.',
+    publicGiveTrustSecure: 'Kaardiandmed jäävad Stripe’i keskkonda.',
+    publicGiveTrustProvider: 'Makseid töötleb Stripe, meie makseteenuse pakkuja.',
+    publicGiveTrustNoAccount: 'Annetamiseks pole kontot vaja.',
+    publicGiveThanksTitle: 'Aitäh, et toetad Prayer 365',
+    publicGiveThanksBody:
+      'Sinu annetus hoiab igapäevase palveraamatukogu, helisalvestused ja koguduste kataloogi töös.',
+    publicGiveThanksEmailNotice:
+      'Kviitungi saadab Stripe e-postiga. Prayer 365 eraldi kviitungit ei saada.',
+    publicGivePendingTitle: 'Sinu annetust kinnitatakse',
+    publicGivePendingBody:
+      'Stripe on makse kätte saanud ja meie andmed jõuavad järele. See leht uueneb ise.',
+    publicGiveFailedTitle: 'Makse ei lõppenud',
+    publicGiveFailedBody: 'Raha ei võetud. Võid igal ajal uue annetuse alustada.',
+    publicGiveRefundedTitle: 'Sinu annetus tagastati',
+    publicGiveRefundedBody:
+      "Makse võeti vastu ja hiljem tagastati. Summa näeb kaardi väljavõttes, Stripe'i kviitungi e-kiri hõlmab nii tasu kui tagastust.",
+    publicGiveUnknownTitle: 'Seda makset ei leitud',
+    publicGiveUnknownBody:
+      'Sellel lingil puudub makse viide või seansi tunnus ei ole kehtiv. Kui annetuse tegid, kasuta kviitungi e-kirjas olevat linki või alusta allpool uuesti.',
+    publicGiveNotReadyTitle: 'Annetamine on ajutiselt kinni',
+    publicGiveNotReadyBody:
+      'Annetamine on ajutiselt kinni, seetõttu ei saa selle makse olekut kontrollida. Sinu annetus on turvaline; kviitungi saadab Stripe.',
+    publicGiveThanksMetaTitle: 'Aitäh',
+    publicGiveBackHome: 'Tagasi annetamise juurde',
     maintenanceRetry: 'Vaata uuesti',
   },
   // DRAFT — Swedish strings not yet reviewed by a native speaker (REPORT R-13).
@@ -1860,6 +1949,7 @@ export const SITE_MESSAGES = {
     headerEvents: 'Aktiviteter och evenemang',
     headerGiving: 'Givande och förvaltning',
     headerPrayers: 'Bön',
+    headerDailyPrayer: 'Daglig bön',
     headerChooseChurch: 'Välj en församling',
     headerNoChurches: 'Inga församlingar tillgängliga',
     headerBrowseChurches: 'Bläddra bland församlingar',
@@ -2580,6 +2670,49 @@ export const SITE_MESSAGES = {
     maintenanceStatus: 'Kommer snart',
     maintenanceBody:
       'Vi finslipar nästa kapitel av Prayer 365. Plattformen öppnar mycket snart — ditt konto och sparade uppgifter är säkra.',
+    // --- PD4 Offentlig givande (/give) ---
+    publicGiveEyebrow: 'STÖD PLATTFORMEN',
+    publicGiveTitle: 'Stöd Prayer 365',
+    publicGiveLede:
+      'Din gåva håller det dagliga bönebiblioteket, ljudinspelningarna och kyrkokatalogen tillgängliga för alla — inget konto behövs.',
+    publicGiveBeneficiaryNotice:
+      'Gåvan går till Prayer 365 självt. Den kan inte riktas till en församling eller en församlingsfond.',
+    publicGiveAmountLabel: 'Välj belopp',
+    publicGivePresetSupport: 'Håller plattformen igång',
+    publicGivePresetCare: 'Finansierar den dagliga produktionen',
+    publicGivePresetMusic: 'Stöder ljudinspelning',
+    publicGivePresetPillar: 'Bär plattformen',
+    publicGiveCustomAmount: 'Eller ange ett eget belopp (1–5 000 EUR)',
+    publicGiveCustomAmountInvalid: 'Ange ett belopp mellan 1 och 5 000 EUR',
+    publicGiveOneTimeOnly: 'Det här är en engångsgåva. Månadsgivande kräver ett konto.',
+    publicGiveCompleteGift: 'Ge {amount}',
+    publicGiveNotReady: 'Gåvor är inte tillgängliga ännu. Försök igen senare.',
+    publicGiveInitiateFailed: 'Vi kunde inte starta betalningen. Försök igen.',
+    publicGiveCanceledNotice: 'Betalningen avbröts och inga pengar drogs. Du kan börja om nedan.',
+    publicGiveTrustSecure: 'Kortuppgifterna stannar hos Stripe.',
+    publicGiveTrustProvider: 'Betalningar hanteras av Stripe, vår betaltjänstleverantör.',
+    publicGiveTrustNoAccount: 'Inget konto behövs för att ge.',
+    publicGiveThanksTitle: 'Tack för att du stöder Prayer 365',
+    publicGiveThanksBody:
+      'Din gåva håller det dagliga bönebiblioteket, ljudinspelningarna och kyrkokatalogen igång.',
+    publicGiveThanksEmailNotice:
+      'Stripe skickar kvittot via e-post. Prayer 365 skickar inget eget kvitto.',
+    publicGivePendingTitle: 'Din gåva bekräftas',
+    publicGivePendingBody:
+      'Stripe har din betalning och våra register hinner ifatt. Sidan uppdateras automatiskt.',
+    publicGiveFailedTitle: 'Betalningen slutfördes inte',
+    publicGiveFailedBody: 'Inga pengar drogs. Du kan starta en ny gåva när som helst.',
+    publicGiveRefundedTitle: 'Din gåva återbetalades',
+    publicGiveRefundedBody:
+      'Betalningen mottogs och återbetalades senare. Beloppet syns på ditt kortutdrag, och Stripes kvittomejl täcker både debiteringen och återbetalningen.',
+    publicGiveUnknownTitle: 'Vi hittade inte den här betalningen',
+    publicGiveUnknownBody:
+      'Länken saknar sin betalningsreferens, eller session-id är inte giltigt. Om du fullföljde en gåva, använd länken i ditt kvittomejl eller börja om nedan.',
+    publicGiveNotReadyTitle: 'Givandet är tillfälligt avstängt',
+    publicGiveNotReadyBody:
+      'Givandet är tillfälligt avstängt, så denna betalnings status kan inte kontrolleras. Din gåva är säker; kvittot kommer från Stripe.',
+    publicGiveThanksMetaTitle: 'Tack',
+    publicGiveBackHome: 'Tillbaka till givandet',
     maintenanceRetry: 'Kontrollera igen',
   },
   // DRAFT — Finnish strings not yet reviewed by a native speaker (REPORT R-13).
@@ -2691,6 +2824,7 @@ export const SITE_MESSAGES = {
     headerEvents: 'Toiminta ja tapahtumat',
     headerGiving: 'Antaminen ja vastuu',
     headerPrayers: 'Rukous',
+    headerDailyPrayer: 'Päivän rukous',
     headerChooseChurch: 'Valitse seurakunta',
     headerNoChurches: 'Seurakuntia ei ole saatavilla',
     headerBrowseChurches: 'Selaa seurakuntia',
@@ -3414,6 +3548,50 @@ export const SITE_MESSAGES = {
     maintenanceStatus: 'Tulossa pian',
     maintenanceBody:
       'Viimeistelemme Prayer 365:n seuraavaa lukua. Alusta avautuu hyvin pian — tilisi ja tallennetut tietosi ovat turvassa.',
+    // --- PD4 Julkinen lahjoittaminen (/give) ---
+    publicGiveEyebrow: 'TUE ALUSTAA',
+    publicGiveTitle: 'Tue Prayer 365:tä',
+    publicGiveLede:
+      'Lahjasi pitää päivittäisen rukouskirjaston, äänitteet ja kirkkohakemiston kaikkien saatavilla — tiliä ei tarvita.',
+    publicGiveBeneficiaryNotice:
+      'Lahja menee Prayer 365:lle itselleen. Sitä ei voi kohdistaa seurakunnalle tai seurakunnan rahastolle.',
+    publicGiveAmountLabel: 'Valitse summa',
+    publicGivePresetSupport: 'Pitää alustan käynnissä',
+    publicGivePresetCare: 'Rahoittaa päivittäistä tuotantoa',
+    publicGivePresetMusic: 'Tukee äänityksiä',
+    publicGivePresetPillar: 'Kantaa alustaa',
+    publicGiveCustomAmount: 'Tai syötä oma summa (1–5 000 EUR)',
+    publicGiveCustomAmountInvalid: 'Syötä summa välillä 1–5 000 EUR',
+    publicGiveOneTimeOnly: 'Tämä on kertalahja. Kuukausittainen antaminen vaatii tilin.',
+    publicGiveCompleteGift: 'Anna {amount}',
+    publicGiveNotReady: 'Lahjoitukset eivät ole vielä käytettävissä. Yritä myöhemmin uudelleen.',
+    publicGiveInitiateFailed: 'Maksun aloittaminen ei onnistunut. Yritä uudelleen.',
+    publicGiveCanceledNotice:
+      'Maksu peruutettiin eikä rahaa veloitettu. Voit aloittaa uudelleen alta.',
+    publicGiveTrustSecure: 'Korttitiedot pysyvät Stripessä.',
+    publicGiveTrustProvider: 'Maksut käsittelee Stripe, maksupalvelumme tarjoaja.',
+    publicGiveTrustNoAccount: 'Antamiseen ei tarvita tiliä.',
+    publicGiveThanksTitle: 'Kiitos, että tuet Prayer 365:tä',
+    publicGiveThanksBody:
+      'Lahjasi pitää päivittäisen rukouskirjaston, äänitteet ja kirkkohakemiston käynnissä.',
+    publicGiveThanksEmailNotice:
+      'Stripe lähettää kuitin sähköpostilla. Prayer 365 ei lähetä erillistä kuittia.',
+    publicGivePendingTitle: 'Lahjaasi vahvistetaan',
+    publicGivePendingBody:
+      'Stripe on vastaanottanut maksun ja tietomme päivittyvät vielä. Sivu päivittyy itsestään.',
+    publicGiveFailedTitle: 'Maksu ei toteutunut',
+    publicGiveFailedBody: 'Rahaa ei veloitettu. Voit aloittaa uuden lahjan milloin tahansa.',
+    publicGiveRefundedTitle: 'Lahjasi palautettiin',
+    publicGiveRefundedBody:
+      'Maksu vastaanotettiin ja palautettiin myöhemmin. Summan näet korttilaskelmassasi, ja Stripesen lähettämä kuiti kattaa sekä veloituksen että palautuksen.',
+    publicGiveUnknownTitle: 'Maksua ei löytynyt',
+    publicGiveUnknownBody:
+      'Linkistä puuttuu maksun tunniste tai istuntotunnus ei ole kelvollinen. Jos teit lahjan, käytä kuitin sähköpostissa olevaa linkkiä tai aloita uudelleen alla.',
+    publicGiveNotReadyTitle: 'Lahjoittaminen on väliaikaisesti pois käytöstä',
+    publicGiveNotReadyBody:
+      'Lahjoittaminen on väliaikaisesti pois käytöstä, joten tämän maksun tilaa ei voi tarkistaa. Lahjasi on turvassa; kuitin lähettää Stripe.',
+    publicGiveThanksMetaTitle: 'Kiitos',
+    publicGiveBackHome: 'Takaisin antamiseen',
     maintenanceRetry: 'Tarkista uudelleen',
   },
 } satisfies Record<SiteLocale, Record<string, string>>

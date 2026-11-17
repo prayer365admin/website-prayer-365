@@ -268,6 +268,22 @@ describe('UPDATE_ME_PROFILE — main-church is exactly one row', () => {
     expect(tx.userChurch.upsert).not.toHaveBeenCalled()
   })
 
+  it('refuses the platform beneficiary as a main church', async () => {
+    db.$transaction.mockImplementation(async (fn) => fn(tx))
+    tx.church.findFirst.mockResolvedValue(null)
+
+    await expect(
+      UPDATE_ME_PROFILE({ userId: 'u1', mainChurchId: 'c-platform' }),
+    ).rejects.toMatchObject({ code: 404 })
+
+    // The row itself is APPROVED; the flag is what keeps it out of the profile.
+    expect(tx.church.findFirst).toHaveBeenCalledWith({
+      where: { id: 'c-platform', status: 'APPROVED', is_platform: false },
+      select: { id: true },
+    })
+    expect(tx.userChurch.upsert).not.toHaveBeenCalled()
+  })
+
   it('writes profile_picture; explicit null clears it', async () => {
     db.$transaction.mockImplementation(async (fn) => fn(tx))
     await UPDATE_ME_PROFILE({ userId: 'u1', profilePicture: 'https://cdn.example.com/a.png' })
@@ -382,6 +398,7 @@ describe('GET_PUBLIC_CHURCH — admin profile reflected in mobile contract', () 
       expect.objectContaining({
         where: {
           status: 'APPROVED',
+          is_platform: false,
           OR: [{ id: 'grace-church' }, { slug: 'grace-church' }],
         },
       }),
@@ -403,7 +420,7 @@ describe('GET_PUBLIC_CHURCH — admin profile reflected in mobile contract', () 
     expect(result?.id).toBe(uuid)
     expect(db.church.findFirst).toHaveBeenCalledWith(
       expect.objectContaining({
-        where: { status: 'APPROVED', OR: [{ id: uuid }, { slug: uuid }] },
+        where: { status: 'APPROVED', is_platform: false, OR: [{ id: uuid }, { slug: uuid }] },
       }),
     )
   })
@@ -668,6 +685,7 @@ describe('LIST_PUBLIC_CHURCHES — discovery search by name or city', () => {
 
     const expectedWhere = {
       status: 'APPROVED',
+      is_platform: false,
       OR: [
         { name: { contains: 'tal', mode: 'insensitive' } },
         { address: { path: ['city'], string_contains: 'tal' } },
@@ -711,7 +729,7 @@ describe('LIST_PUBLIC_CHURCHES — discovery search by name or city', () => {
       query: { page: 1, limit: 10 },
     })
 
-    const expectedWhere = { status: 'APPROVED' }
+    const expectedWhere = { status: 'APPROVED', is_platform: false }
     expect(db.church.count).toHaveBeenCalledWith({ where: expectedWhere })
     expect(db.church.findMany).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -742,6 +760,7 @@ describe('LIST_PUBLIC_CHURCHES — directory filters (WB-25)', () => {
 
     const expectedWhere = {
       status: 'APPROVED',
+      is_platform: false,
       denomination: { contains: 'lutheran', mode: 'insensitive' },
     }
     expect(db.church.count).toHaveBeenCalledWith({ where: expectedWhere })
@@ -764,6 +783,7 @@ describe('LIST_PUBLIC_CHURCHES — directory filters (WB-25)', () => {
 
     const expectedWhere = {
       status: 'APPROVED',
+      is_platform: false,
       churchLanguages: { some: { language_code: 'et' } },
     }
     expect(db.church.count).toHaveBeenCalledWith({ where: expectedWhere })
@@ -784,7 +804,7 @@ describe('LIST_PUBLIC_CHURCHES — directory filters (WB-25)', () => {
       query: { sunday_live_stream: true, page: 1, limit: 10 },
     })
     expect(db.church.count).toHaveBeenLastCalledWith({
-      where: { status: 'APPROVED', sunday_live_stream: true },
+      where: { status: 'APPROVED', is_platform: false, sunday_live_stream: true },
     })
 
     // taize_chants: true
@@ -793,7 +813,7 @@ describe('LIST_PUBLIC_CHURCHES — directory filters (WB-25)', () => {
       query: { taize_chants: true, page: 1, limit: 10 },
     })
     expect(db.church.count).toHaveBeenLastCalledWith({
-      where: { status: 'APPROVED', taize_chants: true },
+      where: { status: 'APPROVED', is_platform: false, taize_chants: true },
     })
 
     // youth_ministry: true
@@ -802,7 +822,7 @@ describe('LIST_PUBLIC_CHURCHES — directory filters (WB-25)', () => {
       query: { youth_ministry: true, page: 1, limit: 10 },
     })
     expect(db.church.count).toHaveBeenLastCalledWith({
-      where: { status: 'APPROVED', youth_ministry: true },
+      where: { status: 'APPROVED', is_platform: false, youth_ministry: true },
     })
 
     // sunday_live_stream: false -> omitted from where clause
@@ -811,7 +831,7 @@ describe('LIST_PUBLIC_CHURCHES — directory filters (WB-25)', () => {
       query: { sunday_live_stream: false, page: 1, limit: 10 },
     })
     expect(db.church.count).toHaveBeenLastCalledWith({
-      where: { status: 'APPROVED' },
+      where: { status: 'APPROVED', is_platform: false },
     })
   })
 
@@ -835,7 +855,7 @@ describe('LIST_PUBLIC_CHURCHES — directory filters (WB-25)', () => {
       query: { latitude: 59.437, longitude: 24.754, radius_km: 10, page: 1, limit: 10 },
     })
 
-    const expectedWhere = { status: 'APPROVED' }
+    const expectedWhere = { status: 'APPROVED', is_platform: false }
     expect(db.church.count).not.toHaveBeenCalled()
     expect(db.church.findMany).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -926,6 +946,7 @@ describe('LIST_PUBLIC_CHURCHES — directory filters (WB-25)', () => {
 
     const expectedWhere = {
       status: 'APPROVED',
+      is_platform: false,
       OR: [
         { name: { contains: 'grace', mode: 'insensitive' } },
         { address: { path: ['city'], string_contains: 'grace' } },
@@ -959,6 +980,7 @@ describe('LIST_PUBLIC_CHURCHES — directory filters (WB-25)', () => {
     expect(db.church.count).toHaveBeenCalledWith({
       where: {
         status: 'APPROVED',
+        is_platform: false,
         denomination: { contains: 'Lutheran', mode: 'insensitive' },
       },
     })
@@ -974,6 +996,7 @@ describe('LIST_PUBLIC_CHURCHES — directory filters (WB-25)', () => {
 
     const expectedWhere = {
       status: 'APPROVED',
+      is_platform: false,
       denomination: { contains: 'NonExistent', mode: 'insensitive' },
       churchLanguages: { some: { language_code: 'xx' } },
     }

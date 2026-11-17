@@ -135,7 +135,7 @@ describe('ContentsSiteChurchDirectory', () => {
       ),
     ).toBeTruthy()
     expect(screen.getByRole('link', { name: 'Support Local Churches' }).getAttribute('href')).toBe(
-      '/donate',
+      '/give',
     )
   })
 

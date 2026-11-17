@@ -49,6 +49,7 @@ const makeChurch = (overrides: Partial<ChurchDetail> = {}): ChurchDetail => ({
   country: 'Estonia',
   countryCode: 'EE',
   organization: ['Tallinn Diocese'],
+  isPlatform: false,
   approvedAt: '2026-10-02T00:00:00.000Z',
   version: 2,
   createdAt: '2026-10-01T00:00:00.000Z',
@@ -111,6 +112,20 @@ describe('DrawerLifecycle', () => {
     expect(screen.queryByRole('button', { name: 'Suspend' })).toBeNull()
     expect(screen.queryByRole('button', { name: 'Approve' })).toBeNull()
     expect(screen.getByRole('button', { name: /archive/i })).toBeTruthy()
+  })
+
+  it('hides every lifecycle and delete button on the platform beneficiary row', () => {
+    const onLifecycle = vi.fn()
+    renderWithProviders(
+      <DrawerLifecycle
+        church={makeChurch({ status: 'APPROVED', isPlatform: true })}
+        onLifecycle={onLifecycle}
+      />,
+    )
+
+    expect(screen.queryByRole('button', { name: 'Suspend' })).toBeNull()
+    expect(screen.queryByRole('button', { name: /archive/i })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Delete church' })).toBeNull()
   })
 
   it('triggers onLifecycle with suspend action after modal confirm', async () => {

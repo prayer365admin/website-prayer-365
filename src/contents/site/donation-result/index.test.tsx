@@ -36,7 +36,12 @@ const renderResult = (initialStatus: DonationStatusView, locale: SiteLocale = 'e
   )
 }
 
-beforeEach(() => vi.clearAllMocks())
+beforeEach(() => {
+  vi.clearAllMocks()
+  // The film's seen-once memory outlives a render; a leaked key would hide the
+  // overlay from the next test.
+  sessionStorage.clear()
+})
 
 describe('ContentsSiteDonationResult (W12)', () => {
   it('shows the confirmed state, summary and next steps for a settled gift', () => {
@@ -98,6 +103,18 @@ describe('ContentsSiteDonationResult (W12)', () => {
 
     fireEvent.click(skipBtn)
     expect(screen.getByRole('button', { name: 'Vaata tänutervitust' })).toBeTruthy()
+  })
+
+  it('reopens the film from "Watch video" after this tab has already seen it', async () => {
+    // Skipping records the film in sessionStorage, exactly like finishing it.
+    renderResult(confirmed, 'en')
+    fireEvent.click(screen.getByRole('button', { name: 'Skip thank you video' }))
+    await waitFor(() =>
+      expect(screen.queryByRole('region', { name: 'Thank you video' })).toBeNull(),
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: 'Watch thank you greeting' }))
+    expect(screen.getByRole('region', { name: 'Thank you video' })).toBeTruthy()
   })
 
   it('translates video overlay to the active locale (English)', () => {

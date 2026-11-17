@@ -61,6 +61,7 @@ vi.mock('@/providers/stripe', () => ({
 }))
 vi.mock('@/providers/donation', () => ({
   GET_DONATION_SUMMARY: mocks.donationProvider.GET_DONATION_SUMMARY,
+  GET_DONATION_BY_PAYMENT_ID: vi.fn(),
 }))
 
 import { GeneralError } from '@/utils/general-error'

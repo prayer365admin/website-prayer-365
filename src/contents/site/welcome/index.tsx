@@ -35,7 +35,7 @@ export default function ContentsSiteWelcome({
 }) {
   return (
     <div className="min-h-screen bg-[#F5F7FF] text-[#191C1E] font-font_heading flex flex-col justify-between selection:bg-[#2F7AD2] selection:text-white">
-      <SiteTopBar variant="general" />
+      <SiteTopBar />
       <main className="flex-1">
         <WelcomeHero
           dailyDate={dailyDate}
