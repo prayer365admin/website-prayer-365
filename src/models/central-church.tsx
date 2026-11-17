@@ -89,6 +89,8 @@ export interface ChurchListItem extends ChurchSummary {
   countryCode: string | null
   /** Ancestor org nodes, outermost first (e.g. ['Diocese of X', 'Deanery Y']). */
   organization: string[]
+  /** Platform beneficiary (Prayer 365's own giving row): read-only in central admin. */
+  isPlatform: boolean
 }
 
 /** Central church setup detail (S16 form source). */
@@ -109,6 +111,8 @@ export interface ChurchDetail {
   country: string | null
   countryCode: string | null
   organization: string[]
+  /** Platform beneficiary row: every mutating admin path refuses it. */
+  isPlatform: boolean
   approvedAt: string | null
   version: number
   createdAt: string

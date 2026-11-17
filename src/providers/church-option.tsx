@@ -34,6 +34,8 @@ export const LIST_CHURCH_OPTIONS = async ({
   const rows = await db.church.findMany({
     where: {
       status: APPROVED,
+      // A parish picker never offers the platform beneficiary.
+      is_platform: false,
       ...(query.search ? { name: { contains: query.search, mode: 'insensitive' } } : {}),
     },
     orderBy: [{ name: 'asc' }, { id: 'asc' }],
@@ -54,7 +56,7 @@ export const LIST_FREQUENT_CHURCHES = async (): Promise<ChurchOption[]> => {
     by: ['church_id'],
     where: {
       OR: [{ is_followed: true }, { is_main: true }],
-      church: { status: APPROVED },
+      church: { status: APPROVED, is_platform: false },
       user: CUSTOMER_ACCOUNT_FILTER,
     },
     _count: { church_id: true },
@@ -64,7 +66,7 @@ export const LIST_FREQUENT_CHURCHES = async (): Promise<ChurchOption[]> => {
   const ids = counts.map((c) => c.church_id)
 
   const followed = await db.church.findMany({
-    where: { id: { in: ids }, status: APPROVED },
+    where: { id: { in: ids }, status: APPROVED, is_platform: false },
     select,
   })
   const byId = new Map(followed.map((c) => [c.id, c]))
@@ -74,7 +76,7 @@ export const LIST_FREQUENT_CHURCHES = async (): Promise<ChurchOption[]> => {
   const filler =
     missing > 0
       ? await db.church.findMany({
-          where: { status: APPROVED, id: { notIn: ids } },
+          where: { status: APPROVED, is_platform: false, id: { notIn: ids } },
           orderBy: [{ name: 'asc' }, { id: 'asc' }],
           take: missing,
           select,

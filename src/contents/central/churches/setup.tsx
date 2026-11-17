@@ -521,7 +521,7 @@ export function ChurchSetupForm({
             form={form}
             layout="vertical"
             onFinish={submit}
-            disabled={Boolean(data) && !canUpdate}
+            disabled={data ? !canUpdate || data.isPlatform : false}
             className={formClasses}
           >
             <div className="flex-1 overflow-y-auto p-6">{formFields}</div>
@@ -590,7 +590,7 @@ export function ChurchSetupForm({
           form={form}
           layout="vertical"
           onFinish={submit}
-          disabled={Boolean(data) && !canUpdate}
+          disabled={data ? !canUpdate || data.isPlatform : false}
           className={formClasses}
         >
           {formFields}

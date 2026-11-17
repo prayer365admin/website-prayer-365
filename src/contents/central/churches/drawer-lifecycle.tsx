@@ -27,11 +27,16 @@ export default function DrawerLifecycle({
   const [purgeOpen, setPurgeOpen] = useState(false)
 
   const permission = useAccessPermission()
+  // The platform beneficiary (Prayer 365's own giving row) is not a parish: it has
+  // no lifecycle here at all — the server refuses every path with SYSTEM_RECORD_PROTECTED.
+  const systemRow = church.isPlatform === true
   const canLifecycle =
-    permission.updateAny('prayer_church_lifecycle').granted ||
-    permission.updateOwn('prayer_church_lifecycle').granted
+    !systemRow &&
+    (permission.updateAny('prayer_church_lifecycle').granted ||
+      permission.updateOwn('prayer_church_lifecycle').granted)
   const canDelete =
-    permission.deleteAny('prayer_church').granted || permission.deleteOwn('prayer_church').granted
+    !systemRow &&
+    (permission.deleteAny('prayer_church').granted || permission.deleteOwn('prayer_church').granted)
 
   const runLifecycle = (action: ChurchLifecycleAction) => {
     confirmLifecycle(modal, church, action, async (params) => {

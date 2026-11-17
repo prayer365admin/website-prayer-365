@@ -38,6 +38,8 @@ const renderResult = (initialStatus: DonationStatusView, locale: SiteLocale = 'e
 
 beforeEach(() => {
   vi.clearAllMocks()
+  // Both memories outlive a render: the film's seen-once marker (sessionStorage)
+  // would hide the overlay, and the mute preference (localStorage) would silence it.
   window.sessionStorage.clear()
   window.localStorage.clear()
 })
@@ -112,6 +114,18 @@ describe('ContentsSiteDonationResult (W12)', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Jäta video vahele' }))
     await waitFor(() => expect(screen.queryByRole('region', { name: 'Tänutervitus' })).toBeNull())
     expect(screen.getByRole('button', { name: 'Vaata tänutervitust' })).toBeTruthy()
+  })
+
+  it('reopens the film from "Watch video" after this tab has already seen it', async () => {
+    // Skipping records the film in sessionStorage, exactly like finishing it.
+    renderResult(confirmed, 'en')
+    fireEvent.click(screen.getByRole('button', { name: 'Skip thank you video' }))
+    await waitFor(() =>
+      expect(screen.queryByRole('region', { name: 'Thank you video' })).toBeNull(),
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: 'Watch thank you greeting' }))
+    expect(screen.getByRole('region', { name: 'Thank you video' })).toBeTruthy()
   })
 
   it('translates video overlay to the active locale (English)', () => {

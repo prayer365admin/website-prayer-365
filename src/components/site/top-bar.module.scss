@@ -32,23 +32,14 @@
   grid-column: 1;
 }
 
-.authInner .brandGroup,
 .generalInner .brandGroup {
   gap: 8px;
-}
-
-.authNavigation {
-  grid-column: 5 / span 4;
 }
 
 .generalContent {
   grid-column: 2 / span 6;
   min-width: 0;
   height: 32px;
-}
-
-.authInner .actions {
-  grid-column: 11 / -1;
 }
 
 .generalInner .actions {
@@ -146,7 +137,6 @@
 }
 
 .authNavigation {
-  justify-content: center;
   gap: 12px;
 }
 
@@ -157,8 +147,7 @@
   padding-left: 12px;
 }
 
-.navigationLink,
-.primaryLink {
+.navigationLink {
   white-space: nowrap;
   border-radius: 8px;
   color: #16191f;
@@ -177,12 +166,6 @@
 
 .activeNavigationLink,
 .activeNavigationLink:hover {
-  background: var(--color-primary-500);
-  color: white;
-}
-
-.primaryLink {
-  padding: 0 18px;
   background: var(--color-primary-500);
   color: white;
 }
@@ -528,20 +511,6 @@
 
   .menuButton {
     display: inline-flex;
-  }
-
-  .authInner .actions {
-    display: none;
-  }
-
-  .authInner {
-    position: relative;
-  }
-
-  .authInner .authNavigation {
-    position: absolute;
-    left: 50%;
-    transform: translateX(-50%);
   }
 
   .generalContent {

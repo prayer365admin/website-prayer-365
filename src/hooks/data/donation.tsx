@@ -4,7 +4,12 @@ import axios from 'axios'
 import { useSession } from 'next-auth/react'
 
 export interface DonationListOptions {
-  churchId: string
+  churchId?: string
+  /**
+   * Central report instead of a parish one: guest gifts attributed to the hidden
+   * platform church. `churchId` is ignored when set.
+   */
+  platform?: boolean
   page?: number
   limit?: number
   orderBy?: 'paid_at' | 'created_at' | 'amount'
@@ -15,7 +20,7 @@ export interface DonationListOptions {
   enableFetch?: boolean
 }
 
-export type DonationListFilters = Omit<DonationListOptions, 'churchId' | 'enableFetch'>
+export type DonationListFilters = Omit<DonationListOptions, 'churchId' | 'platform' | 'enableFetch'>
 
 export interface DonationSubscriptionListOptions {
   churchId: string
@@ -33,7 +38,9 @@ export type DonationSubscriptionListFilters = Omit<
 >
 
 export interface DonationSummaryOptions {
-  churchId: string
+  churchId?: string
+  /** Guest gifts (platform beneficiary) instead of a parish summary. */
+  platform?: boolean
   month: string
   enableFetch?: boolean
 }
@@ -60,6 +67,7 @@ export const donationKeys = {
 export const useDonations = (options: DonationListOptions) => {
   const {
     churchId,
+    platform = false,
     page = 1,
     limit = 25,
     orderBy = 'paid_at',
@@ -88,10 +96,15 @@ export const useDonations = (options: DonationListOptions) => {
     queryParams.set('currency', currency)
   }
 
-  const listUrl = `/api/v1/admin/churches/${encodeURIComponent(churchId)}/donations`
+  // `platform` reads the guest-giving ledger at central scope; the scope string
+  // keeps the two reports in separate cache buckets.
+  const scopeId = platform ? 'platform' : (churchId ?? '')
+  const listUrl = platform
+    ? '/api/v1/admin/central/donations'
+    : `/api/v1/admin/churches/${encodeURIComponent(churchId ?? '')}/donations`
 
   const { data, isLoading, error, refetch } = useQuery({
-    queryKey: donationKeys.transactions(userId, churchId, {
+    queryKey: donationKeys.transactions(userId, scopeId, {
       page,
       limit,
       orderBy,
@@ -107,7 +120,7 @@ export const useDonations = (options: DonationListOptions) => {
         total: response.data.total as number,
       }
     },
-    enabled: Boolean(enableFetch && churchId),
+    enabled: Boolean(enableFetch && scopeId),
   })
 
   return { data: data?.result ?? [], total: data?.total ?? 0, loading: isLoading, error, refetch }
@@ -159,19 +172,22 @@ export const useDonationSubscriptions = (options: DonationSubscriptionListOption
 }
 
 export const useDonationSummary = (options: DonationSummaryOptions) => {
-  const { churchId, month, enableFetch = true } = options
+  const { churchId, platform = false, month, enableFetch = true } = options
   const { data: session } = useSession()
   const userId = session?.user?.user_id ?? undefined
 
-  const summaryUrl = `/api/v1/admin/churches/${encodeURIComponent(churchId)}/donation-summary?month=${encodeURIComponent(month)}`
+  const scopeId = platform ? 'platform' : (churchId ?? '')
+  const summaryUrl = platform
+    ? `/api/v1/admin/central/donation-summary?month=${encodeURIComponent(month)}`
+    : `/api/v1/admin/churches/${encodeURIComponent(churchId ?? '')}/donation-summary?month=${encodeURIComponent(month)}`
 
   const { data, isLoading, error, refetch } = useQuery({
-    queryKey: donationKeys.summary(userId, churchId, month),
+    queryKey: donationKeys.summary(userId, scopeId, month),
     queryFn: async () => {
       const response = await axios.get(summaryUrl)
       return response.data.result as DonationSummary
     },
-    enabled: Boolean(enableFetch && churchId && month),
+    enabled: Boolean(enableFetch && scopeId && month),
   })
 
   return { data, loading: isLoading, error, refetch }

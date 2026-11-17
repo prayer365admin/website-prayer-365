@@ -180,12 +180,35 @@ const CentralGeneralPrayersItem = (router: ReturnType<typeof useRouter>): MenuPr
   ]
 }
 
+/**
+ * Guest giving (`/give`) is attributed to the platform beneficiary, not a parish,
+ * so its ledger is a central report and follows the donation permission.
+ */
+const CentralDonationsItem = (router: ReturnType<typeof useRouter>): MenuProps['items'] => {
+  const permission = useAccessPermission()
+  const canRead =
+    permission.readAny('prayer_donation').granted || permission.readOwn('prayer_donation').granted
+  if (!canRead) return []
+  return [
+    {
+      key: '/dashboard/central/donations',
+      label: 'Platform Giving',
+      // A receipt-style mark: this is a ledger report, not another prayer list.
+      icon: <LayoutIcon name="verified" />,
+      onClick: () => {
+        router.push('/dashboard/central/donations')
+      },
+    },
+  ]
+}
+
 export const SidebarMenu = () => {
   const router = useRouter()
   const items = DashboardItems(router) ?? []
   const generalPrayers = CentralGeneralPrayersItem(router) ?? []
+  const donations = CentralDonationsItem(router) ?? []
 
-  // Splice the gated entry into the central group, leaving every other entry untouched.
+  // Splice the gated entries into the central group, leaving every other entry untouched.
   return items.map((item) => {
     if (!item || !('children' in item) || item.key !== 'central') return item
     const children = item.children ?? []
@@ -193,7 +216,7 @@ export const SidebarMenu = () => {
     const tail = children.slice(3)
     return {
       ...item,
-      children: [...head, ...generalPrayers, ...tail],
+      children: [...head, ...generalPrayers, ...donations, ...tail],
     }
   })
 }

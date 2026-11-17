@@ -1,7 +1,12 @@
-import { DonationInitiateResult, DonationInput, DonationStatusView } from '@/models/donation'
+import {
+  DonationInitiateResult,
+  DonationInput,
+  DonationStatusView,
+  PublicDonationStatusClientView,
+} from '@/models/donation'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import axios from 'axios'
-import { useRef } from 'react'
+import { useEffect, useRef } from 'react'
 
 /**
  * Website donations (WB-43). One Idempotency-Key per checkout attempt, so a
@@ -19,6 +24,24 @@ export const useInitiateDonation = () => {
           { headers: { 'Idempotency-Key': crypto.randomUUID() } },
         )
       ).data.result as DonationInitiateResult,
+  })
+  return { onInitiate, initiating }
+}
+
+/**
+ * Public giving (`/give`, PD-UI-02). A guest has no actor to key an idempotent
+ * request on (D-13), so no `Idempotency-Key` is sent; a duplicate Checkout
+ * session simply expires unpaid and writes no ledger row.
+ */
+export const useInitiatePublicDonation = () => {
+  const { mutateAsync: onInitiate, isPending: initiating } = useMutation({
+    mutationFn: async ({
+      input,
+    }: {
+      input: { amountMinor: number; currency: string; frequency: 'one_time' }
+    }) =>
+      (await axios.post('/api/v1/site/donations/public', input)).data
+        .result as DonationInitiateResult,
   })
   return { onInitiate, initiating }
 }
@@ -56,8 +79,8 @@ const POLL_SLOW_MS = 10_000
 const POLL_IDLE_MS = 30_000
 const POLL_FAST_WINDOW_MS = 60 * 1000
 const POLL_SLOW_WINDOW_MS = 5 * 60 * 1000
-/** Hard stop: after the checkout TTL the webhook is the only source of truth. */
-export const POLL_TOTAL_MS = 10 * 60 * 1000
+/** Hard stop at the checkout session TTL (31 min): past it nobody can pay. */
+export const POLL_TOTAL_MS = 31 * 60 * 1000
 
 /**
  * Next refetch delay for the result page, or `false` to stop. Pure on purpose: the
@@ -75,7 +98,8 @@ export const nextDonationPollInterval = ({
   failedSinceMs: number | null
   nowMs: number
 }): number | false => {
-  if (state === 'confirmed') return false
+  // Both are settled ledger outcomes: nothing in the checkout can change them.
+  if (state === 'confirmed' || state === 'refunded') return false
   if (elapsedMs >= POLL_TOTAL_MS) return false
   // `failed` is provisional for one minute: the same attempt can still settle.
   if (state === 'failed') {
@@ -138,5 +162,62 @@ export const useDonationStatus = ({
     retry: 5,
     retryDelay: 3000,
   })
+  // Returning to the tab re-checks once: the interval ladder stops on a
+  // provisional `failed`, and a giver should not have to reload the page.
+  useEffect(() => {
+    const wake = () => void query.refetch()
+    window.addEventListener('focus', wake)
+    return () => window.removeEventListener('focus', wake)
+  }, [query])
+  return { status: query.data ?? null, checking: query.isFetching }
+}
+
+/**
+ * The public thank-you page's own watch (PD-UI-03). Same rules, same backoff and
+ * same hard stop as `useDonationStatus` — the shared `nextDonationPollInterval`
+ * is reused verbatim rather than forked, because two ladders would drift and a
+ * paid guest would be parked on the wrong screen. The server scopes the answer to
+ * the platform's own sessions (D-14); the client only names the session.
+ */
+export const usePublicDonationStatus = ({
+  sessionId,
+  enabled,
+}: {
+  sessionId: string | null
+  enabled: boolean
+}) => {
+  const failedSince = useRef<number | null>(null)
+  const startedAt = useRef<number | null>(null)
+  const query = useQuery({
+    queryKey: ['site', 'donations', 'public', 'status', sessionId],
+    queryFn: async () =>
+      (
+        await axios.get('/api/v1/site/donations/public/status', {
+          params: { sessionId },
+        })
+      ).data.result as PublicDonationStatusClientView,
+    enabled: enabled && Boolean(sessionId),
+    refetchInterval: (current) => {
+      const now = Date.now()
+      const sinceStart = (startedAt.current ??= now)
+      const interval = nextDonationPollInterval({
+        state: current.state.data?.state,
+        elapsedMs: now - sinceStart,
+        failedSinceMs: failedSince.current,
+        nowMs: now,
+      })
+      failedSince.current =
+        current.state.data?.state === 'failed' ? (failedSince.current ?? now) : null
+      return interval
+    },
+    retry: 5,
+    retryDelay: 3000,
+  })
+  // Same one-shot wake as the signed-in watch: a tab return re-checks once.
+  useEffect(() => {
+    const wake = () => void query.refetch()
+    window.addEventListener('focus', wake)
+    return () => window.removeEventListener('focus', wake)
+  }, [query])
   return { status: query.data ?? null, checking: query.isFetching }
 }
