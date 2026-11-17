@@ -15,17 +15,65 @@ describe('ThankYouVideoOverlay', () => {
   afterEach(() => {
     vi.restoreAllMocks()
     vi.useRealTimers()
+    window.localStorage.clear()
   })
 
-  it('renders video element with autoplay, muted, playsInline and correct source', () => {
+  it('renders autoplay, playsInline video with correct source', () => {
     const { container } = renderWithI18n(<ThankYouVideoOverlay />)
     const video = container.querySelector('video')
 
     expect(video).toBeTruthy()
     expect(video?.getAttribute('src')).toBe('/videos/thankyou.webm')
-    expect(video?.muted).toBe(true)
     expect(video?.hasAttribute('autoplay')).toBe(true)
     expect(video?.hasAttribute('playsinline')).toBe(true)
+  })
+
+  it('tries unmuted playback and falls back to muted when the browser blocks it', async () => {
+    const play = vi
+      .spyOn(HTMLMediaElement.prototype, 'play')
+      .mockRejectedValueOnce(new Error('NotAllowedError'))
+      .mockResolvedValue(undefined)
+
+    const { container } = renderWithI18n(<ThankYouVideoOverlay />)
+    const video = container.querySelector('video')!
+
+    await act(async () => {})
+
+    expect(play).toHaveBeenCalledTimes(2)
+    expect(video.muted).toBe(true)
+
+    // Toggle is visible while muted; clicking it unmutes and records the choice.
+    fireEvent.click(screen.getByRole('button', { name: 'Lülita video heli sisse' }))
+
+    expect(video.muted).toBe(false)
+    expect(window.localStorage.getItem('thankyou_video_muted')).toBe('0')
+    expect(screen.getByRole('button', { name: 'Lülita video heli välja' })).toBeTruthy()
+  })
+
+  it('stays muted and skips the sound attempt when the visitor muted before', () => {
+    window.localStorage.setItem('thankyou_video_muted', '1')
+    const play = vi.spyOn(HTMLMediaElement.prototype, 'play').mockResolvedValue(undefined)
+
+    const { container } = renderWithI18n(<ThankYouVideoOverlay />)
+    const video = container.querySelector('video')!
+
+    expect(play).toHaveBeenCalledTimes(1)
+    expect(video.muted).toBe(true)
+    expect(screen.getByRole('button', { name: 'Lülita video heli sisse' })).toBeTruthy()
+  })
+
+  it('mutes and persists the choice when the visitor turns sound off', async () => {
+    vi.spyOn(HTMLMediaElement.prototype, 'play').mockResolvedValue(undefined)
+
+    const { container } = renderWithI18n(<ThankYouVideoOverlay />)
+    const video = container.querySelector('video')!
+    await act(async () => {})
+
+    expect(video.muted).toBe(false)
+    fireEvent.click(screen.getByRole('button', { name: 'Lülita video heli välja' }))
+
+    expect(video.muted).toBe(true)
+    expect(window.localStorage.getItem('thankyou_video_muted')).toBe('1')
   })
 
   it('displays the storyboard texts across video lifecycle', () => {

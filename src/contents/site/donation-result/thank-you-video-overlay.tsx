@@ -4,6 +4,26 @@ import Image from 'next/image'
 import { useSiteI18n } from '@/i18n/site-i18n'
 import { useCallback, useEffect, useRef, useState } from 'react'
 
+const MUTED_STORAGE_KEY = 'thankyou_video_muted'
+
+function readMutedPreference(): boolean | null {
+  if (typeof window === 'undefined') return null
+  try {
+    const value = window.localStorage.getItem(MUTED_STORAGE_KEY)
+    return value === '1' ? true : value === '0' ? false : null
+  } catch {
+    return null
+  }
+}
+
+function writeMutedPreference(muted: boolean) {
+  try {
+    window.localStorage.setItem(MUTED_STORAGE_KEY, muted ? '1' : '0')
+  } catch {
+    // Storage disabled: preference just is not remembered.
+  }
+}
+
 export interface ThankYouVideoOverlayProps {
   onComplete?: () => void
 }
@@ -11,9 +31,21 @@ export interface ThankYouVideoOverlayProps {
 export default function ThankYouVideoOverlay({ onComplete }: ThankYouVideoOverlayProps) {
   const { t } = useSiteI18n()
   const videoRef = useRef<HTMLVideoElement>(null)
+  const playAttemptedRef = useRef(false)
   const [currentTime, setCurrentTime] = useState(0)
   const [isFading, setIsFading] = useState(false)
   const [isDismissed, setIsDismissed] = useState(false)
+  const [isMuted, setIsMuted] = useState(true)
+
+  const handleToggleMute = useCallback(() => {
+    const video = videoRef.current
+    if (!video) return
+    const nextMuted = !video.muted
+    video.muted = nextMuted
+    setIsMuted(nextMuted)
+    writeMutedPreference(nextMuted)
+    if (!nextMuted) video.play().catch(() => {})
+  }, [])
 
   const handleEnd = useCallback(() => {
     setIsFading(true)
@@ -37,15 +69,41 @@ export default function ThankYouVideoOverlay({ onComplete }: ThankYouVideoOverla
     const video = videoRef.current
     if (!video) return
 
-    try {
-      const promise = video.play()
-      if (promise && typeof promise.catch === 'function') {
-        promise.catch(() => {
-          // Autoplay policy fallback: video remains ready or user can interact
-        })
+    // Keep the toggle in sync with the real element (also covers StrictMode
+    // double-invocation and any later programmatic mute).
+    const syncMuted = () => setIsMuted(video.muted)
+    video.addEventListener('volumechange', syncMuted)
+
+    if (!playAttemptedRef.current) {
+      playAttemptedRef.current = true
+      if (readMutedPreference() === true) {
+        // Visitor muted a previous thank-you video: stay muted. State already
+        // starts muted, so no sync needed here.
+        video.muted = true
+        video.play().catch(() => {})
+      } else {
+        try {
+          // Sound plays by default. Try unmuted autoplay first; browsers block it
+          // without a user gesture, so fall back to muted playback rather than a
+          // stalled video.
+          video.muted = false
+          const promise = video.play()
+          if (promise && typeof promise.then === 'function') {
+            promise.then(
+              () => setIsMuted(false),
+              () => {
+                // Autoplay policy fallback: play muted. This does not touch the
+                // stored preference; only an explicit toggle does.
+                video.muted = true
+                setIsMuted(true)
+                video.play().catch(() => {})
+              },
+            )
+          }
+        } catch {
+          // Fallback for environments lacking media playback
+        }
       }
-    } catch {
-      // Fallback for environments lacking media playback
     }
 
     let rafId: number
@@ -62,7 +120,10 @@ export default function ThankYouVideoOverlay({ onComplete }: ThankYouVideoOverla
     }
 
     rafId = requestAnimationFrame(updateLoop)
-    return () => cancelAnimationFrame(rafId)
+    return () => {
+      cancelAnimationFrame(rafId)
+      video.removeEventListener('volumechange', syncMuted)
+    }
   }, [handleEnd, isFading])
 
   if (isDismissed) return null
@@ -101,15 +162,48 @@ export default function ThankYouVideoOverlay({ onComplete }: ThankYouVideoOverla
       {/* Subtle overlay shading for guaranteed text contrast across cloud/sun changes */}
       <div className="pointer-events-none absolute inset-0 bg-white/10 backdrop-blur-[0.5px]" />
 
-      {/* Skip button in corner */}
-      <button
-        aria-label={t('thankYouVideoSkipAria')}
-        className="absolute right-5 top-5 z-20 rounded-full border border-white/40 bg-white/70 px-4 py-1.5 text-xs font-semibold text-neutral-800 shadow-sm backdrop-blur-md transition hover:bg-white/95"
-        onClick={handleSkip}
-        type="button"
-      >
-        {t('thankYouVideoSkip')}
-      </button>
+      {/* Top-right controls: mute toggle + skip */}
+      <div className="absolute right-5 top-5 z-20 flex items-center gap-2">
+        <button
+          aria-label={isMuted ? t('thankYouVideoSoundOnAria') : t('thankYouVideoSoundOffAria')}
+          className="flex items-center gap-1.5 rounded-full border border-white/40 bg-white/70 px-4 py-1.5 text-xs font-semibold text-neutral-800 shadow-sm backdrop-blur-md transition hover:bg-white/95"
+          onClick={handleToggleMute}
+          type="button"
+        >
+          <svg
+            aria-hidden="true"
+            className="h-3.5 w-3.5"
+            fill="none"
+            stroke="currentColor"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth="1.8"
+            viewBox="0 0 24 24"
+          >
+            <path d="M11 5 6 9H3v6h3l5 4V5Z" />
+            {isMuted ? (
+              <>
+                <path d="m16 9 5 5" />
+                <path d="m21 9-5 5" />
+              </>
+            ) : (
+              <>
+                <path d="M15.5 8.5a5 5 0 0 1 0 7" />
+                <path d="M18.5 5.5a9 9 0 0 1 0 13" />
+              </>
+            )}
+          </svg>
+          {isMuted ? t('thankYouVideoSoundOn') : t('thankYouVideoSoundOff')}
+        </button>
+        <button
+          aria-label={t('thankYouVideoSkipAria')}
+          className="rounded-full border border-white/40 bg-white/70 px-4 py-1.5 text-xs font-semibold text-neutral-800 shadow-sm backdrop-blur-md transition hover:bg-white/95"
+          onClick={handleSkip}
+          type="button"
+        >
+          {t('thankYouVideoSkip')}
+        </button>
+      </div>
 
       {/* Panel 1 (0:00 - 0:01): "Hea, et oled siin." */}
       <div
