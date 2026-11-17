@@ -5,9 +5,11 @@ import { SendOutlined } from '@ant-design/icons'
 import { Input } from 'antd'
 import Link from 'next/link'
 import { HandHeartIcon } from '@/components/icon/hand-heart'
+import { DONATION_FALLBACK_OPTIONS } from '@/contents/site/donate/data'
 import { useSiteI18n } from '@/i18n/site-i18n'
 
-const PRESET_AMOUNTS = [10, 50, 100, 25]
+/** Same EUR ladder as the mobile app and the donate form: 5 / 10 / 25 / 50. */
+const PRESET_AMOUNTS = DONATION_FALLBACK_OPTIONS.presetsMinor.map((minor) => minor / 100)
 interface StewardshipProps {
   slug: string
   churchName?: string
@@ -15,7 +17,7 @@ interface StewardshipProps {
 
 export function Stewardship({ slug, churchName }: StewardshipProps) {
   const { t } = useSiteI18n()
-  const [selectedAmount, setSelectedAmount] = useState<number | null>(10)
+  const [selectedAmount, setSelectedAmount] = useState<number | null>(5)
   const [customAmount, setCustomAmount] = useState('')
 
   const handlePresetClick = (amount: number) => {
