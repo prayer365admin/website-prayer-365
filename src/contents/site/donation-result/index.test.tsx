@@ -36,7 +36,11 @@ const renderResult = (initialStatus: DonationStatusView, locale: SiteLocale = 'e
   )
 }
 
-beforeEach(() => vi.clearAllMocks())
+beforeEach(() => {
+  vi.clearAllMocks()
+  window.sessionStorage.clear()
+  window.localStorage.clear()
+})
 
 describe('ContentsSiteDonationResult (W12)', () => {
   it('shows the confirmed state, summary and next steps for a settled gift', () => {
@@ -87,7 +91,7 @@ describe('ContentsSiteDonationResult (W12)', () => {
     )
   })
 
-  it('renders the thanks video overlay in Estonian when locale is et, and can be skipped', () => {
+  it('renders the thanks video overlay in Estonian when locale is et, and can be skipped', async () => {
     renderResult(confirmed, 'et')
 
     const region = screen.getByRole('region', { name: 'Tänutervitus' })
@@ -97,6 +101,16 @@ describe('ContentsSiteDonationResult (W12)', () => {
     expect(skipBtn).toBeTruthy()
 
     fireEvent.click(skipBtn)
+    const watchBtn = screen.getByRole('button', { name: 'Vaata tänutervitust' })
+    expect(watchBtn).toBeTruthy()
+
+    // The sessionStorage marker is written on skip, so the replay flag has to win.
+    fireEvent.click(watchBtn)
+    expect(screen.getByRole('region', { name: 'Tänutervitus' })).toBeTruthy()
+    expect(screen.getByText('Hea, et oled siin.')).toBeTruthy()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Jäta video vahele' }))
+    await waitFor(() => expect(screen.queryByRole('region', { name: 'Tänutervitus' })).toBeNull())
     expect(screen.getByRole('button', { name: 'Vaata tänutervitust' })).toBeTruthy()
   })
 

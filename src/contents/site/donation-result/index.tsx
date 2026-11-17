@@ -7,8 +7,10 @@ import { useSiteI18n } from '@/i18n/site-i18n'
 import { DonationStatusView } from '@/models/donation'
 import { CheckCircleFilled, ClockCircleOutlined, CloseCircleFilled } from '@ant-design/icons'
 import Link from 'next/link'
-import { useCallback, useState } from 'react'
+import { useCallback, useState, useSyncExternalStore } from 'react'
 import ThankYouVideoOverlay from './thank-you-video-overlay'
+
+const subscribeToNothing = () => () => {}
 
 const STATE_ICON = {
   confirmed: { Icon: CheckCircleFilled, className: 'text-success-500' },
@@ -38,19 +40,28 @@ export default function ContentsSiteDonationResult({
     enabled: initialStatus.state !== 'confirmed',
   })
   const current = status ?? initialStatus
-  const [videoDismissed, setVideoDismissed] = useState(() => {
-    if (typeof window === 'undefined') return false
-    try {
-      return Boolean(
-        attempt.sessionId && sessionStorage.getItem(`thankyou_video_${attempt.sessionId}`),
-      )
-    } catch {
-      return false
-    }
-  })
+  // sessionStorage is client-only. useSyncExternalStore keeps the server snapshot
+  // false and swaps in the stored value after hydration, so a returning visitor
+  // never causes an SSR/client tree mismatch.
+  const [videoDismissed, setVideoDismissed] = useState(false)
+  const [replayRequested, setReplayRequested] = useState(false)
+  const previouslyDismissed = useSyncExternalStore(
+    subscribeToNothing,
+    () => {
+      try {
+        return Boolean(
+          attempt.sessionId && sessionStorage.getItem(`thankyou_video_${attempt.sessionId}`),
+        )
+      } catch {
+        return false
+      }
+    },
+    () => false,
+  )
 
   const handleVideoComplete = useCallback(() => {
     setVideoDismissed(true)
+    setReplayRequested(false)
     try {
       if (attempt.sessionId && typeof window !== 'undefined') {
         sessionStorage.setItem(`thankyou_video_${attempt.sessionId}`, '1')
@@ -60,7 +71,8 @@ export default function ContentsSiteDonationResult({
     }
   }, [attempt.sessionId])
 
-  const showVideo = current.state === 'confirmed' && !videoDismissed
+  const showVideo =
+    current.state === 'confirmed' && (replayRequested || (!previouslyDismissed && !videoDismissed))
 
   const { Icon, className } = STATE_ICON[current.state]
 
@@ -141,7 +153,10 @@ export default function ContentsSiteDonationResult({
               {current.state === 'confirmed' && (
                 <button
                   className="text-sm font-semibold text-primary-600 underline-offset-2 hover:underline hover:text-primary-700"
-                  onClick={() => setVideoDismissed(false)}
+                  onClick={() => {
+                    setVideoDismissed(false)
+                    setReplayRequested(true)
+                  }}
                   type="button"
                 >
                   {t('donateResultWatchVideo')}
