@@ -26,7 +26,11 @@ describe('LIST_CHURCH_OPTIONS', () => {
     const result = await LIST_CHURCH_OPTIONS({ query: { search: 'jaani' } })
 
     expect(db.church.findMany).toHaveBeenCalledWith({
-      where: { status: 'APPROVED', name: { contains: 'jaani', mode: 'insensitive' } },
+      where: {
+        status: 'APPROVED',
+        is_platform: false,
+        name: { contains: 'jaani', mode: 'insensitive' },
+      },
       orderBy: [{ name: 'asc' }, { id: 'asc' }],
       take: 20,
       select: { id: true, slug: true, name: true, address: true },
@@ -55,7 +59,7 @@ describe('LIST_FREQUENT_CHURCHES', () => {
         by: ['church_id'],
         where: {
           OR: [{ is_followed: true }, { is_main: true }],
-          church: { status: 'APPROVED' },
+          church: { status: 'APPROVED', is_platform: false },
           // Plan 022: staff accounts that follow/pick a parish must not influence
           // the follower ranking.
           user: CUSTOMER_ACCOUNT_FILTER,
@@ -77,7 +81,7 @@ describe('LIST_FREQUENT_CHURCHES', () => {
 
     expect(db.church.findMany).toHaveBeenLastCalledWith(
       expect.objectContaining({
-        where: { status: 'APPROVED', id: { notIn: ['b'] } },
+        where: { status: 'APPROVED', is_platform: false, id: { notIn: ['b'] } },
         take: 3,
       }),
     )

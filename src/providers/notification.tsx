@@ -102,10 +102,13 @@ export const SCAN_EVENTS_STARTING_BETWEEN = async ({ from, to }: { from: Date; t
     orderBy: { starts_at: 'asc' },
   })
 
-/** Donation reminders are church-scoped: only approved churches are notified. */
+/**
+ * Donation reminders are church-scoped: only approved parishes are notified.
+ * The platform beneficiary is not a parish — nobody has a pledge to it.
+ */
 export const LIST_APPROVED_CHURCH_IDS = async () =>
   db.church.findMany({
-    where: { status: 'APPROVED' },
+    where: { status: 'APPROVED', is_platform: false },
     select: { id: true },
     orderBy: { id: 'asc' },
   })

@@ -1,4 +1,5 @@
 import { GeneralError } from '@/utils/general-error'
+import { PLATFORM_DONATION_MAX_MINOR, PLATFORM_DONATION_MIN_MINOR } from '@/config/platform-church'
 import { z } from 'zod'
 
 /** W11 "Designate Ministry Purpose": the designation a gift is directed to. */
@@ -225,6 +226,49 @@ export const SiteDonationInitiateSchema = DonationInputSchema.extend({
 })
 
 export type SiteDonationInitiate = z.infer<typeof SiteDonationInitiateSchema>
+
+/**
+ * POST /api/v1/site/donations/public body: an anonymous gift to Prayer 365 itself.
+ *
+ * `.strict()` is the security control, not a style choice — the beneficiary is
+ * resolved server-side from the seeded platform row, so a body that names a
+ * `churchId`, a `successUrl`/`cancelUrl` (open redirect / spoofed return) or a
+ * monthly frequency is a 422 instead of being silently ignored.
+ */
+export const PublicDonationInitiateSchema = z
+  .object({
+    amountMinor: z.number().int().min(PLATFORM_DONATION_MIN_MINOR).max(PLATFORM_DONATION_MAX_MINOR),
+    currency: z.literal('eur'),
+    frequency: z.literal('one_time'),
+  })
+  .strict()
+
+export type PublicDonationInitiate = z.infer<typeof PublicDonationInitiateSchema>
+
+/** GET /api/v1/site/donations/public/status query: one provider checkout session id. */
+export const PublicDonationStatusQuerySchema = z
+  .object({
+    sessionId: z
+      .string()
+      .trim()
+      .regex(/^cs_[A-Za-z0-9_]+$/),
+  })
+  .strict()
+
+export type PublicDonationStatusQuery = z.infer<typeof PublicDonationStatusQuerySchema>
+
+/** What the public thank-you page reads: the outcome only, never donor identity. */
+export type PublicDonationStatusView = {
+  state: 'confirmed' | 'refunded' | 'pending' | 'failed' | 'unknown'
+  amountMinor: number | null
+  currency: string | null
+  paidAt: Date | null
+}
+
+/** The same view after JSON: the timestamp travels as an ISO string. */
+export type PublicDonationStatusClientView = Omit<PublicDonationStatusView, 'paidAt'> & {
+  paidAt: string | null
+}
 
 /** POST body for the billing-portal hand-off: an in-app return path, never a host. */
 export const BillingPortalRequestSchema = z

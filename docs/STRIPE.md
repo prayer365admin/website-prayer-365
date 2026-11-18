@@ -11,6 +11,61 @@ This document outlines the Stripe webhook and payment integration (SPEC §9.6, T
 - **Account Resolution:** Incoming events resolve their account from `event.account`, falling back to `data.object.account`, then to `STRIPE_PLATFORM_ACCOUNT_ID` (the normal case for single-account webhooks). An unset `STRIPE_PLATFORM_ACCOUNT_ID` makes every webhook fail with 500 `STRIPE_PLATFORM_ACCOUNT_ID_MISSING` until configured.
 - **Isolation & Protection:** Webhook events without a resolvable, approved `churchId` or from unconfigured sources are recorded as durable receipts for audit but **never** create donation rows or affect church records.
 
+## Platform Beneficiary (guest giving, `/give`)
+
+A visitor without an account can give from `/give`. That gift goes to **Prayer 365 itself**, never to a
+parish, and it reuses the existing checkout controller and webhook unchanged.
+
+- **The row.** A single hidden system church is seeded: `slug = prayer365`, `name = 'Prayer 365'`,
+  `status = APPROVED`, `is_platform = true` (`prisma/seeds/platform-church.ts`, idempotent, part of
+  `bunx prisma db seed`). It is identified in code by `PLATFORM_CHURCH_SLUG`
+  (`src/config/platform-church.ts`) and resolved server-side at runtime, so staging and production can
+  keep different row ids. The migration `20261116090000_platform_church_row` inserts the row as soon as
+  its org node exists, so a deployed database serves `/give` before the first seed; `bunx prisma db seed`
+  remains the idempotent source of truth, and it refuses to convert a parish that already owns the slug.
+- **Why `metadata.churchId` still carries an id.** The `payment.sync` worker skips every event without a
+  `churchId` (`src/controller/payment-sync-job.tsx`), so a null-church gift would be silently dropped —
+  no ledger row, no reconciliation. The platform row satisfies the attribution contract; nothing in the
+  webhook, the ledger shape or the reports changes. No `metadata.userId` is written and
+  `donations.user_id` stays `NULL`.
+- **What `/give` writes.** One-time gifts only (`frequency: 'one_time'`, `mode: 'payment'`), EUR, presets
+  5/10/25/50 plus a custom amount between 1 and 5,000 EUR. No `category` key, no subscription. The page
+  carries no parish selector: the beneficiary cannot be named by the browser.
+- **The two public routes** (unauthenticated, like the rest of the `site/**` family they are absent from
+  the OpenAPI registry):
+  - **`POST /api/v1/site/donations/public`** — body is exactly `{ amountMinor, currency: 'eur', frequency: 'one_time' }`
+    (strict). `successUrl`/`cancelUrl` are built server-side from `SITE_URL`, so a body naming a church, a
+    return URL or a monthly frequency is a `422`. No `Idempotency-Key`: a guest has no actor to key one on,
+    and a duplicate session simply expires unpaid. Returns `503 DONATIONS_NOT_READY` when the platform row
+    is missing (run the seed) or the integration is disabled.
+  - **`GET /api/v1/site/donations/public/status?sessionId=cs_…`** — the outcome, `Cache-Control: private, no-store`.
+    A session that is not the platform's own, is absent, or is not `payment` mode answers `404`, so an
+    anonymous caller cannot probe another giver's outcome by session id, and a disabled integration answers
+    `503 DONATIONS_NOT_READY` rather than `404` so a broken link and an outage render differently. Status
+    rules mirror the signed-in read: a live session outranks a FAILED ledger row, `paid` is
+    `paymentStatus === 'paid'`, `failed` only when the session is expired and the row is FAILED, and a
+    `REFUNDED` ledger row reports `refunded` — it outranks the session, because Stripe keeps
+    `paymentStatus = 'paid'` after a refund. The amount and `paidAt` are read from the ledger (never
+    minted), so both are `null` until the webhook lands.
+- **Reading guest giving.** These gifts are the platform's own revenue, so they are **not** in any parish
+  report and the parish donation routes answer `403` for the platform row (its org node sits outside the
+  parish scope tree on purpose). They are read at central scope with `prayer_donation` read:
+  - **`GET /api/v1/admin/central/donations`** — paginated `from`/`to`/`currency` ledger of guest gifts
+    (amount, currency, state, date, provider ref; no donor PII), `Cache-Control: private, no-store`.
+  - **`GET /api/v1/admin/central/donation-summary?month=YYYY-MM`** — per-currency gross/refunded/net for
+    that month, same no-cross-currency rule as the parish summary.
+  - **`/dashboard/central/donations`** ("Platform Giving" in the Central menu, shown only to callers who can
+    read donations) renders both: a transactions table and the monthly summary.
+  - Both routes answer `503 DONATIONS_NOT_READY` when the platform row is missing (run the seed), never an
+    empty report — an empty ledger and a missing beneficiary must not look the same.
+- **Admin protection.** The row appears in the central church list as one more beneficiary but is
+  read-only: `updateChurch`, `suspendChurch`, `archiveChurch`, `unarchiveChurch` and `purgeChurch` refuse it
+  with `403 SYSTEM_RECORD_PROTECTED`, and every public directory surface filters `is_platform: false`. The
+  FK from `donations.church_id` (RESTRICT) is the second line of defence once gifts exist.
+- **Receipts.** Stripe Checkout collects the guest's email and **Stripe** sends the receipt. Prayer 365
+  sends no receipt mail for these gifts and the thank-you page says so. Receipt emails must be enabled in
+  the Stripe dashboard.
+
 ## Configuration (Environment Variables)
 
 The following environment variables are required in your `.env` (or `.env.local`) file for the Stripe webhook endpoint to process incoming requests properly:
@@ -137,6 +192,8 @@ The webhook endpoint idempotently stores webhook receipts and pushes a `payment.
 - **`POST /api/v1/site/donations`** — starts a checkout. The body carries `churchId` plus `DonationInput` (`amountMinor`, `currency`, `frequency`, optional `category`); the giver comes from the session. A disabled integration returns `503 DONATIONS_NOT_READY`.
 - **`POST /api/v1/site/donations/portal`** — mints a Stripe **billing portal** session so the giver pauses or changes their own pledge in Stripe (`billingPortal.sessions.create`). The subscription is resolved from the signed-in giver's newest `active` `DonationSubscription` and its Customer comes from `subscriptions.retrieve`, so no client-supplied subscription/customer id is ever trusted. Optional `returnPath` must stay on `/donate*` and is resolved against this origin. No active pledge → `404 NO_ACTIVE_SUBSCRIPTION`.
 - **`GET /api/v1/site/donations/status`** — W12 attempt outcome read from our own ledger.
+- **`POST /api/v1/site/donations/public`** / **`GET /api/v1/site/donations/public/status`** — the
+  unauthenticated guest giving pair for `/give` (see "Platform Beneficiary" above).
 
 **Mobile (bearer token, `Cache-Control: no-store`):**
 

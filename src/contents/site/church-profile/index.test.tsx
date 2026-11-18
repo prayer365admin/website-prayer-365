@@ -224,15 +224,18 @@ describe('ContentsSiteChurchProfile', () => {
 
     expect(await screen.findByText('Parish Stewardship')).toBeTruthy()
 
-    // Default €10 selected
-    const btn10 = screen.getByRole('button', { name: '€10' })
-    expect(btn10.getAttribute('aria-pressed')).toBe('true')
+    // Default €5 selected — same ladder as mobile and the donate form.
+    const btn5 = screen.getByRole('button', { name: '€5' })
+    expect(btn5.getAttribute('aria-pressed')).toBe('true')
+    for (const label of ['€10', '€25', '€50']) {
+      expect(screen.getByRole('button', { name: label }).getAttribute('aria-pressed')).toBe('false')
+    }
 
     // Click €50 preset
     const btn50 = screen.getByRole('button', { name: '€50' })
     await user.click(btn50)
     expect(btn50.getAttribute('aria-pressed')).toBe('true')
-    expect(btn10.getAttribute('aria-pressed')).toBe('false')
+    expect(btn5.getAttribute('aria-pressed')).toBe('false')
 
     // Type custom amount
     const customInput = screen.getByPlaceholderText(/custom amount/i)

@@ -43,6 +43,20 @@ const stale = () =>
     details: 'The resource was modified concurrently; reload and retry.',
   })
 
+/**
+ * The platform beneficiary (Prayer 365's own giving row, `is_platform`) is not a
+ * parish: editing, suspending, archiving or deleting it would break `/give`
+ * without anyone noticing, so every mutating path refuses it explicitly instead
+ * of relying on status transitions and the FK restrict alone (D-11).
+ */
+const systemProtected = () =>
+  new GeneralError({
+    code: 403,
+    error: 'FORBIDDEN',
+    error_code: 'SYSTEM_RECORD_PROTECTED',
+    details: 'This record belongs to the Prayer 365 platform and cannot be modified here.',
+  })
+
 export const listChurches = async ({
   page,
   limit,
@@ -78,6 +92,7 @@ export const getChurch = async ({ churchId }: { churchId: string }) => {
     youth_ministry: church.youth_ministry,
     ...path,
     approvedAt: church.approved_at?.toISOString() ?? null,
+    isPlatform: church.is_platform,
     version: church.version,
     createdAt: church.created_at.toISOString(),
   }
@@ -171,6 +186,7 @@ export const updateChurch = async ({
   const church = await GET_CHURCH_BY_ID({ churchId })
   if (!church) throw notFound()
   if (payload.version !== church.version) throw stale()
+  if (church.is_platform) throw systemProtected()
 
   const updated = await dbTransaction(async (tx) => {
     // slug is set once at creation; church renames deliberately do not change the public URL.
@@ -284,6 +300,7 @@ export const suspendChurch = async ({
   const church = await GET_CHURCH_BY_ID({ churchId })
   if (!church) throw notFound()
   if (version !== church.version) throw stale()
+  if (church.is_platform) throw systemProtected()
   fromStatuses(churchId, church.status, ['APPROVED', 'PENDING'], 'SUSPENDED')
 
   const updated = await dbTransaction(async (tx) => {
@@ -352,6 +369,7 @@ export const archiveChurch = async ({
   const church = await GET_CHURCH_BY_ID({ churchId })
   if (!church) throw notFound()
   if (version !== church.version) throw stale()
+  if (church.is_platform) throw systemProtected()
   if (church.status === 'ARCHIVED') {
     throw new GeneralError({
       code: 409,
@@ -392,6 +410,7 @@ export const unarchiveChurch = async ({
   const church = await GET_CHURCH_BY_ID({ churchId })
   if (!church) throw notFound()
   if (version !== church.version) throw stale()
+  if (church.is_platform) throw systemProtected()
   fromStatuses(churchId, church.status, ['ARCHIVED'], 'APPROVED')
 
   const updated = await dbTransaction(async (tx) => {
@@ -441,6 +460,7 @@ export const purgeChurch = async ({
   const church = await GET_CHURCH_BY_ID({ churchId })
   if (!church) throw notFound()
   if (payload.version !== church.version) throw stale()
+  if (church.is_platform) throw systemProtected()
 
   if (church.status !== 'PENDING') {
     throw new GeneralError({

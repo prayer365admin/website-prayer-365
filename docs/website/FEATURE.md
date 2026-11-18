@@ -139,7 +139,7 @@ main and followed churches.
 
 > Note: The backend Stripe integration is **already planned in the admin docs**
 > (`docs/TASK.md` F8DO + X-MOB: DO-02/05/06/08, MB-02/03) and is not rebuilt
-> for the website. The website only builds the donate/result UI on top of the
+> for the website. The website only builds the donation outcome UI on top of the
 > shared donation controller. WB4 (WB-40…WB-44) is implemented: checkout
 > creation/retrieval are wired to the Stripe SDK and the webhook → `payment.sync`
 > path writes donation rows. Still open on the shared side: Stripe Connect
