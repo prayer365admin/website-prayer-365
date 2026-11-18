@@ -69,6 +69,8 @@ Notifications are not published on the website. They are sent to app and mail re
 
 A person who disabled a notification type in their own preferences receives nothing, even when the rule is enabled here.
 
+The daily prayer is the one platform-wide message: it goes to **customers only** — never to pastors, administrators or other staff — and only to customers whose own **Daily Prayer** switch is on. Customers manage that switch themselves on the website at **Customer profile → Notifications** (`/customer/notifications`); the same six switches exist in the mobile app, and both write the same row. The daily-prayer email links to that page from its footer.
+
 ## Common problems
 
 | Symptom                                | Cause                                       | Fix                                                                   |

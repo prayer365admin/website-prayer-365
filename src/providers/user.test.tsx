@@ -6,6 +6,7 @@ const tx = vi.hoisted(() => ({
   user: { create: vi.fn(), findUnique: vi.fn(), update: vi.fn() },
   userChurch: { create: vi.fn() },
   oAuthAccount: { create: vi.fn(), findUnique: vi.fn() },
+  notificationPreference: { createMany: vi.fn() },
 }))
 const db = vi.hoisted(() => ({
   $transaction: vi.fn(),
@@ -20,6 +21,7 @@ import {
   FIND_OR_CREATE_OAUTH_CUSTOMER,
   GET_CUSTOMERS,
   GET_USERS,
+  LIST_ACTIVE_CUSTOMERS,
 } from './user'
 
 const payload = {
@@ -228,5 +230,77 @@ describe('FIND_OR_CREATE_OAUTH_CUSTOMER', () => {
 
     expect(await FIND_OR_CREATE_OAUTH_CUSTOMER(input)).toBeNull()
     expect(tx.oAuthAccount.create).not.toHaveBeenCalled()
+  })
+})
+
+describe('daily-prayer audience (D-GP-12)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    db.user.findMany.mockResolvedValue([])
+  })
+
+  it('restricts the audience to active customers with no live staff grant', async () => {
+    await LIST_ACTIVE_CUSTOMERS({ limit: 500 })
+
+    const where = db.user.findMany.mock.calls[0][0].where
+    expect(where).toMatchObject({ status: 'active', deleted_at: null })
+    expect(where.role).toEqual({ is: { name: 'prayer_user' } })
+    expect(where.roleAssignments).toEqual({
+      none: { revoked_at: null, role: { is: { name: { not: 'prayer_user' } } } },
+    })
+    expect(where.id).toBeUndefined()
+  })
+
+  it('pages past the cursor', async () => {
+    await LIST_ACTIVE_CUSTOMERS({ cursor: 'u0007', limit: 500 })
+
+    expect(db.user.findMany).toHaveBeenCalledWith({
+      where: {
+        status: 'active',
+        deleted_at: null,
+        role: { is: { name: 'prayer_user' } },
+        roleAssignments: {
+          none: { revoked_at: null, role: { is: { name: { not: 'prayer_user' } } } },
+        },
+        id: { gt: 'u0007' },
+      },
+      orderBy: { id: 'asc' },
+      take: 500,
+      select: { id: true, name: true, email: true },
+    })
+  })
+})
+
+describe('customer notification defaults (D-GP-5)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    db.$transaction.mockImplementation(async (fn: (t: typeof tx) => unknown) => fn(tx))
+    tx.role.findUnique.mockResolvedValue({ id: 'r-user' })
+    tx.user.create.mockResolvedValue({ id: 'u-new' })
+  })
+
+  it('writes six ON preference rows for a new customer', async () => {
+    await CREATE_CUSTOMER(payload)
+
+    expect(tx.notificationPreference.createMany).toHaveBeenCalledWith({
+      data: [
+        { user_id: 'u-new', type: 'daily_prayer', enabled: true },
+        { user_id: 'u-new', type: 'sunday_service', enabled: true },
+        { user_id: 'u-new', type: 'church_events', enabled: true },
+        { user_id: 'u-new', type: 'announcements', enabled: true },
+        { user_id: 'u-new', type: 'platform_information', enabled: true },
+        { user_id: 'u-new', type: 'donation_reminder', enabled: true },
+      ],
+      skipDuplicates: true,
+    })
+  })
+
+  it('writes no preference rows when the customer role is missing', async () => {
+    tx.role.findUnique.mockResolvedValue(null)
+
+    const result = await CREATE_CUSTOMER(payload)
+
+    expect(result.role).toBeNull()
+    expect(tx.notificationPreference.createMany).not.toHaveBeenCalled()
   })
 })

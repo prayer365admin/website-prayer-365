@@ -36,7 +36,7 @@ const profileMenu = [
     icon: BellRingIcon,
     iconSize: 12,
     labelKey: 'profileMenuNotifications',
-    ready: false,
+    ready: true,
   },
   {
     href: '/customer/stewardship',
