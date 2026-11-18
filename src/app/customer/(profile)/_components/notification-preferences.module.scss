@@ -1,0 +1,17 @@
+.row {
+  align-items: center;
+  border-bottom: 1px solid var(--color-neutral-200);
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 12px 0;
+}
+
+.row:last-of-type {
+  border-bottom: 0;
+}
+
+.label {
+  font-size: 14px;
+  line-height: 20px;
+}

@@ -8,6 +8,16 @@ import { Prisma } from '@prisma/client'
 import { CUSTOMER_ACCOUNT_FILTER, CUSTOMER_ROLE, isCustomerRole } from '@/utils/customer-role'
 import { ADMINISTRATOR_ROLE } from '@/utils/constant'
 import { S3_PUBLIC_URL } from '@/providers/s3'
+import { MOBILE_NOTIFICATION_TYPES } from '@/models/mobile'
+
+/**
+ * A brand-new customer starts with every notification type ON — the client
+ * decision of 2026-10-30 that the app shows as enabled by default. Writing the
+ * rows makes the DB state explicit; the send jobs still treat a missing row as
+ * ON, so pre-existing accounts behave identically.
+ */
+const CUSTOMER_DEFAULT_NOTIFICATION_ROWS = (userId: string) =>
+  MOBILE_NOTIFICATION_TYPES.map((type) => ({ user_id: userId, type, enabled: true }))
 
 const data = 'user'
 
@@ -276,6 +286,11 @@ export const FIND_OR_CREATE_OAUTH_CUSTOMER = async ({
         omit: SAFE,
         include: { role: { include: { permission: true } } },
       })
+
+      await tx.notificationPreference.createMany({
+        data: CUSTOMER_DEFAULT_NOTIFICATION_ROWS(user.id),
+        skipDuplicates: true,
+      })
     }
 
     await tx.oAuthAccount.create({
@@ -344,6 +359,10 @@ export const CREATE_CUSTOMER = async (payload: {
         role_id: role.id,
       },
       omit: SAFE,
+    })
+    await tx.notificationPreference.createMany({
+      data: CUSTOMER_DEFAULT_NOTIFICATION_ROWS(user.id),
+      skipDuplicates: true,
     })
     if (church) {
       await tx.userChurch.create({
@@ -486,11 +505,16 @@ export const COUNT_ACTIVE_ADMINS = async ({
   })
 
 /**
- * Daily-prayer audience page (D-GP-1): every active, non-deleted account —
- * church members, church-less members and staff — ordered by id so a cursor
- * can resume an interrupted fan-out without skipping or repeating a user.
+ * Daily-prayer audience page (D-GP-12): ACTIVE CUSTOMERS only.
+ *
+ * `prayer_user` is the customer role (WB1); staff — pastors, admins, readers —
+ * hold their own role and must never receive the platform daily prayer, even
+ * when their own `daily_prayer` preference is ON. Role assignments supersede the
+ * legacy `role_id` column, so an account carrying any live non-customer grant is
+ * excluded too. Ordered by id so a cursor can resume an interrupted fan-out
+ * without skipping or repeating a user.
  */
-export const LIST_ACTIVE_USERS = ({
+export const LIST_ACTIVE_CUSTOMERS = ({
   cursor,
   limit,
 }: {
@@ -501,6 +525,10 @@ export const LIST_ACTIVE_USERS = ({
     where: {
       status: 'active',
       deleted_at: null,
+      role: { is: { name: CUSTOMER_ROLE } },
+      roleAssignments: {
+        none: { revoked_at: null, role: { is: { name: { not: CUSTOMER_ROLE } } } },
+      },
       ...(cursor ? { id: { gt: cursor } } : {}),
     },
     orderBy: { id: 'asc' },
