@@ -2,7 +2,7 @@ import crypto from 'node:crypto'
 import { CLAIM_PENDING_JOBS, GET_JOB, MARK_JOB_STATE } from '@/providers/outbox-job'
 import { GET_NOTIFICATION_RULE_BY_TYPE } from '@/providers/notification'
 import { ENQUEUE_MAIL_SEND } from '@/providers/mail-job'
-import { LIST_ACTIVE_USERS } from '@/providers/user'
+import { LIST_ACTIVE_CUSTOMERS } from '@/providers/user'
 import {
   FILTER_UNDELIVERED_DEVICES,
   GET_ACTIVE_DEVICES_FOR_USERS,
@@ -22,8 +22,9 @@ import { logger } from '@/utils/logger'
 /*
  * `general_prayer.send` worker (GP-JOB-S-03…08).
  *
- * One job per calendar date. The audience is the whole active user table
- * (D-GP-1) minus `daily_prayer = false` (D-GP-9, missing preference = ON).
+ * One job per calendar date. The audience is active CUSTOMERS only
+ * (`prayer_user`, no live staff grant — D-GP-12) minus `daily_prayer = false`
+ * (D-GP-9, missing preference = ON).
  *
  * Resumability (R5): each attempt handles at most SEND_CHUNK users and requeues
  * with a `cursor` in the payload while the audience has more. Every delivery is
@@ -138,7 +139,7 @@ export const processGeneralPrayerSendJob = async (
     return 'succeeded'
   }
 
-  const audience = await LIST_ACTIVE_USERS({ cursor, limit: SEND_CHUNK })
+  const audience = await LIST_ACTIVE_CUSTOMERS({ cursor, limit: SEND_CHUNK })
   if (audience.length === 0) {
     await MARK_JOB_STATE({ jobId: job.id, state: 'SUCCEEDED' })
     return 'succeeded'
@@ -178,6 +179,9 @@ export const processGeneralPrayerSendJob = async (
               body: richTextToPlainText(prayer.body),
               bodyParagraphs: generalPrayerMailParagraphs(prayer.body),
               ctaLink,
+              // The mail footer's "manage notifications" link. Session-gated page,
+              // built from BASE_URL: no token, nothing user-supplied in the URL.
+              preferencesLink: `${baseUrl}/customer/notifications`,
             },
             baseUrl,
           },

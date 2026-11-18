@@ -24,7 +24,9 @@ describe('ProfileShell', () => {
     expect(screen.getByRole('link', { name: 'Personal Profile' })).toBeTruthy()
     expect(screen.getByRole('link', { name: 'Church Affiliations' })).toBeTruthy()
     expect(screen.getByRole('link', { name: 'Sacramental Privacy' })).toBeTruthy()
-    expect(screen.queryByText('Notifications')).toBeNull()
+    expect(screen.getByRole('link', { name: 'Notifications' }).getAttribute('href')).toBe(
+      '/customer/notifications',
+    )
     expect(screen.queryByText('Giving & Stewardship')).toBeNull()
   })
 

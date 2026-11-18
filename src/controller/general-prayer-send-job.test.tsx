@@ -35,7 +35,7 @@ vi.mock('@/providers/outbox-job', () => ({
 }))
 vi.mock('@/providers/notification', () => ({ GET_NOTIFICATION_RULE_BY_TYPE: calls.rule }))
 vi.mock('@/providers/general-prayer', () => ({ GET_GENERAL_PRAYER_BY_ID: calls.prayer }))
-vi.mock('@/providers/user', () => ({ LIST_ACTIVE_USERS: calls.activeUsers }))
+vi.mock('@/providers/user', () => ({ LIST_ACTIVE_CUSTOMERS: calls.activeUsers }))
 vi.mock('@/providers/mobile', () => ({
   GET_PREFERENCE_MAP_FOR_USERS: calls.prefs,
   GET_ACTIVE_DEVICES_FOR_USERS: calls.devices,
@@ -250,6 +250,7 @@ describe('general_prayer.send worker', () => {
           customerName: 'U1',
           date: '13.11.2026',
           ctaLink: expect.stringContaining('/prayers/general/paivapalve-2'),
+          preferencesLink: expect.stringMatching(/\/customer\/notifications$/),
           // Plain text, never stored HTML: the mail pipeline escapes every value.
           body: 'Armas Jumal, ma tänan Sind kiriku eest.',
           bodyParagraphs: ['Armas Jumal, ma tänan Sind kiriku eest.'],

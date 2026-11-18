@@ -17,6 +17,7 @@ const store = vi.hoisted(() => ({
   authToken: [] as Row[],
   outboxJob: [] as Row[],
   mails: [] as Row[],
+  notificationPreference: [] as Row[],
 }))
 
 const fake = vi.hoisted(() => {
@@ -113,6 +114,22 @@ vi.mock('@/utils/db-connection', () => {
       return row
     },
   })
+  const notificationPreference = fake.table(() => store.notificationPreference, {
+    // Signup seeds the six default rows; the (user_id, type) pair is the primary key.
+    createMany: async ({ data, skipDuplicates }: Row) => {
+      const rows = data as Row[]
+      let count = 0
+      for (const row of rows) {
+        const exists = store.notificationPreference.some(
+          (r) => r.user_id === row.user_id && r.type === row.type,
+        )
+        if (exists && skipDuplicates) continue
+        store.notificationPreference.push({ ...row })
+        count += 1
+      }
+      return { count }
+    },
+  })
   const db: Row = {
     user,
     userChurch,
@@ -120,6 +137,7 @@ vi.mock('@/utils/db-connection', () => {
     church: fake.table(() => store.church),
     authToken: fake.table(() => store.authToken),
     outboxJob,
+    notificationPreference,
   }
   // ponytail: no rollback; enough for the happy paths and guards tested here.
   db.$transaction = async (fn: (tx: Row) => unknown) => fn(db)
