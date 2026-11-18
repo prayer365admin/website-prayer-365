@@ -1574,14 +1574,11 @@ export const UPSERT_DEVICE_TOKEN = async (
   })
 }
 
-export const DISABLE_DEVICE_TOKEN = async ({
-  userId,
-  installationId,
-}: {
-  userId: string
-  installationId: string
-}) =>
-  db.deviceToken.updateMany({
+export const DISABLE_DEVICE_TOKEN = async (
+  { userId, installationId }: { userId: string; installationId: string },
+  tx: Prisma.TransactionClient = db,
+) =>
+  tx.deviceToken.updateMany({
     where: { user_id: userId, installation_id: installationId, disabled_at: null },
     data: { disabled_at: new Date() },
   })

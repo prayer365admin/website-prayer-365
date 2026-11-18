@@ -42,6 +42,7 @@ const TAP_TYPE_BY_TRIGGER: Record<string, string> = {
   prayer_published: 'prayer',
   announcement_published: 'announcement',
   event_reminder: 'event',
+  donation_reminder: 'donation',
 }
 /** Trigger -> Handlebars template under `public/templates/mail`. */
 const EMAIL_TEMPLATE_BY_TRIGGER: Record<string, string> = {
