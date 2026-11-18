@@ -6,6 +6,11 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 
 const MUTED_STORAGE_KEY = 'thankyou_video_muted'
 
+// Opening 12 s of the soundtrack, trimmed to a loop-free bed with baked fades.
+// Kept separate from the video so changing the music never re-encodes video.
+const SOUNDTRACK_SRC = '/videos/thankyou-opening.mp3'
+const SOUNDTRACK_SECONDS = 12
+
 function readMutedPreference(): boolean | null {
   if (typeof window === 'undefined') return null
   try {
@@ -24,6 +29,16 @@ function writeMutedPreference(muted: boolean) {
   }
 }
 
+// jsdom and some embedded browsers return undefined here; never assume a promise.
+function playMedia(media: HTMLMediaElement) {
+  try {
+    const result = media.play()
+    if (result && typeof result.catch === 'function') result.catch(() => {})
+  } catch {
+    // Playback unavailable: the overlay still renders.
+  }
+}
+
 export interface ThankYouVideoOverlayProps {
   onComplete?: () => void
 }
@@ -31,23 +46,31 @@ export interface ThankYouVideoOverlayProps {
 export default function ThankYouVideoOverlay({ onComplete }: ThankYouVideoOverlayProps) {
   const { t } = useSiteI18n()
   const videoRef = useRef<HTMLVideoElement>(null)
+  const audioRef = useRef<HTMLAudioElement>(null)
   const playAttemptedRef = useRef(false)
+  const endingRef = useRef(false)
+  const audioUnlockCleanupRef = useRef<(() => void) | null>(null)
   const [currentTime, setCurrentTime] = useState(0)
   const [isFading, setIsFading] = useState(false)
   const [isDismissed, setIsDismissed] = useState(false)
   const [isMuted, setIsMuted] = useState(true)
 
   const handleToggleMute = useCallback(() => {
-    const video = videoRef.current
-    if (!video) return
-    const nextMuted = !video.muted
-    video.muted = nextMuted
+    const audio = audioRef.current
+    if (!audio) return
+    // An explicit choice wins over the first-tap auto-unlock.
+    audioUnlockCleanupRef.current?.()
+    audioUnlockCleanupRef.current = null
+    const nextMuted = !audio.muted
+    audio.muted = nextMuted
     setIsMuted(nextMuted)
     writeMutedPreference(nextMuted)
-    if (!nextMuted) video.play().catch(() => {})
+    if (!nextMuted) playMedia(audio)
   }, [])
 
   const handleEnd = useCallback(() => {
+    if (endingRef.current) return
+    endingRef.current = true
     setIsFading(true)
     const timer = setTimeout(() => {
       setIsDismissed(true)
@@ -57,6 +80,8 @@ export default function ThankYouVideoOverlay({ onComplete }: ThankYouVideoOverla
   }, [onComplete])
 
   const handleSkip = useCallback(() => {
+    if (endingRef.current) return
+    endingRef.current = true
     setIsFading(true)
     const timer = setTimeout(() => {
       setIsDismissed(true)
@@ -67,36 +92,74 @@ export default function ThankYouVideoOverlay({ onComplete }: ThankYouVideoOverla
 
   useEffect(() => {
     const video = videoRef.current
-    if (!video) return
+    const audio = audioRef.current
+    if (!video || !audio) return
 
     // Keep the toggle in sync with the real element (also covers StrictMode
     // double-invocation and any later programmatic mute).
-    const syncMuted = () => setIsMuted(video.muted)
-    video.addEventListener('volumechange', syncMuted)
+    const syncMuted = () => setIsMuted(audio.muted)
+    audio.addEventListener('volumechange', syncMuted)
+
+    const startedAt = performance.now()
+
+    // Chrome blocks unmuted autoplay after an external redirect and pauses a
+    // muted-playing element the moment script unmutes it. The only way to start
+    // sound is user activation, so unmute on the first interaction that is not
+    // the explicit sound/skip controls (their own click semantics stay intact).
+    function disposeAudioUnlock() {
+      window.removeEventListener('pointerdown', unlockAudio, true)
+      window.removeEventListener('keydown', unlockAudio, true)
+      window.removeEventListener('touchstart', unlockAudio, true)
+      if (audioUnlockCleanupRef.current === disposeAudioUnlock) {
+        audioUnlockCleanupRef.current = null
+      }
+    }
+
+    function unlockAudio(event: Event) {
+      if (!audio) return
+      const target = event.target
+      if (target instanceof Element && target.closest('[data-thankyou-controls]')) return
+      disposeAudioUnlock()
+      audio.muted = false
+      setIsMuted(false)
+      playMedia(audio)
+    }
+
+    const armAudioUnlock = () => {
+      audioUnlockCleanupRef.current = disposeAudioUnlock
+      window.addEventListener('pointerdown', unlockAudio, true)
+      window.addEventListener('keydown', unlockAudio, true)
+      window.addEventListener('touchstart', unlockAudio, true)
+    }
 
     if (!playAttemptedRef.current) {
       playAttemptedRef.current = true
+      // The visual track is always silent; sound lives in its own element.
+      video.muted = true
+      playMedia(video)
+
       if (readMutedPreference() === true) {
-        // Visitor muted a previous thank-you video: stay muted. State already
+        // Visitor muted a previous thank-you screen: stay muted. State already
         // starts muted, so no sync needed here.
-        video.muted = true
-        video.play().catch(() => {})
+        audio.muted = true
+        playMedia(audio)
       } else {
         try {
           // Sound plays by default. Try unmuted autoplay first; browsers block it
           // without a user gesture, so fall back to muted playback rather than a
-          // stalled video.
-          video.muted = false
-          const promise = video.play()
+          // stalled soundtrack.
+          audio.muted = false
+          const promise = audio.play()
           if (promise && typeof promise.then === 'function') {
             promise.then(
               () => setIsMuted(false),
               () => {
                 // Autoplay policy fallback: play muted. This does not touch the
                 // stored preference; only an explicit toggle does.
-                video.muted = true
+                audio.muted = true
                 setIsMuted(true)
-                video.play().catch(() => {})
+                playMedia(audio)
+                armAudioUnlock()
               },
             )
           }
@@ -108,13 +171,15 @@ export default function ThankYouVideoOverlay({ onComplete }: ThankYouVideoOverla
 
     let rafId: number
     const updateLoop = () => {
-      if (video) {
-        const time = video.currentTime
-        setCurrentTime(time)
-        // Fade out smoothly at 9.2s (video length is 10s)
-        if (video.duration && time >= video.duration - 0.8 && !isFading) {
-          handleEnd()
-        }
+      const time = video.currentTime
+      setCurrentTime(time)
+      // The visual track is 10 s; the soundtrack is longer, so the overlay
+      // lifetime follows wall clock, not the video element.
+      const elapsed = (performance.now() - startedAt) / 1000
+      const total =
+        Number.isFinite(audio.duration) && audio.duration > 0 ? audio.duration : SOUNDTRACK_SECONDS
+      if (elapsed >= total - 0.8 && !isFading) {
+        handleEnd()
       }
       rafId = requestAnimationFrame(updateLoop)
     }
@@ -122,7 +187,8 @@ export default function ThankYouVideoOverlay({ onComplete }: ThankYouVideoOverla
     rafId = requestAnimationFrame(updateLoop)
     return () => {
       cancelAnimationFrame(rafId)
-      video.removeEventListener('volumechange', syncMuted)
+      audio.removeEventListener('volumechange', syncMuted)
+      disposeAudioUnlock()
     }
   }, [handleEnd, isFading])
 
@@ -152,18 +218,25 @@ export default function ThankYouVideoOverlay({ onComplete }: ThankYouVideoOverla
         autoPlay
         className="absolute inset-0 h-full w-full object-cover"
         muted
-        onEnded={handleEnd}
         playsInline
         preload="auto"
         ref={videoRef}
         src="/videos/thankyou.webm"
+      />
+      <audio
+        autoPlay
+        className="hidden"
+        onEnded={handleEnd}
+        preload="auto"
+        ref={audioRef}
+        src={SOUNDTRACK_SRC}
       />
 
       {/* Subtle overlay shading for guaranteed text contrast across cloud/sun changes */}
       <div className="pointer-events-none absolute inset-0 bg-white/10 backdrop-blur-[0.5px]" />
 
       {/* Top-right controls: mute toggle + skip */}
-      <div className="absolute right-5 top-5 z-20 flex items-center gap-2">
+      <div className="absolute right-5 top-5 z-20 flex items-center gap-2" data-thankyou-controls>
         <button
           aria-label={isMuted ? t('thankYouVideoSoundOnAria') : t('thankYouVideoSoundOffAria')}
           className="flex items-center gap-1.5 rounded-full border border-white/40 bg-white/70 px-4 py-1.5 text-xs font-semibold text-neutral-800 shadow-sm backdrop-blur-md transition hover:bg-white/95"
