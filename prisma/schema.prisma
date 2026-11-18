@@ -774,6 +774,9 @@ model Donation {
   status              String
   paid_at             DateTime?
   refunded_minor      BigInt                @default(0)
+  /// Stripe receipt / hosted invoice URL for the payment; nullable, set from
+  /// charge payloads during payment-sync.
+  invoice_url         String?
 
   created_at DateTime  @default(now())
   updated_at DateTime? @updatedAt

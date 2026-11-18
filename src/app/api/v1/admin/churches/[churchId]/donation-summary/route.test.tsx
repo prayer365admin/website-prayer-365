@@ -29,7 +29,7 @@ describe('GET /api/v1/admin/churches/[churchId]/donation-summary', () => {
     vi.mocked(getDonationSummary).mockResolvedValue({
       month: '2026-09',
       currencies: [
-        { currency: 'USD', grossMinor: '5000', refundedMinor: '1000', netMinor: '4000' },
+        { currency: 'USD', grossMinor: '5000', refundedMinor: '1000', netMinor: '4000', count: 1 },
       ],
     } as never)
 
@@ -45,6 +45,7 @@ describe('GET /api/v1/admin/churches/[churchId]/donation-summary', () => {
       grossMinor: '5000',
       refundedMinor: '1000',
       netMinor: '4000',
+      count: 1,
     })
     expect(requiredScope).toHaveBeenCalledWith(
       expect.objectContaining({ churchId: 'c1', subject: 'prayer_donation', action: 'read' }),

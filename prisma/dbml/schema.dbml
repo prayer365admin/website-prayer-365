@@ -540,6 +540,8 @@ Table donations {
   status String [not null]
   paid_at DateTime
   refunded_minor BigInt [not null, default: 0]
+  invoice_url String [note: 'Stripe receipt / hosted invoice URL for the payment; nullable, set from
+charge payloads during payment-sync.']
   created_at DateTime [default: `now()`, not null]
   updated_at DateTime
 }

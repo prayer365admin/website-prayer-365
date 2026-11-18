@@ -4,9 +4,11 @@ import {
   DonationInputSchema,
   assertNoRawCardData,
   DateRangeSchema,
+  DonationLedgerStatusSchema,
   DonationRowSchema,
   DonationSubscriptionRowSchema,
   DonationSummarySchema,
+  AdminDonationRowSchema,
   PublicDonationInitiateSchema,
   PublicDonationStatusQuerySchema,
 } from './donation'
@@ -163,6 +165,10 @@ describe('Donation Models and Schemas', () => {
         currency: 'eur',
         providerStatus: 'active',
         createdAt: new Date(),
+        churchId: 'c1',
+        churchName: 'Hope Church',
+        frequency: 'Monthly',
+        invoiceUrl: null,
       }
       expect(DonationSubscriptionRowSchema.parse(row)).toEqual(row)
     })
@@ -176,17 +182,74 @@ describe('Donation Models and Schemas', () => {
             grossMinor: '10000',
             refundedMinor: '2000',
             netMinor: '8000',
+            count: 3,
           },
           {
             currency: 'usd',
             grossMinor: '5000',
             refundedMinor: '0',
             netMinor: '5000',
+            count: 1,
           },
         ],
       }
       expect(DonationSummarySchema.parse(summary)).toEqual(summary)
     })
+
+    it('keeps DonationRowSchema free of donor PII (mobile contract, T-08)', () => {
+      // The admin extension is a separate schema: stripping the extra keys here is
+      // what proves the mobile-facing shape did not grow.
+      const parsed = DonationRowSchema.parse({
+        id: 'd1',
+        amountMinor: '5000',
+        currency: 'usd',
+        status: 'PAID',
+        paidAt: null,
+        ref: 'pi_test_123',
+        churchId: 'c1',
+        donor: { name: 'Mari', email: 'mari@example.com' },
+      })
+      expect(parsed).not.toHaveProperty('churchId')
+      expect(parsed).not.toHaveProperty('donor')
+    })
+  })
+})
+
+describe('Admin donation report schemas (D-03 / T-01)', () => {
+  const adminRow = {
+    id: 'd1',
+    amountMinor: '5000',
+    currency: 'eur',
+    status: 'PAID',
+    paidAt: new Date('2026-11-02T00:00:00Z'),
+    ref: 'pi_test_123',
+    churchId: 'p1',
+    churchName: 'Prayer 365',
+    type: 'PRAYER' as const,
+    refundedMinor: '0',
+    donor: null,
+    invoiceUrl: null,
+  }
+
+  it('accepts a prayer gift with no donor', () => {
+    expect(AdminDonationRowSchema.parse(adminRow)).toEqual(adminRow)
+  })
+
+  it('accepts a registered donor', () => {
+    const donor = { name: 'Mari', email: 'mari@example.com' }
+    expect(AdminDonationRowSchema.parse({ ...adminRow, type: 'CHURCH', donor }).donor).toEqual(
+      donor,
+    )
+  })
+
+  it('rejects an unknown type', () => {
+    expect(AdminDonationRowSchema.safeParse({ ...adminRow, type: 'PARISH' }).success).toBe(false)
+  })
+
+  it('accepts only the three ledger states', () => {
+    expect(DonationLedgerStatusSchema.options).toEqual(['PAID', 'FAILED', 'REFUNDED'])
+    expect(DonationLedgerStatusSchema.safeParse('PAID').success).toBe(true)
+    expect(DonationLedgerStatusSchema.safeParse('pending').success).toBe(false)
   })
 })
 

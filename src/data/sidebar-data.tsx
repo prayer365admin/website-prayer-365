@@ -181,8 +181,9 @@ const CentralGeneralPrayersItem = (router: ReturnType<typeof useRouter>): MenuPr
 }
 
 /**
- * Guest giving (`/give`) is attributed to the platform beneficiary, not a parish,
- * so its ledger is a central report and follows the donation permission.
+ * The all-church donation report. It follows the donation permission and, at
+ * runtime, the central scope guard: a regional admin holding the grant sees the
+ * entry and the page's restricted state rather than a ledger.
  */
 const CentralDonationsItem = (router: ReturnType<typeof useRouter>): MenuProps['items'] => {
   const permission = useAccessPermission()
@@ -191,12 +192,12 @@ const CentralDonationsItem = (router: ReturnType<typeof useRouter>): MenuProps['
   if (!canRead) return []
   return [
     {
-      key: '/dashboard/central/donations',
-      label: 'Platform Giving',
+      key: '/dashboard/donations',
+      label: 'Donations',
       // A receipt-style mark: this is a ledger report, not another prayer list.
       icon: <LayoutIcon name="verified" />,
       onClick: () => {
-        router.push('/dashboard/central/donations')
+        router.push('/dashboard/donations')
       },
     },
   ]
