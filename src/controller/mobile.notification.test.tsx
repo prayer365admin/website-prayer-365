@@ -107,6 +107,11 @@ describe('device controller', () => {
   it('revokes idempotently and audits no_change', async () => {
     vi.mocked(DISABLE_DEVICE_TOKEN).mockResolvedValue({ count: 0 } as never)
     await revokeDevice({ userId: 'u1', installationId: 'install-1', requestId: 'r1' })
+    // Must run on the transaction client: the global pool (max 1 on staging) is held by the tx.
+    expect(DISABLE_DEVICE_TOKEN).toHaveBeenCalledWith(
+      { userId: 'u1', installationId: 'install-1' },
+      expect.objectContaining({ auditLog: expect.anything() }),
+    )
     expect(auditCreate).toHaveBeenCalledWith(
       expect.objectContaining({ data: expect.objectContaining({ outcome: 'no_change' }) }),
     )

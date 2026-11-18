@@ -505,7 +505,7 @@ export const revokeDevice = async ({
   requestId: string
 }) =>
   dbTransaction(async (tx) => {
-    const result = await DISABLE_DEVICE_TOKEN({ userId, installationId })
+    const result = await DISABLE_DEVICE_TOKEN({ userId, installationId }, tx)
     await tx.auditLog.create({
       data: auditPayload({
         actorId: userId,
