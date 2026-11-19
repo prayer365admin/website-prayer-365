@@ -26,10 +26,9 @@ const noSession = new GeneralError({
 const request = (body: unknown) => ({ json: async () => body }) as never
 const all = {
   dailyPrayer: true,
-  sundayService: true,
+  churchPrayer: true,
   churchEvents: true,
   announcements: true,
-  platformInformation: true,
   donationReminder: true,
 }
 
@@ -48,14 +47,14 @@ describe('/api/v1/site/me/notification-preferences', () => {
     expect((await GET()).status).toBe(403)
   })
 
-  it('returns the six keys for the session customer', async () => {
+  it('returns the five keys for the session customer', async () => {
     m.requiredCustomer.mockResolvedValue({ session: { user: { user_id: 'u1' } } })
     m.get.mockResolvedValue(all)
 
     const body = await (await GET()).json()
 
     expect(m.get).toHaveBeenCalledWith({ userId: 'u1' })
-    expect(Object.keys(body.result)).toHaveLength(6)
+    expect(Object.keys(body.result)).toHaveLength(5)
     expect(body.result.dailyPrayer).toBe(true)
   })
 

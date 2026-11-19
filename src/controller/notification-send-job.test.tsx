@@ -69,7 +69,7 @@ beforeEach(() => {
     { user_id: 'u1', user: { email: 'u1@example.com', name: 'U1' } },
     { user_id: 'u2', user: { email: 'u2@example.com', name: 'U2' } },
   ])
-  calls.prefs.mockResolvedValue(new Map([['u2', new Map([['daily_prayer', false]])]]))
+  calls.prefs.mockResolvedValue(new Map([['u2', new Map([['church_prayer', false]])]]))
   calls.devices.mockResolvedValue([{ id: 'd1', user_id: 'u1', token_ciphertext: 'cipher' }])
   calls.undelivered.mockResolvedValue(new Set(['d1']))
   calls.send.mockResolvedValue([{ token: 'fcm-token', ok: true, invalidToken: false }])

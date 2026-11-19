@@ -5,7 +5,12 @@ import { RoleType } from '@prisma/client'
 import { db } from '@/utils/db-connection'
 import keywordSearch from '@/utils/keyword-search'
 import { Prisma } from '@prisma/client'
-import { CUSTOMER_ACCOUNT_FILTER, CUSTOMER_ROLE, isCustomerRole } from '@/utils/customer-role'
+import {
+  ACTIVE_CUSTOMER_WHERE,
+  CUSTOMER_ACCOUNT_FILTER,
+  CUSTOMER_ROLE,
+  isCustomerRole,
+} from '@/utils/customer-role'
 import { ADMINISTRATOR_ROLE } from '@/utils/constant'
 import { S3_PUBLIC_URL } from '@/providers/s3'
 import { MOBILE_NOTIFICATION_TYPES } from '@/models/mobile'
@@ -522,15 +527,7 @@ export const LIST_ACTIVE_CUSTOMERS = ({
   limit: number
 }): Promise<{ id: string; name: string; email: string }[]> =>
   db.user.findMany({
-    where: {
-      status: 'active',
-      deleted_at: null,
-      role: { is: { name: CUSTOMER_ROLE } },
-      roleAssignments: {
-        none: { revoked_at: null, role: { is: { name: { not: CUSTOMER_ROLE } } } },
-      },
-      ...(cursor ? { id: { gt: cursor } } : {}),
-    },
+    where: { ...ACTIVE_CUSTOMER_WHERE, ...(cursor ? { id: { gt: cursor } } : {}) },
     orderBy: { id: 'asc' },
     take: limit,
     select: { id: true, name: true, email: true },

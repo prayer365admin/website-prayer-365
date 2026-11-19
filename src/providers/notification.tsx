@@ -112,3 +112,40 @@ export const LIST_APPROVED_CHURCH_IDS = async () =>
     select: { id: true },
     orderBy: { id: 'asc' },
   })
+
+/**
+ * One calendar job per donation-reminder period (all customers, not per church).
+ * `dedupe_key` is unique, so the sweep can run every minute and insert nothing new.
+ */
+export const ENQUEUE_DONATION_REMINDER_SEND_JOB = ({ periodKey }: { periodKey: string }) =>
+  db.outboxJob.createMany({
+    data: [
+      {
+        kind: 'donation_reminder.send',
+        dedupe_key: `donation_reminder.send:${periodKey}`,
+        payload: { period: periodKey },
+        available_at: new Date(),
+      },
+    ],
+    skipDuplicates: true,
+  })
+
+/**
+ * Rule row for a trigger that has no admin-managed settings (the donation thank-you).
+ * Created on first use so staging/prod need no seed or migration; an existing row is
+ * left alone, so an admin's later change to its switches wins.
+ */
+export const ENSURE_NOTIFICATION_RULE = ({
+  type,
+  push_enabled,
+  email_enabled,
+}: {
+  type: string
+  push_enabled: boolean
+  email_enabled: boolean
+}) =>
+  db.notificationRule.upsert({
+    where: { type },
+    create: { type, enabled: true, push_enabled, email_enabled },
+    update: {},
+  })

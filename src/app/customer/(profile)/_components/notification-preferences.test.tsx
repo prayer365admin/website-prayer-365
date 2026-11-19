@@ -5,10 +5,9 @@ import NotificationPreferences from './notification-preferences'
 
 const initial = {
   dailyPrayer: true,
-  sundayService: true,
+  churchPrayer: true,
   churchEvents: true,
   announcements: true,
-  platformInformation: true,
   donationReminder: true,
 }
 
@@ -22,7 +21,7 @@ describe('NotificationPreferences', () => {
   it('renders one switch per notification type', () => {
     renderWithProviders(<NotificationPreferences initial={initial} />)
 
-    expect(screen.getAllByRole('switch')).toHaveLength(6)
+    expect(screen.getAllByRole('switch')).toHaveLength(5)
     expect(screen.getByText('Daily Prayer')).toBeTruthy()
   })
 

@@ -279,16 +279,15 @@ describe('customer notification defaults (D-GP-5)', () => {
     tx.user.create.mockResolvedValue({ id: 'u-new' })
   })
 
-  it('writes six ON preference rows for a new customer', async () => {
+  it('writes five ON preference rows for a new customer', async () => {
     await CREATE_CUSTOMER(payload)
 
     expect(tx.notificationPreference.createMany).toHaveBeenCalledWith({
       data: [
         { user_id: 'u-new', type: 'daily_prayer', enabled: true },
-        { user_id: 'u-new', type: 'sunday_service', enabled: true },
+        { user_id: 'u-new', type: 'church_prayer', enabled: true },
         { user_id: 'u-new', type: 'church_events', enabled: true },
         { user_id: 'u-new', type: 'announcements', enabled: true },
-        { user_id: 'u-new', type: 'platform_information', enabled: true },
         { user_id: 'u-new', type: 'donation_reminder', enabled: true },
       ],
       skipDuplicates: true,

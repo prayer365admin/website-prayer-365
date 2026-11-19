@@ -53,10 +53,9 @@ import {
 
 const prefs = {
   dailyPrayer: true,
-  sundayService: true,
+  churchPrayer: true,
   churchEvents: true,
   announcements: true,
-  platformInformation: true,
   donationReminder: false,
 }
 
@@ -70,7 +69,7 @@ describe('notification preferences controller', () => {
     await expect(getNotificationPreferences({ userId: 'u1' })).resolves.toEqual(prefs)
   })
 
-  it('saves all six preferences and audits once', async () => {
+  it('saves all five preferences and audits once', async () => {
     vi.mocked(GET_NOTIFICATION_PREFERENCES).mockResolvedValue(prefs)
     await saveNotificationPreferences({ userId: 'u1', input: prefs, requestId: 'r1' })
     expect(UPSERT_NOTIFICATION_PREFERENCES).toHaveBeenCalledWith(

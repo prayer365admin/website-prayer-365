@@ -532,26 +532,40 @@ export type MobileAnalyticsAck = z.infer<typeof MobileAnalyticsAckSchema>
 /** M26 preference keys — user-facing notification types (server allowlist). */
 export const MOBILE_NOTIFICATION_TYPES = [
   'daily_prayer',
-  'sunday_service',
+  'church_prayer',
   'church_events',
   'announcements',
-  'platform_information',
   'donation_reminder',
 ] as const
 export type MobileNotificationType = (typeof MOBILE_NOTIFICATION_TYPES)[number]
 
 /** Wire shape is camelCase; DB rows use the snake_case type keys above. */
-export const MobileNotificationPreferencesSchema = z
+const notificationPreferenceShape = {
+  dailyPrayer: z.boolean(),
+  churchPrayer: z.boolean(),
+  churchEvents: z.boolean(),
+  announcements: z.boolean(),
+  donationReminder: z.boolean(),
+}
+export const MobileNotificationPreferencesSchema = z.object(notificationPreferenceShape).strict()
+export type MobileNotificationPreferences = z.infer<typeof MobileNotificationPreferencesSchema>
+
+/**
+ * PUT body. Builds that predate the church_prayer split still send the old six keys
+ * (no `churchPrayer`, plus `sundayService` / `platformInformation`); accept them so the
+ * strict schema does not 422 an installed app. The two retired keys are ignored.
+ */
+export const MobileNotificationPreferencesInputSchema = z
   .object({
-    dailyPrayer: z.boolean(),
-    sundayService: z.boolean(),
-    churchEvents: z.boolean(),
-    announcements: z.boolean(),
-    platformInformation: z.boolean(),
-    donationReminder: z.boolean(),
+    ...notificationPreferenceShape,
+    churchPrayer: z.boolean().optional(),
+    sundayService: z.boolean().optional(),
+    platformInformation: z.boolean().optional(),
   })
   .strict()
-export type MobileNotificationPreferences = z.infer<typeof MobileNotificationPreferencesSchema>
+export type MobileNotificationPreferencesInput = z.infer<
+  typeof MobileNotificationPreferencesInputSchema
+>
 
 export const MobileDeviceRegistrationSchema = z
   .object({
