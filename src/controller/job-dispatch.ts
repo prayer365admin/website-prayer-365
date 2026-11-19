@@ -29,6 +29,7 @@ export const SUPPORTED_KINDS = [
   'notification.send',
   'general_prayer.audio',
   'general_prayer.send',
+  'privacy.delete',
 ] as const
 
 export type JobKind = (typeof SUPPORTED_KINDS)[number]

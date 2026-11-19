@@ -2,6 +2,20 @@ import { relativeTime } from '@/contents/user-management/user/columns'
 import { CustomerDataModel } from '@/hooks/data/customer'
 import { Avatar, Space, TableProps, Tag } from 'antd'
 
+const formatDateTime = (v: string) =>
+  new Date(v).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })
+
+/** "13 Days 4 Hours 12 Minutes": leading zero units dropped, seconds never shown. */
+export const formatCountdown = (endsAt: string, now = Date.now()) => {
+  const mins = Math.max(0, Math.floor((new Date(endsAt).getTime() - now) / 60_000))
+  const d = Math.floor(mins / 1440)
+  const h = Math.floor((mins % 1440) / 60)
+  const m = mins % 60
+  const unit = (n: number, w: string) => `${n} ${w}${n === 1 ? '' : 's'}`
+  const parts = [d && unit(d, 'Day'), (d || h) && unit(h, 'Hour'), unit(m, 'Minute')]
+  return parts.filter(Boolean).join(' ')
+}
+
 export const CustomerColumns = ({
   page: _page,
   pageSize: _pageSize,
@@ -63,9 +77,25 @@ export const CustomerColumns = ({
     {
       key: 'status',
       title: 'Status',
-      width: 130,
-      minWidth: 120,
+      width: 160,
+      minWidth: 150,
       render: (_text, record) => {
+        if (record.deleted_at) {
+          return (
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-[#FAD3D3] bg-[#FEF2F2] px-2.5 py-1 text-xs font-semibold text-[#D83A3A]">
+              <span className="h-1.5 w-1.5 rounded-full bg-[#D83A3A]" />
+              Deleted
+            </span>
+          )
+        }
+        if (record.status === 'deletion_pending') {
+          return (
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-[#FFE58F] bg-[#FFFBE6] px-2.5 py-1 text-xs font-semibold text-[#AD6800]">
+              <span className="h-1.5 w-1.5 rounded-full bg-[#FAAD14]" />
+              Deletion pending
+            </span>
+          )
+        }
         const isVerified = Boolean(record.email_verified_at)
         if (isVerified) {
           return (
@@ -80,6 +110,28 @@ export const CustomerColumns = ({
             <span className="h-1.5 w-1.5 rounded-full bg-[#D8A50E]" />
             Unverified
           </span>
+        )
+      },
+    },
+    {
+      key: 'deletion_requested_at',
+      title: 'Deletion Request',
+      width: 280,
+      minWidth: 260,
+      render: (_text, record) => {
+        if (!record.deletion_requested_at) return <span className="text-sm text-[#5C6370]">—</span>
+        const ends = record.deletion_grace_ends_at
+        return (
+          <div className="flex flex-col">
+            <span className="text-sm text-[#393E46]">
+              {formatDateTime(record.deletion_requested_at)}
+            </span>
+            {ends && !record.deleted_at && (
+              <span className="text-xs text-[#AD6800]">
+                {formatCountdown(ends)} on {formatDateTime(ends)}
+              </span>
+            )}
+          </div>
         )
       },
     },

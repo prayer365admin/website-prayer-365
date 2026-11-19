@@ -134,6 +134,26 @@ describe('staff vs customer lists (R-01/R-02)', () => {
     expect(unverifiedWhere.AND[1]).toEqual({ email_verified_at: null })
   })
 
+  it('hides erased customers by default and shows them with includeDeleted', async () => {
+    await GET_CUSTOMERS({ limit: 10, page: 1 })
+    expect(db.user.findMany.mock.calls[0][0].where.AND).toContainEqual({ deleted_at: null })
+
+    await GET_CUSTOMERS({ limit: 10, page: 1, includeDeleted: true })
+    expect(db.user.findMany.mock.calls[1][0].where.AND).not.toContainEqual({ deleted_at: null })
+  })
+
+  it('joins the latest non-cancelled deletion job, including completed ones (erased rows)', async () => {
+    await GET_CUSTOMERS({ limit: 10, page: 1 })
+    const inc = db.user.findMany.mock.calls[0][0].include.privacyJobs
+    expect(inc.where.state.in).toEqual(['ACCEPTED', 'RUNNING', 'COMPLETED'])
+    expect(inc.take).toBe(1)
+  })
+
+  it('filters deletion_pending customers', async () => {
+    await GET_CUSTOMERS({ limit: 10, page: 1, status: 'deletion_pending' })
+    expect(db.user.findMany.mock.calls[0][0].where.AND[1]).toEqual({ status: 'deletion_pending' })
+  })
+
   it('counts only active, non-deleted customer accounts for the public fellowship total', async () => {
     db.user.count.mockResolvedValue(37)
 

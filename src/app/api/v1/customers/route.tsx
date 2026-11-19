@@ -28,6 +28,7 @@ export async function GET(req: NextRequest) {
       allowOrderBy: ['created_at', 'name', 'email'],
     })
     const status = searchParams.get('status') ?? undefined
+    const includeDeleted = searchParams.get('include_deleted') === 'true'
     const result = await GET_CUSTOMERS({
       limit,
       page,
@@ -35,6 +36,7 @@ export async function GET(req: NextRequest) {
       order_direction,
       search,
       status,
+      includeDeleted,
     })
 
     return list(result.result, result.total, page, limit, 'Successfully get all customers')

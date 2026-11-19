@@ -63,8 +63,11 @@ describe('GET_REQUESTS', () => {
     vi.mocked(db.request.count).mockResolvedValue(2)
     vi.mocked(db.request.findMany).mockResolvedValue([row, { ...row, id: 'r2' }] as never)
     await GET_REQUESTS({ churchId: 'c1', canReadPrivate: true, query })
-    // No kind, no visibility rule, no filters: every AND entry is empty.
-    expect((countWhere().AND as unknown[]).every((w) => JSON.stringify(w) === '{}')).toBe(true)
+    // No kind and no filters; the only rule left is "hide pending-deletion users".
+    const and = countWhere().AND as unknown[]
+    expect(and[0]).toEqual({})
+    expect(and[1]).toEqual(requestVisibilityWhere(true))
+    expect(and.slice(2).every((w) => JSON.stringify(w) === '{}')).toBe(true)
   })
 
   it('applies a multi-kind filter without dropping the visibility rule', async () => {
@@ -168,15 +171,32 @@ describe('GET_REQUESTS filters', () => {
 })
 
 describe('requestVisibilityWhere', () => {
+  const HIDE_PENDING = {
+    OR: [
+      { user_id: null },
+      { user: { is: { status: { not: 'deletion_pending' }, deleted_at: null } } },
+    ],
+  }
+
   it('limits standard readers to non-PRIVATE prayer rows', () => {
     expect(requestVisibilityWhere(false)).toEqual({
-      kind: 'PRAYER',
-      OR: [{ classification: null }, { classification: { not: 'PRIVATE' } }],
+      AND: [
+        HIDE_PENDING,
+        { kind: 'PRAYER', OR: [{ classification: null }, { classification: { not: 'PRIVATE' } }] },
+      ],
     })
   })
 
-  it('is empty for a private reader', () => {
-    expect(requestVisibilityWhere(true)).toEqual({})
+  it('a private reader sees every kind, but still not pending-deletion users', () => {
+    expect(requestVisibilityWhere(true)).toEqual({ AND: [HIDE_PENDING, {}] })
+  })
+
+  it('keeps guest requests (no user) and hides pending-deletion and soft-deleted customers', () => {
+    const [hide] = requestVisibilityWhere(true).AND as Array<typeof HIDE_PENDING>
+    expect(hide.OR).toContainEqual({ user_id: null })
+    expect(hide.OR).toContainEqual({
+      user: { is: { status: { not: 'deletion_pending' }, deleted_at: null } },
+    })
   })
 })
 

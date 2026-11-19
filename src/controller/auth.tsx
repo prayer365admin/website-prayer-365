@@ -27,6 +27,14 @@ const EMAIL_REGEX = /^\S+@\S+\.\S+$/
 const MIN_PASSWORD_LENGTH = 8
 const VERIFICATION_TTL_MINUTES = 1440
 
+/**
+ * Account emails (verification, password reset) go only to live accounts. A pending-deletion
+ * account may still receive them (signing in is how it cancels the deletion); a soft-deleted or
+ * disabled one never does, and the caller answers with the same soft success as an unknown email.
+ */
+const canReceiveAccountMail = (status: string) =>
+  status === 'active' || status === 'deletion_pending'
+
 const getCooldownSeconds = () => Number(process.env.VERIFY_RESEND_COOLDOWN_SECONDS) || 90
 
 const sendVerificationEmail = async ({
@@ -34,11 +42,14 @@ const sendVerificationEmail = async ({
   email,
   name,
   baseUrl,
+  linkPrefix,
 }: {
   user_id: string
   email: string
   name: string
   baseUrl: string
+  /** Mobile deep-link scheme (`prayer-365://`); replaces the web base for the emailed link. */
+  linkPrefix?: string
 }) => {
   const createdToken = await CREATE_AUTH_TOKEN({
     user_id: user_id,
@@ -56,7 +67,7 @@ const sendVerificationEmail = async ({
         template_name: 'verify-email',
         payload: {
           customerName: name,
-          link: `${baseUrl}/verify-email?token=${createdToken.token}`,
+          link: `${linkPrefix ?? baseUrl}/verify-email?token=${createdToken.token}`,
           companyName: process.env.NEXT_PUBLIC_COMPANY_NAME,
           currentYear: dayjs().year(),
         },
@@ -77,6 +88,7 @@ export const registerUser = async ({
   locale,
   main_church_id,
   baseUrl,
+  linkPrefix,
 }: {
   full_name: string
   email: string
@@ -84,6 +96,7 @@ export const registerUser = async ({
   locale?: string | null
   main_church_id?: string | null
   baseUrl: string
+  linkPrefix?: string
 }) => {
   const name = full_name?.trim()
   const emailNormalized = email?.trim().toLowerCase()
@@ -175,6 +188,7 @@ export const registerUser = async ({
       email: emailNormalized,
       name: name,
       baseUrl: baseUrl,
+      linkPrefix,
     })
   } catch {
     // Account creation already committed. Return a recoverable result so the
@@ -228,9 +242,11 @@ export const verifyEmail = async ({ token }: { token: string }) => {
 export const resendVerificationEmail = async ({
   email,
   baseUrl,
+  linkPrefix,
 }: {
   email: string
   baseUrl: string
+  linkPrefix?: string
 }) => {
   const emailNormalized = email?.trim().toLowerCase()
   const cooldownSeconds = getCooldownSeconds()
@@ -247,7 +263,8 @@ export const resendVerificationEmail = async ({
   const user = await GET_USER_BY_EMAIL({ email: emailNormalized })
 
   // Soft success for unknown emails — no account enumeration via this endpoint.
-  if (!user) {
+  // Same answer for an account that may not receive mail (soft-deleted / disabled).
+  if (!user || !canReceiveAccountMail(user.status)) {
     return { cooldown_seconds: cooldownSeconds }
   }
 
@@ -286,6 +303,7 @@ export const resendVerificationEmail = async ({
     email: user.email,
     name: user.name,
     baseUrl: baseUrl,
+    linkPrefix,
   })
 
   return { cooldown_seconds: cooldownSeconds }
@@ -328,7 +346,8 @@ export const requestPasswordReset = async ({
   const user = await GET_USER_BY_EMAIL({ email: emailNormalized })
 
   // Soft success for unknown emails — no account enumeration via this endpoint.
-  if (!user) {
+  // Same answer for an account that may not receive mail (soft-deleted / disabled).
+  if (!user || !canReceiveAccountMail(user.status)) {
     return { success: true }
   }
 

@@ -18,8 +18,8 @@ vi.mock('@/providers/user', () => ({
 }))
 
 import { ENQUEUE_MAIL_SEND } from '@/providers/mail-job'
-import { registerUser } from '@/controller/auth'
-import { USE_AUTH_TOKEN } from '@/providers/auth-token'
+import { registerUser, requestPasswordReset, resendVerificationEmail } from '@/controller/auth'
+import { COUNT_AUTH_TOKENS, GET_LATEST_AUTH_TOKEN, USE_AUTH_TOKEN } from '@/providers/auth-token'
 import { CREATE_CUSTOMER, GET_USER_BY_EMAIL } from '@/providers/user'
 
 const input = {
@@ -42,6 +42,22 @@ describe('registerUser (WB1 / WB-18)', () => {
     vi.clearAllMocks()
     vi.mocked(GET_USER_BY_EMAIL).mockResolvedValue(null)
     vi.mocked(CREATE_CUSTOMER).mockResolvedValue(created as never)
+  })
+
+  it('mobile signup emails an app deep link, web signup keeps the web link', async () => {
+    await registerUser({ ...input, linkPrefix: 'prayer-365://' })
+    const link = (vi.mocked(ENQUEUE_MAIL_SEND).mock.calls[0][0].message.payload as { link: string })
+      .link
+    expect(link.startsWith('prayer-365://')).toBe(true)
+    expect(link).toContain('verify-email?token=tok')
+    expect(link).not.toContain('http')
+
+    vi.mocked(ENQUEUE_MAIL_SEND).mockClear()
+    vi.mocked(GET_USER_BY_EMAIL).mockResolvedValue(null)
+    await registerUser(input)
+    expect(vi.mocked(ENQUEUE_MAIL_SEND).mock.calls[0][0].message.payload).toMatchObject({
+      link: 'http://localhost/verify-email?token=tok',
+    })
   })
 
   it('creates a prayer_user customer with locale + main church and sends the verification email', async () => {
@@ -141,4 +157,51 @@ describe('registerUser (WB1 / WB-18)', () => {
     })
     expect(USE_AUTH_TOKEN).toHaveBeenCalledWith({ id: 'token-1' })
   })
+})
+
+describe('account emails only reach live accounts (MB-06 soft delete)', () => {
+  const account = (status: string) => ({
+    id: 'u1',
+    email: 'maria@example.com',
+    name: 'Maria',
+    status,
+    email_verified_at: null,
+  })
+
+  beforeEach(() => {
+    vi.clearAllMocks()
+    vi.mocked(COUNT_AUTH_TOKENS).mockResolvedValue(0 as never)
+    vi.mocked(GET_LATEST_AUTH_TOKEN).mockResolvedValue(null as never)
+  })
+
+  it.each(['inactive', 'disabled'])(
+    'no password-reset email for a %s account (same soft success)',
+    async (status) => {
+      vi.mocked(GET_USER_BY_EMAIL).mockResolvedValue(account(status) as never)
+      await expect(
+        requestPasswordReset({ email: 'maria@example.com', baseUrl: 'http://x' }),
+      ).resolves.toEqual({ success: true })
+      expect(ENQUEUE_MAIL_SEND).not.toHaveBeenCalled()
+    },
+  )
+
+  it.each(['inactive', 'disabled'])(
+    'no verification email for a %s account (same soft success)',
+    async (status) => {
+      vi.mocked(GET_USER_BY_EMAIL).mockResolvedValue(account(status) as never)
+      await expect(
+        resendVerificationEmail({ email: 'maria@example.com', baseUrl: 'http://x' }),
+      ).resolves.toHaveProperty('cooldown_seconds')
+      expect(ENQUEUE_MAIL_SEND).not.toHaveBeenCalled()
+    },
+  )
+
+  it.each(['active', 'deletion_pending'])(
+    'a %s account still gets a password-reset email',
+    async (status) => {
+      vi.mocked(GET_USER_BY_EMAIL).mockResolvedValue(account(status) as never)
+      await requestPasswordReset({ email: 'maria@example.com', baseUrl: 'http://x' })
+      expect(ENQUEUE_MAIL_SEND).toHaveBeenCalledOnce()
+    },
+  )
 })

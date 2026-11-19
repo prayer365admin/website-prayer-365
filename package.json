@@ -32,6 +32,7 @@
     "worker:payment-sync": "bun workers/payment-sync.ts",
     "worker:voice-register": "bun workers/voice-register.ts",
     "worker:mail-send": "bun workers/mail-send.ts",
+    "worker:privacy-delete": "bun workers/privacy-delete.ts",
     "worker:notification-send": "bun workers/notification-send.ts",
     "worker:scheduler": "bun workers/scheduler.ts",
     "worker:general-prayer-audio": "bun workers/general-prayer-audio.ts",
