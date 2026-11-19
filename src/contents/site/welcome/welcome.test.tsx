@@ -38,10 +38,10 @@ describe('Welcome landing page (welcome-landing)', () => {
     expect(screen.getByText('Everyday Faith.')).toBeTruthy()
     expect(screen.getByText('A More Connected Tomorrow.')).toBeTruthy()
     expect(screen.getByText('Join the Sanctuary — Register Free')).toBeTruthy()
-    // Store envs drive the promo badges only; hero badges always jump to #app-promo.
+    // Store badges are hidden until the app ships.
     const hero = within(screen.getByLabelText('Welcome Hero'))
-    expect(hero.getByLabelText('Download on the App Store').getAttribute('href')).toBe('#app-promo')
-    expect(hero.getByLabelText('Get it on Google Play').getAttribute('href')).toBe('#app-promo')
+    expect(hero.queryByLabelText('Download on the App Store')).toBeNull()
+    expect(hero.queryByLabelText('Get it on Google Play')).toBeNull()
     expect(screen.getByText('Pastors online for prayer')).toBeTruthy()
     expect(screen.getByText(SITE_MESSAGES.en.welcomeNoOpenPrayer)).toBeTruthy()
     expect(screen.getAllByText(SITE_MESSAGES.en.welcomeStatsUnavailable).length).toBeGreaterThan(0)
@@ -68,12 +68,9 @@ describe('Welcome landing page (welcome-landing)', () => {
     expect(screen.getByText('Contemporary Sanctuary Space')).toBeTruthy()
     expect(screen.getByText('Quiet Water Pilgrimages')).toBeTruthy()
 
-    // Mobile App Promo
-    expect(screen.getByText('Take the Sanctuary Wherever You Walk')).toBeTruthy()
-    expect(screen.getByText('06:30 Scripture Gentle Push')).toBeTruthy()
-    expect(screen.getByText('Offline Liturgy Playback')).toBeTruthy()
-    // The downloadable QR card was removed from the promo.
-    expect(screen.queryByText('Scan on Camera')).toBeNull()
+    // Coming-soon app card (temporarily replaces the Mobile App Promo)
+    expect(screen.getByText(SITE_MESSAGES.en.welcomeSoonTitle)).toBeTruthy()
+    expect(screen.queryByText('Take the Sanctuary Wherever You Walk')).toBeNull()
 
     // CTA
     expect(screen.getByText('Already a Parishioner or Pilgrim?')).toBeTruthy()

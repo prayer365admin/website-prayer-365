@@ -3,8 +3,9 @@
 import SiteTopBar from '@/components/site/top-bar'
 import { GeneralPrayerSiteOutput } from '@/models/general-prayer'
 import { SiteLoginPrayer } from '@/models/site-prayer'
-import WelcomeAppPromo from './app-promo'
+// import WelcomeAppPromo from './app-promo'
 import WelcomeCommunity from './community'
+import WelcomeComingSoon from './coming-soon'
 import WelcomeCtaParishioner from './cta-parishioner'
 import WelcomeFooter from './footer'
 import WelcomeHero from './hero'
@@ -46,7 +47,9 @@ export default function ContentsSiteWelcome({
         <WelcomeStatsStrip />
         <WelcomePillars />
         <WelcomeCommunity />
-        <WelcomeAppPromo />
+        {/* Temporarily replaced by WelcomeComingSoon; restore when the app launches. */}
+        {/* <WelcomeAppPromo /> */}
+        <WelcomeComingSoon />
         <WelcomeCtaParishioner />
         <WelcomeTestimonials />
         <WelcomeScriptureQuote />
