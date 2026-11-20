@@ -33,7 +33,7 @@ const backoff = (attempts: number) => new Date(Date.now() + 30_000 * 2 ** attemp
 
 /** Trigger -> preference key, and trigger -> mobile tap type. */
 const PREFERENCE_BY_TRIGGER: Record<string, string> = {
-  prayer_published: 'daily_prayer',
+  prayer_published: 'church_prayer',
   announcement_published: 'announcements',
   event_reminder: 'church_events',
   donation_reminder: 'donation_reminder',

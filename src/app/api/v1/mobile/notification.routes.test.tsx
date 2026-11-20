@@ -22,10 +22,9 @@ import { DELETE, PUT as PUT_DEVICE } from './me/devices/[installationId]/route'
 
 const prefs = {
   dailyPrayer: true,
-  sundayService: true,
+  churchPrayer: true,
   churchEvents: true,
   announcements: true,
-  platformInformation: true,
   donationReminder: true,
 }
 const params = { params: Promise.resolve({ installationId: 'install-1' }) }
@@ -53,7 +52,7 @@ describe('notification-preferences route', () => {
     expect(await res.json()).toMatchObject({ success: true, result: prefs })
   })
 
-  it('PUT saves all six keys', async () => {
+  it('PUT saves all five keys', async () => {
     const req = new NextRequest('http://x/api/v1/mobile/me/notification-preferences', {
       method: 'PUT',
       body: JSON.stringify(prefs),
@@ -63,6 +62,16 @@ describe('notification-preferences route', () => {
     expect(saveNotificationPreferences).toHaveBeenCalledWith(
       expect.objectContaining({ userId: 'u1', input: prefs }),
     )
+  })
+
+  it('PUT still accepts the legacy six-key body from older app builds', async () => {
+    const { churchPrayer: _omit, ...rest } = prefs
+    const req = new NextRequest('http://x/api/v1/mobile/me/notification-preferences', {
+      method: 'PUT',
+      body: JSON.stringify({ ...rest, sundayService: true, platformInformation: false }),
+    })
+    const res = await PUT(req)
+    expect(res.status).toBe(200)
   })
 
   it('PUT rejects an unknown key with 422', async () => {

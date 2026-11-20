@@ -21,7 +21,7 @@ import {
   MobileMePatch,
   MobileChangePassword,
   MobileMyChurch,
-  MobileNotificationPreferences,
+  MobileNotificationPreferencesInput,
   MobilePublicAnnouncement,
   MobilePublicChurch,
   MobilePublicEvent,
@@ -441,7 +441,7 @@ export const saveNotificationPreferences = async ({
   requestId,
 }: {
   userId: string
-  input: MobileNotificationPreferences
+  input: MobileNotificationPreferencesInput
   requestId: string
 }) =>
   dbTransaction(async (tx) => {

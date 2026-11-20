@@ -1,6 +1,7 @@
 import { EventCategory, Prisma, RequestKind } from '@prisma/client'
 import { unstable_cache } from 'next/cache'
 import { db } from '@/utils/db-connection'
+import { ACTIVE_CUSTOMER_WHERE } from '@/utils/customer-role'
 import { withDbRetry } from '@/utils/db-resilience'
 import { GeneralError } from '@/utils/general-error'
 import { auditPayload } from '@/utils/audit'
@@ -16,7 +17,7 @@ import {
   MobileEventListQuery,
   MobileHomeBase,
   MobileMyChurch,
-  MobileNotificationPreferences,
+  MobileNotificationPreferencesInput,
   MobileNotificationType,
   MobilePrayerListQuery,
   MobileDonationOptionsSchema,
@@ -1501,27 +1502,27 @@ export const GET_NOTIFICATION_PREFERENCES = async ({ userId }: { userId: string 
   const byType = new Map(rows.map((r) => [r.type, r.enabled]))
   return {
     dailyPrayer: byType.get('daily_prayer') ?? true,
-    sundayService: byType.get('sunday_service') ?? true,
+    churchPrayer: byType.get('church_prayer') ?? true,
     churchEvents: byType.get('church_events') ?? true,
     announcements: byType.get('announcements') ?? true,
-    platformInformation: byType.get('platform_information') ?? true,
     donationReminder: byType.get('donation_reminder') ?? true,
   }
 }
 
 export const UPSERT_NOTIFICATION_PREFERENCES = async (
-  { userId, prefs }: { userId: string; prefs: MobileNotificationPreferences },
+  { userId, prefs }: { userId: string; prefs: MobileNotificationPreferencesInput },
   tx: Prisma.TransactionClient = db,
 ) => {
-  const values: Array<[MobileNotificationType, boolean]> = [
+  // `churchPrayer` is absent from older app builds: leave the stored value untouched then.
+  const values: Array<[MobileNotificationType, boolean | undefined]> = [
     ['daily_prayer', prefs.dailyPrayer],
-    ['sunday_service', prefs.sundayService],
+    ['church_prayer', prefs.churchPrayer],
     ['church_events', prefs.churchEvents],
     ['announcements', prefs.announcements],
-    ['platform_information', prefs.platformInformation],
     ['donation_reminder', prefs.donationReminder],
   ]
   for (const [type, enabled] of values) {
+    if (enabled === undefined) continue
     await tx.notificationPreference.upsert({
       where: { user_id_type: { user_id: userId, type } },
       create: { user_id: userId, type, enabled },
@@ -1586,16 +1587,38 @@ export const DISABLE_DEVICE_TOKEN = async (
 export const MARK_DEVICE_DISABLED = async ({ deviceTokenId }: { deviceTokenId: string }) =>
   db.deviceToken.update({ where: { id: deviceTokenId }, data: { disabled_at: new Date() } })
 
-/** The agreed audience: active users whose main or followed church is this church. */
+/** The agreed audience: active CUSTOMERS whose main or followed church is this church. */
 export const GET_NOTIFICATION_RECIPIENTS = async ({ churchId }: { churchId: string }) =>
   db.userChurch.findMany({
     where: {
       church_id: churchId,
       OR: [{ is_main: true }, { is_followed: true }],
-      user: { status: 'active' },
+      user: ACTIVE_CUSTOMER_WHERE,
     },
     select: { user_id: true, user: { select: { email: true, name: true } } },
   })
+
+/** Church display name for push copy; null when the church is gone. */
+export const GET_CHURCH_NAME = async ({ churchId }: { churchId: string }) =>
+  (await db.church.findUnique({ where: { id: churchId }, select: { name: true } }))?.name ?? null
+
+/** Main church id per user, for notification deep links that need a church. */
+export const GET_MAIN_CHURCH_IDS_FOR_USERS = async ({ userIds }: { userIds: string[] }) => {
+  const rows = await db.userChurch.findMany({
+    where: { user_id: { in: userIds }, is_main: true },
+    select: { user_id: true, church_id: true },
+  })
+  return new Map(rows.map((row) => [row.user_id, row.church_id]))
+}
+
+/** Platform church id (donation fallback target). Plain query: workers run outside Next's cache. */
+export const GET_PLATFORM_CHURCH_ID = async () =>
+  (
+    await db.church.findFirst({
+      where: { is_platform: true, status: 'APPROVED' },
+      select: { id: true },
+    })
+  )?.id ?? null
 
 export const GET_ACTIVE_DEVICES_FOR_USERS = async ({ userIds }: { userIds: string[] }) =>
   db.deviceToken.findMany({
@@ -1722,7 +1745,7 @@ export const GET_NOTIFICATION_CONTENT = async ({
     })
     if (!event) return null
     return {
-      title: `Upcoming at ${church.name}`,
+      title: `Upcoming event at ${church.name}`,
       body: event.title,
       churchName: church.name,
       churchSlug: church.slug,

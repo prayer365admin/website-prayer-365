@@ -975,6 +975,33 @@ flowchart TD
 
 Transactional email reuses the template Nodemailer/Handlebars controller after transport/security validation. It does not imply sending every push by email or building email campaigns. Trigger timing and recipient rules remain D9.
 
+### 9.8.1 Push and email text localization (PLANNED, not built)
+
+Status: **plan only.** Today every push title/body is a fixed English string built by the sender
+(`notification-send-job`, `general-prayer-send-job`, `donation-reminder-send-job`, `donation-thanks`).
+The mobile app localises its own screens (en/et/fi/sv) but the OS shows push text exactly as received,
+so a user who switches the app to Eesti still receives English pushes.
+
+- **Goal:** the title/body of every system push (and the email leg's fixed copy) follows the recipient's language.
+- **Language source:** `user.locale` (`en|et|fi|sv`). The app already writes it when the user changes language
+  (`PATCH M/me { locale }`, best-effort) and the website writes it from its own switcher. No new column or endpoint.
+  Missing/unknown locale falls back to `en`. Staging snapshot (2026-11-19): 21 `en`, 13 `et`, 17 unset.
+- **Where text lives:** one dashboard module, `src/i18n/push-messages.ts`, keyed by `type` then language
+  (`church_prayer`, `announcement`, `event_reminder`, `donation_reminder`, `donation_thanks`). Strings take
+  placeholders (`{church}`); no HTML. This is the only place copy is edited.
+- **Not translated:** content a pastor/admin typed (prayer, announcement and event titles, the general prayer's
+  title/verse). Only the fixed wrapper text ("New prayer from", "Upcoming event at", …) is translated.
+- **Sending:** audiences are resolved per church or per customer page; each send is split by recipient language
+  and one `SEND_PUSH_BATCH` call is made per language group. `dedupeKey` and delivery records are unchanged
+  (the event key is language-independent, so a retry never sends twice).
+- **Email leg:** the Handlebars templates keep their layout; the subject and the injected `body`/`churchName`
+  use the same message module. Template chrome translation is out of scope for this plan.
+- **Review gate:** et/fi/sv wording is church language ("offering", "God bless you") and must be reviewed by a
+  native speaker before release. English remains the reference text.
+- **Verification:** each type renders in each language with placeholders filled; an unset or unknown locale
+  yields English; a mixed-language audience is split into correct groups; deliveries are not duplicated when
+  one language group retries; no language ever changes a deep link or `data` payload.
+
 ## 10. Infrastructure Design
 
 ### 10.1 Template-Aligned Hosting Proposal

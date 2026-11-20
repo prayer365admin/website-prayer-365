@@ -107,6 +107,21 @@ describe('processPrayerPublishJob — preconditions', () => {
     expect(mocks.prayer.PUBLISH_PRAYER_BY_JOB).not.toHaveBeenCalled()
   })
 
+  it('queues the push when an immediate publish already wrote the prayer as published', async () => {
+    mocks.prayer.GET_PRAYER_FOR_PUBLISH_JOB.mockResolvedValueOnce({
+      ...basePrayer,
+      published_version_id: 'v1',
+    })
+    await expect(processPrayerPublishJob('job1', 'rq')).resolves.toBe('succeeded')
+    expect(mocks.prayer.PUBLISH_PRAYER_BY_JOB).not.toHaveBeenCalled()
+    expect(mocks.notification.ENQUEUE_NOTIFICATION).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: 'prayer_published',
+        dedupeKeySuffix: expect.stringContaining('v1'),
+      }),
+    )
+  })
+
   it('marks SUCCEEDED without re-publishing for duplicate delivery', async () => {
     mocks.prayer.GET_PRAYER_FOR_PUBLISH_JOB.mockResolvedValueOnce({
       ...basePrayer,
@@ -115,7 +130,6 @@ describe('processPrayerPublishJob — preconditions', () => {
     await expect(processPrayerPublishJob('job1', 'rq')).resolves.toBe('succeeded')
     expectJobDone('SUCCEEDED')
     expect(mocks.prayer.PUBLISH_PRAYER_BY_JOB).not.toHaveBeenCalled()
-    expect(mocks.notification.ENQUEUE_NOTIFICATION).not.toHaveBeenCalled()
   })
 })
 

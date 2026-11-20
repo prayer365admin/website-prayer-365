@@ -38,6 +38,7 @@
     "worker:scheduler": "bun workers/scheduler.ts",
     "worker:general-prayer-audio": "bun workers/general-prayer-audio.ts",
     "worker:general-prayer-send": "bun workers/general-prayer-send.ts",
+    "worker:donation-reminder-send": "bun workers/donation-reminder-send.ts",
     "viimsi:voice-audio": "bunx tsx prisma/viimsi-voice-audio.ts",
     "update-dbdocs": "bun prisma generate && dbdocs build prisma/dbml/schema.dbml --project catatia_dashboard",
     "stripe:listen": "stripe listen --forward-to localhost:3000/api/v1/webhooks/stripe --events payment_intent.succeeded,payment_intent.payment_failed,checkout.session.completed,customer.subscription.created,customer.subscription.updated,customer.subscription.deleted,charge.succeeded,charge.failed,charge.refunded,invoice.payment_succeeded,invoice.payment_failed",

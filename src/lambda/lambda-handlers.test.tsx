@@ -150,6 +150,7 @@ describe('dispatcher handler', () => {
   it('exposes a processor for every supported kind', () => {
     expect(Object.keys(HANDLERS).sort()).toEqual([
       'audio.generate',
+      'donation_reminder.send',
       'general_prayer.audio',
       'general_prayer.send',
       'mail.send',

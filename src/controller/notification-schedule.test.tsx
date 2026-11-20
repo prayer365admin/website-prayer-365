@@ -5,7 +5,7 @@ const mocks = vi.hoisted(() => ({
   rule: vi.fn(),
   enqueue: vi.fn(async () => ({ id: 'job-1' })),
   events: vi.fn(async () => [] as unknown[]),
-  churches: vi.fn(async () => [] as unknown[]),
+  donationJob: vi.fn(async () => ({ count: 1 })),
   logger: { info: vi.fn(), error: vi.fn() },
 }))
 
@@ -13,7 +13,7 @@ vi.mock('@/providers/notification', () => ({
   GET_NOTIFICATION_RULE_BY_TYPE: mocks.rule,
   ENQUEUE_NOTIFICATION: mocks.enqueue,
   SCAN_EVENTS_STARTING_BETWEEN: mocks.events,
-  LIST_APPROVED_CHURCH_IDS: mocks.churches,
+  ENQUEUE_DONATION_REMINDER_SEND_JOB: mocks.donationJob,
 }))
 vi.mock('@/utils/logger', () => ({ logger: mocks.logger }))
 
@@ -25,7 +25,6 @@ beforeEach(() => {
   vi.clearAllMocks()
   mocks.enqueue.mockResolvedValue({ id: 'job-1' })
   mocks.events.mockResolvedValue([])
-  mocks.churches.mockResolvedValue([])
 })
 
 describe('scanDueEventReminders', () => {
@@ -66,33 +65,19 @@ describe('scanDueEventReminders', () => {
 })
 
 describe('scanDueDonationReminders', () => {
-  it('enqueues one reminder per approved church for the ISO week', async () => {
+  it('enqueues ONE all-customer job for the ISO week', async () => {
     mocks.rule.mockResolvedValue({ enabled: true, recurrence: 'weekly' })
-    mocks.churches.mockResolvedValue([{ id: 'c1' }, { id: 'c2' }])
+    mocks.donationJob.mockResolvedValue({ count: 1 })
 
-    await expect(scanDueDonationReminders({ now: NOW })).resolves.toEqual({ enqueued: 2 })
-    expect(mocks.enqueue).toHaveBeenNthCalledWith(1, {
-      type: 'donation_reminder',
-      resourceId: 'c1',
-      churchId: 'c1',
-      dedupeKeySuffix: 'c1:2026-W45',
-    })
-    expect(mocks.enqueue).toHaveBeenNthCalledWith(2, {
-      type: 'donation_reminder',
-      resourceId: 'c2',
-      churchId: 'c2',
-      dedupeKeySuffix: 'c2:2026-W45',
-    })
+    await expect(scanDueDonationReminders({ now: NOW })).resolves.toEqual({ enqueued: 1 })
+    expect(mocks.donationJob).toHaveBeenCalledWith({ periodKey: '2026-W45' })
   })
 
   it('uses the calendar month for a monthly recurrence', async () => {
     mocks.rule.mockResolvedValue({ enabled: true, recurrence: 'monthly' })
-    mocks.churches.mockResolvedValue([{ id: 'c1' }])
 
     await scanDueDonationReminders({ now: NOW })
-    expect(mocks.enqueue).toHaveBeenCalledWith(
-      expect.objectContaining({ dedupeKeySuffix: 'c1:2026-11' }),
-    )
+    expect(mocks.donationJob).toHaveBeenCalledWith({ periodKey: '2026-11' })
   })
 
   it('does nothing without an active rule and recurrence', async () => {
@@ -105,16 +90,13 @@ describe('scanDueDonationReminders', () => {
     mocks.rule.mockResolvedValueOnce({ enabled: false, recurrence: 'weekly' })
     await expect(scanDueDonationReminders({ now: NOW })).resolves.toEqual({ enqueued: 0 })
 
-    expect(mocks.churches).not.toHaveBeenCalled()
-    expect(mocks.enqueue).not.toHaveBeenCalled()
+    expect(mocks.donationJob).not.toHaveBeenCalled()
   })
 
-  it('keeps sweeping when one church is already enqueued for the period', async () => {
+  it('inserts nothing when the period job already exists (dedupe)', async () => {
     mocks.rule.mockResolvedValue({ enabled: true, recurrence: 'weekly' })
-    mocks.churches.mockResolvedValue([{ id: 'c1' }, { id: 'c2' }])
-    mocks.enqueue.mockRejectedValueOnce(new Error('unique violation'))
+    mocks.donationJob.mockResolvedValue({ count: 0 })
 
-    await expect(scanDueDonationReminders({ now: NOW })).resolves.toEqual({ enqueued: 1 })
-    expect(mocks.enqueue).toHaveBeenCalledTimes(2)
+    await expect(scanDueDonationReminders({ now: NOW })).resolves.toEqual({ enqueued: 0 })
   })
 })

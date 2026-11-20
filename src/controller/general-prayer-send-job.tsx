@@ -238,7 +238,7 @@ export const processGeneralPrayerSendJob = async (
 }
 
 /** FCM leg. Only `succeeded` lets the caller finish; transient failures requeue. */
-const sendPushLeg = async ({
+export const sendPushLeg = async ({
   job,
   ruleId,
   dedupeKey,

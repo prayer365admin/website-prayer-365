@@ -2,9 +2,9 @@ import dayjs from 'dayjs'
 import isoWeek from 'dayjs/plugin/isoWeek'
 
 import {
+  ENQUEUE_DONATION_REMINDER_SEND_JOB,
   ENQUEUE_NOTIFICATION,
   GET_NOTIFICATION_RULE_BY_TYPE,
-  LIST_APPROVED_CHURCH_IDS,
   SCAN_EVENTS_STARTING_BETWEEN,
 } from '@/providers/notification'
 import { logger } from '@/utils/logger'
@@ -25,7 +25,7 @@ dayjs.extend(isoWeek)
  * (`YYYY-Www`). dayjs has no week format token, so the ISO number is read
  * directly — week 1 of a year can start in the previous December.
  */
-const donationPeriodKey = (recurrence: 'weekly' | 'monthly', now: Date) => {
+export const donationPeriodKey = (recurrence: 'weekly' | 'monthly', now: Date) => {
   if (recurrence === 'monthly') return dayjs(now).format('YYYY-MM')
   const week = String(dayjs(now).isoWeek()).padStart(2, '0')
   return `${dayjs(now).isoWeekYear()}-W${week}`
@@ -72,26 +72,10 @@ export const scanDueDonationReminders = async ({ now = new Date() }: { now?: Dat
     return { enqueued: 0 }
   }
 
+  // ONE job per period for ALL customers (not per church): the audience is every active
+  // customer with `donation_reminder` ON, so a customer with no church is reached too.
   const periodKey = donationPeriodKey(recurrence, now)
-  const churches = await LIST_APPROVED_CHURCH_IDS()
-
-  let enqueued = 0
-  for (const church of churches) {
-    try {
-      await ENQUEUE_NOTIFICATION({
-        type: 'donation_reminder',
-        resourceId: church.id,
-        churchId: church.id,
-        // One reminder per church per period, however often the sweep runs.
-        dedupeKeySuffix: `${church.id}:${periodKey}`,
-      })
-      enqueued++
-    } catch {
-      // Already enqueued for this church+period.
-    }
-  }
-  if (enqueued > 0) {
-    logger.info('donation_reminders_enqueued', { period: periodKey, count: enqueued })
-  }
-  return { enqueued }
+  const created = await ENQUEUE_DONATION_REMINDER_SEND_JOB({ periodKey })
+  if (created.count > 0) logger.info('donation_reminder_enqueued', { period: periodKey })
+  return { enqueued: created.count }
 }

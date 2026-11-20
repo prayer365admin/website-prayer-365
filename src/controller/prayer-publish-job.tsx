@@ -33,6 +33,41 @@ const requeueOrFail = async (
   return 'requeued'
 }
 
+/**
+ * Queue the church-prayer push. The outbox dedupe key makes this idempotent, so it is safe to
+ * call from both publish paths and on a replayed job. It never fails the publish itself (the
+ * prayer IS published) but it is never silent either.
+ */
+const enqueuePrayerNotification = async ({
+  jobId,
+  prayerId,
+  churchId,
+  prayerVersionId,
+}: {
+  jobId: string
+  prayerId: string
+  churchId: string
+  prayerVersionId: string
+}) => {
+  try {
+    await ENQUEUE_NOTIFICATION({
+      type: 'prayer_published',
+      resourceId: prayerId,
+      churchId,
+      dedupeKeySuffix: `${prayerId}:${prayerVersionId}`,
+    })
+  } catch (err) {
+    // P2002 = already queued for this version: exactly what the dedupe key is for.
+    if (err && typeof err === 'object' && 'code' in err && err.code === 'P2002') return
+    logger.error('prayer_publish_notification_enqueue_failed', {
+      job_id: jobId,
+      prayer_id: prayerId,
+      error_name: err instanceof Error ? err.name : typeof err,
+      error_message: err instanceof Error ? err.message : String(err),
+    })
+  }
+}
+
 export const processPrayerPublishJob = async (
   jobId: string,
   requestId: string,
@@ -54,6 +89,16 @@ export const processPrayerPublishJob = async (
   }
 
   if (prayer.published_version_id === payload.prayerVersionId) {
+    // An immediate publish already wrote the prayer as published when the request was made, so
+    // the job lands here. This used to return without queuing the push, which is why a church
+    // prayer published straight from the dashboard never notified anyone. Queue it here too;
+    // the dedupe key stops a replayed job from sending twice.
+    await enqueuePrayerNotification({
+      jobId,
+      prayerId: prayer.id,
+      churchId: payload.churchId,
+      prayerVersionId: payload.prayerVersionId,
+    })
     await MARK_JOB_STATE({ jobId, state: 'SUCCEEDED' })
     return 'succeeded'
   }
@@ -89,17 +134,12 @@ export const processPrayerPublishJob = async (
       return await requeueOrFail(job, 'CONCURRENCY_CONFLICT')
     }
 
-    try {
-      await ENQUEUE_NOTIFICATION({
-        type: 'prayer_published',
-        resourceId: prayer.id,
-        churchId: payload.churchId,
-        dedupeKeySuffix: `${prayer.id}:${payload.prayerVersionId}`,
-      })
-    } catch {
-      // Not blocking the job itself.
-      // Error is caught. Next step succeeds job.
-    }
+    await enqueuePrayerNotification({
+      jobId,
+      prayerId: prayer.id,
+      churchId: payload.churchId,
+      prayerVersionId: payload.prayerVersionId,
+    })
 
     await MARK_JOB_STATE({ jobId, state: 'SUCCEEDED' })
     return 'succeeded'

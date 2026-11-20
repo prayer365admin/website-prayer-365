@@ -13,6 +13,7 @@ import {
 import { RESOLVE_INVOICE_PAYMENT_ID } from '@/utils/stripe-payment-id'
 import { STRIPE, isStripeEnabled } from '@/providers/stripe'
 import { CANCEL_OTHER_CHURCH_SUBSCRIPTIONS } from '@/providers/donation'
+import { notifyDonationThanks } from '@/controller/donation-thanks'
 
 const MAX_ATTEMPTS = 3
 const REFUND_MAX_ATTEMPTS = 10
@@ -230,6 +231,11 @@ export const processPaymentSyncJob = async (
         paidAt: providerPaidAt,
         providerSubscriptionId: subscriptionId ? String(subscriptionId) : undefined,
       })
+      await notifyDonationThanks({
+        userId: payerUserId,
+        churchId,
+        providerPaymentId: String(pi.id),
+      })
     } else if (payload.eventType === 'payment_intent.payment_failed') {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const pi = obj as any
@@ -257,6 +263,14 @@ export const processPaymentSyncJob = async (
         status: 'PAID',
         paidAt: providerPaidAt,
         invoiceUrl: typeof ch.receipt_url === 'string' ? ch.receipt_url : undefined,
+      })
+      await notifyDonationThanks({
+        userId: payerUserId,
+        churchId,
+        providerPaymentId:
+          typeof ch.payment_intent === 'string'
+            ? ch.payment_intent
+            : ch.payment_intent?.id || ch.id,
       })
       if (isStripeEnabled() && metadata && Object.keys(metadata).length > 0) {
         await STRIPE.updateChargeMetadata(ch.id, metadata as Record<string, string>)
@@ -378,6 +392,11 @@ export const processPaymentSyncJob = async (
           providerSubscriptionId: extractSubscriptionId(obj),
           invoiceUrl:
             typeof obj.hosted_invoice_url === 'string' ? obj.hosted_invoice_url : undefined,
+        })
+        await notifyDonationThanks({
+          userId: payerUserId,
+          churchId,
+          providerPaymentId: String(paymentId),
         })
         if (
           isStripeEnabled() &&

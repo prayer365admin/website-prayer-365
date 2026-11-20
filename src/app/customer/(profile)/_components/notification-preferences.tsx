@@ -9,10 +9,9 @@ import s from './notification-preferences.module.scss'
 
 const ROWS = [
   { key: 'dailyPrayer', labelKey: 'profileNotifDailyPrayer' },
-  { key: 'sundayService', labelKey: 'profileNotifSundayService' },
+  { key: 'churchPrayer', labelKey: 'profileNotifChurchPrayer' },
   { key: 'churchEvents', labelKey: 'profileNotifChurchEvents' },
   { key: 'announcements', labelKey: 'profileNotifAnnouncements' },
-  { key: 'platformInformation', labelKey: 'profileNotifPlatformInformation' },
   { key: 'donationReminder', labelKey: 'profileNotifDonationReminder' },
 ] as const
 

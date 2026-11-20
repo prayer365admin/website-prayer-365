@@ -21,3 +21,17 @@ export const CUSTOMER_ACCOUNT_FILTER: Prisma.UserWhereInput = {
   status: 'active',
   OR: [{ role_id: null }, { role: { is: { name: CUSTOMER_ROLE } } }],
 }
+
+/**
+ * Push/email audience: ACTIVE CUSTOMERS only (D-GP-12). Role assignments supersede the legacy
+ * `role_id`, so an account carrying any live non-customer grant is excluded too. Shared by the
+ * daily-prayer fan-out and the church notification recipients so "customer only" is ONE rule.
+ */
+export const ACTIVE_CUSTOMER_WHERE: Prisma.UserWhereInput = {
+  status: 'active',
+  deleted_at: null,
+  role: { is: { name: CUSTOMER_ROLE } },
+  roleAssignments: {
+    none: { revoked_at: null, role: { is: { name: { not: CUSTOMER_ROLE } } } },
+  },
+}

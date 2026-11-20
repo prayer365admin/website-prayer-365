@@ -3,12 +3,15 @@ import requiredAuth from '@/utils/required-auth'
 import { ok, httpError, requestId } from '@/utils/response'
 import { validate } from '@/utils/validate'
 import { registerPath } from '@/utils/openapi'
-import { MobileNotificationPreferencesSchema } from '@/models/mobile'
+import {
+  MobileNotificationPreferencesInputSchema,
+  MobileNotificationPreferencesSchema,
+} from '@/models/mobile'
 import { getNotificationPreferences, saveNotificationPreferences } from '@/controller/mobile'
 
 /*
  * GET / PUT /api/v1/mobile/me/notification-preferences (MB-04).
- * Subject-only; six allowlisted keys; every type defaults ON (client decision
+ * Subject-only; five allowlisted keys; every type defaults ON (client decision
  * 2026-10-30) so a missing row is not "off".
  */
 
@@ -26,7 +29,7 @@ registerPath({
   path: '/mobile/me/notification-preferences',
   method: 'put',
   summary: 'Save the caller notification preferences',
-  request: { body: MobileNotificationPreferencesSchema },
+  request: { body: MobileNotificationPreferencesInputSchema },
   responses: [
     { status: 200, description: 'Saved preferences', schema: MobileNotificationPreferencesSchema },
     { status: 401, description: 'Not authenticated' },
@@ -47,7 +50,10 @@ export async function GET(req: NextRequest) {
 export async function PUT(req: NextRequest) {
   try {
     const { session } = await requiredAuth(req)
-    const body = validate(MobileNotificationPreferencesSchema, await req.json().catch(() => ({})))
+    const body = validate(
+      MobileNotificationPreferencesInputSchema,
+      await req.json().catch(() => ({})),
+    )
     const prefs = await saveNotificationPreferences({
       userId: session.user.user_id,
       input: body,
