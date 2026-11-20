@@ -1,6 +1,6 @@
-import { AppleIcon } from '@/components/icon/apple'
+// import { AppleIcon } from '@/components/icon/apple'
 import { ArrowRightIcon } from '@/components/icon/arrow-right'
-import { GoogleIcon } from '@/components/icon/google'
+// import { GoogleIcon } from '@/components/icon/google'
 import { LockIcon } from '@/components/icon/lock'
 import { SparklesIcon } from '@/components/icon/sparkles'
 import { WaveformIcon } from '@/components/icon/waveform'
@@ -29,9 +29,8 @@ export default function WelcomeHero({
     typeof memberCount === 'number'
       ? t('welcomeBelievers', { count: new Intl.NumberFormat(locale).format(memberCount) })
       : t('welcomeStatsUnavailable')
-  // The hero badges always jump to the app promo section, where the store links live
-  // because the app ships to both stores.
-  const appDownloadHref = '#app-promo'
+  // Store badges are hidden for now (see the comment block below).
+  // const appDownloadHref = '#app-promo'
 
   return (
     <section
@@ -103,40 +102,45 @@ export default function WelcomeHero({
               </Link>
             </div>
 
-            {/* App Store Badges */}
-            <div className="mt-6 flex flex-wrap gap-4">
-              <a
-                aria-label={t('welcomeDownloadAppStoreAria')}
-                className="h-[51px] w-full rounded-xl bg-black/85 border border-white/20 flex items-center gap-3 px-4 shadow-[0px_4px_6px_-1px_rgba(0,0,0,0.1),0px_2px_4px_-2px_rgba(0,0,0,0.1)] hover:bg-black transition-colors sm:w-[220px]"
-                href={appDownloadHref}
-              >
-                <AppleIcon aria-hidden className="text-white" style={{ fontSize: 26 }} />
-                <div className="flex flex-col text-left">
-                  <span className="text-[10px] tracking-[2px] uppercase text-[#CBD5E1] font-semibold leading-none">
-                    {t('welcomeDownloadOnThe')}
-                  </span>
-                  <span className="text-[13px] text-white font-semibold leading-tight mt-0.5">
-                    {t('welcomeAppStore')}
-                  </span>
-                </div>
-              </a>
-
-              <a
-                aria-label={t('welcomeGetOnPlayAria')}
-                className="h-[51px] w-full rounded-xl bg-black/85 border border-white/20 flex items-center gap-3 px-4 shadow-[0px_4px_6px_-1px_rgba(0,0,0,0.1),0px_2px_4px_-2px_rgba(0,0,0,0.1)] hover:bg-black transition-colors sm:w-[220px]"
-                href={appDownloadHref}
-              >
-                <GoogleIcon aria-hidden style={{ fontSize: 22 }} />
-                <div className="flex flex-col text-left">
-                  <span className="text-[10px] tracking-[2px] uppercase text-[#CBD5E1] font-semibold leading-none">
-                    {t('welcomeGetItOn')}
-                  </span>
-                  <span className="text-[13px] text-white font-semibold leading-tight mt-0.5">
-                    {t('welcomeGooglePlay')}
-                  </span>
-                </div>
-              </a>
-            </div>
+            {/*
+             * App Store badges, hidden until the app ships (the #app-promo section now holds the
+             * coming-soon card). To restore: uncomment this block, `appDownloadHref` and the
+             * AppleIcon / GoogleIcon imports.
+             *
+             * <div className="mt-6 flex flex-wrap gap-4">
+             *   <a
+             *     aria-label={t('welcomeDownloadAppStoreAria')}
+             *     className="h-[51px] w-full rounded-xl bg-black/85 border border-white/20 flex items-center gap-3 px-4 shadow-[0px_4px_6px_-1px_rgba(0,0,0,0.1),0px_2px_4px_-2px_rgba(0,0,0,0.1)] hover:bg-black transition-colors sm:w-[220px]"
+             *     href={appDownloadHref}
+             *   >
+             *     <AppleIcon aria-hidden className="text-white" style={{ fontSize: 26 }} />
+             *     <div className="flex flex-col text-left">
+             *       <span className="text-[10px] tracking-[2px] uppercase text-[#CBD5E1] font-semibold leading-none">
+             *         {t('welcomeDownloadOnThe')}
+             *       </span>
+             *       <span className="text-[13px] text-white font-semibold leading-tight mt-0.5">
+             *         {t('welcomeAppStore')}
+             *       </span>
+             *     </div>
+             *   </a>
+             *
+             *   <a
+             *     aria-label={t('welcomeGetOnPlayAria')}
+             *     className="h-[51px] w-full rounded-xl bg-black/85 border border-white/20 flex items-center gap-3 px-4 shadow-[0px_4px_6px_-1px_rgba(0,0,0,0.1),0px_2px_4px_-2px_rgba(0,0,0,0.1)] hover:bg-black transition-colors sm:w-[220px]"
+             *     href={appDownloadHref}
+             *   >
+             *     <GoogleIcon aria-hidden style={{ fontSize: 22 }} />
+             *     <div className="flex flex-col text-left">
+             *       <span className="text-[10px] tracking-[2px] uppercase text-[#CBD5E1] font-semibold leading-none">
+             *         {t('welcomeGetItOn')}
+             *       </span>
+             *       <span className="text-[13px] text-white font-semibold leading-tight mt-0.5">
+             *         {t('welcomeGooglePlay')}
+             *       </span>
+             *     </div>
+             *   </a>
+             * </div>
+             */}
 
             {/* Trust Row */}
             <div className="mt-6 flex flex-wrap items-center gap-2 text-[12px] text-[#B9D8F8]">
@@ -246,7 +250,7 @@ export default function WelcomeHero({
                   </div>
 
                   {(dailyPrayer?.verse ?? dailyPrayer?.introduction ?? prayer?.introduction) && (
-                    <p className="line-clamp-2 w-full text-[12px] leading-[1.5] text-[#737C8C]">
+                    <p className="line-clamp-2 w-full text-[12px] leading-[1.5] text-[#5C6370]">
                       &ldquo;
                       {dailyPrayer?.verse ?? dailyPrayer?.introduction ?? prayer?.introduction}
                       &rdquo;
@@ -277,7 +281,7 @@ export default function WelcomeHero({
                   <div className="flex items-center">
                     {PASTOR_AVATARS.map((avatar, idx) => (
                       <Image
-                        alt={t('welcomePastorOnlineAlt')}
+                        alt=""
                         className="-mr-3 h-6 w-6 rounded-full object-cover ring-2 ring-white last:mr-0"
                         height={24}
                         key={idx}
@@ -287,7 +291,7 @@ export default function WelcomeHero({
                       />
                     ))}
                   </div>
-                  <span className="truncate text-[10px] font-medium leading-none text-white/45">
+                  <span className="truncate text-[10px] font-medium leading-none text-white/70">
                     {t('welcomePastorsOnline')}
                   </span>
                 </div>
