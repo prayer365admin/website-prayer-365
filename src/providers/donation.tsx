@@ -7,12 +7,16 @@ import { logger } from '@/utils/logger'
 import { SITE_PUBLIC_TAG } from '@/utils/site-cache-tags'
 import { PLATFORM_CHURCH_SLUG } from '@/config/platform-church'
 import {
+  type AdminDonationListQuery,
+  type AdminDonationRow,
+  type AdminDonationSummary,
+  type DonationBucket,
   DonationListQuery,
-  DonationRow,
   DonationSubscriptionListQuery,
   DonationSubscriptionRow,
   DonationSummary,
   DonationSummaryRow,
+  MonthlySummaryRow,
   MyActiveGift,
   MyLatestDonation,
 } from '@/models/donation'
@@ -33,19 +37,30 @@ const donationOrderBy = (q: DonationListQuery): Prisma.DonationOrderByWithRelati
       ? [{ created_at: q.order_direction }, { id: 'asc' }]
       : [{ paid_at: q.order_direction }, { created_at: q.order_direction }, { id: 'asc' }]
 
-/** Paginated donation rows for a church, bounded by paid_at / created_at (failed fallback), no donor PII. */
+/**
+ * Paginated ledger rows for a church set, bounded by paid_at / created_at (failed
+ * fallback). Donor name + email are admin-only (T-08) and only reachable through
+ * the admin routes; the mobile DTO stays `DonationRow`.
+ *
+ * `type` is derived, never stored (T-01): a row on the platform beneficiary is a
+ * PRAYER gift, everything else is a CHURCH gift. Church-scoped reads never pass
+ * the platform id and are always CHURCH — the all-churches report supplies it.
+ */
 export const GET_DONATIONS = async ({
   churchIds,
+  platformChurchId,
   query,
 }: {
   churchIds: Set<string>
-  query: DonationListQuery
-}): Promise<{ result: DonationRow[]; total: number }> => {
+  platformChurchId?: string
+  query: AdminDonationListQuery
+}): Promise<{ result: AdminDonationRow[]; total: number }> => {
   const ids = Array.from(churchIds)
   if (ids.length === 0) return { result: [], total: 0 }
   const where: Prisma.DonationWhereInput = {
     church_id: { in: ids },
     currency: query.currency ? query.currency.toLowerCase() : undefined,
+    status: query.status,
     ...(query.from !== undefined || query.to !== undefined
       ? {
           OR: [
@@ -81,7 +96,11 @@ export const GET_DONATIONS = async ({
         status: true,
         paid_at: true,
         created_at: true,
+        refunded_minor: true,
         provider_payment_id: true,
+        invoice_url: true,
+        church: { select: { id: true, name: true } },
+        user: { select: { name: true, email: true } },
       },
     }),
   ])
@@ -95,8 +114,160 @@ export const GET_DONATIONS = async ({
       paidAt: r.paid_at,
       createdAt: r.created_at,
       ref: r.provider_payment_id,
+      churchId: r.church.id,
+      churchName: r.church.name,
+      type: platformChurchId && r.church.id === platformChurchId ? 'PRAYER' : 'CHURCH',
+      refundedMinor: r.refunded_minor.toString(),
+      donor: r.user ? { name: r.user.name, email: r.user.email } : null,
+      invoiceUrl: r.invoice_url,
     })),
   }
+}
+
+/**
+ * The all-church report (T-03): the platform beneficiary is unioned into the
+ * scope explicitly, because its org node is seeded outside the GLOBAL root's
+ * descendants, so the scope walk would otherwise drop every Prayer gift.
+ */
+export const GET_DONATIONS_ALL_CHURCHES = async ({
+  churchIds,
+  platformChurchId,
+  query,
+}: {
+  churchIds: Set<string>
+  platformChurchId: string
+  query: AdminDonationListQuery
+}): Promise<{ result: AdminDonationRow[]; total: number }> => {
+  const ids = Array.from(churchIds)
+  if (!ids.includes(platformChurchId)) ids.push(platformChurchId)
+  return GET_DONATIONS({ churchIds: new Set(ids), platformChurchId, query })
+}
+
+const emptyBucket = (): DonationBucket => ({
+  grossMinor: '0',
+  refundedMinor: '0',
+  netMinor: '0',
+  count: 0,
+})
+
+/**
+ * Three money buckets per currency for the all-church report (T-06): ONE grouped
+ * query, bucketed in JS by platform id. Total = every row; Church and Prayer are
+ * disjoint. Like the per-church summary, this aggregates PAID money by paid_at
+ * (T-05) and never sums across currencies (T-07).
+ */
+export const GET_DONATION_SUMMARY_BY_TYPE = async ({
+  churchIds,
+  platformChurchId,
+  from,
+  to,
+}: {
+  churchIds: Set<string>
+  platformChurchId: string
+  from?: Date
+  to?: Date
+}): Promise<AdminDonationSummary> => {
+  const ids = Array.from(churchIds)
+  if (!ids.includes(platformChurchId)) ids.push(platformChurchId)
+  const grouped = await db.donation.groupBy({
+    by: ['church_id', 'currency'],
+    where: {
+      church_id: { in: ids },
+      paid_at: { gte: from ?? undefined, lte: to ?? undefined },
+    },
+    _sum: { amount_minor: true, refunded_minor: true },
+    _count: true,
+  })
+
+  const perCurrency = new Map<string, AdminDonationSummary['currencies'][number]>()
+  const bucketFor = (currency: string) => {
+    let entry = perCurrency.get(currency)
+    if (!entry) {
+      entry = {
+        currency,
+        total: emptyBucket(),
+        church: emptyBucket(),
+        prayer: emptyBucket(),
+      }
+      perCurrency.set(currency, entry)
+    }
+    return entry
+  }
+  const fold = (bucket: DonationBucket, gross: bigint, refunded: bigint, count: number) => {
+    const nextGross = BigInt(bucket.grossMinor) + gross
+    const nextRefunded = BigInt(bucket.refundedMinor) + refunded
+    bucket.grossMinor = nextGross.toString()
+    bucket.refundedMinor = nextRefunded.toString()
+    bucket.netMinor = (nextGross - nextRefunded).toString()
+    bucket.count += count
+  }
+
+  for (const g of grouped) {
+    const gross = g._sum.amount_minor ?? BigInt(0)
+    const refunded = g._sum.refunded_minor ?? BigInt(0)
+    const count = g._count ?? 0
+    const entry = bucketFor(g.currency)
+    fold(entry.total, gross, refunded, count)
+    fold(g.church_id === platformChurchId ? entry.prayer : entry.church, gross, refunded, count)
+  }
+
+  const currencies = Array.from(perCurrency.values()).sort((a, b) =>
+    a.currency.localeCompare(b.currency),
+  )
+  return {
+    from: from ?? new Date(0),
+    to: to ?? new Date(8640000000000000),
+    currencies,
+  }
+}
+
+/** Raw shape of the grouped monthly query: money arrives as text, the count as int. */
+type RawMonthlySummaryRow = {
+  month: string
+  currency: string
+  gross_minor: string
+  refunded_minor: string
+  count: number
+}
+
+/**
+ * One row per (UTC month, currency) for the all-church ledger. A single grouped
+ * query (T-06-style): asking the database once per month would issue N
+ * round-trips. Money stays minor-unit strings and is NEVER summed across
+ * currencies; `net` is derived per currency.
+ */
+export const GET_DONATION_SUMMARY_MONTHLY = async ({
+  churchIds,
+  from,
+  to,
+}: {
+  churchIds: Set<string>
+  from?: Date
+  to?: Date
+}): Promise<MonthlySummaryRow[]> => {
+  const ids = Array.from(churchIds)
+  if (ids.length === 0) return []
+  const rows = await db.$queryRaw<RawMonthlySummaryRow[]>`
+    SELECT to_char(date_trunc('month', paid_at), 'YYYY-MM') AS month,
+           currency::text AS currency,
+           coalesce(sum(amount_minor), 0)::text AS gross_minor,
+           coalesce(sum(refunded_minor), 0)::text AS refunded_minor,
+           count(*)::int AS count
+      FROM donations
+     WHERE church_id = ANY(${ids}::text[])
+       AND paid_at >= ${from ?? new Date(0)}
+       AND paid_at <= ${to ?? new Date(8640000000000000)}
+     GROUP BY 1, 2
+     ORDER BY 1 DESC, 2 ASC
+  `
+  return rows.map((r) => ({
+    month: r.month,
+    currency: r.currency.toLowerCase(),
+    grossMinor: r.gross_minor,
+    refundedMinor: r.refunded_minor,
+    netMinor: (BigInt(r.gross_minor) - BigInt(r.refunded_minor)).toString(),
+    count: Number(r.count),
+  }))
 }
 
 const subscriptionOrderBy = (
@@ -136,9 +307,28 @@ export const GET_DONATION_SUBSCRIPTIONS = async ({
         currency: true,
         provider_status: true,
         created_at: true,
+        church: { select: { id: true, name: true } },
       },
     }),
   ])
+  // The plan's own row has no receipt: borrow the latest paid charge's invoice URL
+  // so the recurring detail modal can offer the same copy action. ONE query,
+  // DISTINCT ON the subscription, newest charge first.
+  const latestInvoices =
+    rows.length === 0
+      ? []
+      : await db.donation.findMany({
+          where: {
+            subscription_id: { in: rows.map((r) => r.id) },
+            invoice_url: { not: null },
+          },
+          distinct: ['subscription_id'],
+          orderBy: [{ paid_at: 'desc' }, { created_at: 'desc' }],
+          select: { subscription_id: true, invoice_url: true },
+        })
+  const invoiceBySubscription = new Map(
+    latestInvoices.map((d) => [d.subscription_id as string, d.invoice_url as string]),
+  )
   return {
     total,
     result: rows.map((r) => ({
@@ -147,6 +337,10 @@ export const GET_DONATION_SUBSCRIPTIONS = async ({
       currency: r.currency,
       providerStatus: r.provider_status,
       createdAt: r.created_at,
+      churchId: r.church.id,
+      churchName: r.church.name,
+      frequency: 'Monthly',
+      invoiceUrl: invoiceBySubscription.get(r.id) ?? null,
     })),
   }
 }
@@ -189,6 +383,7 @@ export const GET_DONATION_SUMMARY = async ({
       paid_at: { gte: start, lt: end },
     },
     _sum: { amount_minor: true, refunded_minor: true },
+    _count: true,
   })
   const currencies: DonationSummaryRow[] = grouped
     .map((g) => {
@@ -199,6 +394,7 @@ export const GET_DONATION_SUMMARY = async ({
         grossMinor: gross.toString(),
         refundedMinor: refunded.toString(),
         netMinor: (gross - refunded).toString(),
+        count: g._count,
       }
     })
     .sort((a, b) => a.currency.localeCompare(b.currency))

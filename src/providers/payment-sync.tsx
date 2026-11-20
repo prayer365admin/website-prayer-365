@@ -148,6 +148,7 @@ export async function UPSERT_DONATION_PAYMENT({
   paidAt,
   providerSubscriptionId,
   userId,
+  invoiceUrl,
 }: {
   churchId: string
   providerPaymentId: string
@@ -157,6 +158,8 @@ export async function UPSERT_DONATION_PAYMENT({
   paidAt: Date | null
   providerSubscriptionId?: string
   userId?: string | null
+  /** Provider-hosted receipt URL, when the event carries one. Never cleared by a later event. */
+  invoiceUrl?: string
 }) {
   let priorToCancel: string[] = []
 
@@ -238,6 +241,7 @@ export async function UPSERT_DONATION_PAYMENT({
             currency: currency.toLowerCase(),
             subscription_id: subscriptionId || existing.subscription_id,
             user_id: userId || existing.user_id,
+            ...(invoiceUrl ? { invoice_url: invoiceUrl } : {}),
           },
         })
       }
@@ -261,6 +265,7 @@ export async function UPSERT_DONATION_PAYMENT({
           currency: currency.toLowerCase(),
           subscription_id: subscriptionId || existing.subscription_id,
           user_id: userId || existing.user_id,
+          ...(invoiceUrl ? { invoice_url: invoiceUrl } : {}),
         },
       })
     }
@@ -275,6 +280,7 @@ export async function UPSERT_DONATION_PAYMENT({
         paid_at: paidAt,
         subscription_id: subscriptionId,
         user_id: userId || null,
+        invoice_url: invoiceUrl ?? null,
       },
     })
   })

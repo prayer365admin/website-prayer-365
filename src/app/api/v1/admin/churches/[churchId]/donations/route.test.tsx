@@ -71,6 +71,34 @@ describe('GET /api/v1/admin/churches/[churchId]/donations', () => {
     )
   })
 
+  it('forwards the status filter to listDonations', async () => {
+    vi.mocked(requiredAuth).mockResolvedValue(auth() as never)
+    vi.mocked(requiredScope).mockResolvedValue(scope() as never)
+    vi.mocked(listDonations).mockResolvedValue({ result: [row], total: 1 } as never)
+
+    const res = (await GET(
+      new NextRequest('http://localhost/api/v1/admin/churches/c1/donations?status=PAID'),
+      params as never,
+    ))!
+    expect(res.status).toBe(200)
+    expect(listDonations).toHaveBeenCalledWith(
+      expect.objectContaining({ query: expect.objectContaining({ status: 'PAID' }) }),
+    )
+  })
+
+  it('returns 400 for a status outside the ledger states', async () => {
+    vi.mocked(requiredAuth).mockResolvedValue(auth() as never)
+    vi.mocked(requiredScope).mockResolvedValue(scope() as never)
+
+    const res = (await GET(
+      new NextRequest('http://localhost/api/v1/admin/churches/c1/donations?status=pending'),
+      params as never,
+    ))!
+    expect(res.status).toBe(400)
+    expect((await res.json()).error_code).toBe('INVALID_STATUS')
+    expect(listDonations).not.toHaveBeenCalled()
+  })
+
   it('returns 403 when scope is denied', async () => {
     vi.mocked(requiredAuth).mockResolvedValue(auth() as never)
     vi.mocked(requiredScope).mockRejectedValue(

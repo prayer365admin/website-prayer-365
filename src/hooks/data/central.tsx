@@ -217,7 +217,12 @@ export const useCentralChurches = (enabled = true) => {
       const response = await axios.get('/api/v1/admin/central/churches', {
         params: { page: 1, limit: 100, order_by: 'name', order_direction: 'asc' },
       })
-      return response.data.result as Array<{ id: string; name: string; status: string }>
+      return response.data.result as Array<{
+        id: string
+        name: string
+        status: string
+        isPlatform: boolean
+      }>
     },
     enabled,
   })

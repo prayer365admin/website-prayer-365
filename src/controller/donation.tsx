@@ -4,8 +4,11 @@ import { validate } from '@/utils/validate'
 import { GeneralError } from '@/utils/general-error'
 import {
   GET_DONATIONS,
+  GET_DONATIONS_ALL_CHURCHES,
   GET_DONATION_SUBSCRIPTIONS,
   GET_DONATION_SUMMARY,
+  GET_DONATION_SUMMARY_BY_TYPE,
+  GET_DONATION_SUMMARY_MONTHLY,
   ENSURE_CHURCH_DONATION_ELIGIBLE,
   GET_MY_ACTIVE_GIFT,
   GET_MY_ACTIVE_SUBSCRIPTION,
@@ -21,9 +24,11 @@ import {
 import { RESOLVE_INVOICE_PAYMENT_ID } from '@/utils/stripe-payment-id'
 import { UPSERT_DONATION_SUBSCRIPTION, UPSERT_DONATION_PAYMENT } from '@/providers/payment-sync'
 import {
-  type DonationListQuery,
+  type AdminDonationListQuery,
+  type AdminDonationSummary,
   type DonationSubscriptionListQuery,
   type DonationSummary,
+  type MonthlySummaryRow,
   DonationInputSchema,
   type DonationStatus,
   type DonationStatusQuery,
@@ -62,7 +67,7 @@ export const listDonations = async ({
 }: {
   churchId: string
   churchIds: Set<string>
-  query: DonationListQuery
+  query: AdminDonationListQuery
 }) => {
   ensureChurchInScope(churchId, churchIds)
   return GET_DONATIONS({ churchIds, query })
@@ -81,6 +86,32 @@ export const listDonationSubscriptions = async ({
   return GET_DONATION_SUBSCRIPTIONS({ churchIds, query })
 }
 
+/**
+ * All-church recurring list (central Recurring tab). The platform beneficiary's
+ * node sits outside the GLOBAL scope walk (T-03), so the provider set is unioned
+ * with it here. A `churchId` filter narrows to one church; a church outside the
+ * grant answers the same 404 as the per-church route, while the platform id is
+ * an allowed target.
+ */
+export const listAllDonationSubscriptions = async ({
+  churchIds,
+  query,
+}: {
+  churchIds: Set<string>
+  query: DonationSubscriptionListQuery & { churchId?: string }
+}) => {
+  const platform = await GET_PLATFORM_CHURCH()
+  if (!platform) throw donationsNotReady()
+  const { churchId, ...rest } = query
+  if (churchId) {
+    if (churchId !== platform.id) ensureChurchInScope(churchId, churchIds)
+    return GET_DONATION_SUBSCRIPTIONS({ churchIds: new Set([churchId]), query: rest })
+  }
+  const ids = new Set(churchIds)
+  ids.add(platform.id)
+  return GET_DONATION_SUBSCRIPTIONS({ churchIds: ids, query: rest })
+}
+
 export const getDonationSummary = async ({
   churchId,
   churchIds,
@@ -95,23 +126,81 @@ export const getDonationSummary = async ({
 }
 
 /*
- * The platform's own giving: guest gifts from `/give`. They are attributed to the
- * hidden platform church (PD-DB-03), which is deliberately outside the parish
- * scope tree, so no church-scoped report can cover them. These readers are the
- * central-scope counterpart — the route enforces `central` + `prayer_donation`
- * read before calling in; the filter is the platform row alone.
+ * All-church ledger report (dashboard `/dashboard/donations`). The route enforces
+ * `central` + `prayer_donation` read before calling in, so `churchIds` is already
+ * every church under the GLOBAL root. The platform beneficiary sits outside that
+ * tree by design (T-03), so the provider unions it explicitly instead of relying
+ * on the walk. A `churchId` filter narrows to one church; any church outside the
+ * grant answers the same 404 as the per-church routes (no existence leak), while
+ * the platform row itself is an allowed target.
  */
-const platformChurchIds = async () => {
+export const listAllDonations = async ({
+  churchIds,
+  query,
+}: {
+  churchIds: Set<string>
+  query: AdminDonationListQuery
+}) => {
   const platform = await GET_PLATFORM_CHURCH()
   if (!platform) throw donationsNotReady()
-  return { churchId: platform.id, churchIds: new Set([platform.id]) }
+  if (query.churchId) {
+    if (query.churchId !== platform.id) ensureChurchInScope(query.churchId, churchIds)
+    return GET_DONATIONS_ALL_CHURCHES({
+      churchIds: new Set([query.churchId]),
+      platformChurchId: platform.id,
+      query,
+    })
+  }
+  return GET_DONATIONS_ALL_CHURCHES({ churchIds, platformChurchId: platform.id, query })
 }
 
-export const listPlatformDonations = async ({ query }: { query: DonationListQuery }) =>
-  listDonations({ ...(await platformChurchIds()), query })
+export const getDonationSummaryByType = async ({
+  churchIds,
+  from,
+  to,
+  churchId,
+}: {
+  churchIds: Set<string>
+  from?: Date
+  to?: Date
+  churchId?: string
+}): Promise<AdminDonationSummary> => {
+  const platform = await GET_PLATFORM_CHURCH()
+  if (!platform) throw donationsNotReady()
+  let ids = churchIds
+  if (churchId) {
+    if (churchId !== platform.id) ensureChurchInScope(churchId, churchIds)
+    ids = new Set([churchId])
+  }
+  return GET_DONATION_SUMMARY_BY_TYPE({
+    churchIds: ids,
+    platformChurchId: platform.id,
+    from,
+    to,
+  })
+}
 
-export const getPlatformDonationSummary = async ({ month }: { month: string }) =>
-  getDonationSummary({ ...(await platformChurchIds()), month })
+/** Monthly rows (one per month + currency) for the central Monthly Summary tab. */
+export const getDonationSummaryMonthly = async ({
+  churchIds,
+  from,
+  to,
+  churchId,
+}: {
+  churchIds: Set<string>
+  from?: Date
+  to?: Date
+  churchId?: string
+}): Promise<MonthlySummaryRow[]> => {
+  const platform = await GET_PLATFORM_CHURCH()
+  if (!platform) throw donationsNotReady()
+  let ids = churchIds
+  if (churchId) {
+    if (churchId !== platform.id) ensureChurchInScope(churchId, churchIds)
+    ids = new Set([churchId])
+  }
+  return GET_DONATION_SUMMARY_MONTHLY({ churchIds: ids, from, to })
+}
 
 export const initiateDonation = async ({
   churchId,

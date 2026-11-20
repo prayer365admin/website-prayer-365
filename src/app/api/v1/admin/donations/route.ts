@@ -5,41 +5,54 @@ import { requiredScope } from '@/utils/required-scope'
 import { list, httpError } from '@/utils/response'
 import { parseListQuery } from '@/utils/pagination'
 import { validate } from '@/utils/validate'
+import { parseDonationLedgerStatus } from '@/utils/donation-status-param'
 import { registerPath } from '@/utils/openapi'
-import { DateRangeSchema, DonationRowSchema, DonationListQuery } from '@/models/donation'
-import { listPlatformDonations } from '@/controller/donation'
+import {
+  AdminDonationRowSchema,
+  DateRangeSchema,
+  DonationLedgerStatusSchema,
+  DonationListQuery,
+} from '@/models/donation'
+import { listAllDonations } from '@/controller/donation'
 
 /*
- * GET /api/v1/admin/central/donations — guest giving to Prayer 365 itself.
+ * GET /api/v1/admin/donations — every donation across every church, including
+ * the platform beneficiary's guest giving.
  *
- * A `/give` gift has no parish: it is attributed to the hidden platform church,
- * which sits outside the parish scope tree on purpose. Central `prayer_donation`
- * read is therefore the only grant that can see it, and that grant returns the
- * platform row's ledger alone — never a parish's. Rows carry
- * amount/currency/date/ref only; donor PII is never returned.
+ * Central `prayer_donation` read is the only grant that reaches here: the scope
+ * guard resolves the GLOBAL root, so country/diocese/deanery/church admins get
+ * 403 NOT_ALLOWED. Rows carry the beneficiary church, the derived
+ * CHURCH/PRAYER type and the registered donor's name + email (admin-only DTO,
+ * T-08); guest gifts report `donor: null`.
  */
 
 registerPath({
-  path: '/admin/central/donations',
+  path: '/admin/donations',
   method: 'get',
-  summary: 'List platform (guest) donations (no donor PII)',
+  summary: 'List donations across all churches (admin donor details included)',
   request: {
     params: [
       { name: 'page', in: 'query' as const, schema: z.coerce.number().int().positive() },
       { name: 'limit', in: 'query' as const, schema: z.coerce.number().int().positive() },
+      { name: 'order_by', in: 'query' as const, schema: z.string() },
+      { name: 'order_direction', in: 'query' as const, schema: z.string() },
       { name: 'from', in: 'query' as const, schema: z.string() },
       { name: 'to', in: 'query' as const, schema: z.string() },
       { name: 'currency', in: 'query' as const, schema: z.string() },
+      { name: 'status', in: 'query' as const, schema: DonationLedgerStatusSchema },
+      { name: 'churchId', in: 'query' as const, schema: z.string() },
     ],
   },
   responses: [
     {
       status: 200,
-      description: 'Paginated platform donations',
-      schema: z.object({ result: z.array(DonationRowSchema), total: z.number() }),
+      description: 'Paginated donations across all churches',
+      schema: z.object({ result: z.array(AdminDonationRowSchema), total: z.number() }),
     },
+    { status: 400, description: 'Invalid status filter' },
     { status: 401, description: 'Not authenticated' },
     { status: 403, description: 'Not allowed' },
+    { status: 404, description: 'Church not found or out of scope' },
     { status: 503, description: 'Platform beneficiary missing (seed not run)' },
   ],
 })
@@ -47,7 +60,7 @@ registerPath({
 export async function GET(req: NextRequest) {
   try {
     const { session } = await requiredAuth(req)
-    await requiredScope({
+    const { churchIds } = await requiredScope({
       userId: session.user.user_id,
       central: true,
       subject: 'prayer_donation',
@@ -57,8 +70,11 @@ export async function GET(req: NextRequest) {
       allowOrderBy: ['paid_at', 'created_at', 'amount'],
     })
     const range = validate(DateRangeSchema, Object.fromEntries(req.nextUrl.searchParams))
+    const status = parseDonationLedgerStatus(req.nextUrl.searchParams)
     const currency = req.nextUrl.searchParams.get('currency')
-    const { result, total } = await listPlatformDonations({
+    const churchId = req.nextUrl.searchParams.get('churchId') ?? undefined
+    const { result, total } = await listAllDonations({
+      churchIds,
       query: {
         page: q.page,
         limit: q.limit,
@@ -67,9 +83,11 @@ export async function GET(req: NextRequest) {
         from: range.from,
         to: range.to,
         currency: currency ?? undefined,
+        status,
+        churchId,
       },
     })
-    const res = list(result, total, q.page, q.limit, 'Platform donations retrieved.')
+    const res = list(result, total, q.page, q.limit, 'Donations retrieved.')
     res.headers.set('Cache-Control', 'private, no-store')
     return res
   } catch (e) {

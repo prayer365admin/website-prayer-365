@@ -83,9 +83,11 @@ import '@/app/api/v1/admin/central/general-prayers/route'
 import '@/app/api/v1/admin/central/general-prayers/[generalPrayerId]/route'
 import '@/app/api/v1/admin/central/general-prayers/[generalPrayerId]/audio/route'
 
-// --- Central: platform (guest) giving, read-only ---
-import '@/app/api/v1/admin/central/donations/route'
-import '@/app/api/v1/admin/central/donation-summary/route'
+// --- Central: all-church giving report, read-only ---
+import '@/app/api/v1/admin/donations/route'
+import '@/app/api/v1/admin/donations/summary/route'
+import '@/app/api/v1/admin/donations/summary/monthly/route'
+import '@/app/api/v1/admin/donations/recurring/route'
 import '@/app/api/v1/mobile/general-prayers/today/route'
 import '@/app/api/v1/mobile/general-prayers/[slug]/route'
 
