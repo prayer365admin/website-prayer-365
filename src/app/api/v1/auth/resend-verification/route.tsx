@@ -1,4 +1,5 @@
 import { resendVerificationEmail } from '@/controller/auth'
+import { mobileLinkPrefix } from '@/utils/mobile-link'
 import { GeneralError } from '@/utils/general-error'
 import { NextRequest, NextResponse } from 'next/server'
 
@@ -8,7 +9,11 @@ export async function POST(req: NextRequest) {
 
   try {
     const { email } = await req.json()
-    const result = await resendVerificationEmail({ email, baseUrl })
+    const result = await resendVerificationEmail({
+      email,
+      baseUrl,
+      linkPrefix: mobileLinkPrefix(req),
+    })
 
     return NextResponse.json(
       {

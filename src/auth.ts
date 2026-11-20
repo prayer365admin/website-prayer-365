@@ -95,7 +95,10 @@ export const authCallbacks = {
         : await getUserByEmail({ email: token.email as string })
 
     // Unknown/deleted user ends the session. A role-less customer keeps theirs.
-    if (!result) {
+    // So does any account that is not `active` (disabled, pending deletion): the server guards
+    // (requiredWebAuth) already treat it as a guest, and a cookie that still decodes to a user
+    // made the client guards and the server redirect each other forever (/welcome <-> /).
+    if (!result || result.status !== 'active') {
       return null
     }
 

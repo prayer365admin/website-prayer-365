@@ -5,6 +5,8 @@
 Table user {
   id String [pk]
   email String [unique, not null]
+  deleted_email String [note: 'Soft-deleted account (MB-06): the original address, kept for support/legal lookup. `email` is
+rewritten to `deleted+<id>@invalid` so the person can register again with it.']
   name String [not null]
   password String
   email_verified_at DateTime
@@ -701,6 +703,9 @@ Table privacy_jobs {
   completed_at DateTime
   result_object_key String
   result_expires_at DateTime
+  grace_ends_at DateTime [note: 'Account deletion (MB-06): end of the grace window; the finalize job runs at/after this.']
+  cancelled_at DateTime [note: 'Account deletion (MB-06): set when the user signs in during grace and cancels.']
+  reason String [note: 'Account deletion (MB-06): why the person left, plain text the user chose or typed (optional, max 500).']
 }
 
 Table general_prayers {

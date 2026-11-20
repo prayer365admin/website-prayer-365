@@ -38,6 +38,7 @@ const customer = {
   email: 'customer@example.com',
   name: 'Customer',
   auth_version: 1,
+  status: 'active',
   role: null,
 }
 
@@ -94,6 +95,17 @@ describe('customer sign-in branch', () => {
 
     expect(token).toBeNull()
   })
+
+  it.each(['deletion_pending', 'inactive'])(
+    'ends the session for a %s account, so the cookie and the server guards agree',
+    async (status) => {
+      m.getUserByEmail.mockResolvedValue({ ...customer, status })
+
+      const token = await authCallbacks.jwt({ token: { email: 'customer@example.com' } as never })
+
+      expect(token).toBeNull()
+    },
+  )
 
   it('creates or links a customer for a verified Google profile', async () => {
     m.loginGoogleCustomer.mockResolvedValue(customer)

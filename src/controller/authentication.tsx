@@ -5,6 +5,7 @@ import {
   RECORD_LOGIN,
 } from '@/providers/user'
 import { verifySecret } from '@/utils/hash'
+import { CANCEL_ACCOUNT_DELETION } from '@/providers/privacy-job'
 import { CredentialsSignin } from 'next-auth'
 import {
   CLEAR_LOGIN_FAILURES,
@@ -31,7 +32,16 @@ export const loginUser = async ({ email, password }: { email: string; password: 
       result?.password ?? '$2b$12$6hmwy2T/qCvpmzmzi5VLO.KVXRoHDPmkRu.fO.soPraM/uY2msHo2',
   })
 
-  if (!result || result.status !== 'active' || !result.password || !password || !isVerify) {
+  // `deletion_pending` may still sign in: a correct password during the grace window cancels the
+  // deletion (below). Any other non-active status stays refused.
+  const pending = result?.status === 'deletion_pending'
+  if (
+    !result ||
+    (result.status !== 'active' && !pending) ||
+    !result.password ||
+    !password ||
+    !isVerify
+  ) {
     if (result && !blocked) await RECORD_LOGIN_FAILURE({ user_id: result.id })
     throw new SigningError('INVALID_CREDENTIALS')
   }
@@ -46,9 +56,16 @@ export const loginUser = async ({ email, password }: { email: string; password: 
     throw new SigningError('EMAIL_NOT_VERIFIED')
   }
 
+  if (pending) {
+    // Same generic error as a wrong password when the erase already started (no leak).
+    if (!(await CANCEL_ACCOUNT_DELETION({ userId: result.id }))) {
+      throw new SigningError('INVALID_CREDENTIALS')
+    }
+  }
+
   await RECORD_LOGIN({ user_id: result.id, provider: 'password' })
 
-  return result
+  return pending ? { ...result, status: 'active' } : result
 }
 
 export const loginGoogleCustomer = ({

@@ -9,7 +9,7 @@ import { useUrlPagination } from '@/hooks/ui/url-pagination'
 import { relativeTime } from '@/contents/user-management/user/columns'
 import { exportToCsv } from '@/utils/csv'
 import { LoadingOutlined } from '@ant-design/icons'
-import { ConfigProvider, Select, Table, TablePaginationConfig } from 'antd'
+import { ConfigProvider, Select, Switch, Table, TablePaginationConfig } from 'antd'
 import axios from 'axios'
 import { useState } from 'react'
 import { CustomerColumns } from './columns'
@@ -29,7 +29,14 @@ const CUSTOMER_EXPORT_COLUMNS = [
   },
   {
     header: 'Status',
-    accessor: (r: CustomerDataModel) => (r.email_verified_at ? 'Verified' : 'Unverified'),
+    accessor: (r: CustomerDataModel) =>
+      r.deleted_at
+        ? 'Deleted'
+        : r.status === 'deletion_pending'
+          ? 'Deletion pending'
+          : r.email_verified_at
+            ? 'Verified'
+            : 'Unverified',
   },
   {
     header: 'Registered',
@@ -43,6 +50,11 @@ const CUSTOMER_EXPORT_COLUMNS = [
         : '—',
   },
   {
+    header: 'Deletion Requested',
+    accessor: (r: CustomerDataModel) =>
+      r.deletion_requested_at ? new Date(r.deletion_requested_at).toLocaleString('en-US') : '',
+  },
+  {
     header: 'Last Active',
     accessor: (r: CustomerDataModel) => relativeTime(r.last_active_at),
   },
@@ -51,6 +63,7 @@ export default function ContentsCustomer() {
   const [isExporting, setIsExporting] = useState(false)
   const [searchValue, setSearchValue] = useState<string | undefined>('')
   const [statusValue, setStatusValue] = useState<string | undefined>(undefined)
+  const [showDeleted, setShowDeleted] = useState(false)
   const [sort, setSort] = useState<{ orderBy: string; orderDirection: 'asc' | 'desc' }>({
     orderBy: 'created_at',
     orderDirection: 'desc',
@@ -75,6 +88,7 @@ export default function ContentsCustomer() {
     queryString: '',
     search: searchValue,
     status: statusValue,
+    includeDeleted: showDeleted,
     limit: pageSize,
     page,
     orderBy: sort.orderBy,
@@ -93,7 +107,7 @@ export default function ContentsCustomer() {
         const all: CustomerDataModel[] = []
         for (let p = 1; p <= totalPages; p++) {
           const res = await axios.get(
-            `/api/v1/customers?page=${p}&limit=100&order_by=${sort.orderBy}&order_direction=${sort.orderDirection}${statusValue ? `&status=${encodeURIComponent(statusValue)}` : ''}${searchValue ? `&search=${encodeURIComponent(searchValue)}` : ''}`,
+            `/api/v1/customers?page=${p}&limit=100&order_by=${sort.orderBy}&order_direction=${sort.orderDirection}${statusValue ? `&status=${encodeURIComponent(statusValue)}` : ''}${showDeleted ? '&include_deleted=true' : ''}${searchValue ? `&search=${encodeURIComponent(searchValue)}` : ''}`,
           )
           all.push(...(res.data?.result || []))
         }
@@ -150,9 +164,21 @@ export default function ContentsCustomer() {
                   options={[
                     { value: 'verified', label: 'All Verified' },
                     { value: 'unverified', label: 'All Unverified' },
+                    { value: 'deletion_pending', label: 'Deletion Pending' },
                   ]}
                 />
               </div>
+              <label className="flex items-center gap-2 text-sm text-[#5C6370] whitespace-nowrap cursor-pointer">
+                <Switch
+                  size="small"
+                  checked={showDeleted}
+                  onChange={(v) => {
+                    setShowDeleted(v)
+                    setPage(1)
+                  }}
+                />
+                Show deleted
+              </label>
             </div>
 
             <div className="flex items-center gap-2">
