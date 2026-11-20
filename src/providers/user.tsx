@@ -116,7 +116,8 @@ export const GET_CUSTOMERS = async ({
   order_direction,
   search,
   status,
-}: GeneralQueryParams & { status?: string }) => {
+  includeDeleted = false,
+}: GeneralQueryParams & { status?: string; includeDeleted?: boolean }) => {
   const offset = page && limit && (page - 1) * limit
 
   const filter: Prisma.UserWhereInput = {
@@ -128,9 +129,11 @@ export const GET_CUSTOMERS = async ({
           ? [{ email_verified_at: null }]
           : status === 'active'
             ? [{ status: 'active', deleted_at: null }]
-            : status === 'inactive'
-              ? [{ NOT: { status: 'active', deleted_at: null } }]
-              : []),
+            : status === 'deletion_pending'
+              ? [{ status: 'deletion_pending' }]
+              : status === 'inactive'
+                ? [{ NOT: { status: 'active', deleted_at: null } }]
+                : []),
       ...(search
         ? [
             {
@@ -141,6 +144,8 @@ export const GET_CUSTOMERS = async ({
             },
           ]
         : []),
+      // Erased (anonymized, soft-deleted) accounts are hidden unless asked for.
+      ...(includeDeleted ? [] : [{ deleted_at: null }]),
     ],
   }
 
@@ -155,15 +160,26 @@ export const GET_CUSTOMERS = async ({
       },
       include: {
         profile_asset: true,
+        privacyJobs: {
+          where: { kind: 'account_delete', state: { in: ['ACCEPTED', 'RUNNING', 'COMPLETED'] } },
+          orderBy: { requested_at: 'desc' },
+          take: 1,
+          select: { requested_at: true, grace_ends_at: true },
+        },
       },
       omit: SAFE,
     }),
   ])
 
-  const mapped = result.map((row) => ({
+  const mapped = result.map(({ privacyJobs, ...row }) => ({
     ...row,
+    deletion_requested_at: privacyJobs[0]?.requested_at ?? null,
+    deletion_grace_ends_at: privacyJobs[0]?.grace_ends_at ?? null,
+    // A soft-deleted customer's photo is kept in storage but never rendered by the dashboard.
     avatarUrl:
-      row.profile_asset?.purpose === 'USER_AVATAR' && row.profile_asset.status === 'READY'
+      !row.deleted_at &&
+      row.profile_asset?.purpose === 'USER_AVATAR' &&
+      row.profile_asset.status === 'READY'
         ? S3_PUBLIC_URL({ key: row.profile_asset.object_key })
         : null,
     profile_asset: undefined,

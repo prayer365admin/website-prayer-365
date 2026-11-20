@@ -891,6 +891,12 @@ export const SITE_MESSAGES = {
     welcomeAppFeature4Title: 'Pocket Intercession',
     welcomeAppFeature4Hint: 'Encrypted chaplain requests on the go.',
     welcomeAppPhoneAlt: 'Prayer 365 Mobile App Screen',
+    welcomeSoonSectionAria: 'Prayer365 app coming soon',
+    welcomeSoonBadge: 'Prayer365 is coming soon',
+    welcomeSoonTitle: 'Prayer365 app is coming soon!',
+    welcomeSoonBody:
+      'Stay tuned for our coming-soon iOS and Android app. Stay closer to the sanctuary, all within your reach.',
+    welcomeSoonPhonesAlt: 'Prayer 365 mobile app screens',
     welcomePortalBadge: 'Parish & Pilgrim Portal',
     welcomeCtaTitle: 'Already a Parishioner or Pilgrim?',
     welcomeCtaBody:
@@ -1776,6 +1782,12 @@ export const SITE_MESSAGES = {
     welcomeAppFeature4Title: 'Eestpalve taskus',
     welcomeAppFeature4Hint: 'Krüpteeritud kaplani palved teel olles.',
     welcomeAppPhoneAlt: 'Prayer 365 mobiilirakenduse ekraan',
+    welcomeSoonSectionAria: 'Prayer365 rakendus tuleb peagi',
+    welcomeSoonBadge: 'Prayer365 tuleb peagi',
+    welcomeSoonTitle: 'Prayer365 rakendus tuleb peagi!',
+    welcomeSoonBody:
+      'Püsi lainel meie peagi saabuva iOS-i ja Androidi rakendusega. Ole pühakojale lähemal, kõik sinu käeulatuses.',
+    welcomeSoonPhonesAlt: 'Prayer 365 mobiilirakenduse ekraanid',
     welcomePortalBadge: 'Koguduse ja palveränduri portaal',
     welcomeCtaTitle: 'Oled juba koguduseliige või palverändur?',
     welcomeCtaBody:
@@ -2664,6 +2676,12 @@ export const SITE_MESSAGES = {
     welcomeAppFeature4Title: 'Förbön i fickan',
     welcomeAppFeature4Hint: 'Krypterade kaplansförfrågningar på språng.',
     welcomeAppPhoneAlt: 'Prayer 365 mobilappskärm',
+    welcomeSoonSectionAria: 'Prayer365-appen kommer snart',
+    welcomeSoonBadge: 'Prayer365 kommer snart',
+    welcomeSoonTitle: 'Prayer365-appen kommer snart!',
+    welcomeSoonBody:
+      'Håll utkik efter vår kommande app för iOS och Android. Var närmare helgedomen, allt inom räckhåll.',
+    welcomeSoonPhonesAlt: 'Prayer 365 mobilappskärmar',
     welcomePortalBadge: 'Församlings- och pilgrimportal',
     welcomeCtaTitle: 'Är du redan församlingsmedlem eller pilgrim?',
     welcomeCtaBody:
@@ -3556,6 +3574,12 @@ export const SITE_MESSAGES = {
     welcomeAppFeature4Title: 'Esirukous taskussa',
     welcomeAppFeature4Hint: 'Salatut kappalaispyynnöt liikkeessä.',
     welcomeAppPhoneAlt: 'Prayer 365 -mobiilisovelluksen näyttö',
+    welcomeSoonSectionAria: 'Prayer365-sovellus tulossa pian',
+    welcomeSoonBadge: 'Prayer365 tulossa pian',
+    welcomeSoonTitle: 'Prayer365-sovellus tulossa pian!',
+    welcomeSoonBody:
+      'Pysy kuulolla tulevasta iOS- ja Android-sovelluksestamme. Ole lähempänä pyhäkköä, kaikki ulottuvillasi.',
+    welcomeSoonPhonesAlt: 'Prayer 365 -mobiilisovelluksen näytöt',
     welcomePortalBadge: 'Seurakunta- ja pyhiinvaeltajaportaali',
     welcomeCtaTitle: 'Oletko jo seurakuntalainen tai pyhiinvaeltaja?',
     welcomeCtaBody:

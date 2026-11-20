@@ -71,6 +71,30 @@ Agents must always implement the **accesscontrol** pattern:
 | **Functions**     | camelCase        | `useProducts`, `parseSearchParams`    |
 | **DB Functions**  | UPPER_SNAKE_CASE | `GET_PRODUCTS`, `CREATE_PRODUCT`      |
 
+## 🎨 Design → Code (`/design-to-code`)
+
+Skills: `.claude/skills/design-to-code`, `.claude/skills/shared-handoff`. Specs live in:
+
+```
+.claude/spec/_shared/{tokens.md,components.md,CHANGELOG.md}   # single source of truth
+.claude/spec/<group>/<feature>/{design/*.png,design-handoff.md,change-log.md}
+```
+
+Groups: `site` (public website, `src/contents/site/*`) or `admin` (signed-in dashboard). Feature = kebab-case,
+matches `src/contents/<group>/<feature>` where possible. `_shared/*.md` mirror `src/styles/global.scss`,
+`tailwind.config.ts`, `src/config/antdTheme.tsx`, `src/components/`; code wins on drift.
+
+Intake, in order, without making the user restate anything:
+
+1. Load `.claude/spec/_shared/*` (if present) and the real token/component files.
+2. Resolve `<group>/<feature>` from args, else list `.claude/spec/*/*/` and ask once (recommended option first).
+   Challenge bad names; suggest split/merge.
+3. PNGs: look in `design/`; if empty ask for the path, **copy** them in, rename to kebab-case.
+4. Run `design-to-code` Phase 0–2 → `shared-handoff` Reuse report → stop at every gate. No feature code before `go`.
+5. If `design-handoff.md` exists, report its `status` and ask: update / implement / pixel audit.
+
+Done = `bun typecheck`, `bun lint`, `bun run test` pass; handoff `status: implemented`; shared md in sync.
+
 ---
 
 _Note: This protocol is a concise operating guide. The project documents under `docs/`, especially `docs/SPEC.md`, remain the source of truth for technical detail and scope._

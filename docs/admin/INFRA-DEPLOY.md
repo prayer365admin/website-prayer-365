@@ -410,6 +410,14 @@ needs:
 `JOBS_QUEUE_URL`, `JOB_CLAIM_LIMIT` and `JOB_LEASE_SECONDS` belong to the Lambda workers only —
 leave them empty on Vercel.
 
+### Account deletion (MB-06)
+
+- `ACCOUNT_DELETION_GRACE_SECONDS` (default 1209600 = 14 days; production ignores anything under one day) and `ACCOUNT_DELETION_REAUTH_MINUTES` (default 5) are read by the **web/API** runtime.
+- The erase runs in the `privacy.delete` job kind: the dispatcher/consumer Lambdas already handle it; locally run `bun run worker:privacy-delete`.
+- Needs `STRIPE_ENABLED=true` when any donor has an active subscription (the job refuses to finalize otherwise). The finalize step is a soft delete: no S3 access is needed.
+- **Monitor** `outbox_jobs` rows with `kind = 'privacy.delete'` and `state = 'FAILED'` (and `privacy_jobs.state = 'FAILED'`): after 5 attempts the account stays hidden (`deletion_pending`) but is not soft-deleted, and nothing alerts. An operator re-queues by setting the outbox row back to `PENDING` once the cause (Stripe/S3/DB) is fixed.
+- **After a backup restore**, re-run `SOFT_DELETE_USER` (`providers/privacy-delete.tsx`) for every `privacy_jobs` row with `kind = 'account_delete'` and `state = 'COMPLETED'`, before serving traffic (SPEC §11.2).
+
 `NEXT_PUBLIC_IS_MAINTENANCE` is the maintenance switch: exactly `true` sends every page to
 `/maintenance`, except `/admin` and `/login` (staff keep working) and `/api` (mobile app and
 webhooks keep working); anything else leaves the site open. The redirect lives in `src/proxy.ts`.

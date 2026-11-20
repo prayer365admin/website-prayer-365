@@ -124,6 +124,9 @@ enum JobState {
 model User {
   id                String    @id @default(uuid(7))
   email             String    @unique
+  /// Soft-deleted account (MB-06): the original address, kept for support/legal lookup. `email` is
+  /// rewritten to `deleted+<id>@invalid` so the person can register again with it.
+  deleted_email     String?
   name              String
   password          String?
   email_verified_at DateTime?
@@ -774,6 +777,9 @@ model Donation {
   status              String
   paid_at             DateTime?
   refunded_minor      BigInt                @default(0)
+  /// Stripe receipt / hosted invoice URL for the payment; nullable, set from
+  /// charge payloads during payment-sync.
+  invoice_url         String?
 
   created_at DateTime  @default(now())
   updated_at DateTime? @updatedAt
@@ -962,8 +968,15 @@ model PrivacyJob {
   completed_at      DateTime?
   result_object_key String?
   result_expires_at DateTime?
+  /// Account deletion (MB-06): end of the grace window; the finalize job runs at/after this.
+  grace_ends_at     DateTime?
+  /// Account deletion (MB-06): set when the user signs in during grace and cancels.
+  cancelled_at      DateTime?
+  /// Account deletion (MB-06): why the person left, plain text the user chose or typed (optional, max 500).
+  reason            String?
 
   @@index([user_id])
+  @@index([user_id, kind, state])
   @@map("privacy_jobs")
 }
 

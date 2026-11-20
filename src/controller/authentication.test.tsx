@@ -8,6 +8,7 @@ const m = vi.hoisted(() => ({
   recordLoginFailure: vi.fn(),
   clearLoginFailures: vi.fn(),
   recordLogin: vi.fn(),
+  cancelDeletion: vi.fn(),
 }))
 
 vi.mock('@/providers/user', () => ({
@@ -16,6 +17,7 @@ vi.mock('@/providers/user', () => ({
   GET_USER_BY_OAUTH_ACCOUNT: vi.fn(),
   RECORD_LOGIN: m.recordLogin,
 }))
+vi.mock('@/providers/privacy-job', () => ({ CANCEL_ACCOUNT_DELETION: m.cancelDeletion }))
 vi.mock('@/utils/hash', () => ({ verifySecret: m.verifySecret }))
 vi.mock('@/providers/auth-login-attempt', () => ({
   IS_LOGIN_BLOCKED: m.isLoginBlocked,
@@ -99,5 +101,54 @@ describe('loginUser', () => {
     expect(await codeOf(loginUser({ email: user.email, password: 'secret' }))).toBe(
       'EMAIL_NOT_VERIFIED',
     )
+  })
+
+  describe('account pending deletion (MB-06)', () => {
+    const pending = { ...user, status: 'deletion_pending' }
+
+    it('a correct password cancels the deletion and returns an ACTIVE user', async () => {
+      m.getUserByEmail.mockResolvedValue(pending)
+      m.cancelDeletion.mockResolvedValue(true)
+
+      await expect(loginUser({ email: user.email, password: 'secret' })).resolves.toMatchObject({
+        id: 'u1',
+        status: 'active',
+      })
+      expect(m.cancelDeletion).toHaveBeenCalledWith({ userId: 'u1' })
+    })
+
+    it('a WRONG password does not cancel anything', async () => {
+      m.getUserByEmail.mockResolvedValue(pending)
+      m.verifySecret.mockResolvedValue(false)
+
+      expect(await codeOf(loginUser({ email: user.email, password: 'wrong' }))).toBe(
+        'INVALID_CREDENTIALS',
+      )
+      expect(m.cancelDeletion).not.toHaveBeenCalled()
+    })
+
+    it('stays refused (generic error) once the erase has started', async () => {
+      m.getUserByEmail.mockResolvedValue(pending)
+      m.cancelDeletion.mockResolvedValue(false)
+
+      expect(await codeOf(loginUser({ email: user.email, password: 'secret' }))).toBe(
+        'INVALID_CREDENTIALS',
+      )
+      expect(m.recordLogin).not.toHaveBeenCalled()
+    })
+
+    it('a blocked or unverified pending account is not cancelled either', async () => {
+      m.getUserByEmail.mockResolvedValue(pending)
+      m.isLoginBlocked.mockResolvedValue(true)
+      expect(await codeOf(loginUser({ email: user.email, password: 'secret' }))).toBe(
+        'INVALID_CREDENTIALS',
+      )
+      m.isLoginBlocked.mockResolvedValue(false)
+      m.getUserByEmail.mockResolvedValue({ ...pending, email_verified_at: null })
+      expect(await codeOf(loginUser({ email: user.email, password: 'secret' }))).toBe(
+        'EMAIL_NOT_VERIFIED',
+      )
+      expect(m.cancelDeletion).not.toHaveBeenCalled()
+    })
   })
 })

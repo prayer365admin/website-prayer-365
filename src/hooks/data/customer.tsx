@@ -13,6 +13,8 @@ export type CustomerDataModel = {
   created_at: string
   status?: string
   deleted_at?: string | null
+  deletion_requested_at?: string | null
+  deletion_grace_ends_at?: string | null
   last_login_provider?: string | null
   last_active_at?: string | null
   profile_picture?: string | null
@@ -29,10 +31,12 @@ export const useCustomers = ({
   orderDirection,
   search,
   status,
-}: GeneralHooks & { status?: string }) => {
+  includeDeleted,
+}: GeneralHooks & { status?: string; includeDeleted?: boolean }) => {
   const queryClient = useQueryClient()
   const paginationQuery = `limit=${limit && limit !== 'ALL' ? limit : ''}&page=${limit && limit !== 'ALL' ? page : ''}&order_by=${orderBy}&order_direction=${orderDirection}`
   const statusQuery = status ? `&status=${encodeURIComponent(status)}` : ''
+  const deletedQuery = includeDeleted ? '&include_deleted=true' : ''
   const searchQuery = search ? `&search=${encodeURIComponent(search)}` : ''
 
   const {
@@ -40,10 +44,10 @@ export const useCustomers = ({
     isLoading: fetchLoading,
     isFetching: fetchFetching,
   } = useQuery({
-    queryKey: [queryKey, queryString, paginationQuery, status, search],
+    queryKey: [queryKey, queryString, paginationQuery, status, search, includeDeleted],
     queryFn: async () => {
       const result = await axios.get(
-        `${baseUrl}?${queryString}&${paginationQuery}${statusQuery}${searchQuery}`,
+        `${baseUrl}?${queryString}&${paginationQuery}${statusQuery}${deletedQuery}${searchQuery}`,
       )
       return {
         result: result.data.result as CustomerDataModel[],

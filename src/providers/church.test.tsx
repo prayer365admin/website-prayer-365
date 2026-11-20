@@ -473,6 +473,13 @@ describe('Church Provider', () => {
     })
   })
   describe('GET_REQUEST_OVERVIEW', () => {
+    const HIDE_DELETED = {
+      OR: [
+        { user_id: null },
+        { user: { is: { status: { not: 'deletion_pending' }, deleted_at: null } } },
+      ],
+    }
+
     const recentRow = {
       id: 'r1',
       kind: 'PRAYER',
@@ -488,8 +495,13 @@ describe('Church Provider', () => {
 
       const where = {
         church_id: 'c1',
-        kind: 'PRAYER',
-        OR: [{ classification: null }, { classification: { not: 'PRIVATE' } }],
+        AND: [
+          HIDE_DELETED,
+          {
+            kind: 'PRAYER',
+            OR: [{ classification: null }, { classification: { not: 'PRIVATE' } }],
+          },
+        ],
       }
       expect(db.request.count).toHaveBeenCalledWith({ where })
       expect(db.request.findMany).toHaveBeenCalledWith(expect.objectContaining({ where }))
@@ -507,7 +519,12 @@ describe('Church Provider', () => {
 
       await GET_REQUEST_OVERVIEW({ churchId: 'c1', canReadPrivate: true })
 
-      expect(db.request.count).toHaveBeenCalledWith({ where: { church_id: 'c1' } })
+      expect(db.request.count).toHaveBeenCalledWith({
+        where: {
+          church_id: 'c1',
+          AND: [HIDE_DELETED, {}],
+        },
+      })
     })
   })
 })

@@ -38,13 +38,24 @@ const NOT_PRIVATE: Prisma.RequestWhereInput = {
  * Rows the caller may see. Shared with the church overview so its counts use
  * the same rule as the request list.
  */
-export const requestVisibilityWhere = (canReadPrivate: boolean): Prisma.RequestWhereInput =>
-  canReadPrivate
-    ? {}
-    : {
-        kind: 'PRAYER',
-        ...NOT_PRIVATE,
-      }
+export const requestVisibilityWhere = (canReadPrivate: boolean): Prisma.RequestWhereInput => ({
+  // A customer whose deletion is pending, or who is soft-deleted, is hidden from churches
+  // (MB-06). The rows themselves stay in the database; guests (no user) stay visible.
+  AND: [
+    {
+      OR: [
+        { user_id: null },
+        { user: { is: { status: { not: 'deletion_pending' }, deleted_at: null } } },
+      ],
+    },
+    canReadPrivate
+      ? {}
+      : {
+          kind: 'PRAYER',
+          ...NOT_PRIVATE,
+        },
+  ],
+})
 
 const filterWhere = (filter: RequestListFilter | undefined): Prisma.RequestWhereInput[] => [
   filter?.search ? { subject: { contains: filter.search, mode: 'insensitive' } } : {},

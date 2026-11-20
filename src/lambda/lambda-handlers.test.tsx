@@ -157,6 +157,7 @@ describe('dispatcher handler', () => {
       'notification.send',
       'payment.sync',
       'prayer.publish',
+      'privacy.delete',
       'voice.register',
     ])
   })

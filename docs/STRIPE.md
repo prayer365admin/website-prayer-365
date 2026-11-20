@@ -47,17 +47,24 @@ parish, and it reuses the existing checkout controller and webhook unchanged.
     `REFUNDED` ledger row reports `refunded` — it outranks the session, because Stripe keeps
     `paymentStatus = 'paid'` after a refund. The amount and `paidAt` are read from the ledger (never
     minted), so both are `null` until the webhook lands.
-- **Reading guest giving.** These gifts are the platform's own revenue, so they are **not** in any parish
-  report and the parish donation routes answer `403` for the platform row (its org node sits outside the
-  parish scope tree on purpose). They are read at central scope with `prayer_donation` read:
-  - **`GET /api/v1/admin/central/donations`** — paginated `from`/`to`/`currency` ledger of guest gifts
-    (amount, currency, state, date, provider ref; no donor PII), `Cache-Control: private, no-store`.
-  - **`GET /api/v1/admin/central/donation-summary?month=YYYY-MM`** — per-currency gross/refunded/net for
-    that month, same no-cross-currency rule as the parish summary.
-  - **`/dashboard/central/donations`** ("Platform Giving" in the Central menu, shown only to callers who can
-    read donations) renders both: a transactions table and the monthly summary.
+- **Reading guest giving (reporting: all-church view).** These gifts are the platform's own revenue, so
+  they are **not** in any parish report and the parish donation routes answer `403` for the platform row
+  (its org node sits outside the parish scope tree on purpose). They appear only in the all-church report,
+  read at central scope with `prayer_donation` read:
+  - **`GET /api/v1/admin/donations`** — paginated `from`/`to`/`currency`/`status`/`churchId` list across
+    every church. Each row carries its beneficiary church, a type **derived at read time**
+    (`church_id === platformChurchId` → `PRAYER`, else `CHURCH` — no stored column) and the registered
+    donor's name + email. `Cache-Control: private, no-store`.
+  - **`GET /api/v1/admin/donations/summary`** — per-currency `total` / `church` / `prayer` buckets
+    (gross, refunded, net, count), defaulting to the current UTC month. It always aggregates PAID money by
+    `paid_at`, so the list's `status` filter never changes these numbers, and currencies are never summed.
+  - **`/dashboard/donations`** ("Donations" in the Central menu, shown only to callers who can read
+    donations) renders the three number blocks and the list, with church, date-range and status filters.
   - Both routes answer `503 DONATIONS_NOT_READY` when the platform row is missing (run the seed), never an
     empty report — an empty ledger and a missing beneficiary must not look the same.
+- **Donor data exception (admin only).** Admin donation DTOs expose a registered donor's name + email;
+  guest gifts store no contact data and report `donor: null`, which the dashboard renders as "Guest".
+  Mobile and public/site DTOs are unchanged and still carry no donor PII.
 - **Admin protection.** The row appears in the central church list as one more beneficiary but is
   read-only: `updateChurch`, `suspendChurch`, `archiveChurch`, `unarchiveChurch` and `purgeChurch` refuse it
   with `403 SYSTEM_RECORD_PROTECTED`, and every public directory surface filters `is_platform: false`. The

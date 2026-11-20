@@ -5,20 +5,24 @@ import { requiredScope } from '@/utils/required-scope'
 import { list, httpError } from '@/utils/response'
 import { parseListQuery } from '@/utils/pagination'
 import { validate } from '@/utils/validate'
+import { parseDonationLedgerStatus } from '@/utils/donation-status-param'
 import { registerPath } from '@/utils/openapi'
-import { DateRangeSchema, DonationRowSchema, DonationListQuery } from '@/models/donation'
+import { AdminDonationRowSchema, DateRangeSchema, DonationListQuery } from '@/models/donation'
 import { listDonations } from '@/controller/donation'
 
 /*
  * GET /api/v1/admin/churches/:churchId/donations (SPEC §8.2 / Task 29).
  * Bounded (from/to) paginated transaction summaries. Rows carry
- * amount/currency/date/ref only — donor PII is never returned.
+ * amount/currency/date/ref plus the beneficiary church, the derived
+ * CHURCH/PRAYER type and — admin-only (T-08) — the registered donor's name +
+ * email. Mobile and site DTOs keep using `DonationRow` and still carry no donor
+ * identity.
  */
 
 registerPath({
   path: '/admin/churches/:churchId/donations',
   method: 'get',
-  summary: 'List church donations (no donor PII)',
+  summary: 'List church donations (admin donor details included)',
   request: {
     params: [{ name: 'churchId', in: 'path', schema: z.string() }],
   },
@@ -26,8 +30,9 @@ registerPath({
     {
       status: 200,
       description: 'Paginated donations',
-      schema: z.object({ result: z.array(DonationRowSchema), total: z.number() }),
+      schema: z.object({ result: z.array(AdminDonationRowSchema), total: z.number() }),
     },
+    { status: 400, description: 'Invalid status filter' },
     { status: 401, description: 'Not authenticated' },
     { status: 403, description: 'Not allowed' },
     { status: 404, description: 'Church not found or out of scope' },
@@ -49,6 +54,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ chur
     })
     const range = validate(DateRangeSchema, Object.fromEntries(req.nextUrl.searchParams))
     const currency = req.nextUrl.searchParams.get('currency')
+    const status = parseDonationLedgerStatus(req.nextUrl.searchParams)
     const { result, total } = await listDonations({
       churchId,
       churchIds,
@@ -60,6 +66,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ chur
         from: range.from,
         to: range.to,
         currency: currency ?? undefined,
+        status,
       },
     })
     const res = list(result, total, q.page, q.limit, 'Donations retrieved.')

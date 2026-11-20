@@ -1,4 +1,5 @@
 import { registerUser } from '@/controller/auth'
+import { mobileLinkPrefix } from '@/utils/mobile-link'
 import { GeneralError } from '@/utils/general-error'
 import { NextRequest, NextResponse } from 'next/server'
 
@@ -26,6 +27,7 @@ export async function POST(req: NextRequest) {
       locale: locale,
       main_church_id: main_church_id,
       baseUrl,
+      linkPrefix: mobileLinkPrefix(req),
     })
 
     return NextResponse.json(

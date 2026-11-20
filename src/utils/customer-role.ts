@@ -17,6 +17,8 @@ export const isCustomerRole = (role?: { name: string } | null) =>
  * e.g. when an admin picks a parish on the website.
  */
 export const CUSTOMER_ACCOUNT_FILTER: Prisma.UserWhereInput = {
+  // Only live accounts count: a customer whose deletion is pending (or finished) is not a member.
+  status: 'active',
   OR: [{ role_id: null }, { role: { is: { name: CUSTOMER_ROLE } } }],
 }
 

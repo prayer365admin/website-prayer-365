@@ -30,6 +30,7 @@ export const SUPPORTED_KINDS = [
   'general_prayer.audio',
   'general_prayer.send',
   'donation_reminder.send',
+  'privacy.delete',
 ] as const
 
 export type JobKind = (typeof SUPPORTED_KINDS)[number]

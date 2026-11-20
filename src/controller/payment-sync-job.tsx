@@ -262,6 +262,7 @@ export const processPaymentSyncJob = async (
         currency: String(ch.currency),
         status: 'PAID',
         paidAt: providerPaidAt,
+        invoiceUrl: typeof ch.receipt_url === 'string' ? ch.receipt_url : undefined,
       })
       await notifyDonationThanks({
         userId: payerUserId,
@@ -389,6 +390,8 @@ export const processPaymentSyncJob = async (
           status: 'PAID',
           paidAt: providerPaidAt,
           providerSubscriptionId: extractSubscriptionId(obj),
+          invoiceUrl:
+            typeof obj.hosted_invoice_url === 'string' ? obj.hosted_invoice_url : undefined,
         })
         await notifyDonationThanks({
           userId: payerUserId,

@@ -187,6 +187,20 @@ export const MobileMeSchema = z.object({
 
 export type MobileMe = z.infer<typeof MobileMeSchema>
 
+/** Optional body of DELETE /mobile/me: the reason is plain text (a preset label or the user's own words). */
+export const MobileDeletionRequestSchema = z
+  .object({ reason: z.string().trim().max(500).optional() })
+  .strict()
+
+export type MobileDeletionRequest = z.infer<typeof MobileDeletionRequestSchema>
+
+/** 202 body of DELETE /mobile/me (MB-06): accepted, not erased; erased after grace_ends_at. */
+export const MobileDeletionAckSchema = z.object({
+  job_id: z.string(),
+  state: z.string(),
+  grace_ends_at: z.string(),
+})
+
 export const MobileMePatchSchema = z
   .object({
     name: z.string().trim().min(1).max(200).optional(),

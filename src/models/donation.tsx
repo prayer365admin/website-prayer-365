@@ -95,6 +95,12 @@ export const DonationSubscriptionRowSchema = z.object({
   currency: z.string(),
   providerStatus: z.string(),
   createdAt: z.date(),
+  churchId: z.string(),
+  churchName: z.string(),
+  /** Stripe checkout is created with `interval: 'month'` only, so every stored plan is monthly. */
+  frequency: z.literal('Monthly'),
+  /** Receipt URL of the plan's most recent paid charge, or null before the first one. */
+  invoiceUrl: z.string().nullable(),
 })
 
 export type DonationSubscriptionRow = {
@@ -103,6 +109,21 @@ export type DonationSubscriptionRow = {
   currency: string
   providerStatus: string
   createdAt: Date
+  churchId: string
+  churchName: string
+  frequency: 'Monthly'
+  invoiceUrl: string | null
+}
+
+/** One calendar month of the all-church ledger, per currency. Money is minor-unit strings. */
+export type MonthlySummaryRow = {
+  /** `YYYY-MM`, in UTC. */
+  month: string
+  currency: string
+  grossMinor: string
+  refundedMinor: string
+  netMinor: string
+  count: number
 }
 
 export const DonationSummaryRowSchema = z.object({
@@ -110,6 +131,8 @@ export const DonationSummaryRowSchema = z.object({
   grossMinor: z.string(),
   refundedMinor: z.string(),
   netMinor: z.string(),
+  /** Rows folded into this currency bucket for the month. */
+  count: z.number(),
 })
 
 export type DonationSummaryRow = {
@@ -117,6 +140,7 @@ export type DonationSummaryRow = {
   grossMinor: string
   refundedMinor: string
   netMinor: string
+  count: number
 }
 
 export const DonationSummarySchema = z.object({
@@ -156,6 +180,64 @@ export type DonationListQuery = {
   from?: Date
   to?: Date
   currency?: string
+}
+
+/*
+ * Admin ledger report (dashboard donations page). The type of a gift is derived
+ * from its beneficiary (T-01): a row on the hidden platform church is a PRAYER
+ * gift, every other row is a CHURCH gift. `DonationRowSchema` stays untouched so
+ * the mobile read contract keeps its "no donor PII" shape.
+ */
+
+export const DonationLedgerStatusSchema = z.enum(['PAID', 'FAILED', 'REFUNDED'])
+
+export type DonationLedgerStatus = z.infer<typeof DonationLedgerStatusSchema>
+
+export const DonationTypeSchema = z.enum(['CHURCH', 'PRAYER'])
+
+export type DonationType = z.infer<typeof DonationTypeSchema>
+
+export const AdminDonationRowSchema = DonationRowSchema.extend({
+  churchId: z.string(),
+  churchName: z.string(),
+  type: DonationTypeSchema,
+  refundedMinor: z.string(),
+  donor: z.object({ name: z.string(), email: z.string() }).nullable(),
+  /** Provider-hosted receipt; null on rows synced before the column existed. */
+  invoiceUrl: z.string().nullable(),
+})
+
+export type AdminDonationRow = DonationRow & {
+  churchId: string
+  churchName: string
+  type: DonationType
+  refundedMinor: string
+  donor: { name: string; email: string } | null
+  invoiceUrl: string | null
+}
+
+export type DonationBucket = {
+  grossMinor: string
+  refundedMinor: string
+  netMinor: string
+  count: number
+}
+
+export type AdminDonationSummary = {
+  from: Date
+  to: Date
+  currencies: Array<{
+    currency: string
+    total: DonationBucket
+    church: DonationBucket
+    prayer: DonationBucket
+  }>
+}
+
+/** Admin list query: the church-scoped query plus an optional church filter and ledger status. */
+export type AdminDonationListQuery = DonationListQuery & {
+  churchId?: string
+  status?: DonationLedgerStatus
 }
 
 /** Paginated recurring-subscription list query (read-only). */
