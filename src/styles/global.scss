@@ -37,6 +37,36 @@
   --color-danger-700: #b91c1c;
   --color-warning-500: #f59e0b;
   --color-success-500: #22c55e;
+  /* Donations report tokens (mock values; plan 043 T4). Screens reference these by name. */
+  --color-donation-ink: #131b2e;
+  --color-donation-body: #5c6370;
+  --color-donation-icon: #b0b6bf;
+  --color-donation-strong: #22252a;
+  --color-donation-zebra: #f6f6f6;
+  --color-donation-success: #09a97c;
+  --color-donation-success-strong: #067958;
+  --color-donation-success-bg: #edfdf9;
+  --color-donation-success-border: #d3faef;
+  --color-donation-danger-border: #fee2e2;
+  --color-donation-danger-strong: #d83a3a;
+  --color-donation-danger-chip-border: #fad3d3;
+  --color-donation-warning: #b45309;
+  --color-donation-warning-strong: #ad6800;
+  --color-donation-warning-bg: #fff7e6;
+  --color-donation-warning-border: #fce7b2;
+  --color-donation-warning-chip-bg: #fffbe6;
+  --color-donation-warning-chip-border: #ffe58f;
+  --color-donation-warning-dot: #faad14;
+  --color-donation-info-bg: #edf4ff;
+  --color-donation-info-border: #d6e4ff;
+  --color-donation-dot-neutral: #737c8c;
+  --color-donation-glow-deep: #125bd5;
+  --color-donation-shadow: #10459b59;
+  --color-donation-backfill: #d8a50e;
+  --color-donation-backfill-border: #fbeec6;
+  --color-donation-backfill-bg: #fefcf6;
+  --color-donation-white-half: rgba(255, 255, 255, 0.5);
+  --color-donation-card-shadow: rgba(0, 0, 0, 0.05);
   /* Used inside gradients only (no Tailwind class). */
   --color-overlay-navy: #080d44a6; /* banner tint, 65% */
   --color-blue-tint: rgb(194 217 255 / 40%); /* card gradient start */

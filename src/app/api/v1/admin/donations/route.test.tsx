@@ -99,6 +99,41 @@ describe('GET /admin/donations', () => {
     expect(listAllDonations).not.toHaveBeenCalled()
   })
 
+  it('passes type=PRAYER so the server narrows to the platform beneficiary', async () => {
+    await GET(req('?type=PRAYER'))
+
+    expect(listAllDonations).toHaveBeenCalledWith({
+      churchIds: new Set(['c1']),
+      query: expect.objectContaining({ type: 'PRAYER' }),
+    })
+  })
+
+  it('passes type=CHURCH so the server excludes the platform beneficiary', async () => {
+    await GET(req('?type=CHURCH'))
+
+    expect(listAllDonations).toHaveBeenCalledWith({
+      churchIds: new Set(['c1']),
+      query: expect.objectContaining({ type: 'CHURCH' }),
+    })
+  })
+
+  it('leaves type undefined when the filter is absent', async () => {
+    await GET(req())
+
+    expect(listAllDonations).toHaveBeenCalledWith({
+      churchIds: new Set(['c1']),
+      query: expect.objectContaining({ type: undefined }),
+    })
+  })
+
+  it('400s a type outside the derived set instead of returning every gift', async () => {
+    const res = await GET(req('?type=GUEST'))
+
+    expect(res.status).toBe(400)
+    expect((await res.json()).error_code).toBe('INVALID_TYPE')
+    expect(listAllDonations).not.toHaveBeenCalled()
+  })
+
   it('404s a church outside the caller scope', async () => {
     vi.mocked(listAllDonations).mockRejectedValue(
       new GeneralError({

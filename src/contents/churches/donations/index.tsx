@@ -5,12 +5,14 @@ import { Alert, ConfigProvider, DatePicker, Select, Table } from 'antd'
 import dayjs, { type Dayjs } from 'dayjs'
 
 import DashboardMainHeader from '@/components/common/dashboard/main-header'
+import { TabStrip } from '@/components/common/tab-strip'
 import LayoutIcon from '@/components/common/layout-icon'
 import { GivingIcon } from '@/components/icon/giving'
 import { EuroIcon } from '@/components/icon/euro'
 import { userMgmtTableTheme } from '@/config/antdTheme'
 import { useAccessPermission } from '@/hooks/data/access-permission'
 import { useDonations, useDonationSubscriptions, useDonationSummary } from '@/hooks/data/donation'
+import { useDonationFilters } from '@/hooks/ui/donation-filters'
 import { useUrlPagination } from '@/hooks/ui/url-pagination'
 import type { DonationLedgerStatus } from '@/models/donation'
 
@@ -38,13 +40,13 @@ const currencyName = (currency: string) =>
   CURRENCY_NAME[currency.toLowerCase()] ?? currency.toUpperCase()
 
 const countBadge = (currency: string, count: number) => (
-  <span className="rounded bg-[#EDFDF9] px-2 py-0.5 text-[10px] font-medium text-[#067958]">
+  <span className="rounded bg-[var(--color-donation-success-bg)] px-2 py-0.5 text-[10px] font-medium text-[var(--color-donation-success-strong)]">
     {currencyName(currency)} ({count})
   </span>
 )
 
 const filterSelectClass =
-  '!h-10 [&_.ant-select-selector]:!h-10 [&_.ant-select-selector]:!rounded-lg [&_.ant-select-selector]:!border-[#DDE0E4] [&_.ant-select-content]:!text-sm'
+  '!h-10 [&_.ant-select-selector]:!h-10 [&_.ant-select-selector]:!rounded-lg [&_.ant-select-selector]:!border-[var(--color-neutral-200)] [&_.ant-select-content]:!text-sm'
 
 /**
  * One church's giving ledger. Transactions and recurring plans share the detail
@@ -57,13 +59,19 @@ export default function ContentsChurchDonations({ churchId }: { churchId: string
   const canRead =
     permission.readAny('prayer_donation').granted || permission.readOwn('prayer_donation').granted
 
-  const [activeTab, setActiveTab] = useState<TabKey>('transactions')
-  const [selectedMonth, setSelectedMonth] = useState<Dayjs>(dayjs())
-  const [customRange, setCustomRange] = useState<[Dayjs | null, Dayjs | null] | null>(null)
-  const [selectedCurrency, setSelectedCurrency] = useState<string | undefined>()
+  // Filters live in the URL (T6), so a shared link keeps the month, currency and status.
+  const { filters, setFilters } = useDonationFilters({
+    tab: 'transactions',
+    month: dayjs().format('YYYY-MM'),
+  })
+  const activeTab = (filters.tab ?? 'transactions') as TabKey
+  const selectedMonth = dayjs(filters.month ?? undefined)
+  const selectedCurrency = filters.currency
   // Ledger state filter: transactions only. The Monthly summary tab stays
   // PAID-based (T-05), so this Select never widens or narrows those numbers.
-  const [selectedStatus, setSelectedStatus] = useState<DonationLedgerStatus | undefined>()
+  const selectedStatus = filters.status as DonationLedgerStatus | undefined
+  const customRange: [Dayjs | null, Dayjs | null] | null =
+    filters.from && filters.to ? [dayjs(filters.from), dayjs(filters.to)] : null
   const [detail, setDetail] = useState<DonationDetailPayload | null>(null)
 
   const {
@@ -165,20 +173,18 @@ export default function ContentsChurchDonations({ churchId }: { churchId: string
   }
 
   const handleCurrencyChange = (val: string) => {
-    setSelectedCurrency(val)
+    setFilters({ currency: val })
     setTxPage(1)
     setRecPage(1)
   }
 
   const handleMonthChange = (date: Dayjs | null) => {
-    if (date) setSelectedMonth(date)
-    setCustomRange(null)
+    setFilters({ month: date ? date.format('YYYY-MM') : undefined, from: undefined, to: undefined })
     setTxPage(1)
   }
 
   const switchTab = (next: TabKey) => {
-    setActiveTab(next)
-    if (next !== 'transactions') setCustomRange(null)
+    setFilters({ tab: next, from: undefined, to: undefined })
     setTxPage(1)
     setRecPage(1)
   }
@@ -198,17 +204,20 @@ export default function ContentsChurchDonations({ churchId }: { churchId: string
       />
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <div className="relative rounded-2xl bg-white p-4 shadow-[0px_1px_2px_rgba(0,0,0,0.05)]">
+        <div className="relative rounded-2xl bg-white p-4 shadow-[0px_1px_2px_var(--color-donation-card-shadow)]">
           <span className="absolute right-4 top-4 text-primary-500">
             <GivingIcon className="text-[20px]" />
           </span>
-          <div className="pr-8 text-xs font-medium text-[#5C6370]">Confirmed donations amount</div>
+          <div className="pr-8 text-xs font-medium text-[var(--color-donation-body)]">
+            Confirmed donations amount
+          </div>
           <div className="mt-3 flex flex-col gap-2">
             {summaryLoading ? (
-              <div className="text-2xl text-[#5C6370]">Loading…</div>
+              <div className="text-2xl text-[var(--color-donation-body)]">Loading…</div>
             ) : filteredSummaryData.length === 0 ? (
-              <div className="text-[32px] font-bold leading-none tracking-[-1px] text-[#131B2E]">
-                € 0<span className="text-xs font-normal text-[#5C6370]">.00</span>
+              <div className="text-[32px] font-bold leading-none tracking-[-1px] text-[var(--color-donation-ink)]">
+                € 0
+                <span className="text-xs font-normal text-[var(--color-donation-body)]">.00</span>
               </div>
             ) : (
               filteredSummaryData.map((c) => {
@@ -217,10 +226,10 @@ export default function ContentsChurchDonations({ churchId }: { churchId: string
                   <div key={c.currency} className="flex items-center justify-between gap-2">
                     <div className="flex items-baseline gap-1">
                       <EuroIcon className="!text-[20px] !text-primary-500" />
-                      <span className="text-[32px] font-bold leading-none tracking-[-1px] text-[#131B2E]">
+                      <span className="text-[32px] font-bold leading-none tracking-[-1px] text-[var(--color-donation-ink)]">
                         {major}
                       </span>
-                      <span className="text-xs text-[#5C6370]">.{minor}</span>
+                      <span className="text-xs text-[var(--color-donation-body)]">.{minor}</span>
                     </div>
                     {countBadge(c.currency, c.count)}
                   </div>
@@ -230,13 +239,15 @@ export default function ContentsChurchDonations({ churchId }: { churchId: string
           </div>
         </div>
 
-        <div className="relative rounded-2xl bg-white p-4 shadow-[0px_1px_2px_rgba(0,0,0,0.05)]">
-          <span className="absolute right-4 top-4 text-[#77B4F2]">
+        <div className="relative rounded-2xl bg-white p-4 shadow-[0px_1px_2px_var(--color-donation-card-shadow)]">
+          <span className="absolute right-4 top-4 text-[var(--color-primary-300)]">
             <LayoutIcon name="calendar" size={20} />
           </span>
-          <div className="pr-8 text-xs font-medium text-[#5C6370]">Donation Count</div>
+          <div className="pr-8 text-xs font-medium text-[var(--color-donation-body)]">
+            Donation Count
+          </div>
           <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
-            <span className="text-[32px] font-bold leading-none tracking-[-1px] text-[#131B2E]">
+            <span className="text-[32px] font-bold leading-none tracking-[-1px] text-[var(--color-donation-ink)]">
               {txLoading ? '—' : txTotal.toLocaleString()}
             </span>
             <span className="flex flex-wrap justify-end gap-1">
@@ -250,8 +261,8 @@ export default function ContentsChurchDonations({ churchId }: { churchId: string
         </div>
       </div>
 
-      <div className="flex flex-col overflow-hidden rounded-2xl bg-white shadow-[0px_1px_2px_rgba(0,0,0,0.05)] lg:min-h-0 lg:flex-1">
-        <div className="flex shrink-0 flex-wrap items-center gap-3 border-b border-[#DDE0E4] px-6 py-4">
+      <div className="flex flex-col overflow-hidden rounded-2xl bg-white shadow-[0px_1px_2px_var(--color-donation-card-shadow)] lg:min-h-0 lg:flex-1">
+        <div className="flex shrink-0 flex-wrap items-center gap-3 border-b border-[var(--color-neutral-200)] px-6 py-4">
           <div className="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-primary-500 text-white">
             <GivingIcon className="text-[20px]" />
           </div>
@@ -266,7 +277,10 @@ export default function ContentsChurchDonations({ churchId }: { churchId: string
             <DatePicker.RangePicker
               value={customRange as [Dayjs, Dayjs] | null}
               onChange={(dates) => {
-                setCustomRange(dates as [Dayjs | null, Dayjs | null] | null)
+                setFilters({
+                  from: dates?.[0] ? dates[0].format('YYYY-MM-DD') : undefined,
+                  to: dates?.[1] ? dates[1].format('YYYY-MM-DD') : undefined,
+                })
                 setTxPage(1)
               }}
               className="!h-10"
@@ -284,27 +298,14 @@ export default function ContentsChurchDonations({ churchId }: { churchId: string
           <LedgerStatusSelect
             value={selectedStatus}
             onChange={(value) => {
-              setSelectedStatus(value)
+              setFilters({ status: value })
               setTxPage(1)
             }}
           />
         </div>
 
-        <div className="shrink-0 border-b border-[#DDE0E4] px-6 py-3">
-          <div className="flex w-fit gap-1 rounded-xl bg-[#E6EDFB] p-1">
-            {TABS.map((tab) => (
-              <button
-                key={tab.key}
-                type="button"
-                onClick={() => switchTab(tab.key)}
-                className={`rounded-lg px-3 py-1.5 text-xs font-medium ${
-                  activeTab === tab.key ? 'bg-white text-[#0E203E]' : 'text-[#2555A7]'
-                }`}
-              >
-                {tab.label}
-              </button>
-            ))}
-          </div>
+        <div className="shrink-0 border-b border-[var(--color-neutral-200)] px-6 py-3">
+          <TabStrip items={TABS} value={activeTab} onChange={switchTab} label="Donation views" />
         </div>
 
         <div className="flex min-w-0 flex-col px-6 py-4 lg:flex-1 [&_.ant-table-wrapper]:min-w-0 [&_.ant-table-wrapper]:flex-1 [&_.ant-table-wrapper]:flex [&_.ant-table-wrapper]:flex-col [&_.ant-spin]:min-w-0 [&_.ant-spin]:flex-1 [&_.ant-spin]:flex [&_.ant-spin]:flex-col [&_.ant-spin-nested-loading]:min-w-0 [&_.ant-spin-nested-loading]:flex-1 [&_.ant-spin-nested-loading]:flex [&_.ant-spin-nested-loading]:flex-col [&_.ant-spin-container]:min-w-0 [&_.ant-spin-container]:flex-1 [&_.ant-spin-container]:flex [&_.ant-spin-container]:flex-col [&_.ant-table-container]:min-w-0 [&_.ant-table-content]:min-w-0 [&_.ant-table-pagination]:!mt-auto">
@@ -399,7 +400,7 @@ export default function ContentsChurchDonations({ churchId }: { churchId: string
         </div>
       </div>
 
-      <div className="mt-2 text-sm text-gray-500">
+      <div className="mt-2 text-sm text-[var(--color-donation-body)]">
         Amounts are provider-confirmed. Currencies are kept separate; refunds and subscription
         editing are managed in Stripe.
       </div>

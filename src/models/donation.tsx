@@ -238,6 +238,8 @@ export type AdminDonationSummary = {
 export type AdminDonationListQuery = DonationListQuery & {
   churchId?: string
   status?: DonationLedgerStatus
+  /** Derived, never stored: `PRAYER` = the platform beneficiary, `CHURCH` = every other church. */
+  type?: DonationType
 }
 
 /** Paginated recurring-subscription list query (read-only). */

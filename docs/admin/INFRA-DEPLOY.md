@@ -290,6 +290,26 @@ To pause the workers without deleting anything: set `workers.dispatchSchedule: '
 `workers.enabled: false`) and redeploy the worker stack. Jobs that arrive meanwhile wait as
 `PENDING` rows and run on the next tick after you re-enable it.
 
+### 4.2a Account deletion (`privacy.delete`) — required for MB-06
+
+A release that ships `DELETE M/me` must run the finalize consumer, or every accepted deletion stays
+`deletion_pending` forever (the user is hidden, sessions are killed, devices are off, and nothing
+ever erases the account).
+
+1. Apply the migrations: `bunx prisma migrate deploy` (adds `privacy_jobs.grace_ends_at`,
+   `privacy_jobs.cancelled_at`, `privacy_jobs.reason`, `users.deleted_email`, `donations.invoice_url`).
+2. Make sure the consumer handles the kind. The SQS path needs no extra deploy — `HANDLERS['privacy.delete']`
+   is registered in `src/lambda/consumer.ts` — but the dispatcher must be able to enqueue it, so
+   `workers.enabled` has to be `true`. A deployment without Lambda workers can instead run
+   `bun run worker:privacy-delete` as its own process against the same database.
+3. Smoke it: request deletion from the app, confirm `privacy_jobs.state = 'ACCEPTED'` and one
+   `outbox_jobs` row of kind `privacy.delete`; sign in once to prove cancel works; then re-request
+   with `ACCOUNT_DELETION_GRACE_SECONDS=60` (staging only — production ignores anything under a day)
+   and confirm the account ends `inactive` with `users.deleted_email` set and the placeholder
+   `deleted+<id>@invalid` in `email`.
+4. Watch `privacy_delete_tick` in CloudWatch: `claimed` > 0 with `failed` > 0 means Stripe
+   subscription cancellation is failing; the job retries five times with a 1-minute backoff.
+
 ### 4.3 ElevenLabs switch
 
 `ELEVENLABS_ENABLED` must be exactly `true` — the worker stack sets it. For local runs set it in

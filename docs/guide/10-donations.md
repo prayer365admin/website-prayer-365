@@ -8,16 +8,17 @@ The donations page reports money the payment provider has confirmed for one chur
 
 ## Who can use it
 
-| Role                             | Can do                      |
-| -------------------------------- | --------------------------- |
-| Church admin with finance rights | Read the church's donations |
-| Central / super admin            | Read any church's donations |
-| Everyone else                    | No access                   |
+| Role                             | Can do                                                                               |
+| -------------------------------- | ------------------------------------------------------------------------------------ |
+| Church admin with finance rights | Read the church's donations                                                          |
+| Central / super admin            | Read any church's donations, and the all-church report under **CENTRAL → Donations** |
+| Everyone else                    | No access                                                                            |
 
 ## Before you start
 
-- Open the church, then **Church → Donations**.
+- Open the church, then **Church → Donations**. The all-church report is **CENTRAL → Donations** — the same tables, with a Church column and a Type filter.
 - Know this rule before reading numbers: **only provider-confirmed amounts count**. In the demo data the seeded donations have no confirmed provider state, so the totals are `0.00` while rows exist in the database. That is correct behaviour, not a bug.
+- Filters live in the address bar. Copying the link shares the same tab, month, currency, status and date range.
 
 ## Step by step
 
@@ -31,9 +32,21 @@ The donations page reports money the payment provider has confirmed for one chur
 
 ### Step 2 — Read the transactions tab
 
-1. The **Transactions** tab lists **Date, Reference, Amount / currency, Payment state**.
-2. A row appears only when the provider confirms it.
-3. The footer explains where refunds live: _"refunds and subscription editing are managed in Stripe."_
+1. The **Transactions** tab lists **Date, Reference, Amount, Donor, Payment Status** and an action button.
+2. **Amount** shows the money on the first line and the currency spelled out under it.
+3. **Donor** shows the registered giver's name and email; a gift made without an account shows **Guest**.
+4. **Payment Status** is the provider state: Paid, Failed, Refunded or Pending.
+5. Use the **status filter** beside the currency filter to narrow the list. The two figures above the table always count confirmed money, so they do not change with it.
+6. A row appears only when the provider confirms it.
+7. The footer explains where refunds live: _"refunds and subscription editing are managed in Stripe."_
+
+### Step 2b — Open one donation
+
+Click the eye button at the end of a row.
+
+1. The dialog shows the amount, the reference, who gave, the payment date and time (UTC) and the status.
+2. **Copy invoice URL** copies the provider's receipt link; it is disabled when the payment has no receipt yet.
+3. Close with the X, and nothing is changed.
 
 ### Step 3 — Read recurring donations
 
@@ -41,9 +54,10 @@ Open the **Recurring** tab.
 
 ![Recurring donations tab with reference, amount, frequency and provider state](assets/10-donations/02-recurring.png)
 
-1. Columns: **Reference, Amount / currency, Frequency, Provider state**.
+1. Columns: **Reference, Amount, Frequency, Provider state** and the same eye button.
 2. `Active` means the subscription is running with the provider.
 3. Nothing is editable here; changes happen in the provider's dashboard.
+4. On the all-church report, the **Type** filter splits Church gifts from Prayer gifts (gifts to the platform itself).
 
 ### Step 4 — Read the monthly summary
 
@@ -57,14 +71,17 @@ Open the **Monthly summary** tab.
 
 ## Fields explained
 
-| Field                             | What it means                      |
-| --------------------------------- | ---------------------------------- |
-| Currency filter                   | Limits all figures to one currency |
-| Confirmed amount                  | Sum of confirmed payments          |
-| Donation count                    | Number of confirmed payments       |
-| Payment state                     | Provider state of the payment      |
-| Frequency                         | One-off or recurring interval      |
-| Gross paid / Refunded / Net total | Monthly totals from the provider   |
+| Field                             | What it means                                    |
+| --------------------------------- | ------------------------------------------------ |
+| Currency filter                   | Limits all figures to one currency               |
+| Status filter                     | Limits the list to Paid, Failed or Refunded rows |
+| Confirmed amount                  | Sum of confirmed payments                        |
+| Donation count                    | Number of confirmed payments                     |
+| Payment state                     | Provider state of the payment                    |
+| Donor                             | Registered giver's name and email, or Guest      |
+| Invoice URL                       | Provider receipt link for one payment            |
+| Frequency                         | One-off or recurring interval                    |
+| Gross paid / Refunded / Net total | Monthly totals from the provider                 |
 
 ## What changes on the website
 

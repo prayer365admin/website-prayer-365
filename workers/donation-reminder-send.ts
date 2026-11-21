@@ -25,7 +25,7 @@ const sleep = (ms: number) => {
 
 const main = async () => {
   const once = process.argv.includes('--once')
-  const pollMs = Number(process.env.GENERAL_PRAYER_SEND_WORKER_POLL_MS ?? 5000)
+  const pollMs = Number(process.env.DONATION_REMINDER_SEND_WORKER_POLL_MS ?? 5000)
   process.on('SIGINT', stop)
   process.on('SIGTERM', stop)
   do {

@@ -204,6 +204,8 @@ export interface AdminDonationListOptions {
   from?: string | Date
   to?: string | Date
   status?: 'PAID' | 'FAILED' | 'REFUNDED'
+  /** Derived gift type; applied by the server so `total` and pagination cover the filtered set. */
+  type?: 'CHURCH' | 'PRAYER'
   churchId?: string
   currency?: string
   enableFetch?: boolean
@@ -250,6 +252,7 @@ export const useAdminDonations = (options: AdminDonationListOptions) => {
     from,
     to,
     status,
+    type,
     churchId,
     currency,
     enableFetch = true,
@@ -271,6 +274,9 @@ export const useAdminDonations = (options: AdminDonationListOptions) => {
   if (status) {
     queryParams.set('status', status)
   }
+  if (type) {
+    queryParams.set('type', type)
+  }
   if (churchId) {
     queryParams.set('churchId', churchId)
   }
@@ -291,6 +297,7 @@ export const useAdminDonations = (options: AdminDonationListOptions) => {
         from: from instanceof Date ? from.toISOString() : from,
         to: to instanceof Date ? to.toISOString() : to,
         status,
+        type,
         churchId,
         currency,
       },

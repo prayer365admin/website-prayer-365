@@ -57,8 +57,16 @@ export const GET_DONATIONS = async ({
 }): Promise<{ result: AdminDonationRow[]; total: number }> => {
   const ids = Array.from(churchIds)
   if (ids.length === 0) return { result: [], total: 0 }
+  // The type is derived from the beneficiary (T-01), so it is a church predicate: the platform
+  // row IS a prayer gift. Applying it here keeps `total` and pagination about the filtered set.
+  const churchFilter: Prisma.DonationWhereInput['church_id'] =
+    platformChurchId && query.type === 'PRAYER'
+      ? platformChurchId
+      : platformChurchId && query.type === 'CHURCH'
+        ? { in: ids, not: platformChurchId }
+        : { in: ids }
   const where: Prisma.DonationWhereInput = {
-    church_id: { in: ids },
+    church_id: churchFilter,
     currency: query.currency ? query.currency.toLowerCase() : undefined,
     status: query.status,
     ...(query.from !== undefined || query.to !== undefined

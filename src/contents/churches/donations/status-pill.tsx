@@ -5,19 +5,23 @@
 export type PillTone = 'success' | 'danger' | 'neutral' | 'warning' | 'info'
 
 const TONE_CLASS: Record<PillTone, string> = {
-  success: 'bg-[#EDFDF9] border-[#D3FAEF] text-[#09A97C]',
-  danger: 'bg-[#FEF2F2] border-[#FEE2E2] text-[#B91C1C]',
-  neutral: 'bg-[#F6F6F6] border-[#DDE0E4] text-[#5C6370]',
-  warning: 'bg-[#FFF7E6] border-[#FCE7B2] text-[#B45309]',
-  info: 'bg-[#EDF4FF] border-[#D6E4FF] text-[#2555A7]',
+  success:
+    'bg-[var(--color-donation-success-bg)] border-[var(--color-donation-success-border)] text-[var(--color-donation-success)]',
+  danger:
+    'bg-[var(--color-danger-50)] border-[var(--color-donation-danger-border)] text-[var(--color-danger-700)]',
+  neutral:
+    'bg-[var(--color-donation-zebra)] border-[var(--color-neutral-200)] text-[var(--color-donation-body)]',
+  warning:
+    'bg-[var(--color-donation-warning-bg)] border-[var(--color-donation-warning-border)] text-[var(--color-donation-warning)]',
+  info: 'bg-[var(--color-donation-info-bg)] border-[var(--color-donation-info-border)] text-[var(--color-primary-650)]',
 }
 
 const TONE_DOT: Record<PillTone, string> = {
-  success: '#09A97C',
-  danger: '#B91C1C',
-  neutral: '#737C8C',
-  warning: '#B45309',
-  info: '#2F7AD2',
+  success: 'var(--color-donation-success)',
+  danger: 'var(--color-danger-700)',
+  neutral: 'var(--color-donation-dot-neutral)',
+  warning: 'var(--color-donation-warning)',
+  info: 'var(--color-primary-500)',
 }
 
 export const StatusPill = ({ label, tone = 'neutral' }: { label: string; tone?: PillTone }) => (

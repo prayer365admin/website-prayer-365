@@ -169,21 +169,22 @@ describe('ContentsDashboardDonations', () => {
     )
   })
 
-  it('filters Church donations client-side without a server church param (Type=Church)', async () => {
+  it('sends type=CHURCH to the server instead of filtering the page (Type=Church)', async () => {
     const user = userEvent.setup()
     renderWithProviders(<ContentsDashboardDonations />)
 
     await user.click(screen.getAllByRole('combobox')[1])
     await user.click(await screen.findByTitle('Church Donation'))
 
-    expect(screen.queryByText('Prayer 365')).toBeNull()
-    expect(screen.getByText('St Mary')).toBeTruthy()
     expect(m.useAdminDonations).toHaveBeenLastCalledWith(
-      expect.objectContaining({ churchId: undefined }),
+      expect.objectContaining({ type: 'CHURCH', churchId: undefined }),
     )
+    // Every row the server returned is rendered: the page no longer hides rows itself.
+    expect(screen.getByText('Prayer 365')).toBeTruthy()
+    expect(screen.getByText('St Mary')).toBeTruthy()
   })
 
-  it('sends the platform id when Type=Prayer', async () => {
+  it('sends the platform id and type=PRAYER when Type=Prayer', async () => {
     const user = userEvent.setup()
     renderWithProviders(<ContentsDashboardDonations />)
 
@@ -191,7 +192,7 @@ describe('ContentsDashboardDonations', () => {
     await user.click(await screen.findByTitle('Prayer Donation'))
 
     expect(m.useAdminDonations).toHaveBeenLastCalledWith(
-      expect.objectContaining({ churchId: 'p1' }),
+      expect.objectContaining({ churchId: 'p1', type: 'PRAYER' }),
     )
   })
 
@@ -235,7 +236,7 @@ describe('ContentsDashboardDonations', () => {
       expect.objectContaining({ enableFetch: false }),
     )
 
-    await user.click(screen.getByRole('button', { name: 'Recurring' }))
+    await user.click(screen.getByRole('tab', { name: 'Recurring' }))
 
     expect(m.useAdminDonationSubscriptions).toHaveBeenLastCalledWith(
       expect.objectContaining({ enableFetch: true, churchId: undefined }),
@@ -247,7 +248,7 @@ describe('ContentsDashboardDonations', () => {
     const user = userEvent.setup()
     renderWithProviders(<ContentsDashboardDonations />)
 
-    await user.click(screen.getByRole('button', { name: 'Monthly Summary' }))
+    await user.click(screen.getByRole('tab', { name: 'Monthly Summary' }))
 
     expect(m.useAdminDonationSummaryMonthly).toHaveBeenLastCalledWith(
       expect.objectContaining({

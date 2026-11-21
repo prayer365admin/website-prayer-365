@@ -157,7 +157,7 @@ describe('ContentsChurchDonations', () => {
       expect.objectContaining({ enableFetch: false }),
     )
 
-    await user.click(screen.getByRole('button', { name: 'Recurring' }))
+    await user.click(screen.getByRole('tab', { name: 'Recurring' }))
 
     expect(m.useDonationSubscriptions).toHaveBeenLastCalledWith(
       expect.objectContaining({ enableFetch: true }),
@@ -189,7 +189,7 @@ describe('ContentsChurchDonations', () => {
     const user = userEvent.setup()
     renderWithProviders(<ContentsChurchDonations churchId="c1" />)
 
-    await user.click(screen.getByRole('button', { name: 'Recurring' }))
+    await user.click(screen.getByRole('tab', { name: 'Recurring' }))
     await user.click(screen.getAllByRole('button', { name: 'View donation' })[0])
 
     const dialog = within(await screen.findByRole('dialog'))
@@ -206,7 +206,7 @@ describe('ContentsChurchDonations', () => {
     const user = userEvent.setup()
     renderWithProviders(<ContentsChurchDonations churchId="c1" />)
 
-    await user.click(screen.getByRole('button', { name: 'Monthly Summary' }))
+    await user.click(screen.getByRole('tab', { name: 'Monthly Summary' }))
 
     expect(screen.getAllByText('USD 1,000.00').length).toBeGreaterThan(0)
     expect(screen.getAllByText('USD 50.00').length).toBeGreaterThan(0)
@@ -261,10 +261,10 @@ describe('ContentsChurchDonations', () => {
     expect(screen.getByText(/€ 0/)).toBeTruthy() // Confirmed amount
     expect(screen.getAllByText('No data').length).toBeGreaterThan(0)
 
-    await user.click(screen.getByRole('button', { name: 'Recurring' }))
+    await user.click(screen.getByRole('tab', { name: 'Recurring' }))
     expect(screen.getAllByText('No data').length).toBeGreaterThan(0)
 
-    await user.click(screen.getByRole('button', { name: 'Monthly Summary' }))
+    await user.click(screen.getByRole('tab', { name: 'Monthly Summary' }))
     expect(screen.getAllByText('No data').length).toBeGreaterThan(0)
   })
 
@@ -292,10 +292,10 @@ describe('ContentsChurchDonations', () => {
 
     expect(screen.getByText('Failed to load transactions')).toBeTruthy()
 
-    await user.click(screen.getByRole('button', { name: 'Recurring' }))
+    await user.click(screen.getByRole('tab', { name: 'Recurring' }))
     expect(screen.getByText('Failed to load recurring donations')).toBeTruthy()
 
-    await user.click(screen.getByRole('button', { name: 'Monthly Summary' }))
+    await user.click(screen.getByRole('tab', { name: 'Monthly Summary' }))
     expect(screen.getByText('Failed to load summary')).toBeTruthy()
   })
 

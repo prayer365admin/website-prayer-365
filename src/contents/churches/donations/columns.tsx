@@ -61,13 +61,13 @@ export const displayReference = (id: string): string =>
 export const donationTableClass = [
   '[&_.ant-table]:!w-full [&_.ant-table]:!min-w-0 [&_.ant-table]:!bg-transparent',
   '[&_.ant-table-content>table]:!w-full [&_.ant-table-content>table]:!min-w-[900px] [&_.ant-table-content>table]:!table-fixed',
-  '[&_.ant-table-container]:!rounded-2xl [&_.ant-table-container]:!border [&_.ant-table-container]:!border-[#F6F6F6]',
-  '[&_.ant-table-thead>tr>th]:!h-[34px] [&_.ant-table-thead>tr>th]:!border-b-0 [&_.ant-table-thead>tr>th]:!bg-[#F6F6F6] [&_.ant-table-thead>tr>th]:!px-2 [&_.ant-table-thead>tr>th]:!py-2 [&_.ant-table-thead>tr>th]:!text-xs [&_.ant-table-thead>tr>th]:!font-semibold [&_.ant-table-thead>tr>th]:!text-[#5C6370]',
-  '[&_.ant-table-tbody>tr>td]:!border-b [&_.ant-table-tbody>tr>td]:!border-[#DDE0E4] [&_.ant-table-tbody>tr>td]:!px-2 [&_.ant-table-tbody>tr>td]:!py-4 [&_.ant-table-tbody>tr>td]:!text-xs [&_.ant-table-tbody>tr>td]:!text-[#5C6370]',
+  '[&_.ant-table-container]:!rounded-2xl [&_.ant-table-container]:!border [&_.ant-table-container]:!border-[var(--color-donation-zebra)]',
+  '[&_.ant-table-thead>tr>th]:!h-[34px] [&_.ant-table-thead>tr>th]:!border-b-0 [&_.ant-table-thead>tr>th]:!bg-[var(--color-donation-zebra)] [&_.ant-table-thead>tr>th]:!px-2 [&_.ant-table-thead>tr>th]:!py-2 [&_.ant-table-thead>tr>th]:!text-xs [&_.ant-table-thead>tr>th]:!font-semibold [&_.ant-table-thead>tr>th]:!text-[var(--color-donation-body)]',
+  '[&_.ant-table-tbody>tr>td]:!border-b [&_.ant-table-tbody>tr>td]:!border-[var(--color-neutral-200)] [&_.ant-table-tbody>tr>td]:!px-2 [&_.ant-table-tbody>tr>td]:!py-4 [&_.ant-table-tbody>tr>td]:!text-xs [&_.ant-table-tbody>tr>td]:!text-[var(--color-donation-body)]',
   '[&_.ant-table-tbody>tr:last-child>td]:!border-b-0',
   '[&_.ant-table-measure-row]:!hidden',
-  '[&_.ant-table-tbody>tr.donation-row--alt>td]:!bg-[#F6F6F6]',
-  '[&_.ant-table-tbody>tr:hover>td]:!bg-[#F6F6F6]',
+  '[&_.ant-table-tbody>tr.donation-row--alt>td]:!bg-[var(--color-donation-zebra)]',
+  '[&_.ant-table-tbody>tr:hover>td]:!bg-[var(--color-donation-zebra)]',
   '[&_.ant-table-pagination]:!px-4',
 ].join(' ')
 
@@ -92,11 +92,13 @@ export const AmountCell = ({
   const [major, minor] = value.split('.')
   return (
     <div className="whitespace-nowrap leading-tight">
-      <div className="text-xs font-semibold text-[#22252A]">
+      <div className="text-xs font-semibold text-[var(--color-donation-strong)]">
         {currency.toUpperCase() === 'EUR' ? '€' : currency.toUpperCase()} {major}
-        {minor ? <span className="font-normal text-[#8F96A3]">.{minor}</span> : null}
+        {minor ? (
+          <span className="font-normal text-[var(--color-neutral-400)]">.{minor}</span>
+        ) : null}
       </div>
-      <div className="text-xs text-[#8F96A3]">{currencyLabel(currency)}</div>
+      <div className="text-xs text-[var(--color-neutral-400)]">{currencyLabel(currency)}</div>
     </div>
   )
 }
@@ -118,7 +120,7 @@ export const DonorCell = ({ donor }: { donor: AdminDonationRow['donor'] }) =>
   donor ? (
     <div className="leading-tight">
       <div>{donor.name}</div>
-      <div className="text-xs text-gray-500">{donor.email}</div>
+      <div className="text-xs text-[var(--color-donation-body)]">{donor.email}</div>
     </div>
   ) : (
     'Guest'
@@ -132,7 +134,9 @@ export const SerialColumn = <T,>(
   key: 'serial',
   width: 36,
   render: (_, __, index) => (
-    <span className="text-xs text-[#5C6370] opacity-50">{startIndex + index}.</span>
+    <span className="text-xs text-[var(--color-donation-body)] opacity-50">
+      {startIndex + index}.
+    </span>
   ),
 })
 
@@ -151,7 +155,7 @@ export const ActionsColumn = <T extends { id: string }>({
       aria-label="View donation"
       icon={<EyeOutlined />}
       onClick={() => onOpen(record)}
-      className="!grid !h-8 !w-8 !place-items-center !rounded !border !border-[#DDE0E4] !bg-white !p-0 !text-[#B0B6BF] hover:!text-[#5C6370]"
+      className="!grid !h-8 !w-8 !place-items-center !rounded !border !border-[var(--color-neutral-200)] !bg-white !p-0 !text-[var(--color-donation-icon)] hover:!text-[var(--color-donation-body)]"
     />
   ),
 })

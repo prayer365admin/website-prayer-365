@@ -12,7 +12,9 @@ import {
   DateRangeSchema,
   DonationLedgerStatusSchema,
   DonationListQuery,
+  DonationTypeSchema,
 } from '@/models/donation'
+import { GeneralError } from '@/utils/general-error'
 import { listAllDonations } from '@/controller/donation'
 
 /*
@@ -40,6 +42,7 @@ registerPath({
       { name: 'to', in: 'query' as const, schema: z.string() },
       { name: 'currency', in: 'query' as const, schema: z.string() },
       { name: 'status', in: 'query' as const, schema: DonationLedgerStatusSchema },
+      { name: 'type', in: 'query' as const, schema: DonationTypeSchema },
       { name: 'churchId', in: 'query' as const, schema: z.string() },
     ],
   },
@@ -73,6 +76,18 @@ export async function GET(req: NextRequest) {
     const status = parseDonationLedgerStatus(req.nextUrl.searchParams)
     const currency = req.nextUrl.searchParams.get('currency')
     const churchId = req.nextUrl.searchParams.get('churchId') ?? undefined
+    // An unknown `type` is a client bug: 400 instead of silently returning every gift.
+    const typeRaw = req.nextUrl.searchParams.get('type')
+    const parsedType = typeRaw ? DonationTypeSchema.safeParse(typeRaw) : null
+    if (parsedType && !parsedType.success) {
+      throw new GeneralError({
+        code: 400,
+        error: 'BAD_REQUEST',
+        error_code: 'INVALID_TYPE',
+        details: `'type' must be one of: ${DonationTypeSchema.options.join(', ')}.`,
+      })
+    }
+    const type = parsedType?.data
     const { result, total } = await listAllDonations({
       churchIds,
       query: {
@@ -85,6 +100,7 @@ export async function GET(req: NextRequest) {
         currency: currency ?? undefined,
         status,
         churchId,
+        type,
       },
     })
     const res = list(result, total, q.page, q.limit, 'Donations retrieved.')

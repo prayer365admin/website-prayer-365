@@ -1,4 +1,5 @@
 import { relativeTime } from '@/contents/user-management/user/columns'
+import { StatusPill } from '@/contents/churches/donations/status-pill'
 import { CustomerDataModel } from '@/hooks/data/customer'
 import { Avatar, Space, TableProps, Tag } from 'antd'
 
@@ -38,8 +39,10 @@ export const CustomerColumns = ({
               {initial}
             </Avatar>
             <div className="flex flex-col">
-              <span className="text-sm font-semibold text-[#0E203E]">{record.name}</span>
-              <span className="text-xs text-[#5C6370]">{record.email}</span>
+              <span className="text-sm font-semibold text-[var(--color-primary-900)]">
+                {record.name}
+              </span>
+              <span className="text-xs text-[var(--color-donation-body)]">{record.email}</span>
             </div>
           </Space>
         )
@@ -53,7 +56,7 @@ export const CustomerColumns = ({
       render: () => (
         <Tag
           className="rounded border-0 font-medium !text-[10px] !py-0.5 !px-1.5 !leading-[15px]"
-          style={{ backgroundColor: '#F5F7FF', color: '#2555A7' }}
+          style={{ backgroundColor: 'var(--color-primary-100)', color: 'var(--color-primary-650)' }}
         >
           Customer
         </Tag>
@@ -65,7 +68,7 @@ export const CustomerColumns = ({
       width: 160,
       minWidth: 150,
       render: (_text, record) => (
-        <span className="text-sm text-[#393E46]">
+        <span className="text-sm text-[var(--color-neutral-700)]">
           {record.last_login_provider === 'google'
             ? 'Google'
             : record.last_login_provider === 'password'
@@ -80,36 +83,14 @@ export const CustomerColumns = ({
       width: 160,
       minWidth: 150,
       render: (_text, record) => {
-        if (record.deleted_at) {
-          return (
-            <span className="inline-flex items-center gap-1.5 rounded-full border border-[#FAD3D3] bg-[#FEF2F2] px-2.5 py-1 text-xs font-semibold text-[#D83A3A]">
-              <span className="h-1.5 w-1.5 rounded-full bg-[#D83A3A]" />
-              Deleted
-            </span>
-          )
-        }
+        if (record.deleted_at) return <StatusPill label="Deleted" tone="danger" />
         if (record.status === 'deletion_pending') {
-          return (
-            <span className="inline-flex items-center gap-1.5 rounded-full border border-[#FFE58F] bg-[#FFFBE6] px-2.5 py-1 text-xs font-semibold text-[#AD6800]">
-              <span className="h-1.5 w-1.5 rounded-full bg-[#FAAD14]" />
-              Deletion pending
-            </span>
-          )
+          return <StatusPill label="Deletion pending" tone="warning" />
         }
-        const isVerified = Boolean(record.email_verified_at)
-        if (isVerified) {
-          return (
-            <span className="inline-flex items-center gap-1.5 rounded-full border border-[#D3FAEF] bg-[#EDFDF9] px-2.5 py-1 text-xs font-semibold text-[#09A97C]">
-              <span className="h-1.5 w-1.5 rounded-full bg-[#09A97C]" />
-              Verified
-            </span>
-          )
-        }
-        return (
-          <span className="inline-flex items-center gap-1.5 rounded-full border border-[#FBEEC6] bg-[#FEFCF6] px-2.5 py-1 text-xs font-semibold text-[#D8A50E]">
-            <span className="h-1.5 w-1.5 rounded-full bg-[#D8A50E]" />
-            Unverified
-          </span>
+        return record.email_verified_at ? (
+          <StatusPill label="Verified" tone="success" />
+        ) : (
+          <StatusPill label="Unverified" tone="neutral" />
         )
       },
     },
@@ -119,15 +100,16 @@ export const CustomerColumns = ({
       width: 280,
       minWidth: 260,
       render: (_text, record) => {
-        if (!record.deletion_requested_at) return <span className="text-sm text-[#5C6370]">—</span>
+        if (!record.deletion_requested_at)
+          return <span className="text-sm text-[var(--color-donation-body)]">—</span>
         const ends = record.deletion_grace_ends_at
         return (
           <div className="flex flex-col">
-            <span className="text-sm text-[#393E46]">
+            <span className="text-sm text-[var(--color-neutral-700)]">
               {formatDateTime(record.deletion_requested_at)}
             </span>
             {ends && !record.deleted_at && (
-              <span className="text-xs text-[#AD6800]">
+              <span className="text-xs text-[var(--color-donation-warning-strong)]">
                 {formatCountdown(ends)} on {formatDateTime(ends)}
               </span>
             )}
@@ -143,7 +125,7 @@ export const CustomerColumns = ({
       sorter: true,
       dataIndex: 'created_at',
       render: (text?: string) => (
-        <span className="text-sm text-[#5C6370]">
+        <span className="text-sm text-[var(--color-donation-body)]">
           {text ? new Date(text).toLocaleDateString() : '—'}
         </span>
       ),
@@ -154,7 +136,9 @@ export const CustomerColumns = ({
       width: 130,
       minWidth: 120,
       render: (_text, record) => (
-        <span className="text-sm text-[#5C6370]">{relativeTime(record.last_active_at)}</span>
+        <span className="text-sm text-[var(--color-donation-body)]">
+          {relativeTime(record.last_active_at)}
+        </span>
       ),
     },
   ]

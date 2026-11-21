@@ -16,10 +16,10 @@ import Image from 'next/image'
 // PNG; lg scales them with the card width, and below lg they are placed by percentage, at the bottom so no glow sits behind the text (contrast).
 // Painted bottom to top in this order; the gradients already fade out, so no blur filter.
 const CIRCLES = [
-  'bottom-[-60%] right-[-60%] size-[640px] bg-[radial-gradient(50%_50%_at_50%_50%,#77B4F2_0%,rgba(119,180,242,0)_100%)] lg:bottom-auto lg:left-[69%] lg:right-auto lg:top-[-96px] xl:left-[848px]',
-  'bottom-[-40px] left-1/2 -ml-[139px] size-[278px] opacity-60 bg-[radial-gradient(50%_50%_at_50%_50%,#FFFFFF_0%,rgba(255,255,255,0)_100%)] lg:bottom-auto lg:left-[86%] lg:top-[134px] lg:ml-0 xl:left-[986px]',
-  'hidden size-[91px] opacity-60 bg-[radial-gradient(50%_50%_at_50%_50%,rgba(255,255,255,0.5)_0%,rgba(255,255,255,0)_100%)] xl:left-[778px] xl:top-[153px] xl:block',
-  'bottom-[-60%] left-[-40%] size-[640px] bg-[radial-gradient(50%_50%_at_50%_50%,#125BD5_0%,rgba(18,91,213,0)_100%)] lg:bottom-auto lg:left-[-260px] lg:top-[-2px]',
+  'bottom-[-60%] right-[-60%] size-[640px] bg-[radial-gradient(50%_50%_at_50%_50%,var(--color-primary-300)_0%,transparent_100%)] lg:bottom-auto lg:left-[69%] lg:right-auto lg:top-[-96px] xl:left-[848px]',
+  'bottom-[-40px] left-1/2 -ml-[139px] size-[278px] opacity-60 bg-[radial-gradient(50%_50%_at_50%_50%,white_0%,transparent_100%)] lg:bottom-auto lg:left-[86%] lg:top-[134px] lg:ml-0 xl:left-[986px]',
+  'hidden size-[91px] opacity-60 bg-[radial-gradient(50%_50%_at_50%_50%,var(--color-donation-white-half)_0%,transparent_100%)] xl:left-[778px] xl:top-[153px] xl:block',
+  'bottom-[-60%] left-[-40%] size-[640px] bg-[radial-gradient(50%_50%_at_50%_50%,var(--color-donation-glow-deep)_0%,transparent_100%)] lg:bottom-auto lg:left-[-260px] lg:top-[-2px]',
 ]
 
 export default function WelcomeComingSoon() {
@@ -31,7 +31,7 @@ export default function WelcomeComingSoon() {
       className="my-16 md:my-24 px-6 max-w-[1280px] mx-auto overflow-visible"
       id="app-promo"
     >
-      <div className="relative flex flex-col rounded-3xl bg-primary-500 px-6 pt-8 text-white shadow-[0px_25px_50px_-12px_#10459B59] md:px-10 md:pt-10 lg:h-[352px] lg:flex-row lg:items-center lg:p-0 lg:pl-12 xl:pl-16">
+      <div className="relative flex flex-col rounded-3xl bg-primary-500 px-6 pt-8 text-white shadow-[0px_25px_50px_-12px_var(--color-donation-shadow)] md:px-10 md:pt-10 lg:h-[352px] lg:flex-row lg:items-center lg:p-0 lg:pl-12 xl:pl-16">
         {/* Clipped to the card; the phones below may still rise above it. */}
         <div
           aria-hidden

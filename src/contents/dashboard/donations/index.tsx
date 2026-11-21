@@ -7,6 +7,7 @@ import dayjs, { type Dayjs } from 'dayjs'
 import axios from 'axios'
 
 import LayoutIcon from '@/components/common/layout-icon'
+import { TabStrip } from '@/components/common/tab-strip'
 import { GivingIcon } from '@/components/icon/giving'
 import { EuroIcon } from '@/components/icon/euro'
 import { userMgmtTableTheme } from '@/config/antdTheme'
@@ -18,6 +19,7 @@ import {
   useAdminDonationSubscriptions,
   useAdminDonations,
 } from '@/hooks/data/donation'
+import { useDonationFilters } from '@/hooks/ui/donation-filters'
 import { useUrlPagination } from '@/hooks/ui/url-pagination'
 import {
   RecurringColumns,
@@ -49,13 +51,13 @@ const currencyName = (currency: string) =>
   CURRENCY_NAME[currency.toLowerCase()] ?? currency.toUpperCase()
 
 const countBadge = (currency: string, count: number) => (
-  <span className="rounded bg-[#EDFDF9] px-2 py-0.5 text-[10px] font-medium text-[#067958]">
+  <span className="rounded bg-[var(--color-donation-success-bg)] px-2 py-0.5 text-[10px] font-medium text-[var(--color-donation-success-strong)]">
     {currencyName(currency)} ({count})
   </span>
 )
 
 const filterSelectClass =
-  '!h-10 [&_.ant-select-selector]:!h-10 [&_.ant-select-selector]:!rounded-lg [&_.ant-select-selector]:!border-[#DDE0E4] [&_.ant-select-content]:!text-sm'
+  '!h-10 [&_.ant-select-selector]:!h-10 [&_.ant-select-selector]:!rounded-lg [&_.ant-select-selector]:!border-[var(--color-neutral-200)] [&_.ant-select-content]:!text-sm'
 
 /**
  * All-church donations (`/dashboard/donations`). Prayer Donations are gifts to
@@ -69,14 +71,18 @@ export default function ContentsDashboardDonations() {
   const canRead =
     permission.readAny('prayer_donation').granted || permission.readOwn('prayer_donation').granted
 
-  const [activeTab, setActiveTab] = useState<TabKey>('transactions')
-  const [selectedChurchId, setSelectedChurchId] = useState<string | undefined>()
-  const [type, setType] = useState<DonationType | undefined>()
-  const [currency, setCurrency] = useState<string | undefined>()
-  const [range, setRange] = useState<[Dayjs, Dayjs]>([
-    dayjs().startOf('month'),
-    dayjs().endOf('month'),
-  ])
+  // Filter state lives in the URL (T6): a shared or refreshed link keeps tab, church, type,
+  // currency and date range. `page` stays with useUrlPagination.
+  const { filters, setFilters } = useDonationFilters({
+    tab: 'transactions',
+    from: dayjs().startOf('month').format('YYYY-MM-DD'),
+    to: dayjs().endOf('month').format('YYYY-MM-DD'),
+  })
+  const activeTab = (filters.tab ?? 'transactions') as TabKey
+  const selectedChurchId = filters.churchId
+  const type = filters.type as DonationType | undefined
+  const currency = filters.currency
+  const range: [Dayjs, Dayjs] = [dayjs(filters.from), dayjs(filters.to)]
   const [detail, setDetail] = useState<DonationDetailPayload | null>(null)
   const { page, pageSize, setPage, setPageSize } = useUrlPagination()
 
@@ -101,6 +107,7 @@ export default function ContentsDashboardDonations() {
     from,
     to,
     currency,
+    type,
     churchId: effectiveChurchId,
     enableFetch: canRead,
   })
@@ -164,17 +171,21 @@ export default function ContentsDashboardDonations() {
     .sort()
     .map((c) => ({ value: c, label: currencyName(c) }))
 
-  const visibleRows = type ? rows.filter((r) => r.type === type) : rows
+  // Rows are already filtered by the server (`type` is part of the query), so the table and the
+  // pagination total describe the same set.
   const donationCount = currencies.reduce((sum, c) => sum + c.total.count, 0)
 
   const updateRange = (dates: [Dayjs | null, Dayjs | null] | null) => {
-    if (dates && dates[0] && dates[1]) setRange([dates[0], dates[1]])
-    setPage(1)
+    if (dates && dates[0] && dates[1]) {
+      setFilters({
+        from: dates[0].format('YYYY-MM-DD'),
+        to: dates[1].format('YYYY-MM-DD'),
+      })
+    }
   }
 
   const switchTab = (next: TabKey) => {
-    setActiveTab(next)
-    setPage(1)
+    setFilters({ tab: next })
   }
 
   return (
@@ -185,26 +196,29 @@ export default function ContentsDashboardDonations() {
       />
 
       <div className="shrink-0">
-        <h1 className="font-font_heading text-2xl font-semibold tracking-[-1px] text-[#0E203E]">
+        <h1 className="font-font_heading text-2xl font-semibold tracking-[-1px] text-[var(--color-primary-900)]">
           Donations
         </h1>
-        <p className="mt-1 text-sm text-[#5C6370]">
+        <p className="mt-1 text-sm text-[var(--color-donation-body)]">
           Review provider-confirmed transactions, recurring donations, and monthly totals.
         </p>
       </div>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <div className="relative rounded-2xl bg-white p-4 shadow-[0px_1px_2px_rgba(0,0,0,0.05)]">
+        <div className="relative rounded-2xl bg-white p-4 shadow-[0px_1px_2px_var(--color-donation-card-shadow)]">
           <span className="absolute right-4 top-4 text-primary-500">
             <GivingIcon className="text-[20px]" />
           </span>
-          <div className="pr-8 text-xs font-medium text-[#5C6370]">Confirmed donations amount</div>
+          <div className="pr-8 text-xs font-medium text-[var(--color-donation-body)]">
+            Confirmed donations amount
+          </div>
           <div className="mt-3 flex flex-col gap-2">
             {summaryLoading ? (
-              <div className="text-2xl text-[#5C6370]">Loading…</div>
+              <div className="text-2xl text-[var(--color-donation-body)]">Loading…</div>
             ) : currencies.length === 0 ? (
-              <div className="text-[32px] font-bold leading-none tracking-[-1px] text-[#131B2E]">
-                € 0<span className="text-xs font-normal text-[#5C6370]">.00</span>
+              <div className="text-[32px] font-bold leading-none tracking-[-1px] text-[var(--color-donation-ink)]">
+                € 0
+                <span className="text-xs font-normal text-[var(--color-donation-body)]">.00</span>
               </div>
             ) : (
               currencies.map((c) => {
@@ -213,10 +227,10 @@ export default function ContentsDashboardDonations() {
                   <div key={c.currency} className="flex items-center justify-between gap-2">
                     <div className="flex items-baseline gap-1">
                       <EuroIcon className="!text-[20px] !text-primary-500" />
-                      <span className="text-[32px] font-bold leading-none tracking-[-1px] text-[#131B2E]">
+                      <span className="text-[32px] font-bold leading-none tracking-[-1px] text-[var(--color-donation-ink)]">
                         {major}
                       </span>
-                      <span className="text-xs text-[#5C6370]">.{minor}</span>
+                      <span className="text-xs text-[var(--color-donation-body)]">.{minor}</span>
                     </div>
                     {countBadge(c.currency, c.total.count)}
                   </div>
@@ -226,13 +240,15 @@ export default function ContentsDashboardDonations() {
           </div>
         </div>
 
-        <div className="relative rounded-2xl bg-white p-4 shadow-[0px_1px_2px_rgba(0,0,0,0.05)]">
-          <span className="absolute right-4 top-4 text-[#77B4F2]">
+        <div className="relative rounded-2xl bg-white p-4 shadow-[0px_1px_2px_var(--color-donation-card-shadow)]">
+          <span className="absolute right-4 top-4 text-[var(--color-primary-300)]">
             <LayoutIcon name="calendar" size={20} />
           </span>
-          <div className="pr-8 text-xs font-medium text-[#5C6370]">Donation Count</div>
+          <div className="pr-8 text-xs font-medium text-[var(--color-donation-body)]">
+            Donation Count
+          </div>
           <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
-            <span className="text-[32px] font-bold leading-none tracking-[-1px] text-[#131B2E]">
+            <span className="text-[32px] font-bold leading-none tracking-[-1px] text-[var(--color-donation-ink)]">
               {summaryLoading ? '—' : donationCount.toLocaleString()}
             </span>
             <span className="flex flex-wrap justify-end gap-1">
@@ -246,8 +262,8 @@ export default function ContentsDashboardDonations() {
         </div>
       </div>
 
-      <div className="flex flex-col overflow-hidden rounded-2xl bg-white shadow-[0px_1px_2px_rgba(0,0,0,0.05)] lg:min-h-0 lg:flex-1">
-        <div className="flex shrink-0 flex-wrap items-center gap-3 border-b border-[#DDE0E4] px-6 py-4">
+      <div className="flex flex-col overflow-hidden rounded-2xl bg-white shadow-[0px_1px_2px_var(--color-donation-card-shadow)] lg:min-h-0 lg:flex-1">
+        <div className="flex shrink-0 flex-wrap items-center gap-3 border-b border-[var(--color-neutral-200)] px-6 py-4">
           <div className="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-primary-500 text-white">
             <GivingIcon className="text-[20px]" />
           </div>
@@ -259,8 +275,7 @@ export default function ContentsDashboardDonations() {
             disabled={prayerOnly}
             value={selectedChurchId}
             onChange={(value) => {
-              setSelectedChurchId(value)
-              setPage(1)
+              setFilters({ churchId: value })
             }}
             options={(churches ?? [])
               .filter((c) => c.isPlatform !== true)
@@ -272,8 +287,7 @@ export default function ContentsDashboardDonations() {
             placeholder="Filter by Type"
             value={type}
             onChange={(value) => {
-              setType(value as DonationType | undefined)
-              setPage(1)
+              setFilters({ type: (value as DonationType | undefined) ?? undefined })
             }}
             options={[
               { value: 'CHURCH', label: 'Church Donation' },
@@ -286,8 +300,7 @@ export default function ContentsDashboardDonations() {
             placeholder="All Currency"
             value={currency}
             onChange={(value) => {
-              setCurrency(value)
-              setPage(1)
+              setFilters({ currency: value })
             }}
             options={currencyOptions}
             className={`w-[140px] ${filterSelectClass}`}
@@ -300,21 +313,8 @@ export default function ContentsDashboardDonations() {
           />
         </div>
 
-        <div className="shrink-0 border-b border-[#DDE0E4] px-6 py-3">
-          <div className="flex w-fit gap-1 rounded-xl bg-[#E6EDFB] p-1">
-            {TABS.map((tab) => (
-              <button
-                key={tab.key}
-                type="button"
-                onClick={() => switchTab(tab.key)}
-                className={`rounded-lg px-3 py-1.5 text-xs font-medium ${
-                  activeTab === tab.key ? 'bg-white text-[#0E203E]' : 'text-[#2555A7]'
-                }`}
-              >
-                {tab.label}
-              </button>
-            ))}
-          </div>
+        <div className="shrink-0 border-b border-[var(--color-neutral-200)] px-6 py-3">
+          <TabStrip items={TABS} value={activeTab} onChange={switchTab} label="Donation views" />
         </div>
 
         <div className="flex min-w-0 flex-col px-6 py-4 lg:flex-1 [&_.ant-table-wrapper]:min-w-0 [&_.ant-table-wrapper]:flex-1 [&_.ant-table-wrapper]:flex [&_.ant-table-wrapper]:flex-col [&_.ant-spin]:min-w-0 [&_.ant-spin]:flex-1 [&_.ant-spin]:flex [&_.ant-spin]:flex-col [&_.ant-spin-nested-loading]:min-w-0 [&_.ant-spin-nested-loading]:flex-1 [&_.ant-spin-nested-loading]:flex [&_.ant-spin-nested-loading]:flex-col [&_.ant-spin-container]:min-w-0 [&_.ant-spin-container]:flex-1 [&_.ant-spin-container]:flex [&_.ant-spin-container]:flex-col [&_.ant-table-container]:min-w-0 [&_.ant-table-content]:min-w-0 [&_.ant-table-pagination]:!mt-auto">
@@ -327,7 +327,7 @@ export default function ContentsDashboardDonations() {
                 <Table
                   className={donationTableClass}
                   rowClassName={donationRowClassName}
-                  dataSource={visibleRows}
+                  dataSource={rows}
                   columns={AllDonationsColumns({
                     onOpen: (row) => setDetail({ kind: 'off', row }),
                     startIndex: (page - 1) * pageSize + 1,
@@ -409,7 +409,7 @@ export default function ContentsDashboardDonations() {
         </div>
       </div>
 
-      <div className="mt-2 text-sm text-gray-500">
+      <div className="mt-2 text-sm text-[var(--color-donation-body)]">
         Amounts are provider-confirmed and each currency is kept separate; refunds are managed in
         Stripe.
       </div>
@@ -423,10 +423,10 @@ function RestrictedNotice({ description }: { description: string }) {
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-4">
       <div>
-        <h1 className="font-font_heading text-2xl font-semibold tracking-[-1px] text-[#0E203E]">
+        <h1 className="font-font_heading text-2xl font-semibold tracking-[-1px] text-[var(--color-primary-900)]">
           Donations
         </h1>
-        <p className="mt-1 text-sm text-[#5C6370]">
+        <p className="mt-1 text-sm text-[var(--color-donation-body)]">
           Review provider-confirmed transactions, recurring donations, and monthly totals.
         </p>
       </div>
